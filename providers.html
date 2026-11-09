@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Apply to become an MZ Active pacer, coach or endurance provider. Create your provider profile and join the global network.">
+<meta name="theme-color" content="#080808"><title>Join as a Provider | MZ Active</title>
+<style>
+:root{--bg:#080a0a;--panel:#131817;--text:#f4f3ed;--muted:#a6ada7;--gold:#efb82f;--line:#303a34;--lime:#d8f27a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 Arial,sans-serif}a{color:inherit;text-decoration:none}.wrap{width:min(1100px,92%);margin:auto}header{position:sticky;top:0;background:#080a0aee;backdrop-filter:blur(12px);border-bottom:1px solid #252c28;z-index:4}.nav{height:70px;display:flex;justify-content:space-between;align-items:center}.brand{font-size:23px;font-weight:900;letter-spacing:2px}.brand span,.gold{color:var(--gold)}.eyebrow{color:var(--gold);font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase}.hero{padding:78px 0 62px;background:radial-gradient(ellipse at 80% 30%,#3b3018,#171a16 35%,#080a0a 72%);border-bottom:1px solid var(--line)}h1{font-size:clamp(42px,7vw,76px);line-height:.98;letter-spacing:-3px;margin:18px 0}.hero p{font-size:18px;color:#c3c9c2;max-width:660px}.layout{display:grid;grid-template-columns:1.1fr .9fr;gap:30px;padding:60px 0}.panel{background:var(--panel);border:1px solid var(--line);padding:26px}.panel h2{margin:0 0 5px}.muted{color:var(--muted)}.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:12px;color:#d3d8d1;font-weight:bold}.field input,.field select,.field textarea{width:100%;padding:12px;background:#0b100e;color:#fff;border:1px solid #3a443d;border-radius:0;font:inherit}.field textarea{min-height:90px}.checks{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:8px}.checks label{font-size:13px;color:#d0d5ce}.btn{display:inline-block;background:var(--gold);color:#11140f;font-weight:900;padding:14px 19px;border:0;cursor:pointer}.btn.secondary{background:transparent;border:1px solid #687269;color:#fff}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}.fine{font-size:11px;color:#929b93}.preview{position:sticky;top:95px;height:max-content}.profile{background:linear-gradient(145deg,#202923,#101513);border:1px solid #536044;padding:24px;margin-top:18px}.avatar{width:62px;height:62px;border-radius:50%;background:#353d2c;display:grid;place-items:center;color:var(--lime);font-size:25px;font-weight:bold}.pill{display:inline-block;border:1px solid #66704e;color:var(--lime);padding:4px 9px;font-size:11px;margin:4px 4px 0 0}.profile h3{font-size:24px;margin:12px 0 0}.placeholder{color:#7f8980}.how{padding:26px 0;border-top:1px solid var(--line)}footer{padding:24px 0;border-top:1px solid var(--line);color:#89928b;font-size:12px}
+@media(max-width:780px){.layout{grid-template-columns:1fr}.preview{position:static}.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.checks{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><div class="wrap nav"><a class="brand" href="https://mzactive.github.io/mzactive-site/">MZ<span>ACTIVE</span></a><a href="https://mzactive.github.io/mzactive-site/pacer.html">← Booking marketplace</a></div></header>
+<section class="hero"><div class="wrap"><div class="eyebrow">For pacers · Coaches · Specialists</div><h1>YOUR EXPERIENCE.<br><span class="gold">SOMEONE’S NEXT PB.</span></h1><p>Join the MZ Active global provider network. Tell athletes what you offer, where you work and how you can help them perform.</p></div></section>
+<main class="wrap layout">
+<section class="panel"><h2>Provider application</h2><p class="muted">Create your profile preview and send your application to the MZ Active team.</p>
+<form id="providerForm">
+<div class="fields">
+<div class="field"><label for="name">Full name *</label><input id="name" required placeholder="Your name"></div>
+<div class="field"><label for="email">Email *</label><input id="email" type="email" required placeholder="you@example.com"></div>
+<div class="field"><label for="country">Country *</label><input id="country" required placeholder="Country"></div>
+<div class="field"><label for="city">City / service area *</label><input id="city" required placeholder="City"></div>
+<div class="field"><label for="role">Provider type *</label><select id="role" required><option value="">Choose one</option><option>Race pacer</option><option>Training pacer / running partner</option><option>Running coach</option><option>Cycling coach / partner</option><option>Swimming coach / partner</option><option>Strength & conditioning coach</option><option>Training camp organiser</option><option>Event organiser</option></select></div>
+<div class="field"><label for="experience">Years of experience *</label><input id="experience" required type="number" min="0" max="60" placeholder="e.g. 5"></div>
+<div class="field"><label for="languages">Languages</label><input id="languages" placeholder="English, Arabic, French..."></div>
+<div class="field"><label for="whatsapp">WhatsApp number *</label><input id="whatsapp" required type="tel" placeholder="Include country code"></div>
+<div class="field full"><label>Distances / services you support</label><div class="checks">
+<label><input type="checkbox" name="distance" value="5K"> 5K</label><label><input type="checkbox" name="distance" value="10K"> 10K</label><label><input type="checkbox" name="distance" value="Half marathon"> Half marathon</label><label><input type="checkbox" name="distance" value="Marathon"> Marathon</label><label><input type="checkbox" name="distance" value="Ultra"> Ultra</label><label><input type="checkbox" name="distance" value="General training"> General training</label><label><input type="checkbox" name="distance" value="Cycling"> Cycling</label><label><input type="checkbox" name="distance" value="Swimming"> Swimming</label>
+</div></div>
+<div class="field full"><label for="bio">Short professional bio / credentials *</label><textarea id="bio" required placeholder="Your experience, personal bests, coaching qualifications, specialties..."></textarea></div>
+<div class="field full"><label for="availability">Availability and indicative rate (optional)</label><textarea id="availability" placeholder="Days/times, online or in-person, approximate fee and currency..."></textarea></div>
+</div>
+<div class="actions"><button class="btn" type="submit">SEND PROVIDER APPLICATION ↗</button><button class="btn secondary" type="button" id="previewBtn">UPDATE PROFILE PREVIEW</button></div>
+<p class="fine">Your application opens WhatsApp with the details ready to send. Do not include sensitive documents or payment information. Profiles are reviewed before publication.</p>
+</form></section>
+<aside class="preview"><div class="eyebrow">Live preview · Draft only</div><div class="profile"><div class="avatar" id="avatar">MZ</div><h3 id="pName">Your name</h3><div class="muted" id="pRole">Provider type · City, Country</div><p id="pBio" class="placeholder">Your professional bio will appear here as you complete the form.</p><div id="pTags"><span class="pill">Awaiting specialties</span></div><p class="fine">Application status: <strong style="color:var(--gold)">Not submitted</strong></p></div>
+<div class="how"><strong>How provider onboarding works</strong><p class="muted">1. Submit your details. 2. MZ Active reviews your experience and service. 3. We agree on profile details, availability, rates and commission. 4. Approved profiles can be published when the provider directory is activated.</p></div>
+<p class="fine">This is an early free MVP. This page creates a local preview and sends an application; it does not yet create an account, store applications in a central database or publish a live searchable provider listing.</p>
+</aside>
+</main>
+<footer><div class="wrap">© 2026 MZ Active · Train Smart. Perform Strong.</div></footer>
+<script>
+const ids=['name','email','country','city','role','experience','languages','whatsapp','bio','availability'];
+function val(id){return document.getElementById(id).value.trim()}
+function selected(){return [...document.querySelectorAll('input[name="distance"]:checked')].map(x=>x.value)}
+function updatePreview(){const name=val('name')||'Your name';document.getElementById('avatar').textContent=name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();document.getElementById('pName').textContent=name;document.getElementById('pRole').textContent=(val('role')||'Provider type')+' · '+([val('city'),val('country')].filter(Boolean).join(', ')||'Your location');const bio=val('bio');const b=document.getElementById('pBio');b.textContent=bio||'Your professional bio will appear here as you complete the form.';b.classList.toggle('placeholder',!bio);const tags=selected();document.getElementById('pTags').innerHTML=tags.length?tags.map(t=>'<span class="pill">'+t.replace(/[&<>"]/g,'')+'</span>').join(''):'<span class="pill">Awaiting specialties</span>'}
+document.getElementById('previewBtn').addEventListener('click',updatePreview);
+ids.forEach(id=>document.getElementById(id).addEventListener('input',updatePreview));
+document.querySelectorAll('input[name="distance"]').forEach(x=>x.addEventListener('change',updatePreview));
+document.getElementById('providerForm').addEventListener('submit',e=>{e.preventDefault();if(!e.currentTarget.reportValidity())return;updatePreview();const labels={name:'Name',email:'Email',country:'Country',city:'City',role:'Provider type',experience:'Years of experience',languages:'Languages',whatsapp:'WhatsApp',bio:'Bio and credentials',availability:'Availability / indicative rate'};const lines=ids.map(id=>labels[id]+': '+(val(id)||'Not specified'));lines.push('Distances / services: '+(selected().join(', ')||'Not specified'));const message='Hi MZ Active, I would like to apply as a provider.\n\n'+lines.join('\n');window.open('https://wa.me/97466297954?text='+encodeURIComponent(message),'_blank','noopener,noreferrer')});
+updatePreview();
+</script>
+</body></html>
