@@ -99,7 +99,7 @@ async function register(request, env) {
   const body = await readJson(request);
   const email = emailValue(body?.email), password = text(body?.password, 128);
   const type = body?.provider_type === "pacer" ? "pacer" : body?.provider_type === "coach" ? "coach" : "";
-  const displayName = text(body?.display_name, 100), city = text(body?.city, 80), bio = text(body?.bio, 1200);
+  const displayName = text(body?.display_name, 100), city = text(body?.city, 80), bio = text(body?.bio, 4000);
   const adminEmails = (env.ADMIN_EMAILS || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   const isAdminEmail = adminEmails.includes(email);
   if (!body || !email || password.length < 12 || body.consent !== true || (!isAdminEmail && (!type || !displayName || !city || !bio))) {
@@ -171,7 +171,7 @@ async function saveProfile(request, env, user) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
   const body = await readJson(request);
   const type = body?.provider_type === "pacer" ? "pacer" : body?.provider_type === "coach" ? "coach" : "";
-  const name = text(body?.display_name,100), city = text(body?.city,80), bio = text(body?.bio,1200);
+  const name = text(body?.display_name,100), city = text(body?.city,80), bio = text(body?.bio,4000);
   if (!body || !type || !name || !city || !bio) return reply(request, env, { error: "invalid_profile" }, 400);
   const now = new Date().toISOString();
   await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=?,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
@@ -183,17 +183,20 @@ async function createBooking(request, env) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
   if (!await rateLimit(request, env, "booking", 5)) return reply(request, env, { error: "rate_limited" }, 429);
   const body = await readJson(request), email = emailValue(body?.customer_email);
-  const name = text(body?.customer_name,100), city = text(body?.city,80), goal = text(body?.goal_summary,1000);
-  if (!body || !email || !name || !city || !goal || body.consent !== true) return reply(request, env, { error: "invalid_booking_request" }, 400);
+  const name = text(body?.customer_name,100), phone = text(body?.customer_phone,40), city = text(body?.city,80), goal = text(body?.goal_summary,1000);
+  const sessionType = ["race","training"].includes(body?.session_type) ? body.session_type : "";
+  const distance = text(body?.distance,60), targetPace = text(body?.target_pace,40);
+  if (!body || !/^\+?[\d\s()-]{7,40}$/.test(phone) || !name || !city || !goal || !sessionType || body.consent !== true) return reply(request, env, { error: "invalid_booking_request" }, 400);
   let providerId = text(body.provider_id,36) || null;
   if (providerId) {
-    const provider = await env.DB.prepare("SELECT id FROM provider_profiles WHERE id=? AND status='approved'").bind(providerId).first();
+    const provider = await env.DB.prepare("SELECT id,display_name FROM provider_profiles WHERE id=? AND status='approved'").bind(providerId).first();
     if (!provider) return reply(request, env, { error: "provider_unavailable" }, 404);
+    body.provider_name = provider.display_name;
   }
   const id = randomId();
-  await env.DB.prepare(`INSERT INTO booking_requests(id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,consent_at,status,created_at)
-    VALUES(?,?,?,?,?,?,?,?,?,'received',?)`).bind(id,providerId,name,email,text(body.customer_phone,40)||null,city,text(body.preferred_date,10)||null,goal,new Date().toISOString(),new Date().toISOString()).run();
-  return reply(request, env, { request_id: id, status: "received_pending_review" }, 201);
+  await env.DB.prepare(`INSERT INTO booking_requests(id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,consent_at,status,created_at,payment_status,session_type,distance,target_pace)
+    VALUES(?,?,?,?,?,?,?,?,?,'received',?,'pending_payment',?,?,?)`).bind(id,providerId,name,email||null,phone,city,text(body.preferred_date,10)||null,goal,new Date().toISOString(),new Date().toISOString(),sessionType,distance,targetPace).run();
+  return reply(request, env, { request_id: id, status: "received_pending_payment", provider_name: body.provider_name || "MZ Active Champion Pacer" }, 201);
 }
 
 async function adminApplications(request, env, user) {
@@ -201,8 +204,8 @@ async function adminApplications(request, env, user) {
   if (request.method === "GET") {
     const providers = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,p.status,p.review_note,p.updated_at,u.email
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all();
-    const bookings = await env.DB.prepare(`SELECT id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,created_at
-      FROM booking_requests WHERE status IN ('received','reviewing') ORDER BY created_at LIMIT 100`).all();
+    const bookings = await env.DB.prepare(`SELECT id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,distance,target_pace,created_at
+      FROM booking_requests WHERE status IN ('received','reviewing') OR payment_status='pending_payment' ORDER BY created_at LIMIT 100`).all();
     return reply(request, env, { providers: providers.results || [], bookings: bookings.results || [] });
   }
   const match = /^\/api\/admin\/providers\/([\w-]{36})$/.exec(new URL(request.url).pathname);
@@ -220,15 +223,18 @@ async function adminApplications(request, env, user) {
   }
   const bookingMatch = /^\/api\/admin\/bookings\/([\w-]{36})$/.exec(new URL(request.url).pathname);
   if (bookingMatch && request.method === "PATCH") {
-    const body = await readJson(request), status = body?.status;
-    if (!body || !["reviewing","accepted","declined","cancelled"].includes(status)) return reply(request, env, { error: "invalid_booking_status" }, 400);
-    const previous = await env.DB.prepare("SELECT status FROM booking_requests WHERE id=?").bind(bookingMatch[1]).first();
+    const body = await readJson(request), status = body?.status, paymentStatus = body?.payment_status;
+    if (!body || (!(["reviewing","accepted","declined","cancelled"].includes(status)) && !("payment_status" in body && ["pending_payment","confirmed","cancelled"].includes(paymentStatus)))) return reply(request, env, { error: "invalid_booking_status" }, 400);
+    const previous = await env.DB.prepare("SELECT status,payment_status FROM booking_requests WHERE id=?").bind(bookingMatch[1]).first();
     if (!previous) return reply(request, env, { updated: false }, 404);
-    const result = await env.DB.prepare("UPDATE booking_requests SET status=? WHERE id=?").bind(status,bookingMatch[1]).run();
+    const result = status && ["reviewing","accepted","declined","cancelled"].includes(status)
+      ? await env.DB.prepare("UPDATE booking_requests SET status=? WHERE id=?").bind(status,bookingMatch[1]).run()
+      : await env.DB.prepare("UPDATE booking_requests SET payment_status=? WHERE id=?").bind(paymentStatus,bookingMatch[1]).run();
     const updated = Boolean(result.meta?.changes);
+    const from = status ? previous.status : previous.payment_status, to = status || paymentStatus;
     if (updated) await env.DB.prepare(`INSERT INTO moderation_events(id,actor_user_id,entity_type,entity_id,from_status,to_status,created_at) VALUES(?,?,'booking_request',?,?,?,?)`)
-      .bind(randomId(),user.id,bookingMatch[1],previous.status,status,new Date().toISOString()).run();
-    return reply(request, env, { updated, status });
+      .bind(randomId(),user.id,bookingMatch[1],from,to,new Date().toISOString()).run();
+    return reply(request, env, { updated, status: status || previous.status, payment_status: paymentStatus || previous.payment_status });
   }
   return reply(request, env, { error: "not_found" }, 404);
 }

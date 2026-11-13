@@ -30,14 +30,15 @@ Providers can create a Coach or Pacer account, edit its profile, and check moder
 
 - The public pages remain static HTML on GitHub Pages; the custom domain remains in `CNAME`.
 - Directory search fetches only Admin-approved profiles from the API.
-- Provider applications, profile edits and booking requests use the API when intake is enabled.
-- Booking requests do not collect payment and are not confirmed bookings.
-- A separate Cloudflare Worker API and empty D1 database now support provider accounts, profile editing, Admin approval, approved-profile search, and unpaid booking-request records. The API currently serves `https://mzactive-marketplace-api.mzactive5.workers.dev`.
-- API data intake is disabled. Registration, profile edits, and API booking submissions respond with `503 intake_paused` and write no data. Do not enable collection until the public privacy notice and retention/deletion process are ready.
-- The empty D1 primary is in APAC with read replication disabled; it is not Qatar-local.
-- The public directory, provider portal, Admin queue and booking form are connected to the API. The live API currently returns no profiles.
-- `DATA_COLLECTION_ENABLED` is intentionally `false`. The booking form and registration are disabled and the API rejects intake. Do not enable it until Qatar privacy review, data retention/deletion periods, and cross-border processing disclosures are approved and added to `privacy.html`.
-- Admin account creation requires setting `ADMIN_EMAILS` and `ADMIN_SETUP_KEY` as Worker secrets/vars, then registering that email through the provider portal with the setup key header. Do not put the setup key in the website.
+- Provider applications, profile edits and booking requests use the MZ Active Worker/D1 API. Marketplace sign-in is separate from the legacy GoDaddy coaching pages.
+- Booking requests are stored as pending manual Fawran payment. A successful save opens a pre-filled WhatsApp handoff to +97466297954; the website has no payment gateway, and a request remains unconfirmed until availability and payment are checked.
+- The separate Cloudflare Worker API and D1 database support provider accounts, Admin approval, approved-profile search, and manual-payment booking requests. The API is `https://mzactive-marketplace-api.mzactive5.workers.dev`.
+- Booking requests are stored as `pending_payment`. After a successful save, the site opens a pre-filled WhatsApp handoff to +97466297954 for manual Fawran coordination. There is no payment gateway; requests remain unconfirmed until availability and payment are checked.
+- The D1 primary is in APAC with read replication disabled; it is not Qatar-local. Booking handoff details also pass to WhatsApp/Meta after a successful API save. The site privacy notice describes the handoff and retention periods.
+- The public directory, provider portal, Admin queue and booking form are connected to the API. Public profile search returns only Admin-approved profiles; the roster starts empty.
+- The Worker intake gate is enabled for release. Keep the D1 database limited to marketplace data and turn off `DATA_COLLECTION_ENABLED` if collection needs to pause.
+- Admin bootstrap uses the allowlisted email and one-time secret configured on the Worker; complete it at `admin.html`, then rotate/remove the setup secret. Never put it in website source.
+- High-resolution athlete photo upload is not active yet because dedicated secure image storage has not been configured. The application form states this clearly.
 - There is no booking calendar, marketplace checkout, or commission payout system.
 - Do not publish unverified provider profiles or imply that a request is a confirmed booking.
 
@@ -49,6 +50,7 @@ The repository is configured for GitHub Pages and includes the custom domain in 
 
 - `assets/brand/mzactive-logo.webp` — website logo supplied for the site header.
 - `assets/images/mzactive-runners.jpg` — supplied running photo used on the homepage hero.
+- `assets/images/qatar-finish-line.jpg` — supplied Qatar finish-line photo used on the Champion Pacer page.
 
 ## Local checks
 
