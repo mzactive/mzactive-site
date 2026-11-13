@@ -29,11 +29,15 @@ Applications are collected for manual review. Submitting an application does not
 
 ## Current functional boundaries
 
-- Navigation and page links are static HTML.
+- The public pages remain static HTML on GitHub Pages; the custom domain remains in `CNAME`.
 - Pacer/service requests are sent through WhatsApp for manual follow-up.
 - Provider applications are collected by Jotform for review.
 - Coach directory cards are demonstrations, not verified live listings.
-- There is not yet a provider login, live searchable database, automated matching, booking calendar, marketplace checkout, or commission payout system.
+- A separate Cloudflare Worker API and empty D1 database now support provider accounts, profile editing, Admin approval, approved-profile search, and unpaid booking-request records. The API currently serves `https://mzactive-marketplace-api.mzactive5.workers.dev`.
+- API data intake is disabled. Registration, profile edits, and API booking submissions respond with `503 intake_paused` and write no data. Do not enable collection until the public privacy notice and retention/deletion process are ready.
+- The empty D1 primary is in APAC with read replication disabled; it is not Qatar-local.
+- The current public pages are not connected to the API yet. Existing demo cards remain clearly labeled; the API returns only approved profiles (currently none).
+- There is no booking calendar, marketplace checkout, or commission payout system.
 - Do not publish unverified provider profiles or imply that a request is a confirmed booking.
 
 ## Deployment
@@ -44,3 +48,7 @@ The repository is configured for GitHub Pages and includes the custom domain in 
 
 - `assets/brand/mzactive-logo.webp` — website logo supplied for the site header.
 - `assets/images/mzactive-runners.jpg` — supplied running photo used on the homepage hero.
+
+## Marketplace references
+
+The simplified visitor flow takes cues from [Enhance Fitness](https://enhancefitness.com/en) (clear value statement and short steps) and [Hire A Pacer](https://hireapacer.com) (separate runner and pacer paths, reviewed profiles, and indicative rates). MZ Active does not copy their content or claim their reviews, vetting, payments, or marketplace scale.

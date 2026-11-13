@@ -1,6 +1,6 @@
 # MZActive — Booking & Provider Intake MVP Design (Draft)
 
-Status: design only; no backend deployed. Related: #2.
+Status: Worker API implemented and deployed separately; D1 schema applied; intake disabled; public site is not yet connected. No customer or provider records have been added. Related: #2.
 
 ## Goals
 - Preserve current public static site and WhatsApp handoff while building a reliable request intake.
@@ -8,8 +8,8 @@ Status: design only; no backend deployed. Related: #2.
 - Keep coach applications separate from athlete booking requests.
 - Avoid collecting health records, identity documents, payment cards, or sensitive training details in the initial MVP.
 
-## Suggested stack (decision pending)
-Cloudflare Worker API + D1 for MVP, subject to confirming hosting, ownership, privacy requirements and expected volume. Use migrations in version control. Keep service credentials in environment secrets, never client HTML or Git.
+## Current stack
+Cloudflare Worker API + a dedicated D1 database, separate from the GitHub Pages site. The Worker is on `workers.dev`; `mzactive.com` DNS and the existing GitHub Pages setup are unchanged. The D1 primary location is APAC with read replication disabled. No data is being collected until privacy and retention requirements are ready. Keep service credentials in environment secrets, never client HTML or Git.
 
 ## Proposed entities
 
