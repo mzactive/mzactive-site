@@ -35,7 +35,7 @@ test("password hashes use a random salt and verify only the matching secret", as
   const first = await hashPassword("a sufficiently long password");
   const second = await hashPassword("a sufficiently long password");
   assert.notEqual(first, second);
-  assert.match(first, /^pbkdf2-sha256\$600000\$/);
+  assert.match(first, /^pbkdf2-sha256\$100000\$/);
   assert.equal(await verifyPassword("a sufficiently long password", first), true);
   assert.equal(await verifyPassword("incorrect password", first), false);
 });

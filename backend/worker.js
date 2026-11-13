@@ -1,5 +1,6 @@
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
-const PASSWORD_ITERATIONS = 600_000;
+// Cloudflare Workers Web Crypto caps PBKDF2 at 100,000 iterations.
+const PASSWORD_ITERATIONS = 100_000;
 const MAX_BODY_BYTES = 16_384;
 
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
@@ -38,7 +39,7 @@ const emailValue = (value) => {
 };
 const randomId = () => crypto.randomUUID();
 const b64 = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
-const fromB64 = (value) => Uint8Array.from(atob(value.replaceAll("-", "+").replaceAll("_", "/")), (c) => c.charCodeAt(0));
+const fromB64 = (value) => { const normalized = value.replaceAll("-", "+").replaceAll("_", "/"); return Uint8Array.from(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")), (c) => c.charCodeAt(0)); };
 
 async function sha256(value) {
   return b64(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
