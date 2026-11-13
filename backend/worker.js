@@ -100,9 +100,11 @@ async function register(request, env) {
   const email = emailValue(body?.email), password = text(body?.password, 128);
   const type = body?.provider_type === "pacer" ? "pacer" : body?.provider_type === "coach" ? "coach" : "";
   const displayName = text(body?.display_name, 100), city = text(body?.city, 80), bio = text(body?.bio, 4000);
+  const whatsappInput = text(body?.whatsapp_number, 32), whatsapp = normalizeWhatsApp(whatsappInput), whatsappPublic = body?.whatsapp_public === true;
+  const whatsappConsentValid = whatsapp !== null && (!!whatsapp === whatsappPublic);
   const adminEmails = (env.ADMIN_EMAILS || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   const isAdminEmail = adminEmails.includes(email);
-  if (!body || !email || password.length < 12 || body.consent !== true || (!isAdminEmail && (!type || !displayName || !city || !bio))) {
+  if (!body || !email || password.length < 12 || body.consent !== true || (!isAdminEmail && (!type || !displayName || !city || !bio || !whatsappConsentValid))) {
     return reply(request, env, { error: "invalid_registration" }, 400);
   }
   if (isAdminEmail && (!env.ADMIN_SETUP_KEY || !(await safeEqual(request.headers.get("x-admin-setup-key") || "", env.ADMIN_SETUP_KEY)))) {
@@ -115,8 +117,8 @@ async function register(request, env) {
     await env.DB.batch([
       env.DB.prepare("INSERT INTO users(id,email,password_hash,role,created_at) VALUES(?,?,?,?,?)")
         .bind(userId, email, passwordHash, isAdminEmail ? "admin" : "provider", now),
-      ...(!isAdminEmail ? [env.DB.prepare(`INSERT INTO provider_profiles(id,user_id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,status,updated_at,created_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(profileId,userId,type,displayName,text(body.country,80)||"Qatar",city,JSON.stringify(specialties),JSON.stringify(languages),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),"pending",now,now)] : []),
+      ...(!isAdminEmail ? [env.DB.prepare(`INSERT INTO provider_profiles(id,user_id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,whatsapp_number,whatsapp_public,status,updated_at,created_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(profileId,userId,type,displayName,text(body.country,80)||"Qatar",city,JSON.stringify(specialties),JSON.stringify(languages),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),whatsappPublic?whatsapp:null,whatsappPublic?1:0,"pending",now,now)] : []),
     ]);
   } catch {
     return reply(request, env, { error: "account_already_exists_or_storage_error" }, 409);
@@ -158,12 +160,18 @@ async function login(request, env) {
 async function publicProviders(url, request, env) {
   const type = url.searchParams.get("type") || "", city = text(url.searchParams.get("city") || "",80);
   const query = text(url.searchParams.get("q") || "",80);
-  const rows = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar
+  const rows = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS whatsapp_number
     FROM provider_profiles WHERE status='approved' AND (?='' OR provider_type=?) AND (?='' OR city LIKE ?)
     AND (?='' OR display_name LIKE ? OR bio LIKE ? OR specialties_json LIKE ?) ORDER BY display_name LIMIT 50`)
     .bind(type,type,city,`%${city}%`,query,`%${query}%`,`%${query}%`,`%${query}%`).all();
   const providers = (rows.results || []).map((row) => ({ ...row, specialties: safeParse(row.specialties_json), languages: safeParse(row.languages_json), specialties_json: undefined, languages_json: undefined }));
   return reply(request, env, { providers });
+}
+function normalizeWhatsApp(value) {
+  const raw = text(value, 32).replace(/[\s().-]/g, "");
+  if (!raw) return "";
+  if (!/^\+[1-9]\d{7,14}$/.test(raw)) return null;
+  return raw.slice(1);
 }
 function safeParse(value) { try { return JSON.parse(value); } catch { return []; } }
 
@@ -172,10 +180,12 @@ async function saveProfile(request, env, user) {
   const body = await readJson(request);
   const type = body?.provider_type === "pacer" ? "pacer" : body?.provider_type === "coach" ? "coach" : "";
   const name = text(body?.display_name,100), city = text(body?.city,80), bio = text(body?.bio,4000);
-  if (!body || !type || !name || !city || !bio) return reply(request, env, { error: "invalid_profile" }, 400);
+  const whatsappInput = text(body?.whatsapp_number,32), whatsapp = normalizeWhatsApp(whatsappInput), whatsappPublic = body?.whatsapp_public === true;
+  const whatsappConsentValid = whatsapp !== null && (!!whatsapp === whatsappPublic);
+  if (!body || !type || !name || !city || !bio || !whatsappConsentValid) return reply(request, env, { error: "invalid_profile" }, 400);
   const now = new Date().toISOString();
-  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=?,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
-    .bind(type,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),now,user.id).run();
+  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=?,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,whatsapp_number=?,whatsapp_public=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
+    .bind(type,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),whatsappPublic?whatsapp:null,whatsappPublic?1:0,now,user.id).run();
   return reply(request, env, { status: "pending_review" });
 }
 
@@ -202,7 +212,7 @@ async function createBooking(request, env) {
 async function adminApplications(request, env, user) {
   if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
   if (request.method === "GET") {
-    const providers = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,p.status,p.review_note,p.updated_at,u.email
+    const providers = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,p.whatsapp_number,p.whatsapp_public,p.status,p.review_note,p.updated_at,u.email
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all();
     const bookings = await env.DB.prepare(`SELECT id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,distance,target_pace,created_at
       FROM booking_requests WHERE status IN ('received','reviewing') OR payment_status='pending_payment' ORDER BY created_at LIMIT 100`).all();
@@ -262,7 +272,7 @@ export default {
       if (!user) return reply(request, env, { error: "unauthorized" }, 401);
       if (user.role === "admin") return reply(request, env, { user: { email:user.email, role:user.role } });
       if (request.method === "PUT") return saveProfile(request, env, user);
-      const profile = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,status,review_note,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
+      const profile = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,whatsapp_number,whatsapp_public,status,review_note,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
       return reply(request, env, { profile: profile ? { ...profile, specialties:safeParse(profile.specialties_json), languages:safeParse(profile.languages_json) } : null });
     }
     if (request.method === "POST" && url.pathname === "/api/bookings") return createBooking(request, env);
@@ -275,4 +285,4 @@ export default {
   },
 };
 
-export { hashPassword, verifyPassword, emailValue, readJson, cleanList, clampInt, clampNullableInt };
+export { hashPassword, verifyPassword, emailValue, readJson, cleanList, clampInt, clampNullableInt, normalizeWhatsApp };

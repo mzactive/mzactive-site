@@ -1,11 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker, { cleanList, clampInt, clampNullableInt, emailValue, hashPassword, readJson, verifyPassword } from "./worker.js";
+import worker, { cleanList, clampInt, clampNullableInt, emailValue, hashPassword, normalizeWhatsApp, readJson, verifyPassword } from "./worker.js";
 
 test("normalizes valid email and rejects malformed or unbounded values", () => {
   assert.equal(emailValue("  Runner@Example.com "), "runner@example.com");
   assert.equal(emailValue("not-an-email"), "");
   assert.equal(emailValue("x".repeat(300) + "@example.com"), "");
+});
+
+test("validates explicitly international WhatsApp numbers", () => {
+  assert.equal(normalizeWhatsApp("+974 6629 7954"), "97466297954");
+  assert.equal(normalizeWhatsApp("+1 (202) 555-0101"), "12025550101");
+  assert.equal(normalizeWhatsApp("66297954"), null);
+  assert.equal(normalizeWhatsApp(""), "");
 });
 
 test("bounds profile list and numeric fields", () => {
