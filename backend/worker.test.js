@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker, { cleanList, clampInt, clampNullableInt, emailValue, hashPassword, normalizeWhatsApp, cleanSocialLinks, readJson, verifyPassword } from "./worker.js";
+import worker, { cleanList, clampInt, clampNullableInt, cleanProfilePhotoUrl, emailValue, hashPassword, normalizeWhatsApp, cleanSocialLinks, readJson, verifyPassword } from "./worker.js";
 
 test("normalizes valid email and rejects malformed or unbounded values", () => {
   assert.equal(emailValue("  Runner@Example.com "), "runner@example.com");
@@ -21,6 +21,13 @@ test("accepts only safe HTTPS social profile links and caps the list", () => {
   assert.equal(cleanSocialLinks(["javascript:alert(1)"]), null);
   assert.equal(cleanSocialLinks(["http://example.com"]), null);
   assert.equal(cleanSocialLinks(["https://example.com", "https://two.example", "https://three.example", "https://four.example", "https://five.example", "https://six.example"]), null);
+});
+
+test("accepts a public HTTPS profile photo link but rejects unsafe links", () => {
+  assert.equal(cleanProfilePhotoUrl("https://images.example.com/coach.jpg"), "https://images.example.com/coach.jpg");
+  assert.equal(cleanProfilePhotoUrl(""), "");
+  assert.equal(cleanProfilePhotoUrl("http://images.example.com/coach.jpg"), null);
+  assert.equal(cleanProfilePhotoUrl("javascript:alert(1)"), null);
 });
 
 test("bounds profile list and numeric fields", () => {
