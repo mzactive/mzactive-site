@@ -1,7 +1,7 @@
 (() => {
   const common = {
     'Coaching · التدريب':'التدريب','Find Your Coach · اعثر على مدربك':'اعثر على مدربك','Events & Team · الفعاليات والفريق':'الفعاليات والفريق','Join Us · انضم إلينا':'انضم إلينا','My Profile · ملفي':'ملفي',
-    'Coaching':'التدريب','Find Your Coach':'اعثر على مدربك','Events & Team':'الفعاليات والفريق','Join Us':'انضم إلينا','My Profile':'ملفي',
+    'Coaching':'التدريب','Find Your Coach':'اعثر على مدربك','Events & Team':'الفعاليات والفريق','Join Us':'انضم إلينا','My Profile':'ملفي','Admin Portal':'بوابة الإدارة',
     'Want to sponsor MZ Active or support an athlete, event or new idea?':'هل ترغب في رعاية MZ Active أو دعم رياضي أو فعالية أو فكرة جديدة؟',
     'Want to sponsor MZ Active or support an athlete, event or idea?':'هل ترغب في رعاية MZ Active أو دعم رياضي أو فعالية أو فكرة جديدة؟',
     'Discuss sponsorship or support ↗':'ناقش فرص الرعاية أو الدعم ↗','WhatsApp us ↗':'تواصل معنا عبر واتساب ↗','Contact':'اتصل بنا','Main website':'الموقع الرئيسي','Main website ↗':'الموقع الرئيسي ↗',
