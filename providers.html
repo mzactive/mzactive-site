@@ -56,44 +56,9 @@ header .main-nav a:hover,header .main-nav a:focus{color:#efb82f;text-decoration:
 </div>
 <section class="portal-panel profile-panel" id="providerProfile" hidden><div class="profile-title"><h3>Edit your profile · تعديل الملف</h3><button class="btn secondary" type="button" id="logoutProvider">Sign out · خروج</button></div><p id="profileStatus" class="fine"></p><form id="profileEditor"><label>Profile type / نوع الملف<select name="provider_type"><option value="coach">Coach · مدرب</option><option value="pacer">Pacer · مرافق جري</option></select></label><label>Name / الاسم<input name="display_name" maxlength="100" required></label><label>Country / الدولة<input name="country" maxlength="80" value="Qatar"></label><label>City / المدينة<input name="city" maxlength="80" required></label><label>Specialties (comma separated) / التخصصات<input name="specialties" maxlength="500"></label><label>Languages / اللغات<input name="languages" maxlength="300"></label><label>Experience in years / سنوات الخبرة<input name="experience_years" type="number" min="0" max="60"></label><label>Indicative rate in QAR / السعر الاسترشادي بالريال<input name="indicative_rate_qar" type="number" min="0" max="100000"></label><label class="wide">Bio and qualifications / نبذة وخبرات<textarea name="bio" maxlength="1200" required></textarea></label><button class="btn" type="submit">Save changes · حفظ التعديلات</button></form><p class="fine" id="profileMessage" aria-live="polite"></p></section>
 <p class="fine">No payment is collected here. A submitted profile stays private until MZ Active approves it. · لا يتم تحصيل أي مبلغ هنا، ويبقى الملف خاصاً حتى موافقة MZ Active.</p></div></section>
-<main class="wrap layout">
-<section class="panel"><h2>Become a Coach with Us application</h2><p class="muted">Create your profile preview and send your application to the MZ Active team.</p>
-<form id="coachForm">
-<div class="fields">
-<div class="field"><label for="name">Full name *</label><input id="name" required placeholder="Your name"></div>
-<div class="field"><label for="email">Email *</label><input id="email" type="email" required placeholder="you@example.com"></div>
-<div class="field"><label for="country">Country *</label><input id="country" required placeholder="Country"></div>
-<div class="field"><label for="city">City / service area *</label><input id="city" required placeholder="City"></div>
-<div class="field"><label for="role">Coach / service type *</label><select id="role" required><option value="">Choose one</option><option>Race pacer</option><option>Training pacer / running partner</option><option>Running coach</option><option>Cycling coach / partner</option><option>Swimming coach / partner</option><option>Strength & conditioning coach</option><option>Training camp organiser</option><option>Event organiser</option></select></div>
-<div class="field"><label for="experience">Years of experience *</label><input id="experience" required type="number" min="0" max="60" placeholder="e.g. 5"></div>
-<div class="field"><label for="languages">Languages</label><input id="languages" placeholder="English, Arabic, French..."></div>
-<div class="field"><label for="whatsapp">WhatsApp number *</label><input id="whatsapp" required type="tel" placeholder="Include country code"></div>
-<div class="field full"><label>Distances / services you support</label><div class="checks">
-<label><input type="checkbox" name="distance" value="5K"> 5K</label><label><input type="checkbox" name="distance" value="10K"> 10K</label><label><input type="checkbox" name="distance" value="Half marathon"> Half marathon</label><label><input type="checkbox" name="distance" value="Marathon"> Marathon</label><label><input type="checkbox" name="distance" value="Ultra"> Ultra</label><label><input type="checkbox" name="distance" value="General training"> General training</label><label><input type="checkbox" name="distance" value="Cycling"> Cycling</label><label><input type="checkbox" name="distance" value="Swimming"> Swimming</label>
-</div></div>
-<div class="field full"><label for="bio">Short professional bio / credentials *</label><textarea id="bio" required placeholder="Your experience, personal bests, coaching qualifications, specialties..."></textarea></div>
-<div class="field full"><label for="availability">Availability and indicative rate (optional)</label><textarea id="availability" placeholder="Days/times, online or in-person, approximate fee and currency..."></textarea></div>
-</div>
-<div class="actions"><button class="btn" type="submit">SEND PROVIDER APPLICATION ↗</button><button class="btn secondary" type="button" id="previewBtn">UPDATE PROFILE PREVIEW</button></div>
-<p class="fine">Your application opens WhatsApp with the details ready to send. Do not include sensitive documents or payment information. Profiles are reviewed before publication.</p>
-</form></section>
-<aside class="preview"><div class="eyebrow">Live preview · Draft only</div><div class="profile"><div class="avatar" id="avatar">MZ</div><h3 id="pName">Your name</h3><div class="muted" id="pRole">Coach / service type · City, Country</div><p id="pBio" class="placeholder">Your professional bio will appear here as you complete the form.</p><div id="pTags"><span class="pill">Awaiting specialties</span></div><p class="fine">Application status: <strong style="color:var(--gold)">Not submitted</strong></p></div>
-<div class="how"><strong>How coach onboarding works</strong><p class="muted">1. Submit your details. 2. MZ Active reviews your experience and service. 3. We agree on profile details, availability, rates and commission. 4. Approved profiles can be published when the coach directory is activated.</p></div>
-<p class="fine">This is an early free MVP. This page creates a local preview and sends an application; it does not yet create an account, store applications in a central database or publish a live searchable coach listing.</p>
-</aside>
-</main>
+
 <footer><div class="wrap"><strong>MZ ACTIVE · Train Smart. Perform Strong.</strong><div class="support"><strong>Want to sponsor MZ Active or support an athlete, event or new idea?</strong><br>We welcome sponsorships, partnerships and practical support.<br><a href="mailto:mzactive@yahoo.com?subject=MZ%20Active%20Sponsorship%20or%20Support">Discuss sponsorship or support ↗</a> · <a href="https://wa.me/97466297954?text=Hello%20MZ%20Active%2C%20I%27d%20like%20to%20discuss%20a%20sponsorship%2C%20partnership%20or%20idea.">WhatsApp us ↗</a></div>© 2026 MZ Active</div></footer>
-<script>
-const ids=['name','email','country','city','role','experience','languages','whatsapp','bio','availability'];
-function val(id){return document.getElementById(id).value.trim()}
-function selected(){return [...document.querySelectorAll('input[name="distance"]:checked')].map(x=>x.value)}
-function updatePreview(){const name=val('name')||'Your name';document.getElementById('avatar').textContent=name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();document.getElementById('pName').textContent=name;document.getElementById('pRole').textContent=(val('role')||'Coach / service type')+' · '+([val('city'),val('country')].filter(Boolean).join(', ')||'Your location');const bio=val('bio');const b=document.getElementById('pBio');b.textContent=bio||'Your professional bio will appear here as you complete the form.';b.classList.toggle('placeholder',!bio);const tags=selected();document.getElementById('pTags').innerHTML=tags.length?tags.map(t=>'<span class="pill">'+t.replace(/[&<>"]/g,'')+'</span>').join(''):'<span class="pill">Awaiting specialties</span>'}
-document.getElementById('previewBtn').addEventListener('click',updatePreview);
-ids.forEach(id=>document.getElementById(id).addEventListener('input',updatePreview));
-document.querySelectorAll('input[name="distance"]').forEach(x=>x.addEventListener('change',updatePreview));
-document.getElementById('coachForm').addEventListener('submit',e=>{e.preventDefault();if(!e.currentTarget.reportValidity())return;updatePreview();const labels={name:'Name',email:'Email',country:'Country',city:'City',role:'Coach / service type',experience:'Years of experience',languages:'Languages',whatsapp:'WhatsApp',bio:'Bio and credentials',availability:'Availability / indicative rate'};const lines=ids.map(id=>labels[id]+': '+(val(id)||'Not specified'));lines.push('Distances / services: '+(selected().join(', ')||'Not specified'));const message='Hi MZ Active, I would like to become a coach with you.\n\n'+lines.join('\n');window.open('https://wa.me/97466297954?text='+encodeURIComponent(message),'_blank','noopener,noreferrer')});
-updatePreview();
-</script>
+
 
 <script>
 (function(){
