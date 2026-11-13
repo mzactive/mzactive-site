@@ -39,3 +39,8 @@ Applications are collected for manual review. Submitting an application does not
 ## Deployment
 
 The repository is configured for GitHub Pages and includes the custom domain in `CNAME`. Verify the public site after each deployment before announcing a feature as live.
+
+## Brand assets
+
+- `assets/brand/mzactive-logo.webp` — website logo supplied for the site header.
+- `assets/images/mzactive-runners.jpg` — supplied running photo used on the homepage hero.
