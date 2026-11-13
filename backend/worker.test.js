@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker, { cleanList, clampInt, clampNullableInt, cleanProfilePhotoUrl, emailValue, hashPassword, normalizeWhatsApp, cleanSocialLinks, readJson, verifyPassword } from "./worker.js";
+import worker, { cleanList, clampInt, clampNullableInt, cleanProfilePhotoUrl, emailValue, hashPassword, normalizeWhatsApp, cleanSocialLinks, profilePhotoType, readJson, verifyPassword } from "./worker.js";
 
 test("normalizes valid email and rejects malformed or unbounded values", () => {
   assert.equal(emailValue("  Runner@Example.com "), "runner@example.com");
@@ -28,6 +28,13 @@ test("accepts a public HTTPS profile photo link but rejects unsafe links", () =>
   assert.equal(cleanProfilePhotoUrl(""), "");
   assert.equal(cleanProfilePhotoUrl("http://images.example.com/coach.jpg"), null);
   assert.equal(cleanProfilePhotoUrl("javascript:alert(1)"), null);
+});
+
+test("recognizes only supported profile photo formats", () => {
+  assert.equal(profilePhotoType(Uint8Array.from([0xff, 0xd8, 0xff, 0x00]).buffer), "image/jpeg");
+  assert.equal(profilePhotoType(Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).buffer), "image/png");
+  assert.equal(profilePhotoType(Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]).buffer), "image/webp");
+  assert.equal(profilePhotoType(Uint8Array.from([1, 2, 3]).buffer), "");
 });
 
 test("bounds profile list and numeric fields", () => {

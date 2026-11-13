@@ -2,6 +2,7 @@ const SESSION_TTL_SECONDS = 60 * 60 * 12;
 // Cloudflare Workers Web Crypto caps PBKDF2 at 100,000 iterations.
 const PASSWORD_ITERATIONS = 100_000;
 const MAX_BODY_BYTES = 16_384;
+const MAX_PROFILE_PHOTO_BYTES = 1_000_000;
 
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
   status,
@@ -162,7 +163,7 @@ async function login(request, env) {
 async function publicProviders(url, request, env) {
   const type = url.searchParams.get("type") || "", city = text(url.searchParams.get("city") || "",80);
   const query = text(url.searchParams.get("q") || "",80);
-  const rows = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,profile_photo_url,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS whatsapp_number,social_links_json
+  const rows = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS whatsapp_number,social_links_json
     FROM provider_profiles WHERE status='approved' AND (?='' OR provider_type=?) AND (?='' OR city LIKE ?)
     AND (?='' OR display_name LIKE ? OR bio LIKE ? OR specialties_json LIKE ?) ORDER BY display_name LIMIT 50`)
     .bind(type,type,city,`%${city}%`,query,`%${query}%`,`%${query}%`,`%${query}%`).all();
@@ -200,6 +201,44 @@ function cleanProfilePhotoUrl(value) {
 }
 function safeParse(value) { try { return JSON.parse(value); } catch { return []; } }
 
+function profilePhotoType(bytes) {
+  const view = new Uint8Array(bytes);
+  if (view.length >= 3 && view[0] === 0xff && view[1] === 0xd8 && view[2] === 0xff) return "image/jpeg";
+  if (view.length >= 8 && view[0] === 0x89 && view[1] === 0x50 && view[2] === 0x4e && view[3] === 0x47 && view[4] === 0x0d && view[5] === 0x0a && view[6] === 0x1a && view[7] === 0x0a) return "image/png";
+  if (view.length >= 12 && String.fromCharCode(...view.slice(0, 4)) === "RIFF" && String.fromCharCode(...view.slice(8, 12)) === "WEBP") return "image/webp";
+  return "";
+}
+
+function binaryReply(request, env, bytes, contentType, cacheControl) {
+  const headers = corsHeaders(request, env);
+  if (!headers) return json({ error: "origin_not_allowed" }, 403);
+  headers.set("content-type", contentType);
+  headers.set("cache-control", cacheControl);
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("content-disposition", "inline");
+  return new Response(bytes, { headers });
+}
+
+async function uploadProfilePhoto(request, env, user) {
+  if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
+  const length = Number(request.headers.get("content-length") || 0);
+  if (length > MAX_PROFILE_PHOTO_BYTES) return reply(request, env, { error: "photo_too_large" }, 413);
+  const bytes = await request.arrayBuffer();
+  if (!bytes.byteLength || bytes.byteLength > MAX_PROFILE_PHOTO_BYTES) return reply(request, env, { error: "photo_too_large" }, 413);
+  const contentType = profilePhotoType(bytes);
+  if (!contentType) return reply(request, env, { error: "invalid_photo" }, 400);
+  const now = new Date().toISOString();
+  await env.DB.prepare("UPDATE provider_profiles SET profile_photo_bytes=?,profile_photo_content_type=?,profile_photo_updated_at=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?")
+    .bind(bytes, contentType, now, now, user.id).run();
+  return reply(request, env, { status: "pending_review", photo_uploaded: true, updated_at: now });
+}
+
+async function publicProfilePhoto(id, request, env) {
+  const row = await env.DB.prepare("SELECT profile_photo_bytes,profile_photo_content_type FROM provider_profiles WHERE id=? AND status='approved'").bind(id).first();
+  if (!row?.profile_photo_bytes || !row.profile_photo_content_type) return reply(request, env, { error: "photo_not_found" }, 404);
+  return binaryReply(request, env, row.profile_photo_bytes, row.profile_photo_content_type, "public, max-age=86400");
+}
+
 async function saveProfile(request, env, user) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
   const body = await readJson(request);
@@ -208,11 +247,10 @@ async function saveProfile(request, env, user) {
   const whatsappInput = text(body?.whatsapp_number,32), whatsapp = normalizeWhatsApp(whatsappInput), whatsappPublic = body?.whatsapp_public === true;
   const whatsappConsentValid = whatsapp !== null && (!!whatsapp === whatsappPublic);
   const socialLinks = cleanSocialLinks(body?.social_links);
-  const profilePhotoUrl = cleanProfilePhotoUrl(body?.profile_photo_url);
-  if (!body || !type || !name || !city || !bio || !whatsappConsentValid || !socialLinks || profilePhotoUrl === null) return reply(request, env, { error: "invalid_profile" }, 400);
+  if (!body || !type || !name || !city || !bio || !whatsappConsentValid || !socialLinks) return reply(request, env, { error: "invalid_profile" }, 400);
   const now = new Date().toISOString();
-  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=?,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,profile_photo_url=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
-    .bind(type,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),profilePhotoUrl||null,whatsappPublic?whatsapp:null,whatsappPublic?1:0,JSON.stringify(socialLinks),now,user.id).run();
+  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=?,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
+    .bind(type,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),whatsappPublic?whatsapp:null,whatsappPublic?1:0,JSON.stringify(socialLinks),now,user.id).run();
   return reply(request, env, { status: "pending_review" });
 }
 
@@ -239,7 +277,7 @@ async function createBooking(request, env) {
 async function adminApplications(request, env, user) {
   if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
   if (request.method === "GET") {
-    const providers = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,p.profile_photo_url,p.whatsapp_number,p.whatsapp_public,p.social_links_json,p.status,p.review_note,p.updated_at,u.email
+    const providers = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.whatsapp_number,p.whatsapp_public,p.social_links_json,p.status,p.review_note,p.updated_at,u.email
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all();
     const bookings = await env.DB.prepare(`SELECT id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,distance,target_pace,created_at
       FROM booking_requests WHERE status IN ('received','reviewing') OR payment_status='pending_payment' ORDER BY created_at LIMIT 100`).all();
@@ -284,6 +322,8 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: Object.fromEntries(cors) });
     if (request.method === "GET" && url.pathname === "/health") return reply(request, env, { ok: true, intake_enabled: env.DATA_COLLECTION_ENABLED === "true" });
     if (request.method === "GET" && url.pathname === "/api/providers") return publicProviders(url, request, env);
+    const publicPhotoMatch = /^\/api\/providers\/([\w-]{36})\/photo$/.exec(url.pathname);
+    if (request.method === "GET" && publicPhotoMatch) return publicProfilePhoto(publicPhotoMatch[1], request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/register") return register(request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/login") return login(request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/logout") {
@@ -299,8 +339,13 @@ export default {
       if (!user) return reply(request, env, { error: "unauthorized" }, 401);
       if (user.role === "admin") return reply(request, env, { user: { email:user.email, role:user.role } });
       if (request.method === "PUT") return saveProfile(request, env, user);
-      const profile = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,profile_photo_url,whatsapp_number,whatsapp_public,social_links_json,status,review_note,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
+      const profile = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,status,review_note,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
       return reply(request, env, { profile: profile ? { ...profile, specialties:safeParse(profile.specialties_json), languages:safeParse(profile.languages_json), social_links:safeParse(profile.social_links_json) } : null });
+    }
+    if (request.method === "PUT" && url.pathname === "/api/me/profile/photo") {
+      const user = await currentUser(request, env);
+      if (!user || user.role !== "provider") return reply(request, env, { error: "unauthorized" }, 401);
+      return uploadProfilePhoto(request, env, user);
     }
     if (request.method === "POST" && url.pathname === "/api/bookings") return createBooking(request, env);
     if (url.pathname.startsWith("/api/admin/")) {
@@ -312,4 +357,4 @@ export default {
   },
 };
 
-export { hashPassword, verifyPassword, emailValue, readJson, cleanList, clampInt, clampNullableInt, normalizeWhatsApp, cleanSocialLinks, cleanProfilePhotoUrl };
+export { hashPassword, verifyPassword, emailValue, readJson, cleanList, clampInt, clampNullableInt, normalizeWhatsApp, cleanSocialLinks, cleanProfilePhotoUrl, profilePhotoType };
