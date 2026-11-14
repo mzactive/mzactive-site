@@ -10,8 +10,9 @@ test("normalizes valid email and rejects malformed or unbounded values", () => {
 
 test("validates explicitly international WhatsApp numbers", () => {
   assert.equal(normalizeWhatsApp("+974 6629 7954"), "97466297954");
+  assert.equal(normalizeWhatsApp("66297954"), "97466297954");
   assert.equal(normalizeWhatsApp("+1 (202) 555-0101"), "12025550101");
-  assert.equal(normalizeWhatsApp("66297954"), null);
+  assert.equal(normalizeWhatsApp("123"), null);
   assert.equal(normalizeWhatsApp(""), "");
 });
 
@@ -141,4 +142,24 @@ test("provider photo upload is visible to Admin while remaining private before a
 
   const publicView = await worker.fetch(new Request(`https://api.example.test/api/providers/${id}/photo`), env);
   assert.equal(publicView.status, 404);
+});
+
+test("profile edits accept optional details and normalize Qatar WhatsApp numbers", async () => {
+  const token = "p".repeat(40);
+  let saved = null;
+  const env = { DATA_COLLECTION_ENABLED: "true", DB: { prepare(sql) { let params = []; return {
+    bind(...values) { params = values; return this; },
+    async first() { return sql.includes("SELECT u.id") ? { id: "provider-id", email: "provider@example.com", role: "provider" } : null; },
+    async run() { if (sql.includes("SET provider_type=?")) saved = params; return { meta: { changes: 1 } }; },
+  }; } } };
+  const response = await worker.fetch(new Request("https://api.example.test/api/me/profile", {
+    method: "PUT", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ provider_type: "coach", display_name: "", city: "", bio: "", whatsapp_number: "66297954", whatsapp_public: true, social_links: ["javascript:alert(1)"] }),
+  }), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).warnings, ["social_links_skipped"]);
+  assert.equal(saved[1], ""); // preserve the existing display name
+  assert.equal(saved[10], "97466297954");
+  assert.equal(saved[11], 1);
+  assert.equal(saved[12], "[]"); // unsafe links are skipped, not rendered
 });
