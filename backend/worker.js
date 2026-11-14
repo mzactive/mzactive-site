@@ -117,7 +117,7 @@ async function assistantChat(request, env) {
   if (!await reserveAssistantRequest(env)) return reply(request, env, { error: "daily_limit_reached" }, 429);
   const system = `You are the MZ Active website assistant for athletes and coaches. Be brief, kind, and practical. Reply in the language of the user's message (English or Arabic). Use only these verified facts: MZ Active helps people find coaches and pacers in Qatar; only profiles approved by MZ Active appear publicly; coaches can create or update a profile at https://mzactive.com/providers.html; profile photo uploads accept JPG, PNG, or WebP up to 1 MB, and Qatar local WhatsApp numbers can be entered as 8 digits; a coach's profile remains private until Admin approval. Clients can browse https://mzactive.com/coaches.html and send a request at https://mzactive.com/pacer.html. A request is not a confirmed booking, the site does not collect payments, and payment/availability must be coordinated separately. Do not promise a coach's availability, rates, approval, booking, payment, medical result, or reply time. Do not claim to have accessed a user's account or contacted MZ Active. Never make approval or rejection decisions. Do not ask for passwords, payment credentials, identity documents, health records, or other sensitive details. For information you cannot verify, say so plainly and offer the relevant page link. Do not send routine questions to the site owner when the self-service pages can help.`;
   try {
-    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
       messages: [{ role: "system", content: system }, ...history, { role: "user", content: message }],
       max_tokens: 180,
       temperature: 0.2,
@@ -128,6 +128,43 @@ async function assistantChat(request, env) {
   } catch {
     return reply(request, env, { error: "assistant_unavailable" }, 503);
   }
+}
+
+async function coachAssistant(request, env, user) {
+  if (!await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
+  if (!env.AI || typeof env.AI.run !== "function") return reply(request, env, { error: "assistant_unavailable" }, 503);
+  if (!await rateLimit(request, env, `coach-assistant:${user.id}`, 6)) return reply(request, env, { error: "rate_limited" }, 429);
+  const body = await readJson(request), task = body?.task;
+  const prompt = text(body?.prompt, 1200);
+  if (!body || !["help","training","blog"].includes(task) || !prompt) return reply(request, env, { error: "assistant_prompt_required" }, 400);
+  if (!await reserveAssistantRequest(env)) return reply(request, env, { error: "daily_limit_reached" }, 429);
+  const taskGuide = task === "blog"
+    ? "Write an original, useful sports blog draft with a clear title, short summary, and readable section headings. Do not invent research, credentials, events, or statistics. Mention uncertainty when facts may vary. This is a draft for the coach to review and submit for MZ Active approval; never say it is published."
+    : task === "training"
+      ? "Give a practical, general training suggestion. Keep it conservative and adaptable; ask the coach to adjust it to the athlete's level and context. Do not diagnose injuries or prescribe treatment."
+      : "Give concise, practical help for a coach using MZ Active, writing a client message, or communicating with a team. Do not claim to have accessed any account or contacted anyone.";
+  const system = `You are the private MZ Active assistant for an approved coach. Reply in the language used in the prompt (English or Arabic). ${taskGuide} Do not request client names, phone numbers, passwords, medical histories, or other sensitive personal data. You only know the text in this request. For injury, illness, or medical questions, recommend a qualified health professional. Keep the answer clear and ready for the coach to review.`;
+  try {
+    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
+      messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
+      max_tokens: task === "blog" ? 700 : task === "training" ? 360 : 240,
+      temperature: 0.3,
+    });
+    const draft = text(result?.response, 7000);
+    if (!draft) return reply(request, env, { error: "assistant_unavailable" }, 503);
+    return reply(request, env, { draft, task });
+  } catch {
+    return reply(request, env, { error: "assistant_unavailable" }, 503);
+  }
+}
+
+async function publicBlogPosts(request, env) {
+  const slug = text(new URL(request.url).searchParams.get("slug") || "", 80).replace(/^coach-/, "");
+  const query = `SELECT b.id,b.title,b.summary,b.body,b.language,b.created_at,b.published_at,p.display_name AS coach_name
+    FROM coach_blog_posts b JOIN provider_profiles p ON p.id=b.provider_id
+    WHERE b.status='published' AND (?='' OR b.id=?) ORDER BY b.published_at DESC LIMIT 100`;
+  const result = await env.DB.prepare(query).bind(slug,slug).all();
+  return reply(request, env, { posts: result.results || [] });
 }
 
 async function register(request, env) {
@@ -388,6 +425,34 @@ async function canManageTeam(env, user, teamId) {
 async function dashboardApi(request, env, user) {
   const url = new URL(request.url), path = url.pathname;
   if (request.method === "GET" && path === "/api/dashboard") return dashboardOverview(request, env, user);
+  if (request.method === "POST" && path === "/api/dashboard/assistant") return coachAssistant(request, env, user);
+  if ((request.method === "GET" || request.method === "POST") && path === "/api/dashboard/blog") {
+    if (!await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
+    if (request.method === "GET") {
+      const posts = await env.DB.prepare("SELECT id,title,summary,body,language,status,created_at,published_at FROM coach_blog_posts WHERE coach_user_id=? ORDER BY created_at DESC LIMIT 50").bind(user.id).all();
+      return reply(request, env, { posts: posts.results || [] });
+    }
+    const body = await readJson(request), title = text(body?.title, 120), summary = text(body?.summary, 400), content = text(body?.body, 8000), language = body?.language === "ar" ? "ar" : "en";
+    if (!body || !title || !summary || !content || content.length < 100) return reply(request, env, { error: "blog_fields_required" }, 400);
+    const profile = await env.DB.prepare("SELECT id FROM provider_profiles WHERE user_id=? AND status='approved'").bind(user.id).first();
+    if (!profile) return reply(request, env, { error: "approved_coach_required" }, 403);
+    const id = randomId(), now = new Date().toISOString();
+    await env.DB.prepare("INSERT INTO coach_blog_posts(id,coach_user_id,provider_id,title,summary,body,language,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,'pending',?,?)")
+      .bind(id,user.id,profile.id,title,summary,content,language,now,now).run();
+    return reply(request, env, { id, status: "pending", message: "submitted_for_review" }, 201);
+  }
+  const coachBlogEdit = /^\/api\/dashboard\/blog\/([\w-]{36})$/.exec(path);
+  if (coachBlogEdit && request.method === "PUT") {
+    if (!await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
+    const body = await readJson(request), title = text(body?.title, 120), summary = text(body?.summary, 400), content = text(body?.body, 8000), language = body?.language === "ar" ? "ar" : "en";
+    if (!body || !title || !summary || !content || content.length < 100) return reply(request, env, { error: "blog_fields_required" }, 400);
+    const now = new Date().toISOString();
+    const result = await env.DB.prepare("UPDATE coach_blog_posts SET title=?,summary=?,body=?,language=?,status='pending',updated_at=? WHERE id=? AND coach_user_id=? AND status='draft'")
+      .bind(title,summary,content,language,now,coachBlogEdit[1],user.id).run();
+    return result.meta?.changes
+      ? reply(request, env, { id: coachBlogEdit[1], status: "pending", message: "submitted_for_review" })
+      : reply(request, env, { error: "draft_not_found" }, 404);
+  }
 
   if (request.method === "POST" && path === "/api/dashboard/teams") {
     const admin = user.role === "admin";
@@ -471,6 +536,21 @@ async function dashboardApi(request, env, user) {
 
 async function adminApplications(request, env, user) {
   if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+  const requestUrl = new URL(request.url);
+  if (request.method === "GET" && requestUrl.pathname === "/api/admin/blog") {
+    const posts = await env.DB.prepare(`SELECT b.id,b.title,b.summary,b.body,b.language,b.status,b.created_at,p.display_name AS coach_name
+      FROM coach_blog_posts b JOIN provider_profiles p ON p.id=b.provider_id WHERE b.status='pending' ORDER BY b.created_at LIMIT 100`).all();
+    return reply(request, env, { posts: posts.results || [] });
+  }
+  const blogReview = /^\/api\/admin\/blog\/([\w-]{36})$/.exec(requestUrl.pathname);
+  if (blogReview && request.method === "PATCH") {
+    const body = await readJson(request), action = body?.action;
+    if (!body || !["publish","return"].includes(action)) return reply(request, env, { error: "invalid_blog_review_action" }, 400);
+    const status = action === "publish" ? "published" : "draft", now = new Date().toISOString();
+    const result = await env.DB.prepare("UPDATE coach_blog_posts SET status=?,updated_at=?,published_at=? WHERE id=? AND status='pending'")
+      .bind(status,now,action === "publish" ? now : null,blogReview[1]).run();
+    return reply(request, env, { updated: Boolean(result.meta?.changes), status });
+  }
   const photoMatch = /^\/api\/admin\/providers\/([\w-]{36})\/photo$/.exec(new URL(request.url).pathname);
   if (photoMatch && request.method === "GET") {
     const photo = await env.DB.prepare("SELECT profile_photo_bytes,profile_photo_content_type FROM provider_profiles WHERE id=?")
@@ -540,6 +620,7 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: Object.fromEntries(cors) });
     if (request.method === "GET" && url.pathname === "/health") return reply(request, env, { ok: true, intake_enabled: env.DATA_COLLECTION_ENABLED === "true" });
     if (request.method === "POST" && url.pathname === "/api/assistant/chat") return assistantChat(request, env);
+    if (request.method === "GET" && url.pathname === "/api/blog/posts") return publicBlogPosts(request, env);
     if (request.method === "GET" && url.pathname === "/api/providers") return publicProviders(url, request, env);
     const publicPhotoMatch = /^\/api\/providers\/([\w-]{36})\/photo$/.exec(url.pathname);
     if (request.method === "GET" && publicPhotoMatch) return publicProfilePhoto(publicPhotoMatch[1], request, env);
