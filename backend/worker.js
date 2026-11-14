@@ -224,6 +224,11 @@ function cleanList(value, maxItems, maxLength) {
 function cleanProgramDurations(value) {
   return [...new Set((Array.isArray(value) ? value : []).map(Number).filter((months) => [1,2,3].includes(months)))].sort();
 }
+const PUBLIC_PROFILE_FIELDS = ["city","specialties","languages","bio","experience_years","indicative_rate_qar","profile_photo","social_links","program_durations"];
+function cleanPublicFields(value) {
+  return [...new Set((Array.isArray(value) ? value : []).filter((field) => PUBLIC_PROFILE_FIELDS.includes(field)))];
+}
+const DEFAULT_PUBLIC_FIELDS = ["city","specialties","languages","bio","experience_years","indicative_rate_qar","profile_photo","social_links","program_durations"];
 function clampInt(value, min, max) { return Number.isInteger(value) ? Math.max(min, Math.min(max, value)) : 0; }
 function clampNullableInt(value, min, max) { return value === null || value === "" || value === undefined ? null : Number.isInteger(value) ? Math.max(min, Math.min(max, value)) : null; }
 
@@ -255,11 +260,29 @@ async function login(request, env) {
 async function publicProviders(url, request, env) {
   const type = url.searchParams.get("type") || "", city = text(url.searchParams.get("city") || "",80);
   const query = text(url.searchParams.get("q") || "",80);
-  const rows = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS whatsapp_number,social_links_json
+  const rows = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json
     FROM provider_profiles WHERE status='approved' AND (?='' OR provider_type=?) AND (?='' OR city LIKE ?)
     AND (?='' OR display_name LIKE ? OR bio LIKE ? OR specialties_json LIKE ?) ORDER BY display_name LIMIT 50`)
     .bind(type,type,city,`%${city}%`,query,`%${query}%`,`%${query}%`,`%${query}%`).all();
-  const providers = (rows.results || []).map((row) => ({ ...row, specialties: safeParse(row.specialties_json), languages: safeParse(row.languages_json), program_durations: row.provider_type === "coach" ? safeParse(row.program_durations_json).filter((months) => [1,2,3].includes(months)) : [], social_links: safeParse(row.social_links_json), specialties_json: undefined, languages_json: undefined, program_durations_json: undefined, social_links_json: undefined }));
+  const providers = (rows.results || []).map((row) => {
+    const fields = cleanPublicFields(safeParse(row.public_fields_json));
+    const show = (field) => fields.includes(field);
+    return {
+      id: row.id, provider_type: row.provider_type, display_name: row.display_name,
+      country: show("city") ? row.country : "", city: show("city") ? row.city : "",
+      specialties: show("specialties") ? safeParse(row.specialties_json) : [],
+      languages: show("languages") ? safeParse(row.languages_json) : [],
+      bio: show("bio") ? row.bio : "",
+      experience_years: show("experience_years") ? row.experience_years : null,
+      indicative_rate_qar: show("indicative_rate_qar") ? row.indicative_rate_qar : null,
+      program_durations: show("program_durations") && row.provider_type === "coach" ? safeParse(row.program_durations_json).filter((months) => [1,2,3].includes(months)) : [],
+      has_profile_photo: show("profile_photo") ? row.has_profile_photo : 0,
+      profile_photo_updated_at: show("profile_photo") ? row.profile_photo_updated_at : null,
+      whatsapp_number: show("whatsapp") && row.whatsapp_public ? row.whatsapp_number : null,
+      social_links: show("social_links") ? safeParse(row.social_links_json) : [],
+      public_fields: fields,
+    };
+  });
   return reply(request, env, { providers });
 }
 function normalizeWhatsApp(value) {
@@ -329,8 +352,8 @@ async function uploadProfilePhoto(request, env, user) {
 }
 
 async function publicProfilePhoto(id, request, env) {
-  const row = await env.DB.prepare("SELECT profile_photo_bytes,profile_photo_content_type FROM provider_profiles WHERE id=? AND status='approved'").bind(id).first();
-  if (!row?.profile_photo_bytes || !row.profile_photo_content_type) return reply(request, env, { error: "photo_not_found" }, 404);
+  const row = await env.DB.prepare("SELECT profile_photo_bytes,profile_photo_content_type,public_fields_json FROM provider_profiles WHERE id=? AND status='approved'").bind(id).first();
+  if (!row?.profile_photo_bytes || !row.profile_photo_content_type || !cleanPublicFields(safeParse(row.public_fields_json)).includes("profile_photo")) return reply(request, env, { error: "photo_not_found" }, 404);
   return binaryReply(request, env, row.profile_photo_bytes, row.profile_photo_content_type, "public, max-age=86400");
 }
 
@@ -341,6 +364,7 @@ async function saveProfile(request, env, user) {
   const body = await readJson(request);
   const type = body?.provider_type === "pacer" ? "pacer" : body?.provider_type === "coach" ? "coach" : "";
   const programDurations = type === "coach" ? cleanProgramDurations(body?.program_durations) : [];
+  const publicFields = cleanPublicFields(body?.public_fields || DEFAULT_PUBLIC_FIELDS);
   const name = text(body?.display_name,100), city = text(body?.city,80), bio = text(body?.bio,4000);
   const whatsappInput = text(body?.whatsapp_number,32), whatsapp = normalizeWhatsApp(whatsappInput), whatsappPublic = body?.whatsapp_public === true;
   const canPublishWhatsApp = Boolean(whatsapp && whatsappPublic);
@@ -351,8 +375,8 @@ async function saveProfile(request, env, user) {
   if (whatsappInput && (!whatsapp || !whatsappPublic)) warnings.push("whatsapp_not_saved");
   if (socialLinks === null) warnings.push("social_links_skipped");
   const now = new Date().toISOString();
-  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=CASE WHEN ?='' THEN display_name ELSE ? END,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,program_durations_json=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
-    .bind(type,name,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),JSON.stringify(programDurations),canPublishWhatsApp?whatsapp:null,canPublishWhatsApp?1:0,JSON.stringify(socialLinks||[]),now,user.id).run();
+  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=CASE WHEN ?='' THEN display_name ELSE ? END,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,program_durations_json=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,public_fields_json=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
+    .bind(type,name,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),JSON.stringify(programDurations),canPublishWhatsApp?whatsapp:null,canPublishWhatsApp?1:0,JSON.stringify(socialLinks||[]),JSON.stringify(publicFields),now,user.id).run();
   return reply(request, env, { status: "pending_review", warnings });
 }
 
@@ -674,8 +698,8 @@ export default {
       if (!user) return reply(request, env, { error: "unauthorized" }, 401);
       if (user.role === "admin") return reply(request, env, { user: { email:user.email, role:user.role } });
       if (request.method === "PUT") return saveProfile(request, env, user);
-      const profile = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,status,review_note,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
-      return reply(request, env, { profile: profile ? { ...profile, specialties:safeParse(profile.specialties_json), languages:safeParse(profile.languages_json), program_durations:safeParse(profile.program_durations_json), social_links:safeParse(profile.social_links_json) } : null });
+      const profile = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json,status,review_note,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
+      return reply(request, env, { profile: profile ? { ...profile, specialties:safeParse(profile.specialties_json), languages:safeParse(profile.languages_json), program_durations:safeParse(profile.program_durations_json), social_links:safeParse(profile.social_links_json), public_fields:cleanPublicFields(safeParse(profile.public_fields_json)) } : null });
     }
     if (request.method === "PUT" && url.pathname === "/api/me/profile/photo") {
       const user = await currentUser(request, env);
