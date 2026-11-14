@@ -110,7 +110,35 @@
     $('joinTeamForm').addEventListener('submit',async event=>{event.preventDefault();const form=new FormData(event.currentTarget);try{await api('/api/dashboard/teams/join',{method:'POST',body:JSON.stringify({join_code:form.get('join_code'),display_name:form.get('display_name')})});notice(w().joined);event.currentTarget.reset();await loadDashboard()}catch(e){notice(e.message)}});
     $('copyProfileLink').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('publicProfileLink').href);notice(w().profileCopied)}catch{notice($('publicProfileLink').href)}});
     $('weeklyAiGenerate').addEventListener('click',async()=>{const prompt=$('weeklyAiPrompt').value.trim(),button=$('weeklyAiGenerate'),status=$('weeklyAiStatus');if(!prompt){status.textContent=w().weeklyPromptRequired;return}button.disabled=true;status.textContent=w().weeklyAiWorking;try{const data=await api('/api/dashboard/assistant',{method:'POST',body:JSON.stringify({task:'weekly',prompt})});for(const [day,value] of Object.entries(data.days||{})){const field=document.querySelector(`[data-day="${day}"]`);if(field)field.value=value} $('weeklyCoachNote').value=data.coach_note||'';status.textContent=w().weeklyAiReady}catch(error){status.textContent=error.message==='daily_limit_reached'?w().aiDailyLimit:error.message==='rate_limited'?w().aiWait:w().weeklyAiFailed}finally{button.disabled=false}});
-    $('whatsappTrainingForm').addEventListener('submit',event=>{event.preventDefault();const client=$('trainingClientName').value.trim(),phone=whatsappDigits($('trainingClientPhone').value),rawDate=$('trainingWeekStart').value;if(!client){notice(w().trainingClient);return}if(!phone){notice(w().trainingPhone);return}if(!rawDate){notice(w().trainingWeekRequired);return}const locale=lang==='ar'?'ar-QA':'en-QA',[year,month,day]=rawDate.split('-').map(Number),weekDate=new Intl.DateTimeFormat(locale,{dateStyle:'long'}).format(new Date(year,month-1,day)),dayNames=lang==='ar'?['الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد']:['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],keys=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'],sessions=keys.map((key,index)=>`${dayNames[index]}\n${document.querySelector(`[data-day="${key}"]`).value.trim()||w().restDay}`).join('\n\n'),coachNote=$('weeklyCoachNote').value.trim(),profileLink=$('publicProfileLink').classList.contains('hidden')?'https://mzactive.com/coaches.html':$('publicProfileLink').href;const message=`${w().trainingPrefix} ${client},\n\n${w().weeklyTitle}\n${w().weekBeginning}: ${weekDate}\n\n${sessions}${coachNote?`\n\n${w().coachNote}:\n${coachNote}`:''}\n\n${w().profileVisit}\n${profileLink}`;const url=`https://wa.me/${phone}?text=${encodeURIComponent(message)}`,fallback=$('whatsappFallback');fallback.href=url;fallback.textContent=w().trainingFallback;fallback.classList.remove('hidden');window.open(url,'_blank','noopener,noreferrer');notice(w().trainingPrepared)});
+    $('whatsappTrainingForm').addEventListener('submit',async event=>{
+      event.preventDefault();
+      const client=$('trainingClientName').value.trim(),phone=whatsappDigits($('trainingClientPhone').value),rawDate=$('trainingWeekStart').value,teamId=$('programTeam').value,athleteId=$('programAthlete').value;
+      if(!client){notice(w().trainingClient);return}if(!phone){notice(w().trainingPhone);return}if(!teamId||!athleteId){notice(w().programRequired);return}
+      if(!rawDate){notice(w().trainingWeekRequired);return}
+      const parts=rawDate.split('-').map(Number),weekDateObj=new Date(parts[0],parts[1]-1,parts[2]);
+      if(weekDateObj.getDay()!==1){notice(lang==='ar'?'اختر يوم الاثنين كبداية للأسبوع.':'Choose Monday as the start of the week.');return}
+      const keys=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+      const dayNames=lang==='ar'?['الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد']:['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+      const sessionData=keys.map(key=>{const field=document.querySelector('[data-day="'+key+'"]'),typeField=field.parentElement.querySelector('[data-session-type]'),kmField=field.parentElement.querySelector('[data-session-km]');return{day_key:key,session_type:typeField.value,details:field.value.trim()||w().restDay,planned_km:kmField.value===''?null:Number(kmField.value)}});
+      const coachNote=$('weeklyCoachNote').value.trim(),profileLink=$('publicProfileLink').classList.contains('hidden')?'https://mzactive.com/coaches.html':$('publicProfileLink').href;
+      const newWindow=window.open('about:blank','_blank');
+      const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
+      try{
+        const saved=await api('/api/dashboard/programs',{method:'POST',body:JSON.stringify({team_id:teamId,athlete_user_id:athleteId,week_start:rawDate,coach_note:coachNote,sessions:sessionData})});
+        const codes=new Map((saved.session_codes||[]).map(item=>[item.day_key,item.session_code]));
+        const locale=lang==='ar'?'ar-QA':'en-QA',weekDate=new Intl.DateTimeFormat(locale,{dateStyle:'long'}).format(weekDateObj);
+        const blocks=sessionData.map((session,index)=>dayNames[index]+' · '+(w()[session.session_type]||session.session_type)+(session.planned_km!==null?' · '+session.planned_km+' km':'')+'\n'+w().sessionCode+': '+(codes.get(session.day_key)||'')+'\n'+session.details).join('\n\n');
+        const message=w().trainingPrefix+' '+client+',\n\n'+w().weeklyTitle+'\n'+w().weekBeginning+': '+weekDate+'\n\n'+blocks+(coachNote?'\n\n'+w().coachNote+':\n'+coachNote:'')+'\n\n'+(lang==='ar'?'تابع إنجاز الحصص وسجّل المسافة في لوحة MZ Active:':'Tick off sessions and log completed distance in your MZ Active dashboard:')+'\nhttps://mzactive.com/dashboard.html\n\n'+w().profileVisit+'\n'+profileLink;
+        const url='https://wa.me/'+phone+'?text='+encodeURIComponent(message),fallback=$('whatsappFallback');
+        fallback.href=url;fallback.textContent=w().trainingFallback;fallback.classList.remove('hidden');
+        if(newWindow)newWindow.location.href=url;
+        notice(w().programSaved);
+        await loadDashboard();
+      }catch(error){
+        if(newWindow)newWindow.close();
+        notice(error.message==='weekly_program_exists'?w().programExists:error.message==='invalid_weekly_program'?(lang==='ar'?'راجع أيام الخطة والمسافة المخططة.':'Check the week and planned session distances.'):error.message);
+      }finally{button.disabled=false}
+    });
     $('signOut').addEventListener('click',()=>{sessionStorage.removeItem(key);location.reload()});
     $('lang').addEventListener('click',()=>{lang=lang==='ar'?'en':'ar'});document.addEventListener('mzactive:language-change',event=>{lang=event.detail.lang;if(token())loadDashboard().catch(error=>notice(error.message))});
     if(token())loadDashboard().catch(error=>{sessionStorage.removeItem(key);setSignedIn(false);notice(error.message)});
