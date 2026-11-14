@@ -228,7 +228,7 @@ const PUBLIC_PROFILE_FIELDS = ["city","specialties","languages","bio","experienc
 function cleanPublicFields(value) {
   return [...new Set((Array.isArray(value) ? value : []).filter((field) => PUBLIC_PROFILE_FIELDS.includes(field)))];
 }
-const DEFAULT_PUBLIC_FIELDS = ["city","specialties","languages","bio","experience_years","indicative_rate_qar","profile_photo","social_links","program_durations"];
+const DEFAULT_PUBLIC_FIELDS = ["city","specialties","languages","bio","experience_years","indicative_rate_qar","profile_photo","social_links","program_durations","whatsapp"];
 function clampInt(value, min, max) { return Number.isInteger(value) ? Math.max(min, Math.min(max, value)) : 0; }
 function clampNullableInt(value, min, max) { return value === null || value === "" || value === undefined ? null : Number.isInteger(value) ? Math.max(min, Math.min(max, value)) : null; }
 
@@ -463,6 +463,22 @@ async function dashboardOverview(request, env, user) {
       const members = await env.DB.prepare("SELECT user_id,display_name,joined_at FROM training_team_members WHERE team_id=? ORDER BY display_name LIMIT 200").bind(team.id).all();
       team.members = members.results || [];
     }
+    const programs = team.is_coach
+      ? await env.DB.prepare(`SELECT p.id,p.athlete_user_id,p.week_start,p.coach_note,p.created_at,m.display_name AS athlete_name
+          FROM athlete_programs p JOIN training_team_members m ON m.team_id=p.team_id AND m.user_id=p.athlete_user_id
+          WHERE p.team_id=? ORDER BY p.week_start DESC LIMIT 60`).bind(team.id).all()
+      : await env.DB.prepare(`SELECT p.id,p.athlete_user_id,p.week_start,p.coach_note,p.created_at,m.display_name AS athlete_name
+          FROM athlete_programs p JOIN training_team_members m ON m.team_id=p.team_id AND m.user_id=p.athlete_user_id
+          WHERE p.team_id=? AND p.athlete_user_id=? ORDER BY p.week_start DESC LIMIT 30`).bind(team.id,user.id).all();
+    team.programs = [];
+    for (const program of programs.results || []) {
+      const rows = await env.DB.prepare(`SELECT s.id,s.session_code,s.day_key,s.session_type,s.details,s.planned_km,
+          c.completed_at,c.actual_km,c.duration_minutes
+        FROM athlete_program_sessions s LEFT JOIN athlete_program_completions c
+          ON c.session_id=s.id AND c.athlete_user_id=?
+        WHERE s.program_id=? ORDER BY s.sort_order`).bind(program.athlete_user_id,program.id).all();
+      team.programs.push({ ...program, sessions: rows.results || [] });
+    }
   }
   return reply(request, env, { role: dashboardRole, teams, ...(dashboardRole === "admin" ? { coaches } : {}) });
 }
@@ -476,6 +492,36 @@ async function canManageTeam(env, user, teamId) {
 async function dashboardApi(request, env, user) {
   const url = new URL(request.url), path = url.pathname;
   if (request.method === "GET" && path === "/api/dashboard") return dashboardOverview(request, env, user);
+  if (request.method === "POST" && path === "/api/dashboard/programs") {
+    const admin=user.role==="admin";
+    if(!admin&&!await isApprovedCoach(env,user))return reply(request,env,{error:"approved_coach_required"},403);
+    const body=await readJson(request),teamId=text(body?.team_id,36),athleteId=text(body?.athlete_user_id,36);
+    const weekStart=text(body?.week_start,10),coachNote=text(body?.coach_note,800);
+    const team=teamId?await env.DB.prepare("SELECT id,coach_user_id FROM training_teams WHERE id=?").bind(teamId).first():null;
+    if(!body||!team||(!admin&&team.coach_user_id!==user.id)||!athleteId)return reply(request,env,{error:"team_or_athlete_unavailable"},404);
+    const member=await env.DB.prepare("SELECT user_id FROM training_team_members WHERE team_id=? AND user_id=?").bind(teamId,athleteId).first();
+    if(!member)return reply(request,env,{error:"team_or_athlete_unavailable"},404);
+    const monday=/^\\d{4}-\\d{2}-\\d{2}$/.test(weekStart)&&Number.isFinite(Date.parse(weekStart+"T00:00:00Z"))&&new Date(weekStart+"T00:00:00Z").getUTCDay()===1;
+    const dayKeys=["monday","tuesday","wednesday","thursday","friday","saturday","sunday"],allowedTypes=["easy","intervals","long_run","tempo","strength","recovery","other"];
+    const sessions=Array.isArray(body.sessions)?body.sessions:[];
+    if(!monday||sessions.length!==7||new Set(sessions.map(x=>x?.day_key)).size!==7||
+      sessions.some(x=>!dayKeys.includes(x?.day_key)||!allowedTypes.includes(x?.session_type)||text(x?.details,350)!==x?.details||
+        (x?.planned_km!==null&&x?.planned_km!==undefined&&(typeof x.planned_km!=="number"||x.planned_km<0||x.planned_km>500))))
+      return reply(request,env,{error:"invalid_weekly_program"},400);
+    const existing=await env.DB.prepare("SELECT id FROM athlete_programs WHERE team_id=? AND athlete_user_id=? AND week_start=?").bind(teamId,athleteId,weekStart).first();
+    if(existing)return reply(request,env,{error:"weekly_program_exists"},409);
+    const id=randomId(),now=new Date().toISOString(),statements=[
+      env.DB.prepare("INSERT INTO athlete_programs(id,team_id,coach_user_id,athlete_user_id,week_start,coach_note,created_at) VALUES(?,?,?,?,?,?,?)").bind(id,teamId,team.coach_user_id,athleteId,weekStart,coachNote,now)
+    ],codes=[];
+    for(const [index,day] of dayKeys.entries()){
+      const item=sessions.find(x=>x.day_key===day),sessionId=randomId(),code=newJoinCode().slice(0,5);
+      codes.push({day_key:day,session_code:code,session_type:item.session_type});
+      statements.push(env.DB.prepare("INSERT INTO athlete_program_sessions(id,program_id,session_code,day_key,session_type,details,planned_km,sort_order) VALUES(?,?,?,?,?,?,?,?)")
+        .bind(sessionId,id,code,day,item.session_type,text(item.details,350),item.planned_km??null,index));
+    }
+    await env.DB.batch(statements);
+    return reply(request,env,{id,week_start:weekStart,session_codes:codes,status:"saved"},201);
+  }
   if (request.method === "POST" && path === "/api/dashboard/assistant") return coachAssistant(request, env, user);
   if ((request.method === "GET" || request.method === "POST") && path === "/api/dashboard/blog") {
     if (!await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
@@ -570,6 +616,25 @@ async function dashboardApi(request, env, user) {
     if (!session) return reply(request, env, { error: "session_not_found" }, 404);
     await env.DB.prepare("UPDATE training_sessions SET status=?,updated_at=? WHERE id=?").bind(status,new Date().toISOString(),session.id).run();
     return reply(request, env, { updated: true, status });
+  }
+
+  const programComplete = /^\\/api\\/dashboard\\/program-sessions\\/([\\w-]{36})\\/complete$/.exec(path);
+  if(programComplete&&request.method==="POST"){
+    if(!await isMemberAccount(env,user))return reply(request,env,{error:"member_account_required"},403);
+    const body=await readJson(request),session=await env.DB.prepare(`SELECT s.id FROM athlete_program_sessions s
+      JOIN athlete_programs p ON p.id=s.program_id WHERE s.id=? AND p.athlete_user_id=?`).bind(programComplete[1],user.id).first();
+    if(!session)return reply(request,env,{error:"session_unavailable"},404);
+    if(body?.completed===false){
+      await env.DB.prepare("DELETE FROM athlete_program_completions WHERE session_id=? AND athlete_user_id=?").bind(session.id,user.id).run();
+      return reply(request,env,{completed:false});
+    }
+    const km=body?.actual_km===undefined?0:Number(body.actual_km),minutes=body?.duration_minutes===undefined?0:Number(body.duration_minutes);
+    if(!Number.isFinite(km)||km<0||km>500||!Number.isInteger(minutes)||minutes<0||minutes>720)return reply(request,env,{error:"invalid_session_log"},400);
+    const now=new Date().toISOString();
+    await env.DB.prepare(`INSERT INTO athlete_program_completions(session_id,athlete_user_id,completed_at,actual_km,duration_minutes)
+      VALUES(?,?,?,?,?) ON CONFLICT(session_id,athlete_user_id) DO UPDATE SET completed_at=excluded.completed_at,actual_km=excluded.actual_km,duration_minutes=excluded.duration_minutes`)
+      .bind(session.id,user.id,now,km,minutes).run();
+    return reply(request,env,{completed:true,actual_km:km,duration_minutes:minutes});
   }
 
   const completeMatch = /^\/api\/dashboard\/sessions\/([\w-]{36})\/complete$/.exec(path);
