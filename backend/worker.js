@@ -136,9 +136,11 @@ async function coachAssistant(request, env, user) {
   if (!await rateLimit(request, env, `coach-assistant:${user.id}`, 6)) return reply(request, env, { error: "rate_limited" }, 429);
   const body = await readJson(request), task = body?.task;
   const prompt = text(body?.prompt, 1200);
-  if (!body || !["help","training","blog"].includes(task) || !prompt) return reply(request, env, { error: "assistant_prompt_required" }, 400);
+  if (!body || !["help","training","weekly","blog"].includes(task) || !prompt) return reply(request, env, { error: "assistant_prompt_required" }, 400);
   if (!await reserveAssistantRequest(env)) return reply(request, env, { error: "daily_limit_reached" }, 429);
-  const taskGuide = task === "blog"
+  const taskGuide = task === "weekly"
+    ? "Create a clear, conservative 7-day training week from the coach's goal and availability. Include recovery/rest days and avoid sudden high loads. Return only one valid JSON object, without markdown, with exactly these keys: {\"days\":{\"monday\":\"...\",\"tuesday\":\"...\",\"wednesday\":\"...\",\"thursday\":\"...\",\"friday\":\"...\",\"saturday\":\"...\",\"sunday\":\"...\"},\"coach_note\":\"...\"}. Keep each day to at most 350 characters. Use the language of the coach's prompt. This is a draft for the coach to review and adapt. Do not diagnose or prescribe injury treatment."
+    : task === "blog"
     ? "Write an original, useful sports blog draft with a clear title, short summary, and readable section headings. Do not invent research, credentials, events, or statistics. Mention uncertainty when facts may vary. This is a draft for the coach to review and submit for MZ Active approval; never say it is published."
     : task === "training"
       ? "Give a practical, general training suggestion. Keep it conservative and adaptable; ask the coach to adjust it to the athlete's level and context. Do not diagnose injuries or prescribe treatment."
@@ -147,11 +149,22 @@ async function coachAssistant(request, env, user) {
   try {
     const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
       messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
-      max_tokens: task === "blog" ? 700 : task === "training" ? 360 : 240,
+      max_tokens: task === "blog" ? 700 : task === "weekly" ? 760 : task === "training" ? 360 : 240,
       temperature: 0.3,
     });
     const draft = text(result?.response, 7000);
     if (!draft) return reply(request, env, { error: "assistant_unavailable" }, 503);
+    if (task === "weekly") {
+      let parsed;
+      try { parsed = JSON.parse(draft.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")); }
+      catch { return reply(request, env, { error: "assistant_format_error" }, 502); }
+      const keys = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"], days = {};
+      for (const key of keys) {
+        days[key] = text(parsed?.days?.[key], 350);
+        if (!days[key]) return reply(request, env, { error: "assistant_format_error" }, 502);
+      }
+      return reply(request, env, { days, coach_note: text(parsed?.coach_note, 800), task });
+    }
     return reply(request, env, { draft, task });
   } catch {
     return reply(request, env, { error: "assistant_unavailable" }, 503);
@@ -318,6 +331,8 @@ async function publicProfilePhoto(id, request, env) {
 
 async function saveProfile(request, env, user) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
+  const existing = await env.DB.prepare("SELECT status FROM provider_profiles WHERE user_id=?").bind(user.id).first();
+  if (existing?.status === "suspended") return reply(request, env, { error: "provider_removed_by_owner" }, 403);
   const body = await readJson(request);
   const type = body?.provider_type === "pacer" ? "pacer" : body?.provider_type === "coach" ? "coach" : "";
   const name = text(body?.display_name,100), city = text(body?.city,80), bio = text(body?.bio,4000);
@@ -560,7 +575,7 @@ async function adminApplications(request, env, user) {
   }
   if (photoMatch && request.method === "PUT") {
     const profile = await env.DB.prepare("SELECT id,status FROM provider_profiles WHERE id=?").bind(photoMatch[1]).first();
-    if (!profile || profile.status === "rejected") return reply(request, env, { error: "provider_not_found" }, 404);
+    if (!profile || ["rejected","suspended"].includes(profile.status)) return reply(request, env, { error: "provider_not_found" }, 404);
     const length = Number(request.headers.get("content-length") || 0);
     if (length > MAX_PROFILE_PHOTO_BYTES) return reply(request, env, { error: "photo_too_large" }, 413);
     const bytes = await request.arrayBuffer();
@@ -577,18 +592,24 @@ async function adminApplications(request, env, user) {
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all();
     const approvedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.updated_at,u.email
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='approved' ORDER BY p.updated_at DESC LIMIT 100`).all();
+    const suspendedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.review_note,p.updated_at,u.email\n      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='suspended' AND p.provider_type='coach' ORDER BY p.updated_at DESC LIMIT 100`).all();
     const bookings = await env.DB.prepare(`SELECT id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,distance,target_pace,created_at
       FROM booking_requests WHERE status IN ('received','reviewing') OR payment_status='pending_payment' ORDER BY created_at LIMIT 100`).all();
-    return reply(request, env, { providers: providers.results || [], approved_providers: approvedProviders.results || [], bookings: bookings.results || [] });
+    return reply(request, env, { providers: providers.results || [], approved_providers: approvedProviders.results || [], suspended_providers: suspendedProviders.results || [], bookings: bookings.results || [] });
   }
   const match = /^\/api\/admin\/providers\/([\w-]{36})$/.exec(new URL(request.url).pathname);
   if (match && request.method === "PATCH") {
     const body = await readJson(request), status = body?.status;
-    if (!body || !["approved","rejected"].includes(status)) return reply(request, env, { error: "invalid_review_status" }, 400);
-    const previous = await env.DB.prepare("SELECT status FROM provider_profiles WHERE id=?").bind(match[1]).first();
+    if (!body || !["approved","rejected","suspended"].includes(status)) return reply(request, env, { error: "invalid_review_status" }, 400);
+    const previous = await env.DB.prepare("SELECT status,provider_type FROM provider_profiles WHERE id=?").bind(match[1]).first();
     if (!previous) return reply(request, env, { updated: false }, 404);
-    const result = await env.DB.prepare("UPDATE provider_profiles SET status=?,review_note=?,updated_at=? WHERE id=? AND status='pending'")
-      .bind(status,text(body.note,500)||null,new Date().toISOString(),match[1]).run();
+    const allowed = (previous.status === "pending" && ["approved","rejected"].includes(status))
+      || (previous.provider_type === "coach" && previous.status === "approved" && status === "suspended")
+      || (previous.provider_type === "coach" && previous.status === "suspended" && status === "approved");
+    if (!allowed) return reply(request, env, { error: "invalid_provider_status_change" }, 409);
+    const note = status === "suspended" ? (text(body.note,500)||"Removed by owner") : status === "approved" ? null : text(body.note,500)||null;
+    const result = await env.DB.prepare("UPDATE provider_profiles SET status=?,review_note=?,updated_at=? WHERE id=? AND status=?")
+      .bind(status,note,new Date().toISOString(),match[1],previous.status).run();
     const updated = Boolean(result.meta?.changes);
     if (updated) await env.DB.prepare(`INSERT INTO moderation_events(id,actor_user_id,entity_type,entity_id,from_status,to_status,created_at) VALUES(?,?,'provider_profile',?,?,?,?)`)
       .bind(randomId(),user.id,match[1],previous.status,status,new Date().toISOString()).run();
@@ -663,3 +684,4 @@ export default {
 };
 
 export { hashPassword, verifyPassword, emailValue, readJson, cleanList, clampInt, clampNullableInt, normalizeWhatsApp, cleanSocialLinks, cleanProfilePhotoUrl, profilePhotoType };
+
