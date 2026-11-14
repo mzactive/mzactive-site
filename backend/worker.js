@@ -336,8 +336,18 @@ async function isMemberAccount(env, user) {
 }
 
 async function dashboardOverview(request, env, user) {
-  let teams, dashboardRole;
-  if (await isApprovedCoach(env, user)) {
+  let teams, dashboardRole, coaches = [];
+  if (user.role === "admin") {
+    dashboardRole = "admin";
+    const rows = await env.DB.prepare(`SELECT t.id,t.name,t.join_code,t.created_at,p.display_name AS coach_name,COUNT(m.user_id) AS member_count
+      FROM training_teams t LEFT JOIN training_team_members m ON m.team_id=t.id
+      LEFT JOIN provider_profiles p ON p.user_id=t.coach_user_id
+      GROUP BY t.id ORDER BY t.created_at DESC LIMIT 200`).all();
+    teams = (rows.results || []).map((team) => ({ ...team, is_coach: true, is_admin: true }));
+    const coachRows = await env.DB.prepare(`SELECT u.id AS user_id,p.display_name FROM provider_profiles p
+      JOIN users u ON u.id=p.user_id WHERE p.status='approved' ORDER BY p.display_name LIMIT 200`).all();
+    coaches = coachRows.results || [];
+  } else if (await isApprovedCoach(env, user)) {
     dashboardRole = "provider";
     const rows = await env.DB.prepare(`SELECT t.id,t.name,t.join_code,t.created_at,COUNT(m.user_id) AS member_count
       FROM training_teams t LEFT JOIN training_team_members m ON m.team_id=t.id
@@ -366,7 +376,13 @@ async function dashboardOverview(request, env, user) {
       team.members = members.results || [];
     }
   }
-  return reply(request, env, { role: dashboardRole, teams });
+  return reply(request, env, { role: dashboardRole, teams, ...(dashboardRole === "admin" ? { coaches } : {}) });
+}
+
+async function canManageTeam(env, user, teamId) {
+  if (user.role === "admin") return Boolean(await env.DB.prepare("SELECT id FROM training_teams WHERE id=?").bind(teamId).first());
+  if (!await isApprovedCoach(env, user)) return false;
+  return Boolean(await env.DB.prepare("SELECT id FROM training_teams WHERE id=? AND coach_user_id=?").bind(teamId,user.id).first());
 }
 
 async function dashboardApi(request, env, user) {
@@ -374,16 +390,19 @@ async function dashboardApi(request, env, user) {
   if (request.method === "GET" && path === "/api/dashboard") return dashboardOverview(request, env, user);
 
   if (request.method === "POST" && path === "/api/dashboard/teams") {
-    if (!await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
+    const admin = user.role === "admin";
+    if (!admin && !await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
     if (!await rateLimit(request, env, "dashboard-team", 5)) return reply(request, env, { error: "rate_limited" }, 429);
     const body = await readJson(request), name = text(body?.name, 80);
     if (!body || !name) return reply(request, env, { error: "team_name_required" }, 400);
+    const coachUserId = admin ? text(body.coach_user_id, 36) : user.id;
+    if (!coachUserId || (admin && !await env.DB.prepare("SELECT user_id FROM provider_profiles WHERE user_id=? AND status='approved'").bind(coachUserId).first())) return reply(request, env, { error: "approved_coach_required" }, 403);
     const now = new Date().toISOString(), id = randomId();
     let joinCode = "";
     for (let attempt = 0; attempt < 3; attempt++) {
       joinCode = newJoinCode();
       try {
-        await env.DB.prepare("INSERT INTO training_teams(id,coach_user_id,name,join_code,created_at) VALUES(?,?,?,?,?)").bind(id,user.id,name,joinCode,now).run();
+        await env.DB.prepare("INSERT INTO training_teams(id,coach_user_id,name,join_code,created_at) VALUES(?,?,?,?,?)").bind(id,coachUserId,name,joinCode,now).run();
         break;
       } catch (error) {
         if (attempt === 2) throw error;
@@ -404,11 +423,10 @@ async function dashboardApi(request, env, user) {
   }
 
   if (request.method === "POST" && path === "/api/dashboard/sessions") {
-    if (!await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
+    if (user.role !== "admin" && !await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
     const body = await readJson(request), teamId = text(body?.team_id, 36), title = text(body?.title, 120), startsAt = text(body?.starts_at, 40);
     if (!body || !teamId || !title || !startsAt || !Number.isFinite(Date.parse(startsAt))) return reply(request, env, { error: "invalid_training_session" }, 400);
-    const team = await env.DB.prepare("SELECT id FROM training_teams WHERE id=? AND coach_user_id=?").bind(teamId,user.id).first();
-    if (!team) return reply(request, env, { error: "team_not_found" }, 404);
+    if (!await canManageTeam(env, user, teamId)) return reply(request, env, { error: "team_not_found" }, 404);
     const now = new Date().toISOString(), id = randomId();
     await env.DB.prepare("INSERT INTO training_sessions(id,team_id,title,description,location,starts_at,status,created_at,updated_at) VALUES(?,?,?,?,?,?,'scheduled',?,?)")
       .bind(id,teamId,title,text(body.description,500),text(body.location,120),new Date(startsAt).toISOString(),now,now).run();
@@ -416,11 +434,10 @@ async function dashboardApi(request, env, user) {
   }
 
   if (request.method === "POST" && path === "/api/dashboard/messages") {
-    if (!await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
+    if (user.role !== "admin" && !await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
     const body = await readJson(request), teamId = text(body?.team_id, 36), message = text(body?.body, 1000);
     if (!body || !teamId || !message) return reply(request, env, { error: "team_and_message_required" }, 400);
-    const team = await env.DB.prepare("SELECT id FROM training_teams WHERE id=? AND coach_user_id=?").bind(teamId,user.id).first();
-    if (!team) return reply(request, env, { error: "team_not_found" }, 404);
+    if (!await canManageTeam(env, user, teamId)) return reply(request, env, { error: "team_not_found" }, 404);
     const id = randomId(), now = new Date().toISOString();
     await env.DB.prepare("INSERT INTO training_messages(id,team_id,coach_user_id,body,created_at) VALUES(?,?,?,?,?)").bind(id,teamId,user.id,message,now).run();
     return reply(request, env, { id, created_at: now }, 201);
@@ -428,10 +445,12 @@ async function dashboardApi(request, env, user) {
 
   const sessionMatch = /^\/api\/dashboard\/sessions\/([\w-]{36})$/.exec(path);
   if (sessionMatch && request.method === "PATCH") {
-    if (!await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
+    if (user.role !== "admin" && !await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
     const body = await readJson(request), status = body?.status;
     if (!body || !["scheduled","completed","cancelled"].includes(status)) return reply(request, env, { error: "invalid_session_status" }, 400);
-    const session = await env.DB.prepare("SELECT s.id FROM training_sessions s JOIN training_teams t ON t.id=s.team_id WHERE s.id=? AND t.coach_user_id=?").bind(sessionMatch[1],user.id).first();
+    const session = user.role === "admin"
+      ? await env.DB.prepare("SELECT id FROM training_sessions WHERE id=?").bind(sessionMatch[1]).first()
+      : await env.DB.prepare("SELECT s.id FROM training_sessions s JOIN training_teams t ON t.id=s.team_id WHERE s.id=? AND t.coach_user_id=?").bind(sessionMatch[1],user.id).first();
     if (!session) return reply(request, env, { error: "session_not_found" }, 404);
     await env.DB.prepare("UPDATE training_sessions SET status=?,updated_at=? WHERE id=?").bind(status,new Date().toISOString(),session.id).run();
     return reply(request, env, { updated: true, status });
