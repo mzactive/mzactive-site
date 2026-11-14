@@ -1,4 +1,4 @@
-ALTER TABLE provider_profiles ADD COLUMN public_fields_json TEXT NOT NULL DEFAULT '["city","specialties","languages","bio","experience_years","indicative_rate_qar","profile_photo","social_links","program_durations"]';
+ALTER TABLE provider_profiles ADD COLUMN public_fields_json TEXT NOT NULL DEFAULT '["city","specialties","languages","bio","experience_years","indicative_rate_qar","profile_photo","social_links","program_durations","whatsapp"]';
 
 CREATE TABLE IF NOT EXISTS athlete_programs (
   id TEXT PRIMARY KEY,
@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS athlete_program_completions (
   athlete_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   completed_at TEXT NOT NULL,
   actual_km REAL NOT NULL DEFAULT 0 CHECK(actual_km >= 0 AND actual_km <= 500),
+  duration_minutes INTEGER NOT NULL DEFAULT 0 CHECK(duration_minutes >= 0 AND duration_minutes <= 720),
   PRIMARY KEY(session_id, athlete_user_id)
 );
 
