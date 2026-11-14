@@ -317,17 +317,33 @@ async function adminApplications(request, env, user) {
   if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
   const photoMatch = /^\/api\/admin\/providers\/([\w-]{36})\/photo$/.exec(new URL(request.url).pathname);
   if (photoMatch && request.method === "GET") {
-    const photo = await env.DB.prepare("SELECT profile_photo_bytes,profile_photo_content_type FROM provider_profiles WHERE id=? AND status='pending'")
+    const photo = await env.DB.prepare("SELECT profile_photo_bytes,profile_photo_content_type FROM provider_profiles WHERE id=?")
       .bind(photoMatch[1]).first();
     if (!photo?.profile_photo_bytes || !photo.profile_photo_content_type) return reply(request, env, { error: "photo_not_found" }, 404);
     return binaryReply(request, env, photo.profile_photo_bytes, photo.profile_photo_content_type, "private, no-store");
   }
+  if (photoMatch && request.method === "PUT") {
+    const profile = await env.DB.prepare("SELECT id,status FROM provider_profiles WHERE id=?").bind(photoMatch[1]).first();
+    if (!profile || profile.status === "rejected") return reply(request, env, { error: "provider_not_found" }, 404);
+    const length = Number(request.headers.get("content-length") || 0);
+    if (length > MAX_PROFILE_PHOTO_BYTES) return reply(request, env, { error: "photo_too_large" }, 413);
+    const bytes = await request.arrayBuffer();
+    if (!bytes.byteLength || bytes.byteLength > MAX_PROFILE_PHOTO_BYTES) return reply(request, env, { error: "photo_too_large" }, 413);
+    const contentType = profilePhotoType(bytes);
+    if (!contentType) return reply(request, env, { error: "invalid_photo" }, 400);
+    const now = new Date().toISOString();
+    await env.DB.prepare("UPDATE provider_profiles SET profile_photo_bytes=?,profile_photo_content_type=?,profile_photo_updated_at=?,updated_at=? WHERE id=?")
+      .bind(bytes, contentType, now, now, profile.id).run();
+    return reply(request, env, { photo_uploaded: true, status: profile.status, updated_at: now });
+  }
   if (request.method === "GET") {
     const providers = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.whatsapp_number,p.whatsapp_public,p.social_links_json,p.status,p.review_note,p.updated_at,u.email
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all();
+    const approvedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.updated_at,u.email
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='approved' ORDER BY p.updated_at DESC LIMIT 100`).all();
     const bookings = await env.DB.prepare(`SELECT id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,distance,target_pace,created_at
       FROM booking_requests WHERE status IN ('received','reviewing') OR payment_status='pending_payment' ORDER BY created_at LIMIT 100`).all();
-    return reply(request, env, { providers: providers.results || [], bookings: bookings.results || [] });
+    return reply(request, env, { providers: providers.results || [], approved_providers: approvedProviders.results || [], bookings: bookings.results || [] });
   }
   const match = /^\/api\/admin\/providers\/([\w-]{36})$/.exec(new URL(request.url).pathname);
   if (match && request.method === "PATCH") {

@@ -105,6 +105,31 @@ test("pending profile photos are served only through the authenticated Admin rou
   assert.deepEqual(await denied.json(), { error: "forbidden" });
 });
 
+test("Admin can add a photo to an approved profile without changing its approval", async () => {
+  const token = "a".repeat(40), id = "12345678-1234-1234-1234-123456789012";
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+  const tokenHash = btoa(String.fromCharCode(...digest)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  let updateSql = "", updateParams = [];
+  const env = { DB: { prepare(sql) { let params = []; return {
+    bind(...values) { params = values; return this; },
+    async first() {
+      if (sql.includes("SELECT u.id")) return params[0] === tokenHash ? { id: "admin-id", email: "admin@example.com", role: "admin" } : null;
+      if (sql.includes("SELECT id,status FROM provider_profiles")) return { id, status: "approved" };
+      return null;
+    },
+    async run() { updateSql = sql; updateParams = params; return { meta: { changes: 1 } }; },
+  }; } } };
+  const photo = Uint8Array.from([0xff, 0xd8, 0xff, 0x00]);
+  const response = await worker.fetch(new Request(`https://api.example.test/api/admin/providers/${id}/photo`, {
+    method: "PUT", headers: { Authorization: `Bearer ${token}`, "content-type": "image/jpeg" }, body: photo,
+  }), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { photo_uploaded: true, status: "approved", updated_at: updateParams[3] });
+  assert.match(updateSql, /SET profile_photo_bytes=/);
+  assert.doesNotMatch(updateSql, /status=/);
+  assert.deepEqual(new Uint8Array(updateParams[0]), photo);
+});
+
 test("provider photo upload is visible to Admin while remaining private before approval", async () => {
   const providerToken = "p".repeat(40), adminToken = "a".repeat(40);
   const tokenHash = async (token) => {
@@ -117,8 +142,8 @@ test("provider photo upload is visible to Admin while remaining private before a
     bind(...values) { params = values; return this; },
     async first() {
       if (sql.includes("SELECT u.id")) return sessions.get(params[0]) || null;
-      if (sql.includes("profile_photo_bytes") && sql.includes("status='pending'")) return storedPhoto;
       if (sql.includes("status='approved'")) return null;
+      if (sql.includes("profile_photo_bytes")) return storedPhoto;
       return null;
     },
     async run() {
