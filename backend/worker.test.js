@@ -8,10 +8,11 @@ test("normalizes valid email and rejects malformed or unbounded values", () => {
   assert.equal(emailValue("x".repeat(300) + "@example.com"), "");
 });
 
-test("validates explicitly international WhatsApp numbers", () => {
+test("accepts Qatar local and international WhatsApp numbers", () => {
   assert.equal(normalizeWhatsApp("+974 6629 7954"), "97466297954");
+  assert.equal(normalizeWhatsApp("66297954"), "97466297954");
   assert.equal(normalizeWhatsApp("+1 (202) 555-0101"), "12025550101");
-  assert.equal(normalizeWhatsApp("66297954"), null);
+  assert.equal(normalizeWhatsApp("123"), null);
   assert.equal(normalizeWhatsApp(""), "");
 });
 
@@ -81,4 +82,115 @@ test("Admin queue rejects a caller without an authenticated session", async () =
   const response = await worker.fetch(new Request("https://api.example.test/api/admin/applications"), noDatabase);
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { error: "unauthorized" });
+});
+
+test("pending profile photos are served only through the authenticated Admin route", async () => {
+  const photoBytes = Uint8Array.from([0xff, 0xd8, 0xff, 0x00]);
+  const makeEnv = (role) => ({ DB: { prepare(sql) { return { bind() { return this; }, async first() {
+    if (sql.includes("JOIN users")) return { id: "admin-id", email: "admin@example.com", role };
+    if (sql.includes("profile_photo_bytes")) return { profile_photo_bytes: photoBytes, profile_photo_content_type: "image/jpeg" };
+    return null;
+  } }; } } });
+  const url = "https://api.example.test/api/admin/providers/12345678-1234-1234-1234-123456789012/photo";
+  const request = () => new Request(url, { headers: { Authorization: `Bearer ${"a".repeat(40)}` } });
+
+  const allowed = await worker.fetch(request(), makeEnv("admin"));
+  assert.equal(allowed.status, 200);
+  assert.equal(allowed.headers.get("content-type"), "image/jpeg");
+  assert.equal(allowed.headers.get("cache-control"), "private, no-store");
+  assert.deepEqual(new Uint8Array(await allowed.arrayBuffer()), photoBytes);
+
+  const denied = await worker.fetch(request(), makeEnv("provider"));
+  assert.equal(denied.status, 403);
+  assert.deepEqual(await denied.json(), { error: "forbidden" });
+});
+
+test("provider photo upload is visible to Admin while remaining private before approval", async () => {
+  const providerToken = "p".repeat(40), adminToken = "a".repeat(40);
+  const tokenHash = async (token) => {
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+    return btoa(String.fromCharCode(...digest)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  };
+  const sessions = new Map([[await tokenHash(providerToken), { id: "provider-id", email: "provider@example.com", role: "provider" }], [await tokenHash(adminToken), { id: "admin-id", email: "admin@example.com", role: "admin" }]]);
+  let storedPhoto = null;
+  const env = { DATA_COLLECTION_ENABLED: "true", DB: { prepare(sql) { let params = []; return {
+    bind(...values) { params = values; return this; },
+    async first() {
+      if (sql.includes("SELECT u.id")) return sessions.get(params[0]) || null;
+      if (sql.includes("profile_photo_bytes") && sql.includes("status='pending'")) return storedPhoto;
+      if (sql.includes("status='approved'")) return null;
+      return null;
+    },
+    async run() {
+      if (sql.startsWith("UPDATE provider_profiles SET profile_photo_bytes=")) storedPhoto = { profile_photo_bytes: params[0], profile_photo_content_type: params[1] };
+      return { meta: { changes: 1 } };
+    },
+  }; } } };
+  const id = "12345678-1234-1234-1234-123456789012";
+  const photo = Uint8Array.from([0xff, 0xd8, 0xff, 0x00]);
+  const uploaded = await worker.fetch(new Request("https://api.example.test/api/me/profile/photo", {
+    method: "PUT", headers: { Authorization: `Bearer ${providerToken}`, "content-type": "image/jpeg" }, body: photo,
+  }), env);
+  assert.equal(uploaded.status, 200);
+  assert.equal((await uploaded.json()).photo_uploaded, true);
+
+  const adminView = await worker.fetch(new Request(`https://api.example.test/api/admin/providers/${id}/photo`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+  }), env);
+  assert.equal(adminView.status, 200);
+  assert.deepEqual(new Uint8Array(await adminView.arrayBuffer()), photo);
+
+  const publicView = await worker.fetch(new Request(`https://api.example.test/api/providers/${id}/photo`), env);
+  assert.equal(publicView.status, 404);
+});
+
+test("profile edits accept optional details and normalize Qatar WhatsApp numbers", async () => {
+  const token = "p".repeat(40);
+  let saved = null;
+  const env = { DATA_COLLECTION_ENABLED: "true", DB: { prepare(sql) { let params = []; return {
+    bind(...values) { params = values; return this; },
+    async first() { return sql.includes("SELECT u.id") ? { id: "provider-id", email: "provider@example.com", role: "provider" } : null; },
+    async run() { if (sql.includes("SET provider_type=?")) saved = params; return { meta: { changes: 1 } }; },
+  }; } } };
+  const response = await worker.fetch(new Request("https://api.example.test/api/me/profile", {
+    method: "PUT", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ provider_type: "coach", display_name: "", city: "", bio: "", whatsapp_number: "66297954", whatsapp_public: true, social_links: ["javascript:alert(1)"] }),
+  }), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).warnings, ["social_links_skipped"]);
+  assert.equal(saved[1], ""); // preserve the existing display name
+  assert.equal(saved[10], "97466297954");
+  assert.equal(saved[11], 1);
+  assert.equal(saved[12], "[]"); // unsafe links are skipped, not rendered
+});
+
+test("AI chat is bounded, uses the assistant binding, and does not persist chat text", async () => {
+  const queries = [];
+  let inputSeen;
+  const env = {
+    DB: { prepare(sql) { queries.push(sql); return { bind() { return this; }, async first() { return { request_count: 1 }; }, async run() { return { meta: { changes: 0 } }; } }; } },
+    AI: { async run(model, input) { inputSeen = { model, input }; return { response: "Use the coach directory to find a profile." }; } },
+  };
+  const response = await worker.fetch(new Request("https://api.example.test/api/assistant/chat", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message: "How do I find a coach?", history: [{ role: "user", content: "Hello" }] }),
+  }), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { answer: "Use the coach directory to find a profile." });
+  assert.equal(inputSeen.model, "@cf/meta/llama-3.1-8b-instruct");
+  assert.equal(inputSeen.input.max_tokens, 180);
+  assert.equal(inputSeen.input.messages.at(-1).content, "How do I find a coach?");
+  assert.ok(queries.some((sql) => sql.includes("ai_chat_usage")));
+  assert.ok(queries.every((sql) => !sql.includes("Hello") && !sql.includes("How do I find a coach?")));
+});
+
+test("AI chat stops at the shared daily cap", async () => {
+  let modelCalled = false;
+  const env = { DB: { prepare(sql) { return { bind() { return this; }, async first() { return sql.includes("ai_chat_usage") ? null : { request_count: 1 }; }, async run() { return { meta: { changes: 0 } }; } }; } }, AI: { async run() { modelCalled = true; return { response: "not expected" }; } } };
+  const response = await worker.fetch(new Request("https://api.example.test/api/assistant/chat", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: "Where do I find a coach?" }),
+  }), env);
+  assert.equal(response.status, 429);
+  assert.deepEqual(await response.json(), { error: "daily_limit_reached" });
+  assert.equal(modelCalled, false);
 });

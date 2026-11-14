@@ -3,6 +3,7 @@ const SESSION_TTL_SECONDS = 60 * 60 * 12;
 const PASSWORD_ITERATIONS = 100_000;
 const MAX_BODY_BYTES = 16_384;
 const MAX_PROFILE_PHOTO_BYTES = 1_000_000;
+const MAX_DAILY_ASSISTANT_REQUESTS = 60;
 
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
   status,
@@ -95,19 +96,53 @@ async function collectionEnabled(env) {
   return env.DATA_COLLECTION_ENABLED === "true";
 }
 
+async function reserveAssistantRequest(env) {
+  const day = new Date().toISOString().slice(0, 10);
+  const row = await env.DB.prepare(`INSERT INTO ai_chat_usage(usage_date,request_count) VALUES(?,1)
+    ON CONFLICT(usage_date) DO UPDATE SET request_count=request_count+1
+    WHERE request_count < ? RETURNING request_count`).bind(day, MAX_DAILY_ASSISTANT_REQUESTS).first();
+  return Boolean(row);
+}
+
+async function assistantChat(request, env) {
+  if (!env.AI || typeof env.AI.run !== "function") return reply(request, env, { error: "assistant_unavailable" }, 503);
+  if (!await rateLimit(request, env, "assistant-chat", 8)) return reply(request, env, { error: "rate_limited" }, 429);
+  const body = await readJson(request), message = text(body?.message, 1000);
+  if (!body || !message) return reply(request, env, { error: "message_required" }, 400);
+  const history = Array.isArray(body.history) ? body.history.slice(-4).flatMap((item) => {
+    const role = item?.role === "assistant" ? "assistant" : item?.role === "user" ? "user" : "";
+    const content = text(item?.content, 400);
+    return role && content ? [{ role, content }] : [];
+  }) : [];
+  if (!await reserveAssistantRequest(env)) return reply(request, env, { error: "daily_limit_reached" }, 429);
+  const system = `You are the MZ Active website assistant for athletes and coaches. Be brief, kind, and practical. Reply in the language of the user's message (English or Arabic). Use only these verified facts: MZ Active helps people find coaches and pacers in Qatar; only profiles approved by MZ Active appear publicly; coaches can create or update a profile at https://mzactive.com/providers.html; profile photo uploads accept JPG, PNG, or WebP up to 1 MB, and Qatar local WhatsApp numbers can be entered as 8 digits; a coach's profile remains private until Admin approval. Clients can browse https://mzactive.com/coaches.html and send a request at https://mzactive.com/pacer.html. A request is not a confirmed booking, the site does not collect payments, and payment/availability must be coordinated separately. Do not promise a coach's availability, rates, approval, booking, payment, medical result, or reply time. Do not claim to have accessed a user's account or contacted MZ Active. Never make approval or rejection decisions. Do not ask for passwords, payment credentials, identity documents, health records, or other sensitive details. For information you cannot verify, say so plainly and offer the relevant page link. Do not send routine questions to the site owner when the self-service pages can help.`;
+  try {
+    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+      messages: [{ role: "system", content: system }, ...history, { role: "user", content: message }],
+      max_tokens: 180,
+      temperature: 0.2,
+    });
+    const answer = text(result?.response, 3000);
+    if (!answer) return reply(request, env, { error: "assistant_unavailable" }, 503);
+    return reply(request, env, { answer });
+  } catch {
+    return reply(request, env, { error: "assistant_unavailable" }, 503);
+  }
+}
+
 async function register(request, env) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
   if (!await rateLimit(request, env, "register", 5)) return reply(request, env, { error: "rate_limited" }, 429);
   const body = await readJson(request);
   const email = emailValue(body?.email), password = text(body?.password, 128);
   const type = body?.provider_type === "pacer" ? "pacer" : body?.provider_type === "coach" ? "coach" : "";
-  const displayName = text(body?.display_name, 100), city = text(body?.city, 80), bio = text(body?.bio, 4000);
+  const displayName = text(body?.display_name, 100) || "Coach profile", city = text(body?.city, 80), bio = text(body?.bio, 4000) || "Profile awaiting completion by the provider.";
   const whatsappInput = text(body?.whatsapp_number, 32), whatsapp = normalizeWhatsApp(whatsappInput), whatsappPublic = body?.whatsapp_public === true;
-  const whatsappConsentValid = whatsapp !== null && (!!whatsapp === whatsappPublic);
-  const socialLinks = cleanSocialLinks(body?.social_links);
+  const canPublishWhatsApp = Boolean(whatsapp && whatsappPublic);
+  const socialLinks = cleanSocialLinks(body?.social_links) || [];
   const adminEmails = (env.ADMIN_EMAILS || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   const isAdminEmail = adminEmails.includes(email);
-  if (!body || !email || password.length < 12 || body.consent !== true || (!isAdminEmail && (!type || !displayName || !city || !bio || !whatsappConsentValid || !socialLinks))) {
+  if (!body || !email || password.length < 12 || body.consent !== true || (!isAdminEmail && !type)) {
     return reply(request, env, { error: "invalid_registration" }, 400);
   }
   if (isAdminEmail && (!env.ADMIN_SETUP_KEY || !(await safeEqual(request.headers.get("x-admin-setup-key") || "", env.ADMIN_SETUP_KEY)))) {
@@ -121,7 +156,7 @@ async function register(request, env) {
       env.DB.prepare("INSERT INTO users(id,email,password_hash,role,created_at) VALUES(?,?,?,?,?)")
         .bind(userId, email, passwordHash, isAdminEmail ? "admin" : "provider", now),
       ...(!isAdminEmail ? [env.DB.prepare(`INSERT INTO provider_profiles(id,user_id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,whatsapp_number,whatsapp_public,social_links_json,status,updated_at,created_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(profileId,userId,type,displayName,text(body.country,80)||"Qatar",city,JSON.stringify(specialties),JSON.stringify(languages),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),whatsappPublic?whatsapp:null,whatsappPublic?1:0,JSON.stringify(socialLinks),"pending",now,now)] : []),
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(profileId,userId,type,displayName,text(body.country,80)||"Qatar",city,JSON.stringify(specialties),JSON.stringify(languages),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),canPublishWhatsApp?whatsapp:null,canPublishWhatsApp?1:0,JSON.stringify(socialLinks),"pending",now,now)] : []),
     ]);
   } catch {
     return reply(request, env, { error: "account_already_exists_or_storage_error" }, 409);
@@ -173,6 +208,7 @@ async function publicProviders(url, request, env) {
 function normalizeWhatsApp(value) {
   const raw = text(value, 32).replace(/[\s().-]/g, "");
   if (!raw) return "";
+  if (/^\d{8}$/.test(raw)) return `974${raw}`;
   if (!/^\+[1-9]\d{7,14}$/.test(raw)) return null;
   return raw.slice(1);
 }
@@ -245,13 +281,16 @@ async function saveProfile(request, env, user) {
   const type = body?.provider_type === "pacer" ? "pacer" : body?.provider_type === "coach" ? "coach" : "";
   const name = text(body?.display_name,100), city = text(body?.city,80), bio = text(body?.bio,4000);
   const whatsappInput = text(body?.whatsapp_number,32), whatsapp = normalizeWhatsApp(whatsappInput), whatsappPublic = body?.whatsapp_public === true;
-  const whatsappConsentValid = whatsapp !== null && (!!whatsapp === whatsappPublic);
+  const canPublishWhatsApp = Boolean(whatsapp && whatsappPublic);
   const socialLinks = cleanSocialLinks(body?.social_links);
-  if (!body || !type || !name || !city || !bio || !whatsappConsentValid || !socialLinks) return reply(request, env, { error: "invalid_profile" }, 400);
+  if (!body || !type) return reply(request, env, { error: "invalid_profile_type" }, 400);
+  const warnings = [];
+  if (whatsappInput && (!whatsapp || !whatsappPublic)) warnings.push("whatsapp_not_saved");
+  if (socialLinks === null) warnings.push("social_links_skipped");
   const now = new Date().toISOString();
-  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=?,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
-    .bind(type,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),whatsappPublic?whatsapp:null,whatsappPublic?1:0,JSON.stringify(socialLinks),now,user.id).run();
-  return reply(request, env, { status: "pending_review" });
+  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=CASE WHEN ?='' THEN display_name ELSE ? END,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
+    .bind(type,name,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),canPublishWhatsApp?whatsapp:null,canPublishWhatsApp?1:0,JSON.stringify(socialLinks||[]),now,user.id).run();
+  return reply(request, env, { status: "pending_review", warnings });
 }
 
 async function createBooking(request, env) {
@@ -276,6 +315,13 @@ async function createBooking(request, env) {
 
 async function adminApplications(request, env, user) {
   if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+  const photoMatch = /^\/api\/admin\/providers\/([\w-]{36})\/photo$/.exec(new URL(request.url).pathname);
+  if (photoMatch && request.method === "GET") {
+    const photo = await env.DB.prepare("SELECT profile_photo_bytes,profile_photo_content_type FROM provider_profiles WHERE id=? AND status='pending'")
+      .bind(photoMatch[1]).first();
+    if (!photo?.profile_photo_bytes || !photo.profile_photo_content_type) return reply(request, env, { error: "photo_not_found" }, 404);
+    return binaryReply(request, env, photo.profile_photo_bytes, photo.profile_photo_content_type, "private, no-store");
+  }
   if (request.method === "GET") {
     const providers = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.whatsapp_number,p.whatsapp_public,p.social_links_json,p.status,p.review_note,p.updated_at,u.email
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all();
@@ -321,6 +367,7 @@ export default {
     if (!cors) return json({ error: "origin_not_allowed" }, 403);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: Object.fromEntries(cors) });
     if (request.method === "GET" && url.pathname === "/health") return reply(request, env, { ok: true, intake_enabled: env.DATA_COLLECTION_ENABLED === "true" });
+    if (request.method === "POST" && url.pathname === "/api/assistant/chat") return assistantChat(request, env);
     if (request.method === "GET" && url.pathname === "/api/providers") return publicProviders(url, request, env);
     const publicPhotoMatch = /^\/api\/providers\/([\w-]{36})\/photo$/.exec(url.pathname);
     if (request.method === "GET" && publicPhotoMatch) return publicProfilePhoto(publicPhotoMatch[1], request, env);
