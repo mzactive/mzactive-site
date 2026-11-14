@@ -62,10 +62,10 @@ function make(tag,cls,value){const el=document.createElement(tag);if(cls)el.clas
  if(visible.has('indicative_rate_qar'))addFact(lang==='ar'?'السعر':'RATE',p.indicative_rate_qar?`${p.indicative_rate_qar} QAR`:(lang==='ar'?'عند الطلب':'On request'));
  if(visible.has('program_durations')&&p.provider_type==='coach'&&p.program_durations?.length)addFact(lang==='ar'?'مدة البرامج':'PROGRAM LENGTHS',p.program_durations.map(n=>n+(lang==='ar'?' شهر':(n===1?' month':' months'))).join(' · '));
  const socials=document.getElementById('coachProfileSocials');socials.replaceChildren();socials.hidden=!visible.has('social_links');
- if(visible.has('social_links'))for(const href of p.social_links||[]){try{const a=make('a','social-link',new URL(href).hostname.replace(/^www\\./,''));a.href=href;a.target='_blank';a.rel='noopener noreferrer nofollow';socials.append(a)}catch{}}
+ if(visible.has('social_links'))for(const href of p.social_links||[]){try{const a=make('a','social-link',new URL(href).hostname.replace(/^www\./,''));a.href=href;a.target='_blank';a.rel='noopener noreferrer nofollow';socials.append(a)}catch{}}
  const request=document.getElementById('coachProfileRequest');request.textContent=lang==='ar'?'أرسل طلباً لهذا المدرب ↗':'SEND REQUEST TO THIS COACH ↗';request.href=`pacer.html?provider=${encodeURIComponent(p.id)}#request`;
  const chat=document.getElementById('coachProfileWhatsApp');
- if(visible.has('whatsapp')&&p.whatsapp_number){chat.hidden=false;chat.textContent=lang==='ar'?'تواصل عبر واتساب ↗':'CHAT ON WHATSAPP ↗';chat.href='https://wa.me/'+String(p.whatsapp_number).replace(/\\D/g,'')+'?text='+encodeURIComponent(lang==='ar'?'مرحباً، وجدت ملفك على MZ Active وأرغب في الاستفسار عن التدريب.':'Hello, I found your MZ Active profile and would like to ask about coaching.')}else chat.hidden=true;
+ if(visible.has('whatsapp')&&p.whatsapp_number){chat.hidden=false;chat.textContent=lang==='ar'?'تواصل عبر واتساب ↗':'CHAT ON WHATSAPP ↗';chat.href='https://wa.me/'+String(p.whatsapp_number).replace(/\D/g,'')+'?text='+encodeURIComponent(lang==='ar'?'مرحباً، وجدت ملفك على MZ Active وأرغب في الاستفسار عن التدريب.':'Hello, I found your MZ Active profile and would like to ask about coaching.')}else chat.hidden=true;
  dialog.showModal()
 }
 document.getElementById('closeCoachProfile').addEventListener('click',()=>document.getElementById('coachProfileDialog').close());
