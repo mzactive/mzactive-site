@@ -82,3 +82,24 @@ test("Admin queue rejects a caller without an authenticated session", async () =
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { error: "unauthorized" });
 });
+
+test("pending profile photos are served only through the authenticated Admin route", async () => {
+  const photoBytes = Uint8Array.from([0xff, 0xd8, 0xff, 0x00]);
+  const makeEnv = (role) => ({ DB: { prepare(sql) { return { bind() { return this; }, async first() {
+    if (sql.includes("JOIN users")) return { id: "admin-id", email: "admin@example.com", role };
+    if (sql.includes("profile_photo_bytes")) return { profile_photo_bytes: photoBytes, profile_photo_content_type: "image/jpeg" };
+    return null;
+  } }; } } });
+  const url = "https://api.example.test/api/admin/providers/12345678-1234-1234-1234-123456789012/photo";
+  const request = () => new Request(url, { headers: { Authorization: `Bearer ${"a".repeat(40)}` } });
+
+  const allowed = await worker.fetch(request(), makeEnv("admin"));
+  assert.equal(allowed.status, 200);
+  assert.equal(allowed.headers.get("content-type"), "image/jpeg");
+  assert.equal(allowed.headers.get("cache-control"), "private, no-store");
+  assert.deepEqual(new Uint8Array(await allowed.arrayBuffer()), photoBytes);
+
+  const denied = await worker.fetch(request(), makeEnv("provider"));
+  assert.equal(denied.status, 403);
+  assert.deepEqual(await denied.json(), { error: "forbidden" });
+});
