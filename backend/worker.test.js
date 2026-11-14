@@ -8,7 +8,7 @@ test("normalizes valid email and rejects malformed or unbounded values", () => {
   assert.equal(emailValue("x".repeat(300) + "@example.com"), "");
 });
 
-test("validates explicitly international WhatsApp numbers", () => {
+test("accepts Qatar local and international WhatsApp numbers", () => {
   assert.equal(normalizeWhatsApp("+974 6629 7954"), "97466297954");
   assert.equal(normalizeWhatsApp("66297954"), "97466297954");
   assert.equal(normalizeWhatsApp("+1 (202) 555-0101"), "12025550101");
@@ -162,4 +162,35 @@ test("profile edits accept optional details and normalize Qatar WhatsApp numbers
   assert.equal(saved[10], "97466297954");
   assert.equal(saved[11], 1);
   assert.equal(saved[12], "[]"); // unsafe links are skipped, not rendered
+});
+
+test("AI chat is bounded, uses the assistant binding, and does not persist chat text", async () => {
+  const queries = [];
+  let inputSeen;
+  const env = {
+    DB: { prepare(sql) { queries.push(sql); return { bind() { return this; }, async first() { return { request_count: 1 }; }, async run() { return { meta: { changes: 0 } }; } }; } },
+    AI: { async run(model, input) { inputSeen = { model, input }; return { response: "Use the coach directory to find a profile." }; } },
+  };
+  const response = await worker.fetch(new Request("https://api.example.test/api/assistant/chat", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message: "How do I find a coach?", history: [{ role: "user", content: "Hello" }] }),
+  }), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { answer: "Use the coach directory to find a profile." });
+  assert.equal(inputSeen.model, "@cf/meta/llama-3.1-8b-instruct");
+  assert.equal(inputSeen.input.max_tokens, 180);
+  assert.equal(inputSeen.input.messages.at(-1).content, "How do I find a coach?");
+  assert.ok(queries.some((sql) => sql.includes("ai_chat_usage")));
+  assert.ok(queries.every((sql) => !sql.includes("Hello") && !sql.includes("How do I find a coach?")));
+});
+
+test("AI chat stops at the shared daily cap", async () => {
+  let modelCalled = false;
+  const env = { DB: { prepare(sql) { return { bind() { return this; }, async first() { return sql.includes("ai_chat_usage") ? null : { request_count: 1 }; }, async run() { return { meta: { changes: 0 } }; } }; } }, AI: { async run() { modelCalled = true; return { response: "not expected" }; } } };
+  const response = await worker.fetch(new Request("https://api.example.test/api/assistant/chat", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: "Where do I find a coach?" }),
+  }), env);
+  assert.equal(response.status, 429);
+  assert.deepEqual(await response.json(), { error: "daily_limit_reached" });
+  assert.equal(modelCalled, false);
 });

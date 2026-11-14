@@ -3,6 +3,7 @@ const SESSION_TTL_SECONDS = 60 * 60 * 12;
 const PASSWORD_ITERATIONS = 100_000;
 const MAX_BODY_BYTES = 16_384;
 const MAX_PROFILE_PHOTO_BYTES = 1_000_000;
+const MAX_DAILY_ASSISTANT_REQUESTS = 60;
 
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
   status,
@@ -93,6 +94,40 @@ async function currentUser(request, env) {
 
 async function collectionEnabled(env) {
   return env.DATA_COLLECTION_ENABLED === "true";
+}
+
+async function reserveAssistantRequest(env) {
+  const day = new Date().toISOString().slice(0, 10);
+  const row = await env.DB.prepare(`INSERT INTO ai_chat_usage(usage_date,request_count) VALUES(?,1)
+    ON CONFLICT(usage_date) DO UPDATE SET request_count=request_count+1
+    WHERE request_count < ? RETURNING request_count`).bind(day, MAX_DAILY_ASSISTANT_REQUESTS).first();
+  return Boolean(row);
+}
+
+async function assistantChat(request, env) {
+  if (!env.AI || typeof env.AI.run !== "function") return reply(request, env, { error: "assistant_unavailable" }, 503);
+  if (!await rateLimit(request, env, "assistant-chat", 8)) return reply(request, env, { error: "rate_limited" }, 429);
+  const body = await readJson(request), message = text(body?.message, 1000);
+  if (!body || !message) return reply(request, env, { error: "message_required" }, 400);
+  const history = Array.isArray(body.history) ? body.history.slice(-4).flatMap((item) => {
+    const role = item?.role === "assistant" ? "assistant" : item?.role === "user" ? "user" : "";
+    const content = text(item?.content, 400);
+    return role && content ? [{ role, content }] : [];
+  }) : [];
+  if (!await reserveAssistantRequest(env)) return reply(request, env, { error: "daily_limit_reached" }, 429);
+  const system = `You are the MZ Active website assistant for athletes and coaches. Be brief, kind, and practical. Reply in the language of the user's message (English or Arabic). Use only these verified facts: MZ Active helps people find coaches and pacers in Qatar; only profiles approved by MZ Active appear publicly; coaches can create or update a profile at https://mzactive.com/providers.html; profile photo uploads accept JPG, PNG, or WebP up to 1 MB, and Qatar local WhatsApp numbers can be entered as 8 digits; a coach's profile remains private until Admin approval. Clients can browse https://mzactive.com/coaches.html and send a request at https://mzactive.com/pacer.html. A request is not a confirmed booking, the site does not collect payments, and payment/availability must be coordinated separately. Do not promise a coach's availability, rates, approval, booking, payment, medical result, or reply time. Do not claim to have accessed a user's account or contacted MZ Active. Never make approval or rejection decisions. Do not ask for passwords, payment credentials, identity documents, health records, or other sensitive details. For information you cannot verify, say so plainly and offer the relevant page link. Do not send routine questions to the site owner when the self-service pages can help.`;
+  try {
+    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+      messages: [{ role: "system", content: system }, ...history, { role: "user", content: message }],
+      max_tokens: 180,
+      temperature: 0.2,
+    });
+    const answer = text(result?.response, 3000);
+    if (!answer) return reply(request, env, { error: "assistant_unavailable" }, 503);
+    return reply(request, env, { answer });
+  } catch {
+    return reply(request, env, { error: "assistant_unavailable" }, 503);
+  }
 }
 
 async function register(request, env) {
@@ -332,6 +367,7 @@ export default {
     if (!cors) return json({ error: "origin_not_allowed" }, 403);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: Object.fromEntries(cors) });
     if (request.method === "GET" && url.pathname === "/health") return reply(request, env, { ok: true, intake_enabled: env.DATA_COLLECTION_ENABLED === "true" });
+    if (request.method === "POST" && url.pathname === "/api/assistant/chat") return assistantChat(request, env);
     if (request.method === "GET" && url.pathname === "/api/providers") return publicProviders(url, request, env);
     const publicPhotoMatch = /^\/api\/providers\/([\w-]{36})\/photo$/.exec(url.pathname);
     if (request.method === "GET" && publicPhotoMatch) return publicProfilePhoto(publicPhotoMatch[1], request, env);
