@@ -501,7 +501,7 @@ async function dashboardApi(request, env, user) {
     if(!body||!team||(!admin&&team.coach_user_id!==user.id)||!athleteId)return reply(request,env,{error:"team_or_athlete_unavailable"},404);
     const member=await env.DB.prepare("SELECT user_id FROM training_team_members WHERE team_id=? AND user_id=?").bind(teamId,athleteId).first();
     if(!member)return reply(request,env,{error:"team_or_athlete_unavailable"},404);
-    const monday=/^\\d{4}-\\d{2}-\\d{2}$/.test(weekStart)&&Number.isFinite(Date.parse(weekStart+"T00:00:00Z"))&&new Date(weekStart+"T00:00:00Z").getUTCDay()===1;
+    const monday=/^\d{4}-\d{2}-\d{2}$/.test(weekStart)&&Number.isFinite(Date.parse(weekStart+"T00:00:00Z"))&&new Date(weekStart+"T00:00:00Z").getUTCDay()===1;
     const dayKeys=["monday","tuesday","wednesday","thursday","friday","saturday","sunday"],allowedTypes=["easy","intervals","long_run","tempo","strength","recovery","other"];
     const sessions=Array.isArray(body.sessions)?body.sessions:[];
     if(!monday||sessions.length!==7||new Set(sessions.map(x=>x?.day_key)).size!==7||
@@ -618,7 +618,7 @@ async function dashboardApi(request, env, user) {
     return reply(request, env, { updated: true, status });
   }
 
-  const programComplete = /^\\/api\\/dashboard\\/program-sessions\\/([\\w-]{36})\\/complete$/.exec(path);
+  const programComplete = /^\/api\/dashboard\/program-sessions\/([\w-]{36})\/complete$/.exec(path);
   if(programComplete&&request.method==="POST"){
     if(!await isMemberAccount(env,user))return reply(request,env,{error:"member_account_required"},403);
     const body=await readJson(request),session=await env.DB.prepare(`SELECT s.id FROM athlete_program_sessions s
