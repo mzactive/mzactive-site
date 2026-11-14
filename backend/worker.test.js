@@ -103,3 +103,42 @@ test("pending profile photos are served only through the authenticated Admin rou
   assert.equal(denied.status, 403);
   assert.deepEqual(await denied.json(), { error: "forbidden" });
 });
+
+test("provider photo upload is visible to Admin while remaining private before approval", async () => {
+  const providerToken = "p".repeat(40), adminToken = "a".repeat(40);
+  const tokenHash = async (token) => {
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+    return btoa(String.fromCharCode(...digest)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  };
+  const sessions = new Map([[await tokenHash(providerToken), { id: "provider-id", email: "provider@example.com", role: "provider" }], [await tokenHash(adminToken), { id: "admin-id", email: "admin@example.com", role: "admin" }]]);
+  let storedPhoto = null;
+  const env = { DATA_COLLECTION_ENABLED: "true", DB: { prepare(sql) { let params = []; return {
+    bind(...values) { params = values; return this; },
+    async first() {
+      if (sql.includes("SELECT u.id")) return sessions.get(params[0]) || null;
+      if (sql.includes("profile_photo_bytes") && sql.includes("status='pending'")) return storedPhoto;
+      if (sql.includes("status='approved'")) return null;
+      return null;
+    },
+    async run() {
+      if (sql.startsWith("UPDATE provider_profiles SET profile_photo_bytes=")) storedPhoto = { profile_photo_bytes: params[0], profile_photo_content_type: params[1] };
+      return { meta: { changes: 1 } };
+    },
+  }; } } };
+  const id = "12345678-1234-1234-1234-123456789012";
+  const photo = Uint8Array.from([0xff, 0xd8, 0xff, 0x00]);
+  const uploaded = await worker.fetch(new Request("https://api.example.test/api/me/profile/photo", {
+    method: "PUT", headers: { Authorization: `Bearer ${providerToken}`, "content-type": "image/jpeg" }, body: photo,
+  }), env);
+  assert.equal(uploaded.status, 200);
+  assert.equal((await uploaded.json()).photo_uploaded, true);
+
+  const adminView = await worker.fetch(new Request(`https://api.example.test/api/admin/providers/${id}/photo`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+  }), env);
+  assert.equal(adminView.status, 200);
+  assert.deepEqual(new Uint8Array(await adminView.arrayBuffer()), photo);
+
+  const publicView = await worker.fetch(new Request(`https://api.example.test/api/providers/${id}/photo`), env);
+  assert.equal(publicView.status, 404);
+});
