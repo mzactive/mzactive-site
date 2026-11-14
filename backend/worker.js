@@ -480,7 +480,24 @@ async function dashboardOverview(request, env, user) {
       team.programs.push({ ...program, sessions: rows.results || [] });
     }
   }
-  return reply(request, env, { role: dashboardRole, teams, ...(dashboardRole === "admin" ? { coaches } : {}) });
+  let programRows;
+  if (dashboardRole === "admin") {
+    programRows = await env.DB.prepare(`SELECT p.*,u.email AS athlete_email FROM athlete_programs_v2 p LEFT JOIN users u ON u.id=p.athlete_user_id ORDER BY p.week_start DESC LIMIT 300`).all();
+  } else if (dashboardRole === "provider") {
+    programRows = await env.DB.prepare(`SELECT p.*,u.email AS athlete_email FROM athlete_programs_v2 p LEFT JOIN users u ON u.id=p.athlete_user_id WHERE p.coach_user_id=? ORDER BY p.week_start DESC LIMIT 200`).bind(user.id).all();
+  } else {
+    programRows = await env.DB.prepare(`SELECT p.*,u.email AS athlete_email FROM athlete_programs_v2 p LEFT JOIN users u ON u.id=p.athlete_user_id WHERE p.athlete_user_id=? ORDER BY p.week_start DESC LIMIT 100`).bind(user.id).all();
+  }
+  const programs = [];
+  for (const program of programRows.results || []) {
+    const completionOwner = dashboardRole === "admin" ? program.athlete_user_id : user.id;
+    const rows = await env.DB.prepare(`SELECT s.id,s.session_code,s.day_key,s.sport_type,s.details,c.completed_at,c.actual_km,c.duration_minutes
+      FROM athlete_program_sessions_v2 s LEFT JOIN athlete_program_completions_v2 c
+        ON c.session_id=s.id AND c.athlete_user_id=?
+      WHERE s.program_id=? ORDER BY s.sort_order`).bind(completionOwner,program.id).all();
+    programs.push({...program,sessions:rows.results||[]});
+  }
+  return reply(request, env, { role: dashboardRole, teams, programs, ...(dashboardRole === "admin" ? { coaches } : {}) });
 }
 
 async function canManageTeam(env, user, teamId) {
@@ -492,35 +509,48 @@ async function canManageTeam(env, user, teamId) {
 async function dashboardApi(request, env, user) {
   const url = new URL(request.url), path = url.pathname;
   if (request.method === "GET" && path === "/api/dashboard") return dashboardOverview(request, env, user);
-  if (request.method === "POST" && path === "/api/dashboard/programs") {
+  if (path === "/api/dashboard/programs" && request.method === "POST") {
     const admin=user.role==="admin";
     if(!admin&&!await isApprovedCoach(env,user))return reply(request,env,{error:"approved_coach_required"},403);
-    const body=await readJson(request),teamId=text(body?.team_id,36),athleteId=text(body?.athlete_user_id,36);
-    const weekStart=text(body?.week_start,10),coachNote=text(body?.coach_note,800);
-    const team=teamId?await env.DB.prepare("SELECT id,coach_user_id FROM training_teams WHERE id=?").bind(teamId).first():null;
-    if(!body||!team||(!admin&&team.coach_user_id!==user.id)||!athleteId)return reply(request,env,{error:"team_or_athlete_unavailable"},404);
-    const member=await env.DB.prepare("SELECT user_id FROM training_team_members WHERE team_id=? AND user_id=?").bind(teamId,athleteId).first();
-    if(!member)return reply(request,env,{error:"team_or_athlete_unavailable"},404);
-    const monday=/^\d{4}-\d{2}-\d{2}$/.test(weekStart)&&Number.isFinite(Date.parse(weekStart+"T00:00:00Z"))&&new Date(weekStart+"T00:00:00Z").getUTCDay()===1;
-    const dayKeys=["monday","tuesday","wednesday","thursday","friday","saturday","sunday"],allowedTypes=["easy","intervals","long_run","tempo","strength","recovery","other"];
-    const sessions=Array.isArray(body.sessions)?body.sessions:[];
-    if(!monday||sessions.length!==7||new Set(sessions.map(x=>x?.day_key)).size!==7||
-      sessions.some(x=>!dayKeys.includes(x?.day_key)||!allowedTypes.includes(x?.session_type)||text(x?.details,350)!==x?.details||
-        (x?.planned_km!==null&&x?.planned_km!==undefined&&(typeof x.planned_km!=="number"||x.planned_km<0||x.planned_km>500))))
-      return reply(request,env,{error:"invalid_weekly_program"},400);
-    const existing=await env.DB.prepare("SELECT id FROM athlete_programs WHERE team_id=? AND athlete_user_id=? AND week_start=?").bind(teamId,athleteId,weekStart).first();
+    const body=await readJson(request);
+    const athleteName=text(body?.athlete_name,80),athletePhone=normalizeWhatsApp(body?.athlete_phone||"");
+    const athleteType=body?.athlete_type==="triathlon"?"triathlon":body?.athlete_type==="runner"?"runner":"";
+    const weekStart=text(body?.week_start,10),coachNote=text(body?.coach_note,1200);
+    let teamId=text(body?.team_id,36)||null,athleteId=text(body?.athlete_user_id,36)||null,team=null;
+    if(athleteId&&!teamId){
+      team=await env.DB.prepare("SELECT t.id,t.coach_user_id FROM training_teams t JOIN training_team_members m ON m.team_id=t.id WHERE m.user_id=? AND t.coach_user_id=? ORDER BY m.joined_at DESC LIMIT 1").bind(athleteId,user.id).first();
+      if(team)teamId=team.id;
+    }
+    if(teamId)team=await env.DB.prepare("SELECT id,coach_user_id FROM training_teams WHERE id=?").bind(teamId).first();
+    if(teamId&&(!team||(!admin&&team.coach_user_id!==user.id)))return reply(request,env,{error:"team_unavailable"},404);
+    if(athleteId){
+      const member=teamId?await env.DB.prepare("SELECT user_id,display_name FROM training_team_members WHERE team_id=? AND user_id=?").bind(teamId,athleteId).first():null;
+      if(!member)return reply(request,env,{error:"athlete_not_in_team"},404);
+    } else {
+      teamId=null;
+    }
+    const monday=/^\\d{4}-\\d{2}-\\d{2}$/.test(weekStart)&&Number.isFinite(Date.parse(weekStart+"T00:00:00Z"))&&new Date(weekStart+"T00:00:00Z").getUTCDay()===1;
+    const days=["monday","tuesday","wednesday","thursday","friday","saturday","sunday"],sports=["run","bike","swim","strength","recovery","other"];
+    const sessions=Array.isArray(body?.sessions)?body.sessions:[];
+    if(!athleteName||!athletePhone||!athleteType||!monday||sessions.length<1||sessions.length>35||
+      sessions.some((x)=>!days.includes(x?.day_key)||!sports.includes(x?.sport_type)||!text(x?.details,1600)))
+      return reply(request,env,{error:"invalid_flexible_program"},400);
+    const existing=await env.DB.prepare("SELECT id FROM athlete_programs_v2 WHERE coach_user_id=? AND athlete_phone=? AND week_start=?").bind(user.id,athletePhone,weekStart).first();
     if(existing)return reply(request,env,{error:"weekly_program_exists"},409);
     const id=randomId(),now=new Date().toISOString(),statements=[
-      env.DB.prepare("INSERT INTO athlete_programs(id,team_id,coach_user_id,athlete_user_id,week_start,coach_note,created_at) VALUES(?,?,?,?,?,?,?)").bind(id,teamId,team.coach_user_id,athleteId,weekStart,coachNote,now)
-    ],codes=[];
-    for(const [index,day] of dayKeys.entries()){
-      const item=sessions.find(x=>x.day_key===day),sessionId=randomId(),code=newJoinCode().slice(0,5);
-      codes.push({day_key:day,session_code:code,session_type:item.session_type});
-      statements.push(env.DB.prepare("INSERT INTO athlete_program_sessions(id,program_id,session_code,day_key,session_type,details,planned_km,sort_order) VALUES(?,?,?,?,?,?,?,?)")
-        .bind(sessionId,id,code,day,item.session_type,text(item.details,350),item.planned_km??null,index));
+      env.DB.prepare("INSERT INTO athlete_programs_v2(id,coach_user_id,team_id,athlete_user_id,athlete_name,athlete_phone,athlete_type,week_start,coach_note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
+        .bind(id,user.id,teamId,athleteId,athleteName,athletePhone,athleteType,weekStart,coachNote,now)
+    ],codes=[],used=new Map();
+    for(const [index,item] of sessions.entries()){
+      const prefix=item.day_key.slice(0,3).toUpperCase()+"-"+item.sport_type.slice(0,1).toUpperCase();
+      const count=(used.get(prefix)||0)+1;used.set(prefix,count);
+      const code=prefix+String(count).padStart(2,"0"),sessionId=randomId();
+      codes.push({id:sessionId,day_key:item.day_key,sport_type:item.sport_type,session_code:code,details:text(item.details,1600)});
+      statements.push(env.DB.prepare("INSERT INTO athlete_program_sessions_v2(id,program_id,session_code,day_key,sport_type,details,sort_order) VALUES(?,?,?,?,?,?,?)")
+        .bind(sessionId,id,code,item.day_key,item.sport_type,text(item.details,1600),index));
     }
     await env.DB.batch(statements);
-    return reply(request,env,{id,week_start:weekStart,session_codes:codes,status:"saved"},201);
+    return reply(request,env,{id,week_start:weekStart,athlete_name:athleteName,athlete_type:athleteType,session_codes:codes,status:"saved"},201);
   }
   if (request.method === "POST" && path === "/api/dashboard/assistant") return coachAssistant(request, env, user);
   if ((request.method === "GET" || request.method === "POST") && path === "/api/dashboard/blog") {
@@ -618,21 +648,20 @@ async function dashboardApi(request, env, user) {
     return reply(request, env, { updated: true, status });
   }
 
-  const programComplete = /^\/api\/dashboard\/program-sessions\/([\w-]{36})\/complete$/.exec(path);
+  const programComplete = /^\\/api\\/dashboard\\/program-sessions\\/([\\w-]{36})\\/complete$/.exec(path);
   if(programComplete&&request.method==="POST"){
     if(!await isMemberAccount(env,user))return reply(request,env,{error:"member_account_required"},403);
-    const body=await readJson(request),session=await env.DB.prepare(`SELECT s.id FROM athlete_program_sessions s
-      JOIN athlete_programs p ON p.id=s.program_id WHERE s.id=? AND p.athlete_user_id=?`).bind(programComplete[1],user.id).first();
-    if(!session)return reply(request,env,{error:"session_unavailable"},404);
-    if(body?.completed===false){
-      await env.DB.prepare("DELETE FROM athlete_program_completions WHERE session_id=? AND athlete_user_id=?").bind(session.id,user.id).run();
-      return reply(request,env,{completed:false});
-    }
+    const body=await readJson(request),sid=programComplete[1];
+    const flex=await env.DB.prepare(`SELECT s.id FROM athlete_program_sessions_v2 s JOIN athlete_programs_v2 p ON p.id=s.program_id WHERE s.id=? AND p.athlete_user_id=?`).bind(sid,user.id).first();
+    const legacy=flex?null:await env.DB.prepare(`SELECT s.id FROM athlete_program_sessions s JOIN athlete_programs p ON p.id=s.program_id WHERE s.id=? AND p.athlete_user_id=?`).bind(sid,user.id).first();
+    const session=flex||legacy;if(!session)return reply(request,env,{error:"session_unavailable"},404);
+    const table=flex?"athlete_program_completions_v2":"athlete_program_completions";
+    if(body?.completed===false){await env.DB.prepare(`DELETE FROM ${table} WHERE session_id=? AND athlete_user_id=?`).bind(session.id,user.id).run();return reply(request,env,{completed:false})}
     const km=body?.actual_km===undefined?0:Number(body.actual_km),minutes=body?.duration_minutes===undefined?0:Number(body.duration_minutes);
     if(!Number.isFinite(km)||km<0||km>500||!Number.isInteger(minutes)||minutes<0||minutes>720)return reply(request,env,{error:"invalid_session_log"},400);
     const now=new Date().toISOString();
-    await env.DB.prepare(`INSERT INTO athlete_program_completions(session_id,athlete_user_id,completed_at,actual_km,duration_minutes)
-      VALUES(?,?,?,?,?) ON CONFLICT(session_id,athlete_user_id) DO UPDATE SET completed_at=excluded.completed_at,actual_km=excluded.actual_km,duration_minutes=excluded.duration_minutes`)
+    await env.DB.prepare(`INSERT INTO ${table}(session_id,athlete_user_id,completed_at,actual_km,duration_minutes) VALUES(?,?,?,?,?)
+      ON CONFLICT(session_id,athlete_user_id) DO UPDATE SET completed_at=excluded.completed_at,actual_km=excluded.actual_km,duration_minutes=excluded.duration_minutes`)
       .bind(session.id,user.id,now,km,minutes).run();
     return reply(request,env,{completed:true,actual_km:km,duration_minutes:minutes});
   }
