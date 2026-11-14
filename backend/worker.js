@@ -529,7 +529,7 @@ async function dashboardApi(request, env, user) {
     } else {
       teamId=null;
     }
-    const monday=/^\\d{4}-\\d{2}-\\d{2}$/.test(weekStart)&&Number.isFinite(Date.parse(weekStart+"T00:00:00Z"))&&new Date(weekStart+"T00:00:00Z").getUTCDay()===1;
+    const monday=/^\d{4}-\d{2}-\d{2}$/.test(weekStart)&&Number.isFinite(Date.parse(weekStart+"T00:00:00Z"))&&new Date(weekStart+"T00:00:00Z").getUTCDay()===1;
     const days=["monday","tuesday","wednesday","thursday","friday","saturday","sunday"],sports=["run","bike","swim","strength","recovery","other"];
     const sessions=Array.isArray(body?.sessions)?body.sessions:[];
     if(!athleteName||!athletePhone||!athleteType||!monday||sessions.length<1||sessions.length>35||
@@ -648,7 +648,7 @@ async function dashboardApi(request, env, user) {
     return reply(request, env, { updated: true, status });
   }
 
-  const programComplete = /^\\/api\\/dashboard\\/program-sessions\\/([\\w-]{36})\\/complete$/.exec(path);
+  const programComplete = /^\/api\/dashboard\/program-sessions\/([\w-]{36})\/complete$/.exec(path);
   if(programComplete&&request.method==="POST"){
     if(!await isMemberAccount(env,user))return reply(request,env,{error:"member_account_required"},403);
     const body=await readJson(request),sid=programComplete[1];
