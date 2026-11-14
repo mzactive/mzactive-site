@@ -136,9 +136,11 @@ async function coachAssistant(request, env, user) {
   if (!await rateLimit(request, env, `coach-assistant:${user.id}`, 6)) return reply(request, env, { error: "rate_limited" }, 429);
   const body = await readJson(request), task = body?.task;
   const prompt = text(body?.prompt, 1200);
-  if (!body || !["help","training","blog"].includes(task) || !prompt) return reply(request, env, { error: "assistant_prompt_required" }, 400);
+  if (!body || !["help","training","weekly","blog"].includes(task) || !prompt) return reply(request, env, { error: "assistant_prompt_required" }, 400);
   if (!await reserveAssistantRequest(env)) return reply(request, env, { error: "daily_limit_reached" }, 429);
-  const taskGuide = task === "blog"
+  const taskGuide = task === "weekly"
+    ? "Create a clear, conservative 7-day training week from the coach's goal and availability. Include recovery/rest days and avoid sudden high loads. Return only one valid JSON object, without markdown, with exactly these keys: {\"days\":{\"monday\":\"...\",\"tuesday\":\"...\",\"wednesday\":\"...\",\"thursday\":\"...\",\"friday\":\"...\",\"saturday\":\"...\",\"sunday\":\"...\"},\"coach_note\":\"...\"}. Keep each day to at most 350 characters. Use the language of the coach's prompt. This is a draft for the coach to review and adapt. Do not diagnose or prescribe injury treatment."
+    : task === "blog"
     ? "Write an original, useful sports blog draft with a clear title, short summary, and readable section headings. Do not invent research, credentials, events, or statistics. Mention uncertainty when facts may vary. This is a draft for the coach to review and submit for MZ Active approval; never say it is published."
     : task === "training"
       ? "Give a practical, general training suggestion. Keep it conservative and adaptable; ask the coach to adjust it to the athlete's level and context. Do not diagnose injuries or prescribe treatment."
@@ -147,11 +149,22 @@ async function coachAssistant(request, env, user) {
   try {
     const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
       messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
-      max_tokens: task === "blog" ? 700 : task === "training" ? 360 : 240,
+      max_tokens: task === "blog" ? 700 : task === "weekly" ? 760 : task === "training" ? 360 : 240,
       temperature: 0.3,
     });
     const draft = text(result?.response, 7000);
     if (!draft) return reply(request, env, { error: "assistant_unavailable" }, 503);
+    if (task === "weekly") {
+      let parsed;
+      try { parsed = JSON.parse(draft.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")); }
+      catch { return reply(request, env, { error: "assistant_format_error" }, 502); }
+      const keys = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"], days = {};
+      for (const key of keys) {
+        days[key] = text(parsed?.days?.[key], 350);
+        if (!days[key]) return reply(request, env, { error: "assistant_format_error" }, 502);
+      }
+      return reply(request, env, { days, coach_note: text(parsed?.coach_note, 800), task });
+    }
     return reply(request, env, { draft, task });
   } catch {
     return reply(request, env, { error: "assistant_unavailable" }, 503);
@@ -208,6 +221,9 @@ async function register(request, env) {
 function cleanList(value, maxItems, maxLength) {
   return Array.isArray(value) ? value.slice(0, maxItems).map((item) => text(item, maxLength)).filter(Boolean) : [];
 }
+function cleanProgramDurations(value) {
+  return [...new Set((Array.isArray(value) ? value : []).map(Number).filter((months) => [1,2,3].includes(months)))].sort();
+}
 function clampInt(value, min, max) { return Number.isInteger(value) ? Math.max(min, Math.min(max, value)) : 0; }
 function clampNullableInt(value, min, max) { return value === null || value === "" || value === undefined ? null : Number.isInteger(value) ? Math.max(min, Math.min(max, value)) : null; }
 
@@ -239,11 +255,11 @@ async function login(request, env) {
 async function publicProviders(url, request, env) {
   const type = url.searchParams.get("type") || "", city = text(url.searchParams.get("city") || "",80);
   const query = text(url.searchParams.get("q") || "",80);
-  const rows = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS whatsapp_number,social_links_json
+  const rows = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS whatsapp_number,social_links_json
     FROM provider_profiles WHERE status='approved' AND (?='' OR provider_type=?) AND (?='' OR city LIKE ?)
     AND (?='' OR display_name LIKE ? OR bio LIKE ? OR specialties_json LIKE ?) ORDER BY display_name LIMIT 50`)
     .bind(type,type,city,`%${city}%`,query,`%${query}%`,`%${query}%`,`%${query}%`).all();
-  const providers = (rows.results || []).map((row) => ({ ...row, specialties: safeParse(row.specialties_json), languages: safeParse(row.languages_json), social_links: safeParse(row.social_links_json), specialties_json: undefined, languages_json: undefined, social_links_json: undefined }));
+  const providers = (rows.results || []).map((row) => ({ ...row, specialties: safeParse(row.specialties_json), languages: safeParse(row.languages_json), program_durations: row.provider_type === "coach" ? safeParse(row.program_durations_json).filter((months) => [1,2,3].includes(months)) : [], social_links: safeParse(row.social_links_json), specialties_json: undefined, languages_json: undefined, program_durations_json: undefined, social_links_json: undefined }));
   return reply(request, env, { providers });
 }
 function normalizeWhatsApp(value) {
@@ -298,6 +314,8 @@ function binaryReply(request, env, bytes, contentType, cacheControl) {
 
 async function uploadProfilePhoto(request, env, user) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
+  const profile = await env.DB.prepare("SELECT status,review_note FROM provider_profiles WHERE user_id=?").bind(user.id).first();
+  if (profile?.status === "rejected" && profile.review_note === "Removed by owner") return reply(request, env, { error: "provider_removed_by_owner" }, 403);
   const length = Number(request.headers.get("content-length") || 0);
   if (length > MAX_PROFILE_PHOTO_BYTES) return reply(request, env, { error: "photo_too_large" }, 413);
   const bytes = await request.arrayBuffer();
@@ -318,19 +336,23 @@ async function publicProfilePhoto(id, request, env) {
 
 async function saveProfile(request, env, user) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
+  const existing = await env.DB.prepare("SELECT status,review_note FROM provider_profiles WHERE user_id=?").bind(user.id).first();
+  if (existing?.status === "rejected" && existing.review_note === "Removed by owner") return reply(request, env, { error: "provider_removed_by_owner" }, 403);
   const body = await readJson(request);
   const type = body?.provider_type === "pacer" ? "pacer" : body?.provider_type === "coach" ? "coach" : "";
+  const programDurations = type === "coach" ? cleanProgramDurations(body?.program_durations) : [];
   const name = text(body?.display_name,100), city = text(body?.city,80), bio = text(body?.bio,4000);
   const whatsappInput = text(body?.whatsapp_number,32), whatsapp = normalizeWhatsApp(whatsappInput), whatsappPublic = body?.whatsapp_public === true;
   const canPublishWhatsApp = Boolean(whatsapp && whatsappPublic);
   const socialLinks = cleanSocialLinks(body?.social_links);
   if (!body || !type) return reply(request, env, { error: "invalid_profile_type" }, 400);
+  if (type === "coach" && !programDurations.length) return reply(request, env, { error: "coach_program_required" }, 400);
   const warnings = [];
   if (whatsappInput && (!whatsapp || !whatsappPublic)) warnings.push("whatsapp_not_saved");
   if (socialLinks === null) warnings.push("social_links_skipped");
   const now = new Date().toISOString();
-  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=CASE WHEN ?='' THEN display_name ELSE ? END,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
-    .bind(type,name,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),canPublishWhatsApp?whatsapp:null,canPublishWhatsApp?1:0,JSON.stringify(socialLinks||[]),now,user.id).run();
+  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=CASE WHEN ?='' THEN display_name ELSE ? END,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,program_durations_json=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
+    .bind(type,name,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),JSON.stringify(programDurations),canPublishWhatsApp?whatsapp:null,canPublishWhatsApp?1:0,JSON.stringify(socialLinks||[]),now,user.id).run();
   return reply(request, env, { status: "pending_review", warnings });
 }
 
@@ -342,16 +364,21 @@ async function createBooking(request, env) {
   const sessionType = ["race","training"].includes(body?.session_type) ? body.session_type : "";
   const distance = text(body?.distance,60), targetPace = text(body?.target_pace,40);
   if (!body || !/^\+?[\d\s()-]{7,40}$/.test(phone) || !name || !city || !goal || !sessionType || body.consent !== true) return reply(request, env, { error: "invalid_booking_request" }, 400);
-  let providerId = text(body.provider_id,36) || null;
+  let providerId = text(body.provider_id,36) || null, programDuration = Number(body.program_duration_months) || null;
   if (providerId) {
-    const provider = await env.DB.prepare("SELECT id,display_name FROM provider_profiles WHERE id=? AND status='approved'").bind(providerId).first();
+    const provider = await env.DB.prepare("SELECT id,display_name,provider_type,program_durations_json,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS public_whatsapp FROM provider_profiles WHERE id=? AND status='approved'").bind(providerId).first();
     if (!provider) return reply(request, env, { error: "provider_unavailable" }, 404);
+    if (provider.provider_type === "coach" && sessionType === "training") {
+      const offered = cleanProgramDurations(safeParse(provider.program_durations_json));
+      if (!programDuration || !offered.includes(programDuration)) return reply(request, env, { error: "coach_program_required" }, 400);
+    } else programDuration = null;
     body.provider_name = provider.display_name;
+    body.provider_whatsapp = provider.public_whatsapp;
   }
   const id = randomId();
-  await env.DB.prepare(`INSERT INTO booking_requests(id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,consent_at,status,created_at,payment_status,session_type,distance,target_pace)
-    VALUES(?,?,?,?,?,?,?,?,?,'received',?,'pending_payment',?,?,?)`).bind(id,providerId,name,email||null,phone,city,text(body.preferred_date,10)||null,goal,new Date().toISOString(),new Date().toISOString(),sessionType,distance,targetPace).run();
-  return reply(request, env, { request_id: id, status: "received_pending_payment", provider_name: body.provider_name || "MZ Active Champion Pacer" }, 201);
+  await env.DB.prepare(`INSERT INTO booking_requests(id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,consent_at,status,created_at,payment_status,session_type,distance,target_pace,program_duration_months)
+    VALUES(?,?,?,?,?,?,?,?,?,'received',?,'pending_payment',?,?,?,?)`).bind(id,providerId,name,email||null,phone,city,text(body.preferred_date,10)||null,goal,new Date().toISOString(),new Date().toISOString(),sessionType,distance,targetPace,programDuration).run();
+  return reply(request, env, { request_id: id, status: "received_pending_payment", provider_name: body.provider_name || "MZ Active Champion Pacer", provider_whatsapp: body.provider_whatsapp || null }, 201);
 }
 
 function newJoinCode() {
@@ -560,7 +587,7 @@ async function adminApplications(request, env, user) {
   }
   if (photoMatch && request.method === "PUT") {
     const profile = await env.DB.prepare("SELECT id,status FROM provider_profiles WHERE id=?").bind(photoMatch[1]).first();
-    if (!profile || profile.status === "rejected") return reply(request, env, { error: "provider_not_found" }, 404);
+    if (!profile || ["rejected","suspended"].includes(profile.status)) return reply(request, env, { error: "provider_not_found" }, 404);
     const length = Number(request.headers.get("content-length") || 0);
     if (length > MAX_PROFILE_PHOTO_BYTES) return reply(request, env, { error: "photo_too_large" }, 413);
     const bytes = await request.arrayBuffer();
@@ -577,18 +604,26 @@ async function adminApplications(request, env, user) {
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all();
     const approvedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.updated_at,u.email
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='approved' ORDER BY p.updated_at DESC LIMIT 100`).all();
-    const bookings = await env.DB.prepare(`SELECT id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,distance,target_pace,created_at
+    const suspendedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.review_note,p.updated_at,u.email\n      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='rejected' AND p.review_note='Removed by owner' AND p.provider_type='coach' ORDER BY p.updated_at DESC LIMIT 100`).all();
+    const bookings = await env.DB.prepare(`SELECT id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,distance,target_pace,program_duration_months,created_at
       FROM booking_requests WHERE status IN ('received','reviewing') OR payment_status='pending_payment' ORDER BY created_at LIMIT 100`).all();
-    return reply(request, env, { providers: providers.results || [], approved_providers: approvedProviders.results || [], bookings: bookings.results || [] });
+    return reply(request, env, { providers: providers.results || [], approved_providers: approvedProviders.results || [], suspended_providers: suspendedProviders.results || [], bookings: bookings.results || [] });
   }
   const match = /^\/api\/admin\/providers\/([\w-]{36})$/.exec(new URL(request.url).pathname);
   if (match && request.method === "PATCH") {
     const body = await readJson(request), status = body?.status;
-    if (!body || !["approved","rejected"].includes(status)) return reply(request, env, { error: "invalid_review_status" }, 400);
-    const previous = await env.DB.prepare("SELECT status FROM provider_profiles WHERE id=?").bind(match[1]).first();
+    if (!body || !["approved","rejected","suspended"].includes(status)) return reply(request, env, { error: "invalid_review_status" }, 400);
+    const previous = await env.DB.prepare("SELECT status,provider_type,review_note FROM provider_profiles WHERE id=?").bind(match[1]).first();
     if (!previous) return reply(request, env, { updated: false }, 404);
-    const result = await env.DB.prepare("UPDATE provider_profiles SET status=?,review_note=?,updated_at=? WHERE id=? AND status='pending'")
-      .bind(status,text(body.note,500)||null,new Date().toISOString(),match[1]).run();
+    const ownerRemoved = previous.status === "rejected" && previous.review_note === "Removed by owner";
+    const allowed = (previous.status === "pending" && ["approved","rejected"].includes(status))
+      || (previous.provider_type === "coach" && previous.status === "approved" && status === "suspended")
+      || (previous.provider_type === "coach" && ownerRemoved && status === "approved");
+    if (!allowed) return reply(request, env, { error: "invalid_provider_status_change" }, 409);
+    const storedStatus = status === "suspended" ? "rejected" : status;
+    const note = status === "suspended" ? "Removed by owner" : status === "approved" ? null : text(body.note,500)||null;
+    const result = await env.DB.prepare("UPDATE provider_profiles SET status=?,review_note=?,updated_at=? WHERE id=? AND status=?")
+      .bind(storedStatus,note,new Date().toISOString(),match[1],previous.status).run();
     const updated = Boolean(result.meta?.changes);
     if (updated) await env.DB.prepare(`INSERT INTO moderation_events(id,actor_user_id,entity_type,entity_id,from_status,to_status,created_at) VALUES(?,?,'provider_profile',?,?,?,?)`)
       .bind(randomId(),user.id,match[1],previous.status,status,new Date().toISOString()).run();
@@ -639,8 +674,8 @@ export default {
       if (!user) return reply(request, env, { error: "unauthorized" }, 401);
       if (user.role === "admin") return reply(request, env, { user: { email:user.email, role:user.role } });
       if (request.method === "PUT") return saveProfile(request, env, user);
-      const profile = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,status,review_note,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
-      return reply(request, env, { profile: profile ? { ...profile, specialties:safeParse(profile.specialties_json), languages:safeParse(profile.languages_json), social_links:safeParse(profile.social_links_json) } : null });
+      const profile = await env.DB.prepare(`SELECT id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,status,review_note,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
+      return reply(request, env, { profile: profile ? { ...profile, specialties:safeParse(profile.specialties_json), languages:safeParse(profile.languages_json), program_durations:safeParse(profile.program_durations_json), social_links:safeParse(profile.social_links_json) } : null });
     }
     if (request.method === "PUT" && url.pathname === "/api/me/profile/photo") {
       const user = await currentUser(request, env);
@@ -663,3 +698,4 @@ export default {
 };
 
 export { hashPassword, verifyPassword, emailValue, readJson, cleanList, clampInt, clampNullableInt, normalizeWhatsApp, cleanSocialLinks, cleanProfilePhotoUrl, profilePhotoType };
+
