@@ -1,0 +1,30 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.join(__dirname,'..');
+const html=fs.readFileSync(path.join(root,'dashboard.html'),'utf8');
+test('all inline and studio JavaScript parses',()=>{for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))new Function(m[1]);new Function(fs.readFileSync(path.join(root,'assets/js/coaching-studio.js'),'utf8'))});
+const marker="$('whatsappTrainingForm').addEventListener('submit',async event=>{";
+const start=html.indexOf(marker)+marker.length,body=html.slice(start,html.indexOf('\n    });',start));
+const readableStart=html.indexOf('    function readableWorkout('),readableEnd=html.indexOf('    function programWhatsAppUrl(',readableStart);
+const readable=new Function(html.slice(readableStart,readableEnd)+';return readableWorkout')();
+for(const scenario of ['save-only','share','save-fails','popup-blocked','refresh-fails','repeat'])test(scenario,async()=>{
+ const controls=[{disabled:false},{disabled:false}],fallback={classList:{add(){},remove(){}},removeAttribute(){}},popup={location:{},close(){this.closed=true}},calls=[],events=[];let opened=0;
+ const values={trainingClientName:'Example athlete',trainingClientPhone:'12345678',trainingWeekStart:'2026-11-16',programTeam:'',programAthlete:'',athleteType:'runner',weeklyCoachNote:'Comfortable effort'};
+ const $=id=>id==='whatsappFallback'?fallback:id==='publicProfileLink'?{classList:{contains:()=>true}}:{value:values[id]};
+ const details='Easy run\n[MZ:{"km":8,"minutes":45}]\nKeep it easy';
+ const card={querySelector:()=>({value:'run'}),querySelectorAll:()=>[]};
+ const document={querySelector:s=>({value:s.includes('monday')?details:'',closest:()=>card}),dispatchEvent:e=>events.push(e.type)};
+ const api=async(p,options)=>{calls.push(JSON.parse(options.body));if(scenario==='save-fails')throw Error('offline');return{session_codes:[{day_key:'monday',sport_type:'run',session_code:'MON-R01',details}]}};
+ const handler=new Function('$','whatsappDigits','notice','w','lang','document','window','api','loadDashboard','readableWorkout','Event',`let savedProgramCache=null;return async function(event){${body}}`)($,v=>'974'+v,()=>{},()=>({programSaved:'Saved',trainingFallback:'Open WhatsApp'}),'en',document,{open:()=>{opened++;return scenario==='popup-blocked'?null:popup}},api,async()=>{if(scenario==='refresh-fails')throw Error('offline')},readable,class{constructor(type){this.type=type}});
+ const event={preventDefault(){},submitter:{value:scenario==='save-only'?'save':''},currentTarget:{querySelectorAll:()=>controls}};
+ await handler(event);if(scenario==='repeat')await handler(event);
+ assert.equal(calls.length,1);assert.ok(controls.every(c=>!c.disabled));
+ if(scenario==='save-only')assert.equal(opened,0);
+ if(scenario==='save-fails'){assert.equal(events.length,0);assert.ok(popup.closed);return}
+ assert.ok(events.includes('mzactive:program-saved'));
+ assert.ok(fallback.href.startsWith('https://wa.me/97412345678?text='));
+ const message=decodeURIComponent(fallback.href);assert.ok(message.includes('8 km'));assert.ok(message.includes('45 min'));assert.ok(!message.includes('[MZ:'));
+ if(scenario==='refresh-fails')assert.ok(!popup.closed);
+});
