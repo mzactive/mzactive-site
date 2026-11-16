@@ -93,6 +93,7 @@
     try { localStorage.setItem('mzactive-language',lang); } catch(e) {}
   }
   if(toggle) toggle.addEventListener('click',()=>apply(document.documentElement.lang==='ar'?'en':'ar'));
-  let start='en'; try { start=localStorage.getItem('mzactive-language')||'en'; } catch(e) {}
+  let start = /^ar(?:-|$)/i.test(navigator.language || '') ? 'ar' : 'en';
+  try { const saved=localStorage.getItem('mzactive-language'); if(saved==='ar'||saved==='en') start=saved; } catch(e) {}
   apply(start);
 })();
