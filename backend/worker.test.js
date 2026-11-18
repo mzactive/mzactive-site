@@ -189,7 +189,7 @@ test("member dashboard reports the member role despite the legacy provider datab
     headers: { authorization: `Bearer ${token}` },
   }), env);
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { role: "member", teams: [] });
+  assert.deepEqual(await response.json(), { role: "member", teams: [], programs: [] });
 });
 
 test("approved coaches can create teams with an eight-character share code", async () => {
@@ -262,7 +262,11 @@ test("profile edits accept optional details and normalize Qatar WhatsApp numbers
   let saved = null;
   const env = { DATA_COLLECTION_ENABLED: "true", DB: { prepare(sql) { let params = []; return {
     bind(...values) { params = values; return this; },
-    async first() { return sql.includes("SELECT u.id") ? { id: "provider-id", email: "provider@example.com", role: "provider" } : null; },
+    async first() {
+      if (sql.includes("SELECT u.id")) return { id: "provider-id", email: "provider@example.com", role: "provider" };
+      if (sql.includes("FROM provider_profiles WHERE user_id=?")) return { status: "pending", review_note: null, program_durations_json: "[1,3]" };
+      return null;
+    },
     async run() { if (sql.includes("SET provider_type=?")) saved = params; return { meta: { changes: 1 } }; },
   }; } } };
   const response = await worker.fetch(new Request("https://api.example.test/api/me/profile", {
@@ -272,9 +276,9 @@ test("profile edits accept optional details and normalize Qatar WhatsApp numbers
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).warnings, ["social_links_skipped"]);
   assert.equal(saved[1], ""); // preserve the existing display name
-  assert.equal(saved[10], "97466297954");
-  assert.equal(saved[11], 1);
-  assert.equal(saved[12], "[]"); // unsafe links are skipped, not rendered
+  assert.equal(saved[11], "97466297954");
+  assert.equal(saved[12], 1);
+  assert.equal(saved[13], "[]"); // unsafe links are skipped, not rendered
 });
 
 test("AI chat is bounded, uses the assistant binding, and does not persist chat text", async () => {
@@ -290,11 +294,34 @@ test("AI chat is bounded, uses the assistant binding, and does not persist chat 
   }), env);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { answer: "Use the coach directory to find a profile." });
-  assert.equal(inputSeen.model, "@cf/meta/llama-3.1-8b-instruct");
+  assert.equal(inputSeen.model, "@cf/meta/llama-3.1-8b-instruct-fast");
   assert.equal(inputSeen.input.max_tokens, 180);
   assert.equal(inputSeen.input.messages.at(-1).content, "How do I find a coach?");
   assert.ok(queries.some((sql) => sql.includes("ai_chat_usage")));
   assert.ok(queries.every((sql) => !sql.includes("Hello") && !sql.includes("How do I find a coach?")));
+});
+
+test("Owner AI Brain requires an Admin session and uses a bounded specialist prompt", async () => {
+  const token = "a".repeat(40);
+  let inputSeen;
+  const env = {
+    DB: { prepare(sql) { return { bind() { return this; }, async first() {
+      if (sql.includes("SELECT u.id")) return { id: "admin-id", email: "admin@example.com", role: "admin" };
+      if (sql.includes("ai_chat_usage")) return { request_count: 1 };
+      if (sql.includes("rate_limit_buckets")) return { request_count: 1 };
+      return null;
+    }, async run() { return { meta: { changes: 0 } }; } }; } },
+    AI: { async run(model, input) { inputSeen = { model, input }; return { response: "1. Review pending requests\n2. Confirm owner priorities" }; } },
+  };
+  const response = await worker.fetch(new Request("https://api.example.test/api/admin/assistant", {
+    method: "POST", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ task: "operations", prompt: "Review today's unresolved queue." }),
+  }), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { answer: "1. Review pending requests\n2. Confirm owner priorities" });
+  assert.equal(inputSeen.model, "@cf/meta/llama-3.1-8b-instruct-fast");
+  assert.equal(inputSeen.input.max_tokens, 500);
+  assert.match(inputSeen.input.messages[0].content, /private MZ Active Owner AI Brain/);
 });
 
 test("AI chat stops at the shared daily cap", async () => {

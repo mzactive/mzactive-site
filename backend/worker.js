@@ -171,6 +171,37 @@ async function coachAssistant(request, env, user) {
   }
 }
 
+async function ownerAssistant(request, env) {
+  if (!env.AI || typeof env.AI.run !== "function") return reply(request, env, { error: "assistant_unavailable" }, 503);
+  if (!await rateLimit(request, env, "owner-assistant", 8)) return reply(request, env, { error: "rate_limited" }, 429);
+  const body = await readJson(request), task = body?.task;
+  const prompt = text(body?.prompt, 1600);
+  if (!body || !["operations","marketing","support","monitoring","analytics"].includes(task) || !prompt) {
+    return reply(request, env, { error: "assistant_prompt_required" }, 400);
+  }
+  if (!await reserveAssistantRequest(env)) return reply(request, env, { error: "daily_limit_reached" }, 429);
+  const guides = {
+    operations: "Turn the request into a concise operational checklist with owners, priorities, and verification steps. Do not claim that changes were made.",
+    marketing: "Draft practical bilingual-ready marketing copy or a campaign plan for MZ Active. Preserve a respectful, athletic brand tone and do not invent offers, reviews, or results.",
+    support: "Draft a clear customer-support response for MZ Active. State uncertainty plainly, avoid promises, and direct the user to the correct self-service page only when relevant.",
+    monitoring: "Turn the supplied website or service observations into a prioritized monitoring review with risks, likely next checks, and safe escalation steps.",
+    analytics: "Turn the supplied business data into a short decision summary with trends, caveats, and concrete next metrics to track. Do not infer causation or invent missing data.",
+  };
+  const system = `You are the private MZ Active Owner AI Brain for business operations. ${guides[task]} Reply in the language used in the prompt (English or Arabic). Use only the supplied text and verified MZ Active facts. Do not invent customers, revenue, bookings, health outcomes, or system status. Never request passwords, payment credentials, identity documents, or health records. Do not make approval decisions or claim to have taken actions.`;
+  try {
+    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
+      messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
+      max_tokens: 500,
+      temperature: 0.2,
+    });
+    const answer = text(result?.response, 5000);
+    if (!answer) return reply(request, env, { error: "assistant_unavailable" }, 503);
+    return reply(request, env, { answer });
+  } catch {
+    return reply(request, env, { error: "assistant_unavailable" }, 503);
+  }
+}
+
 async function publicBlogPosts(request, env) {
   const slug = text(new URL(request.url).searchParams.get("slug") || "", 80).replace(/^coach-/, "");
   const query = `SELECT b.id,b.title,b.summary,b.body,b.language,b.created_at,b.published_at,p.display_name AS coach_name
@@ -359,11 +390,16 @@ async function publicProfilePhoto(id, request, env) {
 
 async function saveProfile(request, env, user) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
-  const existing = await env.DB.prepare("SELECT status,review_note FROM provider_profiles WHERE user_id=?").bind(user.id).first();
+  const existing = await env.DB.prepare("SELECT status,review_note,program_durations_json FROM provider_profiles WHERE user_id=?").bind(user.id).first();
   if (existing?.status === "rejected" && existing.review_note === "Removed by owner") return reply(request, env, { error: "provider_removed_by_owner" }, 403);
   const body = await readJson(request);
   const type = body?.provider_type === "pacer" ? "pacer" : body?.provider_type === "coach" ? "coach" : "";
-  const programDurations = type === "coach" ? cleanProgramDurations(body?.program_durations) : [];
+  const submittedProgramDurations = body && Object.prototype.hasOwnProperty.call(body, "program_durations")
+    ? cleanProgramDurations(body.program_durations)
+    : null;
+  const programDurations = type === "coach"
+    ? (submittedProgramDurations || cleanProgramDurations(safeParse(existing?.program_durations_json)))
+    : [];
   const publicFields = cleanPublicFields(body?.public_fields || DEFAULT_PUBLIC_FIELDS);
   const name = text(body?.display_name,100), city = text(body?.city,80), bio = text(body?.bio,4000);
   const whatsappInput = text(body?.whatsapp_number,32), whatsapp = normalizeWhatsApp(whatsappInput), whatsappPublic = body?.whatsapp_public === true;
@@ -682,6 +718,9 @@ async function dashboardApi(request, env, user) {
 async function adminApplications(request, env, user) {
   if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
   const requestUrl = new URL(request.url);
+  if (request.method === "POST" && requestUrl.pathname === "/api/admin/assistant") {
+    return ownerAssistant(request, env);
+  }
   if (request.method === "GET" && requestUrl.pathname === "/api/admin/blog") {
     const posts = await env.DB.prepare(`SELECT b.id,b.title,b.summary,b.body,b.language,b.status,b.created_at,p.display_name AS coach_name
       FROM coach_blog_posts b JOIN provider_profiles p ON p.id=b.provider_id WHERE b.status='pending' ORDER BY b.created_at LIMIT 100`).all();
