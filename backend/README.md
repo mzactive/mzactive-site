@@ -36,6 +36,17 @@ record activity. Profile, booking, article, and payment decisions remain explici
 Configure a Cloudflare scheduled trigger to call the Worker `scheduled` export for safe monitoring
 and analytics snapshots. Add the cron trigger in the deployment configuration, not in website source.
 
+## Cloudflare Preview and Production preparation
+
+The repository includes `wrangler.preview.toml` and `wrangler.production.toml`. Both hourly cron
+configs call the Worker scheduled export. Preview writes remain disabled in the Preview config.
+Production configuration is deliberately guarded by placeholders and cannot deploy automatically.
+
+- Run `npm run preflight -- preview` after setting a dedicated Preview D1 database ID.
+- Run `npm run preview:local` for an authenticated-free local preview.
+- Run `npm run deploy:preview` only after Cloudflare credentials and the Preview database are configured.
+- `npm run deploy:production` intentionally blocks deployment and requires explicit owner approval.
+
 The D1 primary is in APAC with read replication disabled. It is not hosted in Qatar. Booking handoff details are also sent to WhatsApp/Meta after the booking is saved.
 
 ## Local checks

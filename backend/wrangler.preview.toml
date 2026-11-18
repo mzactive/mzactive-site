@@ -1,0 +1,18 @@
+name = "mzactive-marketplace-api-preview"
+main = "worker.js"
+compatibility_date = "2026-11-18"
+
+[vars]
+DATA_COLLECTION_ENABLED = "false"
+PUBLIC_ORIGINS = "https://mzactive.com,https://www.mzactive.com,http://127.0.0.1:8788"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mzactive-marketplace-preview"
+database_id = "REPLACE_WITH_PREVIEW_D1_DATABASE_ID"
+
+[ai]
+binding = "AI"
+
+[triggers]
+crons = ["0 * * * *"]
