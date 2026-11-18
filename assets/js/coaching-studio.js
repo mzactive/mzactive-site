@@ -64,6 +64,6 @@
  document.addEventListener('mzactive:dashboard-loaded',event=>dashboardLoaded(event.detail));if(window.mzStudioDashboard)dashboardLoaded(window.mzStudioDashboard);
  $('signOut').addEventListener('click',()=>{dirty=false;clearTimeout(saveTimer);if(draftKey)sessionStorage.removeItem(draftKey)});
  window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue=''}});
- document.addEventListener('mzactive:language-change',()=>{const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;while(n=walker.nextNode()){if(n.parentElement?.closest('script,style,textarea'))continue;const pair=translations.get(n.nodeValue.trim());if(pair)n.nodeValue=t(...pair)}render();status.textContent=dirty?t('Unsaved program · draft in this tab','برنامج غير محفوظ · مسودة بهذا التبويب'):t('Save programs to keep them in history','احفظ البرامج لإضافتها للسجل')});
+ document.addEventListener('mzactive:language-change',()=>{const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;while(n=walker.nextNode()){if(n.parentElement?.closest('script,style,textarea,[data-language-skip],[data-user-content],.studio-workout strong,.studio-workout span,.studio-library button'))continue;const pair=translations.get(n.nodeValue.trim());if(pair)n.nodeValue=t(...pair)}render();status.textContent=dirty?t('Unsaved program · draft in this tab','برنامج غير محفوظ · مسودة بهذا التبويب'):t('Save programs to keep them in history','احفظ البرامج لإضافتها للسجل')});
  render();
 })();

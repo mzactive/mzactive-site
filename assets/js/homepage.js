@@ -1,24 +1,207 @@
 (() => {
   const menuButton = document.getElementById('menuToggle');
   const navigation = document.getElementById('mainNavigation');
-  if (!menuButton || !navigation) return;
-
-  const setOpen = open => {
+  const setMenuOpen = open => {
+    if (!menuButton || !navigation) return;
     menuButton.setAttribute('aria-expanded', String(open));
     menuButton.setAttribute('aria-label', document.documentElement.lang === 'ar' ? 'قائمة التنقل' : 'Navigation menu');
     navigation.classList.toggle('is-open', open);
   };
 
-  menuButton.addEventListener('click', () => {
-    setOpen(menuButton.getAttribute('aria-expanded') !== 'true');
-  });
-  navigation.addEventListener('click', event => {
-    if (event.target.closest('a')) setOpen(false);
-  });
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') setOpen(false);
-  });
-  document.addEventListener('mzactive:language-change', () => {
-    setOpen(menuButton.getAttribute('aria-expanded') === 'true');
-  });
+  if (menuButton && navigation) {
+    menuButton.addEventListener('click', () => {
+      setMenuOpen(menuButton.getAttribute('aria-expanded') !== 'true');
+    });
+    navigation.addEventListener('click', event => {
+      if (event.target.closest('a')) setMenuOpen(false);
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    });
+    document.addEventListener('mzactive:language-change', () => {
+      setMenuOpen(menuButton.getAttribute('aria-expanded') === 'true');
+    });
+  }
+
+  const directory = document.getElementById('featuredCoachGrid');
+  if (directory) {
+    const api = window.MZACTIVE_API_BASE;
+    const locationList = document.getElementById('coachLocations');
+    const labels = {
+      en: {
+        loading: 'Loading approved coaches…',
+        unavailable: 'Approved coach profiles are temporarily unavailable. Please try the directory again later.',
+        empty: 'There are no approved coach profiles to feature right now.',
+        coach: 'Coach',
+        pacer: 'Pacer',
+        location: 'Location not listed',
+        view: 'View profile'
+      },
+      ar: {
+        loading: 'جارٍ تحميل المدربين المعتمدين…',
+        unavailable: 'ملفات المدربين المعتمدة غير متاحة مؤقتاً. يرجى تجربة الدليل لاحقاً.',
+        empty: 'لا توجد حالياً ملفات مدربين معتمدة لعرضها.',
+        coach: 'مدرب',
+        pacer: 'مرافق جري',
+        location: 'الموقع غير مذكور',
+        view: 'عرض الملف'
+      }
+    };
+    let lang = document.documentElement.lang === 'ar' ? 'ar' : 'en';
+    let profiles = null;
+    let directoryError = false;
+    const currentLabels = () => labels[lang];
+    const node = (tag, className, text) => {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      if (text !== undefined) element.textContent = text;
+      return element;
+    };
+    const authoredNode = (tag, className, text) => {
+      const element = node(tag, className, text);
+      element.dataset.languageSkip = '';
+      return element;
+    };
+
+    function renderFeatured() {
+      directory.replaceChildren();
+      if (profiles === null) {
+        directory.append(node('p', 'directory-status', currentLabels().loading));
+        return;
+      }
+      if (directoryError) {
+        directory.append(node('p', 'directory-status', currentLabels().unavailable));
+        return;
+      }
+      if (!profiles.length) {
+        directory.append(node('p', 'directory-status', currentLabels().empty));
+        return;
+      }
+
+      for (const profile of profiles.slice(0, 4)) {
+        const publicFields = new Set(Array.isArray(profile.public_fields) ? profile.public_fields : []);
+        const card = node('article', 'coach-card');
+        if (profile.has_profile_photo && publicFields.has('profile_photo')) {
+          const image = node('img', 'coach-card-photo');
+          image.src = `${api}/api/providers/${encodeURIComponent(profile.id)}/photo?v=${encodeURIComponent(profile.profile_photo_updated_at || '')}`;
+          image.alt = lang === 'ar' ? `صورة الملف الشخصي لـ ${profile.display_name}` : `${profile.display_name} profile photo`;
+          image.loading = 'lazy';
+          image.addEventListener('error', () => {
+            image.replaceWith(makePhotoPlaceholder());
+          }, { once: true });
+          card.append(image);
+        } else {
+          card.append(makePhotoPlaceholder());
+        }
+
+        const type = profile.provider_type === 'pacer' ? currentLabels().pacer : currentLabels().coach;
+        card.append(node('p', 'coach-type', type));
+        card.append(authoredNode('h3', '', profile.display_name));
+
+        if (publicFields.has('city')) {
+          const location = [profile.city, profile.country].filter(Boolean).join(', ');
+          if (location) card.append(authoredNode('p', 'coach-location', `⌖ ${location}`));
+        }
+
+        const specialties = publicFields.has('specialties') && Array.isArray(profile.specialties)
+          ? profile.specialties.filter(Boolean).slice(0, 3).join(' · ')
+          : '';
+        if (specialties) card.append(authoredNode('p', 'coach-specialty', specialties));
+
+        if (publicFields.has('bio') && profile.bio) {
+          const bio = profile.bio.trim();
+          card.append(authoredNode('p', 'coach-bio', bio.length > 150 ? `${bio.slice(0, 147).trimEnd()}…` : bio));
+        }
+
+        const link = node('a', 'button button-outline', currentLabels().view);
+        link.href = `coaches.html?search=${encodeURIComponent(profile.display_name)}`;
+        card.append(link);
+        directory.append(card);
+      }
+    }
+
+    function makePhotoPlaceholder() {
+      const placeholder = node('div', 'coach-card-photo-placeholder');
+      placeholder.setAttribute('aria-hidden', 'true');
+      placeholder.innerHTML = '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="13" r="7"></circle><path d="M7 35c1-8 6-12 13-12s12 4 13 12"></path></svg>';
+      return placeholder;
+    }
+
+    renderFeatured();
+    fetch(`${api}/api/providers`)
+      .then(response => {
+        if (!response.ok) throw new Error(`provider_directory_http_${response.status}`);
+        return response.json();
+      })
+      .then(data => {
+        if (!Array.isArray(data.providers)) throw new Error('provider_directory_invalid_response');
+        profiles = data.providers;
+        directoryError = false;
+        const locations = new Set();
+        for (const profile of profiles) {
+          if (!Array.isArray(profile.public_fields) || !profile.public_fields.includes('city')) continue;
+          const label = [profile.city, profile.country].filter(Boolean).join(', ');
+          if (label) locations.add(label);
+        }
+        locationList?.replaceChildren(...[...locations].sort().map(label => {
+          const option = document.createElement('option');
+          option.value = label;
+          return option;
+        }));
+        renderFeatured();
+      })
+      .catch(error => {
+        console.error('Unable to load approved coach profiles:', error);
+        profiles = [];
+        directoryError = true;
+        renderFeatured();
+      });
+
+    document.addEventListener('mzactive:language-change', event => {
+      lang = event.detail.lang === 'ar' ? 'ar' : 'en';
+      renderFeatured();
+    });
+  }
+
+  const joinDialog = document.getElementById('joinDialog');
+  if (joinDialog && typeof joinDialog.showModal === 'function') {
+    const closeButton = document.getElementById('joinDialogClose');
+    const hasActiveSession = () => {
+      try {
+        return Boolean(
+          localStorage.getItem('mzactive-provider-session') ||
+          sessionStorage.getItem('mzactive-provider-session')
+        );
+      } catch {
+        return false;
+      }
+    };
+    const hasBeenSeen = () => {
+      try {
+        return localStorage.getItem('mzactive-join-dialog-seen') === '1';
+      } catch {
+        return false;
+      }
+    };
+    const rememberDismissal = () => {
+      try {
+        localStorage.setItem('mzactive-join-dialog-seen', '1');
+      } catch {
+        // The dialog remains usable when browser storage is unavailable.
+      }
+    };
+
+    closeButton.addEventListener('click', () => joinDialog.close());
+    joinDialog.addEventListener('click', event => {
+      if (event.target === joinDialog) joinDialog.close();
+    });
+    joinDialog.addEventListener('close', rememberDismissal);
+    joinDialog.querySelectorAll('a').forEach(link => link.addEventListener('click', rememberDismissal));
+
+    if (!hasActiveSession() && !hasBeenSeen()) {
+      window.setTimeout(() => {
+        if (!hasActiveSession() && !hasBeenSeen() && !joinDialog.open) joinDialog.showModal();
+      }, 10_000);
+    }
+  }
 })();

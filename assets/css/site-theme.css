@@ -1,0 +1,238 @@
+:root {
+  color-scheme: dark;
+  --bg: #091d21;
+  --panel: #103538;
+  --panel2: #205456;
+  --text: #f0f5f3;
+  --muted: #b8cbc6;
+  --gold: #f2b718;
+  --line: #2e6567;
+  --lime: #67b9ac;
+  --petroleum-950: #091d21;
+  --petroleum-900: #103538;
+  --petroleum-800: #205456;
+}
+
+html { color-scheme: dark; }
+body:not(.home-page) {
+  color: var(--text) !important;
+  background-color: var(--bg) !important;
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+}
+body:not(.home-page) h1,
+body:not(.home-page) h2,
+body:not(.home-page) h3,
+body:not(.home-page) h4,
+body:not(.home-page) legend,
+body:not(.home-page) strong { color: var(--text) !important; }
+body:not(.home-page) p,
+body:not(.home-page) li,
+body:not(.home-page) label,
+body:not(.home-page) small,
+body:not(.home-page) .muted,
+body:not(.home-page) .fine,
+body:not(.home-page) .note { color: var(--muted); }
+body:not(.home-page) header {
+  color: var(--text) !important;
+  background-color: rgb(9 29 33 / 97%) !important;
+  border-color: var(--line) !important;
+}
+body:not(.home-page) header a,
+body:not(.home-page) nav a { color: #e4ece8 !important; }
+body:not(.home-page) header a:hover,
+body:not(.home-page) nav a:hover { color: #f2b718 !important; }
+body:not(.home-page) footer {
+  color: #d6e0dc !important;
+  background-color: #07191d !important;
+  border-color: var(--line) !important;
+}
+body:not(.home-page) footer a { color: #f2b718; }
+body:not(.home-page) main,
+body:not(.home-page) section,
+body:not(.home-page) article { color: var(--text); }
+body:not(.home-page) section:not(.hero),
+body:not(.home-page) main > .section,
+body:not(.home-page) main > .wrap.section { background-color: var(--bg) !important; }
+body:not(.home-page) .panel,
+body:not(.home-page) .card,
+body:not(.home-page) .portal-panel,
+body:not(.home-page) .profile-fact,
+body:not(.home-page) .cta,
+body:not(.home-page) .coach-tools,
+body:not(.home-page) .program-card {
+  color: var(--text) !important;
+  background-color: var(--panel) !important;
+  border-color: var(--line) !important;
+}
+body:not(.home-page) input,
+body:not(.home-page) select,
+body:not(.home-page) textarea {
+  color: var(--text) !important;
+  color-scheme: dark;
+  background-color: #103538 !important;
+  border-color: #3b7779 !important;
+}
+body:not(.home-page) input::placeholder,
+body:not(.home-page) textarea::placeholder { color: #b8cbc6 !important; opacity: 1; }
+body:not(.home-page) select option { color: var(--text); background: var(--panel); }
+body:not(.home-page) .btn,
+body:not(.home-page) .button,
+body:not(.home-page) button[type="submit"],
+body:not(.home-page) .auth-signup {
+  color: #091d21 !important;
+  background-color: var(--gold) !important;
+  border-color: var(--gold) !important;
+}
+body:not(.home-page) .btn:hover,
+body:not(.home-page) .button:hover,
+body:not(.home-page) button[type="submit"]:hover { background-color: #ffd057 !important; }
+body:not(.home-page) .lang,
+body:not(.home-page) .lang-toggle,
+body:not(.home-page) #language {
+  color: #f2b718 !important;
+  background-color: transparent !important;
+  border-color: #b68b12 !important;
+}
+body:not(.home-page) .chip {
+  color: #e5ece8 !important;
+  background-color: var(--panel) !important;
+  border-color: var(--line) !important;
+}
+body:not(.home-page) .chip.active,
+body:not(.home-page) .chip:hover {
+  color: #091d21 !important;
+  background-color: var(--gold) !important;
+  border-color: var(--gold) !important;
+}
+body:not(.home-page) dialog {
+  color: var(--text) !important;
+  background-color: var(--panel) !important;
+  border-color: var(--line) !important;
+}
+body:not(.home-page) table th,
+body:not(.home-page) table td { border-color: var(--line) !important; }
+body:not(.home-page) a:focus-visible,
+body:not(.home-page) button:focus-visible,
+body:not(.home-page) input:focus-visible,
+body:not(.home-page) select:focus-visible,
+body:not(.home-page) textarea:focus-visible {
+  outline: 3px solid #f2b718;
+  outline-offset: 3px;
+}
+[hidden] { display: none !important; }
+
+body.rtl { text-align: right; }
+body.rtl .text-link span,
+body.rtl .button span[aria-hidden="true"] { transform: scaleX(-1); }
+body.rtl .hero-copy { direction: rtl; text-align: right; }
+body.rtl .footer-legal { direction: rtl; }
+
+:root {
+  --radius-control: 14px;
+  --radius-card: 20px;
+  --shadow-card: 0 12px 30px rgb(0 0 0 / 18%);
+}
+
+body:not(.home-page) header {
+  backdrop-filter: blur(14px);
+}
+body:not(.home-page) header nav a,
+body:not(.home-page) nav a {
+  transition: color .18s ease, background-color .18s ease;
+}
+body:not(.home-page) button,
+body:not(.home-page) .btn,
+body:not(.home-page) .button {
+  border-radius: 999px;
+  transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease, border-color .18s ease;
+}
+body:not(.home-page) button:hover:not(:disabled),
+body:not(.home-page) .btn:hover,
+body:not(.home-page) .button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 18px rgb(0 0 0 / 20%);
+}
+body:not(.home-page) button:disabled {
+  transform: none;
+  box-shadow: none;
+}
+body:not(.home-page) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+body:not(.home-page) select,
+body:not(.home-page) textarea {
+  min-height: 44px;
+  padding: 10px 13px;
+  border-radius: var(--radius-control) !important;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+body:not(.home-page) input[type="checkbox"],
+body:not(.home-page) input[type="radio"] {
+  accent-color: var(--gold);
+}
+body:not(.home-page) .panel,
+body:not(.home-page) .card,
+body:not(.home-page) .portal-panel,
+body:not(.home-page) .profile-fact,
+body:not(.home-page) .cta,
+body:not(.home-page) .coach-tools,
+body:not(.home-page) .program-card {
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+body:not(.home-page) .site-language-control {
+  min-height: 36px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 6px 11px !important;
+  color: var(--text) !important;
+  background: rgb(9 29 33 / 58%) !important;
+  border: 1px solid rgb(103 185 172 / 46%) !important;
+  border-radius: 999px !important;
+  font: 600 12px/1.2 Inter, "Segoe UI", Arial, sans-serif;
+  white-space: nowrap;
+  transition: color .18s ease, background-color .18s ease, border-color .18s ease;
+}
+body:not(.home-page) .site-language-control:hover {
+  color: var(--gold) !important;
+  background: rgb(16 53 56 / 82%) !important;
+  border-color: var(--gold) !important;
+}
+body:not(.home-page) .site-language-control svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+body:not(.home-page) .site-language-control .language-globe { color: var(--lime); }
+body:not(.home-page) .site-language-control .language-chevron {
+  width: 11px;
+  height: 11px;
+  opacity: .75;
+}
+
+@media (max-width: 640px) {
+  body:not(.home-page) .site-language-control {
+    min-height: 34px !important;
+    padding: 5px 9px !important;
+    font-size: 11px;
+  }
+  body:not(.home-page) .site-language-control .language-globe { width: 14px; height: 14px; }
+  body:not(.home-page) .panel,
+  body:not(.home-page) .card,
+  body:not(.home-page) .portal-panel,
+  body:not(.home-page) .profile-fact,
+  body:not(.home-page) .cta,
+  body:not(.home-page) .program-card {
+    border-radius: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.home-page) button,
+  body:not(.home-page) a,
+  body:not(.home-page) input,
+  body:not(.home-page) select,
+  body:not(.home-page) textarea {
+    transition-duration: .01ms !important;
+  }
+}
