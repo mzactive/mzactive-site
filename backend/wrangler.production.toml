@@ -8,8 +8,8 @@ PUBLIC_ORIGINS = "https://mzactive.com,https://www.mzactive.com"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "mzactive-marketplace-production"
-database_id = "REPLACE_WITH_PRODUCTION_D1_DATABASE_ID"
+database_name = "mzactive-marketplace"
+database_id = "0820b884-2c1b-4374-9cc0-a8e8bb776d64"
 
 [ai]
 binding = "AI"

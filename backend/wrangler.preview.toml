@@ -9,7 +9,7 @@ PUBLIC_ORIGINS = "https://mzactive.com,https://www.mzactive.com,http://127.0.0.1
 [[d1_databases]]
 binding = "DB"
 database_name = "mzactive-marketplace-preview"
-database_id = "REPLACE_WITH_PREVIEW_D1_DATABASE_ID"
+database_id = "ce36c8a9-169f-4f43-b66e-0d1840f33ce5"
 
 [ai]
 binding = "AI"
