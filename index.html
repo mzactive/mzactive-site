@@ -16,13 +16,14 @@
   <link rel="stylesheet" href="assets/css/site-theme.css">
   <link rel="stylesheet" href="assets/css/homepage.css">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"MZ Active","url":"https://mzactive.com/","logo":"https://mzactive.com/assets/brand/mzactive-logo.webp"}</script>
-<script src="assets/js/api-base.js"></script>
+<link rel="preload" as="image" href="assets/images/mzactive-runners.jpg?v=20261118" fetchpriority="high">
+<script src="assets/js/api-base.js" defer></script>
 </head>
 <body class="home-page"><script src="assets/js/language-preference.js"></script>
   <header class="site-header">
     <div class="header-inner">
       <a class="brand" href="index.html" aria-label="MZ Active home">
-        <img src="assets/brand/mzactive-logo.webp" alt="MZ Active">
+        <img src="assets/brand/mzactive-logo.webp" alt="MZ Active" fetchpriority="high">
       </a>
       <nav class="main-nav" id="mainNavigation" aria-label="Main navigation">
         <a href="index.html" aria-current="page" data-en="Home" data-ar="الرئيسية">Home</a>
@@ -288,9 +289,9 @@
     </div>
   </dialog>
 
-  <script src="assets/js/site-language.js"></script>
-  <script src="assets/js/homepage.js"></script>
-  <script src="assets/js/whatsapp-chat.js"></script>
+  <script src="assets/js/site-language.js" defer></script>
+  <script src="assets/js/homepage.js" defer></script>
+  <script src="assets/js/whatsapp-chat.js" defer></script>
   <script src="assets/js/assistant-chat.js" defer></script>
 </body>
 </html>
