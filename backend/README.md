@@ -28,6 +28,14 @@ Bind a new, dedicated D1 database as `DB`. Configure Worker variables/secrets ou
 
 Never bind the existing `mz-ai-trader-ledger` database to this application. Apply `migrations/0001_marketplace.sql`, `0002_moderation_events.sql`, then `0003_manual_fawran_booking.sql` to the dedicated database before deploying the Worker. No payment credentials or payment endpoints exist.
 
+## Owner agents
+
+Apply `migrations/0011_owner_agents.sql` before enabling the Owner AI Brain task history.
+The Worker exposes authenticated agent snapshots and approval routes; agents only create drafts and
+record activity. Profile, booking, article, and payment decisions remain explicit Admin actions.
+Configure a Cloudflare scheduled trigger to call the Worker `scheduled` export for safe monitoring
+and analytics snapshots. Add the cron trigger in the deployment configuration, not in website source.
+
 The D1 primary is in APAC with read replication disabled. It is not hosted in Qatar. Booking handoff details are also sent to WhatsApp/Meta after the booking is saved.
 
 ## Local checks

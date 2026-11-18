@@ -324,6 +324,98 @@ test("Owner AI Brain requires an Admin session and uses a bounded specialist pro
   assert.match(inputSeen.input.messages[0].content, /private MZ Active Owner AI Brain/);
 });
 
+test("Owner agents expose live business snapshots and approval-controlled task history", async () => {
+  const token = "o".repeat(40);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+  const tokenHash = btoa(String.fromCharCode(...digest)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  const env = { DB: { prepare(sql) { let params = []; return {
+    bind(...values) { params = values; return this; },
+    async first() {
+      if (sql.includes("SELECT u.id")) return params[0] === tokenHash ? { id: "admin-id", email: "owner@example.com", role: "admin" } : null;
+      if (sql.includes("COUNT(*) AS count")) return { count: sql.includes("provider_profiles") ? 3 : 2 };
+      if (sql.includes("FROM owner_agent_tasks WHERE id=?")) return { id: params[0], status: "completed", approval_status: "pending" };
+      return null;
+    },
+    async all() {
+      if (sql.includes("FROM owner_agent_tasks")) return { results: [{ id: "12345678-1234-1234-1234-123456789012", agent_type: "operations", source: "manual", title: "Operations queue review", status: "completed", approval_status: "pending", output_json: JSON.stringify({ answer: "Review the queue" }), created_at: "2026-11-18T00:00:00.000Z" }] };
+      if (sql.includes("FROM owner_agent_activity")) return { results: [{ id: "activity-id", agent_type: "operations", action: "run_completed", status: "completed", created_at: "2026-11-18T00:00:01.000Z" }] };
+      return { results: [] };
+    },
+    async run() { return { meta: { changes: 1 } }; },
+  }; } } };
+  const overview = await worker.fetch(new Request("https://api.example.test/api/admin/agents", {
+    headers: { Authorization: `Bearer ${token}` },
+  }), env);
+  assert.equal(overview.status, 200);
+  const data = await overview.json();
+  assert.equal(data.status, "available");
+  assert.equal(data.snapshot.pending_provider_profiles, 3);
+  assert.equal(data.tasks[0].approval_status, "pending");
+
+  const decision = await worker.fetch(new Request("https://api.example.test/api/admin/agents/12345678-1234-1234-1234-123456789012", {
+    method: "PATCH", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ decision: "approved" }),
+  }), env);
+  assert.equal(decision.status, 200);
+  assert.deepEqual(await decision.json(), { updated: true, decision: "approved", task_id: "12345678-1234-1234-1234-123456789012" });
+});
+
+test("Coach registration creates a pending public profile and login starts a session", async () => {
+  const statements = [], batches = [];
+  const env = { DATA_COLLECTION_ENABLED: "true", DB: {
+    prepare(sql) { let params = []; return { sql, bind(...values) { params = values; return this; },
+      async first() {
+        if (sql.includes("FROM users WHERE email=?")) return null;
+        if (sql.includes("FROM users u")) return null;
+        if (sql.includes("RETURNING request_count")) return { request_count: 1 };
+        return null;
+      },
+      async run() { statements.push(sql); return { meta: { changes: 1 } }; },
+    }; },
+    async batch(items) { batches.push(items); return items.map(() => ({ success: true })); },
+  } };
+  const register = await worker.fetch(new Request("https://api.example.test/api/auth/register", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ account_type: "provider", provider_type: "coach", display_name: "Test Coach", city: "Doha", whatsapp_number: "66297954", whatsapp_public: true, bio: "Running coach", consent: true, email: "coach@example.com", password: "12-characters-minimum" }),
+  }), env);
+  assert.equal(register.status, 201);
+  assert.equal((await register.json()).user.role, "provider");
+  assert.equal(batches.length, 1);
+  assert.ok(batches[0].some((item) => item.sql?.includes("INSERT INTO provider_profiles")));
+});
+
+test("Booking intake saves a pending manual-payment request", async () => {
+  let inserted = null;
+  const env = { DATA_COLLECTION_ENABLED: "true", DB: { prepare(sql) { let params = []; return {
+    bind(...values) { params = values; return this; },
+    async first() { return sql.includes("RETURNING request_count") ? { request_count: 1 } : null; },
+    async run() { if (sql.includes("INSERT INTO booking_requests")) inserted = params; return { meta: { changes: 1 } }; },
+  }; } } };
+  const response = await worker.fetch(new Request("https://api.example.test/api/bookings", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ customer_name: "Runner", customer_phone: "66297954", city: "Doha", goal_summary: "Complete a 10K", session_type: "training", consent: true }),
+  }), env);
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).status, "received_pending_payment");
+  assert.ok(inserted);
+});
+
+test("Scheduled agent run records monitoring and analytics snapshots", async () => {
+  let taskTypes = [], activityTypes = [];
+  const env = { DB: { prepare(sql) { let params = []; return {
+    bind(...values) { params = values; return this; },
+    async first() { return { count: 1 }; },
+    async run() {
+      if (sql.includes("INSERT INTO owner_agent_tasks")) taskTypes.push(params[1]);
+      if (sql.includes("INSERT INTO owner_agent_activity")) activityTypes.push(params[1]);
+      return { meta: { changes: 1 } };
+    },
+  }; } } };
+  await worker.scheduled({}, env);
+  assert.deepEqual(taskTypes, ["monitoring", "analytics"]);
+  assert.deepEqual(activityTypes, ["monitoring", "analytics"]);
+});
+
 test("AI chat stops at the shared daily cap", async () => {
   let modelCalled = false;
   const env = { DB: { prepare(sql) { return { bind() { return this; }, async first() { return sql.includes("ai_chat_usage") ? null : { request_count: 1 }; }, async run() { return { meta: { changes: 0 } }; } }; } }, AI: { async run() { modelCalled = true; return { response: "not expected" }; } } };

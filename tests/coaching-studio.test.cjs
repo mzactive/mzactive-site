@@ -28,3 +28,16 @@ for(const scenario of ['save-only','share','save-fails','popup-blocked','refresh
  const message=decodeURIComponent(fallback.href);assert.ok(message.includes('8 km'));assert.ok(message.includes('45 min'));assert.ok(!message.includes('[MZ:'));
  if(scenario==='refresh-fails')assert.ok(!popup.closed);
 });
+
+test('Owner, coach, provider and booking pages include mobile viewports and responsive CSS',()=>{
+ for(const file of ['admin.html','dashboard.html','providers.html','pacer.html']){
+  const source=fs.readFileSync(path.join(root,file),'utf8');
+  assert.match(source,/name="viewport"/);
+ }
+ const admin=fs.readFileSync(path.join(root,'admin.html'),'utf8');
+ assert.match(admin,/@media\(max-width:760px\)/);
+ const dashboard=fs.readFileSync(path.join(root,'dashboard.html'),'utf8');
+ assert.match(dashboard,/@media\(max-width:720px\)/);
+ const booking=fs.readFileSync(path.join(root,'pacer.html'),'utf8');
+ assert.match(booking,/bookingForm|booking-form|<form/i);
+});

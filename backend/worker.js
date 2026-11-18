@@ -171,6 +171,39 @@ async function coachAssistant(request, env, user) {
   }
 }
 
+function taskPromptTitle(task) {
+  return ({
+    operations: "Operations queue review",
+    marketing: "Marketing draft",
+    support: "Customer support draft",
+    monitoring: "Website monitoring review",
+    analytics: "Business analytics summary",
+  })[task] || "Owner agent task";
+}
+
+async function ownerBusinessSnapshot(env) {
+  const firstCount = async (sql) => {
+    const row = await env.DB.prepare(sql).first();
+    return Number(row?.count || 0);
+  };
+  return {
+    pending_provider_profiles: await firstCount("SELECT COUNT(*) AS count FROM provider_profiles WHERE status='pending'"),
+    approved_providers: await firstCount("SELECT COUNT(*) AS count FROM provider_profiles WHERE status='approved'"),
+    open_booking_requests: await firstCount("SELECT COUNT(*) AS count FROM booking_requests WHERE status IN ('received','reviewing') OR payment_status='pending_payment'"),
+    pending_coach_articles: await firstCount("SELECT COUNT(*) AS count FROM coach_blog_posts WHERE status='pending'"),
+    active_training_teams: await firstCount("SELECT COUNT(*) AS count FROM training_teams"),
+  };
+}
+
+async function failOwnerTask(env, taskId, message) {
+  const now = new Date().toISOString();
+  await env.DB.prepare("UPDATE owner_agent_tasks SET status='failed',approval_status='not_required',error_message=?,completed_at=? WHERE id=?")
+    .bind(message,now,taskId).run();
+  await env.DB.prepare(`INSERT INTO owner_agent_activity(id,agent_type,action,status,details_json,created_at)
+    VALUES(?, 'owner', 'run_failed', 'failed', ?, ?)`)
+    .bind(randomId(),JSON.stringify({ task_id: taskId, error: message }),now).run();
+}
+
 async function ownerAssistant(request, env) {
   if (!env.AI || typeof env.AI.run !== "function") return reply(request, env, { error: "assistant_unavailable" }, 503);
   if (!await rateLimit(request, env, "owner-assistant", 8)) return reply(request, env, { error: "rate_limited" }, 429);
@@ -180,6 +213,14 @@ async function ownerAssistant(request, env) {
     return reply(request, env, { error: "assistant_prompt_required" }, 400);
   }
   if (!await reserveAssistantRequest(env)) return reply(request, env, { error: "daily_limit_reached" }, 429);
+  const snapshot = await ownerBusinessSnapshot(env);
+  const taskId = randomId(), now = new Date().toISOString();
+  await env.DB.prepare(`INSERT INTO owner_agent_tasks(id,agent_type,source,title,status,approval_status,input_json,created_at,started_at)
+    VALUES(?,?, 'manual', ?, 'running', 'pending', ?, ?, ?)`)
+    .bind(taskId,task,taskPromptTitle(task),JSON.stringify({ prompt }),now,now).run();
+  await env.DB.prepare(`INSERT INTO owner_agent_activity(id,agent_type,action,status,details_json,created_at)
+    VALUES(?,?, 'run_started', 'running', ?, ?)`)
+    .bind(randomId(),task,JSON.stringify({ task_id: taskId }),now).run();
   const guides = {
     operations: "Turn the request into a concise operational checklist with owners, priorities, and verification steps. Do not claim that changes were made.",
     marketing: "Draft practical bilingual-ready marketing copy or a campaign plan for MZ Active. Preserve a respectful, athletic brand tone and do not invent offers, reviews, or results.",
@@ -187,7 +228,7 @@ async function ownerAssistant(request, env) {
     monitoring: "Turn the supplied website or service observations into a prioritized monitoring review with risks, likely next checks, and safe escalation steps.",
     analytics: "Turn the supplied business data into a short decision summary with trends, caveats, and concrete next metrics to track. Do not infer causation or invent missing data.",
   };
-  const system = `You are the private MZ Active Owner AI Brain for business operations. ${guides[task]} Reply in the language used in the prompt (English or Arabic). Use only the supplied text and verified MZ Active facts. Do not invent customers, revenue, bookings, health outcomes, or system status. Never request passwords, payment credentials, identity documents, or health records. Do not make approval decisions or claim to have taken actions.`;
+  const system = `You are the private MZ Active Owner AI Brain for business operations. ${guides[task]} Reply in the language used in the prompt (English or Arabic). Use only the supplied request and this verified live MZ Active snapshot: ${JSON.stringify(snapshot)}. Do not invent customers, revenue, bookings, health outcomes, or system status. Never request passwords, payment credentials, identity documents, or health records. Do not make approval decisions or claim to have taken actions.`;
   try {
     const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
       messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
@@ -195,9 +236,19 @@ async function ownerAssistant(request, env) {
       temperature: 0.2,
     });
     const answer = text(result?.response, 5000);
-    if (!answer) return reply(request, env, { error: "assistant_unavailable" }, 503);
+    if (!answer) {
+      await failOwnerTask(env, taskId, "assistant_unavailable");
+      return reply(request, env, { error: "assistant_unavailable" }, 503);
+    }
+    const completedAt = new Date().toISOString();
+    await env.DB.prepare(`UPDATE owner_agent_tasks SET status='completed',approval_status='pending',output_json=?,completed_at=? WHERE id=?`)
+      .bind(JSON.stringify({ answer }),completedAt,taskId).run();
+    await env.DB.prepare(`INSERT INTO owner_agent_activity(id,agent_type,action,status,details_json,created_at)
+      VALUES(?,?, 'run_completed', 'completed', ?, ?)`)
+      .bind(randomId(),task,JSON.stringify({ task_id: taskId, approval_status: "pending" }),completedAt).run();
     return reply(request, env, { answer });
   } catch {
+    await failOwnerTask(env, taskId, "assistant_unavailable");
     return reply(request, env, { error: "assistant_unavailable" }, 503);
   }
 }
@@ -721,6 +772,30 @@ async function adminApplications(request, env, user) {
   if (request.method === "POST" && requestUrl.pathname === "/api/admin/assistant") {
     return ownerAssistant(request, env);
   }
+  if (request.method === "GET" && requestUrl.pathname === "/api/admin/agents") {
+    const snapshot = await ownerBusinessSnapshot(env);
+    const tasks = await env.DB.prepare(`SELECT id,agent_type,source,title,status,approval_status,input_json,output_json,error_message,created_at,started_at,completed_at
+      FROM owner_agent_tasks ORDER BY created_at DESC LIMIT 100`).all();
+    const activity = await env.DB.prepare(`SELECT id,agent_type,action,status,details_json,created_at
+      FROM owner_agent_activity ORDER BY created_at DESC LIMIT 100`).all();
+    return reply(request, env, { snapshot, status: "available", tasks: tasks.results || [], activity: activity.results || [] });
+  }
+  const agentTaskMatch = /^\/api\/admin\/agents\/([\w-]{36})$/.exec(requestUrl.pathname);
+  if (agentTaskMatch && request.method === "PATCH") {
+    const body = await readJson(request), decision = body?.decision;
+    if (!body || !["approved","rejected"].includes(decision)) return reply(request, env, { error: "invalid_agent_decision" }, 400);
+    const task = await env.DB.prepare("SELECT id,status,approval_status FROM owner_agent_tasks WHERE id=?")
+      .bind(agentTaskMatch[1]).first();
+    if (!task) return reply(request, env, { error: "agent_task_not_found" }, 404);
+    if (task.status !== "completed" || task.approval_status !== "pending") return reply(request, env, { error: "agent_task_not_pending" }, 409);
+    const now = new Date().toISOString();
+    await env.DB.prepare("UPDATE owner_agent_tasks SET approval_status=? WHERE id=?")
+      .bind(decision,task.id).run();
+    await env.DB.prepare(`INSERT INTO owner_agent_activity(id,actor_user_id,agent_type,action,status,details_json,created_at)
+      VALUES(?,?, 'owner', ?, ?, ?, ?)`)
+      .bind(randomId(),user.id,decision,decision,JSON.stringify({ task_id: task.id }),now).run();
+    return reply(request, env, { updated: true, decision, task_id: task.id });
+  }
   if (request.method === "GET" && requestUrl.pathname === "/api/admin/blog") {
     const posts = await env.DB.prepare(`SELECT b.id,b.title,b.summary,b.body,b.language,b.status,b.created_at,p.display_name AS coach_name
       FROM coach_blog_posts b JOIN provider_profiles p ON p.id=b.provider_id WHERE b.status='pending' ORDER BY b.created_at LIMIT 100`).all();
@@ -851,6 +926,21 @@ export default {
       return dashboardApi(request, env, user);
     }
     return reply(request, env, { error: "not_found" }, 404);
+  },
+  async scheduled(_event, env) {
+    const now = new Date().toISOString();
+    for (const agentType of ["monitoring", "analytics"]) {
+      const id = randomId();
+      await env.DB.prepare(`INSERT INTO owner_agent_tasks(id,agent_type,source,title,status,approval_status,input_json,created_at,started_at)
+        VALUES(?, ?, 'scheduled', ?, 'running', 'pending', ?, ?, ?)`)
+        .bind(id,agentType,taskPromptTitle(agentType),JSON.stringify({ scheduled_at: now }),now,now).run();
+      const snapshot = await ownerBusinessSnapshot(env);
+      await env.DB.prepare(`UPDATE owner_agent_tasks SET status='completed',approval_status='pending',output_json=?,completed_at=? WHERE id=?`)
+        .bind(JSON.stringify({ snapshot, summary: "Scheduled snapshot captured; AI interpretation not run in the scheduled pass." }),now,id).run();
+      await env.DB.prepare(`INSERT INTO owner_agent_activity(id,agent_type,action,status,details_json,created_at)
+        VALUES(?,?, 'scheduled_snapshot_completed', 'completed', ?, ?)`)
+        .bind(randomId(),agentType,JSON.stringify({ task_id: id, snapshot }),now).run();
+    }
   },
 };
 
