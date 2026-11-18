@@ -1,6 +1,7 @@
 name = "mzactive-marketplace-api"
 main = "worker.js"
 compatibility_date = "2026-11-18"
+preview_urls = false
 
 [vars]
 DATA_COLLECTION_ENABLED = "true"
