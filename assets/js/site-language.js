@@ -21,6 +21,7 @@
   const pages = {
     'blog.html': {'MZ ACTIVE · TRAIN SMART. PERFORM STRONG.':'MZ ACTIVE · تدرب بذكاء. حقق أداءً أقوى.','Running, endurance<br>and performance.':'الجري والتحمل<br>والأداء الرياضي.','Ideas and practical guidance from the MZ Active archive.':'مقالات وإرشادات عملية من أرشيف MZ Active.','Articles':'المقالات','No articles match your search.':'لا توجد مقالات تطابق بحثك.','Back to MZ Active':'العودة إلى موقع MZ Active'},
     'index.html': {
+      'Find Your Sports Coach | MZ Active':'ابحث عن مدرب رياضي | MZ Active',
       'QATAR · ENDURANCE · PERFORMANCE':'قطر · التحمل · الأداء','FIND YOUR COACH.':'اعثر على مدربك.','FIND YOUR PACE.':'اختر وتيرتك.',
       'Discover coaches and pacers for your next goal in Qatar. Explore support, send a booking request and confirm availability directly with MZ Active.':'اكتشف المدربين ومرافقي الجري لتحقيق هدفك القادم في قطر. اطّلع على الخدمات وأرسل طلب حجز، ثم أكّد التوفر مباشرةً مع MZ Active.',
       'Find a Coach or Pacer':'اعثر على مدرب أو مرافق جري','Join as a Coach or Pacer':'انضم كمدرب أو مرافق جري','Simple to get started':'خطوات بسيطة للبدء','Find support. Request a match. Get moving.':'اعثر على الدعم. أرسل طلباً. وابدأ.',
@@ -67,6 +68,8 @@
     document.head.append(style);
   }
   const original = new WeakMap();
+  const originalAttributes = new WeakMap();
+  const toggleLabel = toggle?.querySelector('[data-language-label]') || toggle;
   function apply(lang) {
     const ar = lang === 'ar';
     document.documentElement.lang = lang; document.documentElement.dir = ar ? 'rtl' : 'ltr';
@@ -81,12 +84,19 @@
       const translated=dictionary[trimmed]; if(translated || english[trimmed]) n.nodeValue=base.replace(trimmed,ar?(translated||trimmed):(english[trimmed]||trimmed));
     }
     document.querySelectorAll('[placeholder],[aria-label]').forEach(el=>{
+      let saved=originalAttributes.get(el);
+      if(!saved) {
+        saved=new Map();
+        originalAttributes.set(el,saved);
+      }
       for(const attr of ['placeholder','aria-label']) if(el.hasAttribute(attr)) {
-        const k='en'+attr[0].toUpperCase()+attr.slice(1); if(!el.dataset[k]) el.dataset[k]=el.getAttribute(attr);
-        const base=el.dataset[k]; el.setAttribute(attr,ar?(dictionary[base]||base):base);
+        if(!saved.has(attr)) saved.set(attr,el.getAttribute(attr));
+        const base=saved.get(attr), translated=el.getAttribute(`data-${lang}-${attr}`);
+        el.setAttribute(attr,translated || (ar?(dictionary[base]||base):base));
       }
     });
-    if(toggle) toggle.textContent=ar?'English':'العربية';
+    if(toggleLabel) toggleLabel.textContent=ar?'English':'العربية';
+    if(toggle) toggle.setAttribute('aria-label',ar?'Switch to English':'Switch to Arabic');
     document.body.querySelectorAll('.ar-only').forEach(el=>el.hidden=!ar);
     document.body.querySelectorAll('.en-only').forEach(el=>el.hidden=ar);
     document.dispatchEvent(new CustomEvent('mzactive:language-change',{detail:{lang}}));
