@@ -111,10 +111,31 @@
   const originalAttributes = new WeakMap();
   const toggleLabels = toggles.map(prepareToggle);
   let observer = null;
+  const setBilingualContent = (el, value) => {
+    const children = [...el.children];
+    if (children.length && children.every(child => child.hasAttribute('aria-hidden')) && !value.includes('<')) {
+      const label = [...el.childNodes].find(node => node.nodeType === Node.TEXT_NODE && node.nodeValue.trim());
+      if (label) {
+        const leading = label.nodeValue.match(/^\s*/)[0];
+        const trailing = label.nodeValue.match(/\s*$/)[0];
+        const next = `${leading}${value}${trailing}`;
+        if (label.nodeValue !== next) label.nodeValue = next;
+      } else {
+        el.insertBefore(document.createTextNode(value), children[0]);
+      }
+      return;
+    }
+    const template = document.createElement('template');
+    template.innerHTML = value;
+    if (el.innerHTML !== template.innerHTML) el.innerHTML = value;
+  };
   function apply(lang) {
     const ar = lang === 'ar';
-    document.documentElement.lang = lang; document.documentElement.dir = ar ? 'rtl' : 'ltr';
-    document.body.dir = ar ? 'rtl' : 'ltr'; document.body.classList.toggle('rtl', ar);
+    const dir = ar ? 'rtl' : 'ltr';
+    if (document.documentElement.lang !== lang) document.documentElement.lang = lang;
+    if (document.documentElement.dir !== dir) document.documentElement.dir = dir;
+    if (document.body.dir !== dir) document.body.dir = dir;
+    if (document.body.classList.contains('rtl') !== ar) document.body.classList.toggle('rtl', ar);
     const customHandler = document.body.dataset.languageHandler === 'custom';
     if (!customHandler) {
       if (document.title !== titleRendered) titleSource = document.title;
@@ -122,13 +143,17 @@
       titleRendered = document.title;
     }
     if (!customHandler) {
-      document.querySelectorAll('[data-en][data-ar]').forEach(el => { el.innerHTML = el.dataset[lang]; });
+      document.querySelectorAll('[data-en][data-ar]').forEach(el => setBilingualContent(el, el.dataset[lang]));
       const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT); let n;
       while(n=walker.nextNode()) {
         if(n.parentElement?.closest('[data-en][data-ar],[data-language-skip],[data-user-content],[data-authored],[contenteditable="true"],.user-content,.user-bio,.profile-bio,.post-content,.comment-content,.desc,.bio,.user-message,.coach-bio,.coach-card h3,.coach-card .coach-location,.coach-card .coach-specialty,.name h3,#coachProfileName,.pill,.social-link,.article h1,.article .content,.program-history-item h3,.program-history-item .program-week-grid span,.program-history-item p.muted:last-child,.studio-workout strong,.studio-workout span,.studio-library button')) continue;
         if(!original.has(n)) original.set(n,n.nodeValue);
         const base=original.get(n), trimmed=base.trim(); if(!trimmed) continue;
-        const translated=dictionary[trimmed]; if(translated || english[trimmed]) n.nodeValue=base.replace(trimmed,ar?(translated||trimmed):(english[trimmed]||trimmed));
+        const translated=dictionary[trimmed];
+        if(translated || english[trimmed]) {
+          const value=base.replace(trimmed,ar?(translated||trimmed):(english[trimmed]||trimmed));
+          if(n.nodeValue !== value) n.nodeValue=value;
+        }
       }
       document.querySelectorAll('[placeholder],[aria-label],[alt],[title]').forEach(el=>{
         if(el.closest('[data-user-content],[data-authored],[contenteditable="true"],.user-content,.user-bio,.profile-bio,.post-content,.comment-content,.desc,.bio,.user-message,.coach-bio,.coach-card h3,.coach-card .coach-location,.coach-card .coach-specialty,.name h3,#coachProfileName,.pill,.social-link,.article h1,.article .content,.program-history-item h3,.program-history-item .program-week-grid span,.program-history-item p.muted:last-child,.studio-workout strong,.studio-workout span,.studio-library button')) return;
@@ -140,16 +165,19 @@
         for(const attr of ['placeholder','aria-label','alt','title']) if(el.hasAttribute(attr)) {
           if(!saved.has(attr)) saved.set(attr,el.getAttribute(attr));
           const base=saved.get(attr), translated=el.getAttribute(`data-${lang}-${attr}`);
-          el.setAttribute(attr,translated || (ar?(dictionary[base]||base):base));
+          const value=translated || (ar?(dictionary[base]||base):base);
+          if(el.getAttribute(attr) !== value) el.setAttribute(attr,value);
         }
       });
     }
     toggles.forEach((toggle, index) => {
-      toggleLabels[index].textContent = ar ? 'English' : 'العربية';
-      toggle.setAttribute('aria-label', ar ? 'التبديل إلى الإنجليزية' : 'Switch to Arabic');
+      const label = ar ? 'English' : 'العربية';
+      if (toggleLabels[index].textContent !== label) toggleLabels[index].textContent = label;
+      const ariaLabel = ar ? 'التبديل إلى الإنجليزية' : 'Switch to Arabic';
+      if (toggle.getAttribute('aria-label') !== ariaLabel) toggle.setAttribute('aria-label', ariaLabel);
     });
-    document.body.querySelectorAll('.ar-only').forEach(el=>el.hidden=!ar);
-    document.body.querySelectorAll('.en-only').forEach(el=>el.hidden=ar);
+    document.body.querySelectorAll('.ar-only').forEach(el=>{ if(el.hidden !== !ar) el.hidden=!ar; });
+    document.body.querySelectorAll('.en-only').forEach(el=>{ if(el.hidden !== ar) el.hidden=ar; });
   }
   toggles.forEach(toggle => toggle.addEventListener('click', () => state.set(state.get() === 'ar' ? 'en' : 'ar', {manual:true})));
   document.addEventListener('mzactive:language-change', event => {
