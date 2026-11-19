@@ -24,4 +24,4 @@
  function render(){document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';document.body.dir=document.documentElement.dir;document.body.classList.toggle('rtl',lang==='ar');document.querySelectorAll('.arabic').forEach(el=>el.hidden=true);const walk=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let node;while(node=walk.nextNode()){if(node.parentElement===button)continue;if(!original.has(node))original.set(node,node.nodeValue);const base=original.get(node),key=base.trim();if(ar[key])node.nodeValue=base.replace(key,lang==='ar'?ar[key]:key)}}
  document.addEventListener('mzactive:language-change',event=>{lang=event.detail.lang;render()});render();
 })();
-</script><script src="assets/js/site-language.js?v=6de166c"></script></body></html>
+</script><script src="assets/js/site-language.js?v=e6d09d69c65c"></script></body></html>

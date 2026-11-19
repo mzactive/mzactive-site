@@ -146,7 +146,7 @@
       document.querySelectorAll('[data-en][data-ar]').forEach(el => setBilingualContent(el, el.dataset[lang]));
       const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT); let n;
       while(n=walker.nextNode()) {
-        if(n.parentElement?.closest('[data-en][data-ar],[data-language-skip],[data-user-content],[data-authored],[contenteditable="true"],.user-content,.user-bio,.profile-bio,.post-content,.comment-content,.desc,.bio,.user-message,.coach-bio,.coach-card h3,.coach-card .coach-location,.coach-card .coach-specialty,.name h3,#coachProfileName,.pill,.social-link,.article h1,.article .content,.program-history-item h3,.program-history-item .program-week-grid span,.program-history-item p.muted:last-child,.studio-workout strong,.studio-workout span,.studio-library button')) continue;
+        if(n.parentElement?.closest('[data-en][data-ar],[data-language-skip],.wa-chat-float,[data-user-content],[data-authored],[contenteditable="true"],.user-content,.user-bio,.profile-bio,.post-content,.comment-content,.desc,.bio,.user-message,.coach-bio,.coach-card h3,.coach-card .coach-location,.coach-card .coach-specialty,.name h3,#coachProfileName,.pill,.social-link,.article h1,.article .content,.program-history-item h3,.program-history-item .program-week-grid span,.program-history-item p.muted:last-child,.studio-workout strong,.studio-workout span,.studio-library button')) continue;
         if(!original.has(n)) original.set(n,n.nodeValue);
         const base=original.get(n), trimmed=base.trim(); if(!trimmed) continue;
         const translated=dictionary[trimmed];
@@ -156,7 +156,7 @@
         }
       }
       document.querySelectorAll('[placeholder],[aria-label],[alt],[title]').forEach(el=>{
-        if(el.closest('[data-user-content],[data-authored],[contenteditable="true"],.user-content,.user-bio,.profile-bio,.post-content,.comment-content,.desc,.bio,.user-message,.coach-bio,.coach-card h3,.coach-card .coach-location,.coach-card .coach-specialty,.name h3,#coachProfileName,.pill,.social-link,.article h1,.article .content,.program-history-item h3,.program-history-item .program-week-grid span,.program-history-item p.muted:last-child,.studio-workout strong,.studio-workout span,.studio-library button')) return;
+        if(el.closest('.wa-chat-float,[data-user-content],[data-authored],[contenteditable="true"],.user-content,.user-bio,.profile-bio,.post-content,.comment-content,.desc,.bio,.user-message,.coach-bio,.coach-card h3,.coach-card .coach-location,.coach-card .coach-specialty,.name h3,#coachProfileName,.pill,.social-link,.article h1,.article .content,.program-history-item h3,.program-history-item .program-week-grid span,.program-history-item p.muted:last-child,.studio-workout strong,.studio-workout span,.studio-library button')) return;
         let saved=originalAttributes.get(el);
         if(!saved) {
           saved=new Map();
