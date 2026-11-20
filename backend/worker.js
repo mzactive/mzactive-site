@@ -384,9 +384,44 @@ async function login(request, env) {
   if (!body || !email || !password) return reply(request, env, { error: "invalid_credentials" }, 400);
   if (!await rateLimit(request, env, "login", 12) || !await rateLimit(request, env, `login:${email}`, 8)) return reply(request, env, { error: "rate_limited" }, 429);
   const user = await env.DB.prepare("SELECT id,email,password_hash,role FROM users WHERE email=?").bind(email).first();
-  if (!user || !await verifyPassword(password, user.password_hash)) return reply(request, env, { error: "invalid_credentials" }, 401);
+  // Accept both the trimmed and the verbatim value so a password containing
+  // leading/trailing spaces can still sign in after the original setup.
+  const rawPassword = typeof body.password === "string" && body.password.length <= 128 ? body.password : password;
+  const matches = user && (await verifyPassword(password, user.password_hash) || (rawPassword !== password && await verifyPassword(rawPassword, user.password_hash)));
+  if (!user || !matches) return reply(request, env, { error: "invalid_credentials" }, 401);
   if (user.role === "provider" && await env.DB.prepare("SELECT 1 AS removed FROM provider_profiles WHERE user_id=? AND status='rejected' AND review_note='Removed by owner'").bind(user.id).first()) return reply(request,env,{error:"provider_removed_by_owner"},403);
   return issueSession(request, env, user.id, user.email, user.role);
+}
+
+// No email provider is configured, so recovery uses a pre-shared one-time
+// secret held only by the owner. It is compared in constant time, rate limited,
+// and never returned to the browser. No paid service or new account is needed.
+async function recoverAdminPassword(request, env) {
+  if (!env.ADMIN_RECOVERY_KEY) return reply(request, env, { error: "recovery_unavailable" }, 503);
+  const body = await readJson(request), email = emailValue(body?.email);
+  if (!await rateLimit(request, env, "recovery", 5) || (email && !await rateLimit(request, env, `recovery:${email}`, 3))) return reply(request, env, { error: "rate_limited" }, 429);
+  const key = typeof body?.key === "string" && body.key.length <= 256 ? body.key : "";
+  const newPassword = text(body?.new_password, 128);
+  const admin = email ? await env.DB.prepare("SELECT id,email,role FROM users WHERE email=? AND role='admin'").bind(email).first() : null;
+  if (!admin || newPassword.length < 12 || !await safeEqual(key, env.ADMIN_RECOVERY_KEY)) return reply(request, env, { error: "invalid_recovery" }, 400);
+  await env.DB.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(await hashPassword(newPassword), admin.id).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(admin.id).run();
+  return reply(request, env, { ok: true });
+}
+
+async function changePassword(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return reply(request, env, { error: "unauthorized" }, 401);
+  if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+  if (!await rateLimit(request, env, "change-password", 5)) return reply(request, env, { error: "rate_limited" }, 429);
+  const body = await readJson(request), current = text(body?.current_password, 128), next = text(body?.new_password, 128);
+  if (!current || next.length < 12) return reply(request, env, { error: "invalid_password" }, 400);
+  const stored = await env.DB.prepare("SELECT password_hash FROM users WHERE id=?").bind(user.id).first();
+  if (!stored || !await verifyPassword(current, stored.password_hash)) return reply(request, env, { error: "current_password_incorrect" }, 400);
+  await env.DB.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(await hashPassword(next), user.id).run();
+  const token = request.headers.get("Authorization").slice(7);
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=? AND token_hash<>?").bind(user.id, await sha256(token)).run();
+  return reply(request, env, { ok: true });
 }
 
 async function publicProviders(url, request, env, id = null) {
@@ -1852,6 +1887,8 @@ export default {
     if (request.method === "GET" && publicPhotoMatch) return publicProfilePhoto(publicPhotoMatch[1], request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/register") return register(request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/login") return login(request, env);
+    if (request.method === "POST" && url.pathname === "/api/auth/recover") return recoverAdminPassword(request, env);
+    if (request.method === "POST" && url.pathname === "/api/auth/change-password") return changePassword(request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/logout") {
       const user = await currentUser(request, env);
       if (user) {

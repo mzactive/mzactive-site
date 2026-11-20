@@ -12,6 +12,8 @@ Cloudflare Worker API for coach/pacer accounts, profile review, approved directo
 - `GET /api/providers?type=coach|pacer&city=Doha&q=running` — approved profiles only.
 - `POST /api/auth/register` — creates a provider account and a pending profile; an allowlisted Admin email additionally needs `x-admin-setup-key`.
 - `POST /api/auth/login`, `POST /api/auth/logout` — short-lived bearer sessions; the raw session token is not stored in D1.
+- `POST /api/auth/recover` — Admin-only locked-out password reset using the offline `ADMIN_RECOVERY_KEY`; invalidates all existing sessions.
+- `POST /api/auth/change-password` — authenticated Admin self-service password change; keeps the current session and signs out other sessions.
 - `GET|PUT /api/me/profile` — read or edit the signed-in provider profile; edits return it to pending review.
 - `POST /api/bookings` — stores a booking request with `payment_status=pending_payment`; after a successful save the website opens a pre-filled WhatsApp message to +97466297954 so MZ Active can coordinate Fawran manually. No payment gateway or payment credentials are used.
 - `GET /api/admin/applications` — Admin review queue for pending profiles and booking requests.
@@ -25,6 +27,7 @@ Bind a new, dedicated D1 database as `DB`. Configure Worker variables/secrets ou
 - `DATA_COLLECTION_ENABLED`: `true` for release; set `false` to pause writes.
 - `ADMIN_EMAILS`: comma-separated Admin email addresses.
 - `ADMIN_SETUP_KEY`: secret used only to bootstrap an allowlisted Admin account; remove or rotate it after setup.
+- `ADMIN_RECOVERY_KEY`: separate secret for the locked-out Admin password recovery route. Keep it offline; it is never returned to the browser and can be rotated at any time.
 
 Never bind the existing `mz-ai-trader-ledger` database to this application. Apply `migrations/0001_marketplace.sql`, `0002_moderation_events.sql`, then `0003_manual_fawran_booking.sql` to the dedicated database before deploying the Worker. No payment credentials or payment endpoints exist.
 

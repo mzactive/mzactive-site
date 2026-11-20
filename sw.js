@@ -1,5 +1,5 @@
 // MZA app shell. Private pages, API traffic and cross-origin requests stay network-only.
-const CACHE = 'mza-shell-v4';
+const CACHE = 'mza-shell-v5';
 const SHELL = [
   '/offline.html',
   '/manifest.json',
