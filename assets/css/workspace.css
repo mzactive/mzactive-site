@@ -1,0 +1,52 @@
+/* Private shared coaching workspace. Mobile-first, no external dependencies. */
+#communityWorkspace .ws-toolbar { display: grid; gap: 10px; }
+#communityWorkspace .ws-toolbar select { width: 100%; }
+#communityWorkspace .ws-status { color: var(--muted); font-size: 13px; min-height: 22px; overflow-wrap: anywhere; }
+#communityWorkspace .ws-content { margin-top: 12px; }
+#communityWorkspace .ws-section { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 16px; }
+#communityWorkspace .ws-section h3 { margin: 0 0 8px; font-size: 16px; }
+#communityWorkspace .ws-grid { display: grid; gap: 12px; }
+#communityWorkspace .ws-list { display: grid; gap: 8px; margin-top: 8px; }
+#communityWorkspace .ws-row {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: #0b1516;
+  overflow-wrap: anywhere;
+}
+#communityWorkspace .ws-row-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+#communityWorkspace .ws-muted { color: var(--muted); font-size: 12px; }
+#communityWorkspace .ws-notice {
+  border-inline-start: 3px solid var(--gold);
+  background: #15170f;
+  padding: 10px 12px;
+  border-radius: 0 12px 12px 0;
+}
+html[dir="rtl"] #communityWorkspace .ws-notice { border-radius: 12px 0 0 12px; }
+#communityWorkspace .ws-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+#communityWorkspace .ws-form { display: grid; gap: 10px; margin-top: 10px; }
+#communityWorkspace .ws-form .field { display: grid; gap: 5px; }
+#communityWorkspace .ws-error { color: #ffb3a6; }
+#communityWorkspace .ws-success { color: #b1e587; }
+#communityWorkspace .ws-unread { display: inline-block; margin-top: 6px; color: var(--gold); font-size: 12px; font-weight: 700; }
+#communityWorkspace .ws-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  color: var(--gold);
+  font-weight: 700;
+  text-decoration: none;
+}
+#communityWorkspace button,
+#communityWorkspace select,
+#communityWorkspace input,
+#communityWorkspace textarea { min-height: 44px; }
+#communityWorkspace input[type="file"] { padding: 9px 10px; }
+
+@media (min-width: 760px) {
+  #communityWorkspace .ws-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

@@ -113,8 +113,30 @@
   }
   const original = new WeakMap();
   const originalAttributes = new WeakMap();
+  // Nodes handled by the targeted insertion pass are remembered so a second
+  // childList record (or our own DOM writes) cannot re-capture translated text
+  // as if it were the original English source.
+  const processed = new WeakSet();
   const toggleLabels = toggles.map(prepareToggle);
   let observer = null;
+
+  // Shared by the full language pass and the targeted insertion pass so both
+  // keep exactly the same skip semantics for authored/user content.
+  const textSkipSelector = '[data-en][data-ar],[data-language-skip],.wa-chat-float,[data-user-content],[data-authored],[contenteditable="true"],.user-content,.user-bio,.profile-bio,.post-content,.comment-content,.desc,.bio,.user-message,.coach-bio,.coach-card h3,.coach-card .coach-location,.coach-card .coach-specialty,.name h3,#coachProfileName,.pill,.social-link,.article h1,.article .content,.program-history-item h3,.program-history-item .program-week-grid span,.program-history-item p.muted:last-child,.studio-workout strong,.studio-workout span,.studio-library button';
+  const attrSkipSelector = '.wa-chat-float,[data-user-content],[data-authored],[contenteditable="true"],.user-content,.user-bio,.profile-bio,.post-content,.comment-content,.desc,.bio,.user-message,.coach-bio,.coach-card h3,.coach-card .coach-location,.coach-card .coach-specialty,.name h3,#coachProfileName,.pill,.social-link,.article h1,.article .content,.program-history-item h3,.program-history-item .program-week-grid span,.program-history-item p.muted:last-child,.studio-workout strong,.studio-workout span,.studio-library button';
+
+  const markProcessed = root => {
+    if (!root) return;
+    processed.add(root);
+    if (root.nodeType === 1 && typeof document.createTreeWalker === 'function') {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_ALL);
+      let node;
+      while ((node = walker.nextNode())) processed.add(node);
+    } else if (typeof root.querySelectorAll === 'function') {
+      root.querySelectorAll('*').forEach(el => processed.add(el));
+    }
+  };
+
   const setBilingualContent = (el, value) => {
     const children = [...el.children];
     if (children.length && children.every(child => child.hasAttribute('aria-hidden')) && !value.includes('<')) {
@@ -127,12 +149,81 @@
       } else {
         el.insertBefore(document.createTextNode(value), children[0]);
       }
+      markProcessed(el);
       return;
     }
     const template = document.createElement('template');
     template.innerHTML = value;
-    if (el.innerHTML !== template.innerHTML) el.innerHTML = value;
+    if (el.innerHTML !== template.innerHTML) {
+      el.innerHTML = value;
+      markProcessed(el);
+    }
   };
+
+  const translateTextNode = (node, ar) => {
+    if (node.parentElement?.closest(textSkipSelector)) return;
+    if (!original.has(node)) original.set(node, node.nodeValue);
+    const base = original.get(node);
+    const trimmed = base.trim();
+    if (!trimmed) return;
+    const translated = dictionary[trimmed];
+    if (translated || english[trimmed]) {
+      const value = base.replace(trimmed, ar ? (translated || trimmed) : (english[trimmed] || trimmed));
+      if (node.nodeValue !== value) node.nodeValue = value;
+    }
+  };
+
+  const translateTextWalker = (root, ar) => {
+    if (!root || typeof document.createTreeWalker !== 'function') return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) translateTextNode(node, ar);
+  };
+
+  const translateAttributes = (el, ar, lang) => {
+    if (el.closest(attrSkipSelector)) return;
+    let saved = originalAttributes.get(el);
+    if (!saved) {
+      saved = new Map();
+      originalAttributes.set(el, saved);
+    }
+    for (const attr of ['placeholder', 'aria-label', 'alt', 'title']) {
+      if (!el.hasAttribute(attr)) continue;
+      if (!saved.has(attr)) saved.set(attr, el.getAttribute(attr));
+      const base = saved.get(attr);
+      const translated = el.getAttribute(`data-${lang}-${attr}`);
+      const value = translated || (ar ? (dictionary[base] || base) : base);
+      if (el.getAttribute(attr) !== value) el.setAttribute(attr, value);
+    }
+  };
+
+  const queryAll = (root, selector) => {
+    if (!root || typeof root.querySelectorAll !== 'function') return [];
+    const matches = [...root.querySelectorAll(selector)];
+    if (root.nodeType === 1 && typeof root.matches === 'function' && root.matches(selector)) matches.unshift(root);
+    return matches;
+  };
+
+  // Scoped to a newly inserted node (element, text node or fragment) rather
+  // than the whole body, so AJAX/chat updates stay translated without a rescan.
+  const translateNode = (node, lang) => {
+    const ar = lang === 'ar';
+    if (node.nodeType === Node.TEXT_NODE) {
+      translateTextNode(node, ar);
+      return;
+    }
+    if (node.nodeType !== 1 && typeof node.querySelectorAll !== 'function') return;
+    queryAll(node, '[data-en][data-ar]').forEach(el => setBilingualContent(el, el.dataset[lang]));
+    translateTextWalker(node, ar);
+    queryAll(node, '[placeholder],[aria-label],[alt],[title]').forEach(el => translateAttributes(el, ar, lang));
+    queryAll(node, '.ar-only,.en-only').forEach(el => {
+      if (el.classList.contains('ar-only') && el.hidden !== !ar) el.hidden = !ar;
+      if (el.classList.contains('en-only') && el.hidden !== ar) el.hidden = ar;
+    });
+    markProcessed(node);
+  };
+
+  // Full document pass: only for startup and explicit language changes.
   function apply(lang) {
     const ar = lang === 'ar';
     const dir = ar ? 'rtl' : 'ltr';
@@ -148,31 +239,8 @@
     }
     if (!customHandler) {
       document.querySelectorAll('[data-en][data-ar]').forEach(el => setBilingualContent(el, el.dataset[lang]));
-      const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT); let n;
-      while(n=walker.nextNode()) {
-        if(n.parentElement?.closest('[data-en][data-ar],[data-language-skip],.wa-chat-float,[data-user-content],[data-authored],[contenteditable="true"],.user-content,.user-bio,.profile-bio,.post-content,.comment-content,.desc,.bio,.user-message,.coach-bio,.coach-card h3,.coach-card .coach-location,.coach-card .coach-specialty,.name h3,#coachProfileName,.pill,.social-link,.article h1,.article .content,.program-history-item h3,.program-history-item .program-week-grid span,.program-history-item p.muted:last-child,.studio-workout strong,.studio-workout span,.studio-library button')) continue;
-        if(!original.has(n)) original.set(n,n.nodeValue);
-        const base=original.get(n), trimmed=base.trim(); if(!trimmed) continue;
-        const translated=dictionary[trimmed];
-        if(translated || english[trimmed]) {
-          const value=base.replace(trimmed,ar?(translated||trimmed):(english[trimmed]||trimmed));
-          if(n.nodeValue !== value) n.nodeValue=value;
-        }
-      }
-      document.querySelectorAll('[placeholder],[aria-label],[alt],[title]').forEach(el=>{
-        if(el.closest('.wa-chat-float,[data-user-content],[data-authored],[contenteditable="true"],.user-content,.user-bio,.profile-bio,.post-content,.comment-content,.desc,.bio,.user-message,.coach-bio,.coach-card h3,.coach-card .coach-location,.coach-card .coach-specialty,.name h3,#coachProfileName,.pill,.social-link,.article h1,.article .content,.program-history-item h3,.program-history-item .program-week-grid span,.program-history-item p.muted:last-child,.studio-workout strong,.studio-workout span,.studio-library button')) return;
-        let saved=originalAttributes.get(el);
-        if(!saved) {
-          saved=new Map();
-          originalAttributes.set(el,saved);
-        }
-        for(const attr of ['placeholder','aria-label','alt','title']) if(el.hasAttribute(attr)) {
-          if(!saved.has(attr)) saved.set(attr,el.getAttribute(attr));
-          const base=saved.get(attr), translated=el.getAttribute(`data-${lang}-${attr}`);
-          const value=translated || (ar?(dictionary[base]||base):base);
-          if(el.getAttribute(attr) !== value) el.setAttribute(attr,value);
-        }
-      });
+      translateTextWalker(document.body, ar);
+      document.querySelectorAll('[placeholder],[aria-label],[alt],[title]').forEach(el => translateAttributes(el, ar, lang));
     }
     toggles.forEach((toggle, index) => {
       const label = ar ? 'English' : 'العربية';
@@ -183,17 +251,68 @@
     document.body.querySelectorAll('.ar-only').forEach(el=>{ if(el.hidden !== !ar) el.hidden=!ar; });
     document.body.querySelectorAll('.en-only').forEach(el=>{ if(el.hidden !== ar) el.hidden=ar; });
   }
+
+  // childList only: no characterData/attributes observation, so our own text
+  // and attribute writes cannot trigger another full rescan.
+  const observerOptions = {subtree: true, childList: true};
+  let pendingNodes = [];
+  let flushScheduled = false;
+  let flushHandle = null;
+
+  const cancelFlush = () => {
+    if (flushHandle === null) return;
+    if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(flushHandle);
+    else clearTimeout(flushHandle);
+    flushHandle = null;
+    flushScheduled = false;
+  };
+
+  const flushPending = () => {
+    flushScheduled = false;
+    flushHandle = null;
+    const nodes = pendingNodes;
+    pendingNodes = [];
+    if (!nodes.length) return;
+    const lang = state.get();
+    for (const node of nodes) {
+      if (processed.has(node)) continue;
+      if (node.isConnected === false) continue;
+      processed.add(node);
+      translateNode(node, lang);
+    }
+  };
+
+  const scheduleFlush = () => {
+    if (flushScheduled) return;
+    flushScheduled = true;
+    if (typeof requestAnimationFrame === 'function') flushHandle = requestAnimationFrame(flushPending);
+    else flushHandle = setTimeout(flushPending, 0);
+  };
+
+  const enqueueAdded = node => {
+    if (!node) return;
+    if (node.nodeType === 11) {
+      [...node.childNodes].forEach(enqueueAdded);
+      return;
+    }
+    if (node.nodeType === Node.TEXT_NODE || node.nodeType === 1) pendingNodes.push(node);
+  };
+
   toggles.forEach(toggle => toggle.addEventListener('click', () => state.set(state.get() === 'ar' ? 'en' : 'ar', {manual:true})));
   document.addEventListener('mzactive:language-change', event => {
     if (observer) observer.disconnect();
+    pendingNodes = [];
+    cancelFlush();
     apply(event.detail.lang);
-    if (observer) observer.observe(document.body, {subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['placeholder','aria-label','alt','title']});
+    if (observer) observer.observe(document.body, observerOptions);
   });
-  observer = new MutationObserver(() => {
-    observer.disconnect();
-    apply(state.get());
-    observer.observe(document.body, {subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['placeholder','aria-label','alt','title']});
+  observer = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.type !== 'childList') continue;
+      record.addedNodes.forEach(enqueueAdded);
+    }
+    scheduleFlush();
   });
-  observer.observe(document.body, {subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['placeholder','aria-label','alt','title']});
+  observer.observe(document.body, observerOptions);
   apply(state.get());
 })();

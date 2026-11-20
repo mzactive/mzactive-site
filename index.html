@@ -285,6 +285,65 @@ html[dir="rtl"] .footer-vision-link { margin: 8px 0 0 12px; }
 .footer-install-badge { display: inline-grid; place-items: center; min-width: 42px; min-height: 28px; border: 1px solid #f2b718; border-radius: 9px; color: #f2b718; font-size: 10px; font-weight: 900; letter-spacing: .08em; }
 html[dir="rtl"] .footer-install { text-align: right; }
 
+/* Keep content and fixed chat/update controls clear of notches and home indicators. */
+body {
+  min-height: 100vh; /* fallback for browsers without dvh */
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+body #mz-assistant {
+  right: calc(env(safe-area-inset-right, 0px) + 20px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 86px);
+}
+body #mz-assistant[dir="rtl"] {
+  right: auto;
+  left: calc(env(safe-area-inset-left, 0px) + 20px);
+}
+body .wa-chat-float {
+  inset-inline-end: calc(env(safe-area-inset-right, 0px) + 18px);
+  inset-block-end: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  max-height: calc(100dvh - 36px);
+}
+
+/* Small, accessible prompt for a waiting service worker update. */
+.mza-update-banner {
+  position: fixed;
+  z-index: 10001;
+  left: calc(env(safe-area-inset-left, 0px) + 16px);
+  right: calc(env(safe-area-inset-right, 0px) + 16px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  margin-inline: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 14px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  font: 500 13px/1.45 Inter, "Segoe UI", Arial, sans-serif;
+}
+.mza-update-message { flex: 1 1 220px; margin: 0; }
+.mza-update-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.mza-update-banner button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font: 650 13px/1.2 Inter, "Segoe UI", Arial, sans-serif;
+  cursor: pointer;
+}
+.mza-update-confirm { color: #091d21; background: var(--gold); border: 1px solid var(--gold); }
+.mza-update-later { color: var(--text); background: transparent; border: 1px solid var(--line); }
+.mza-update-banner button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
 :root {
   color-scheme: dark;
   --petroleum-950: #091d21;
@@ -1069,7 +1128,7 @@ html[dir="rtl"] .footer-install { text-align: right; }
   <link rel="preload" as="image" href="assets/images/responsive/mzactive-runners-960w.webp" type="image/webp" fetchpriority="high" media="(min-width: 521px)">
 <script src="assets/js/api-base.js" defer></script>
   <script src="assets/js/language-preference.js?v=20261120c" defer></script>
-<link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js" defer></script></head>
+<link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js?v=20261120e" defer></script></head>
 <body class="home-page">
   <header class="site-header">
     <div class="header-inner">
@@ -1348,7 +1407,7 @@ html[dir="rtl"] .footer-install { text-align: right; }
     </div>
   </dialog>
 
-  <script src="assets/js/site-language.js?v=20261120c" defer></script>
+  <script src="assets/js/site-language.js?v=20261120e" defer></script>
   <script src="assets/js/homepage.js?v=20261120c" defer></script>
   <script src="assets/js/whatsapp-chat.js" defer></script>
   <script src="assets/js/assistant-chat.js" defer></script>

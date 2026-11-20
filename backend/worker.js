@@ -4,6 +4,9 @@ const PASSWORD_ITERATIONS = 100_000;
 const MAX_BODY_BYTES = 16_384;
 const MAX_PROFILE_PHOTO_BYTES = 1_000_000;
 const MAX_DAILY_ASSISTANT_REQUESTS = 60;
+const MAX_WORKSPACE_ATTACHMENT_BYTES = 1_000_000;
+const WORKSPACE_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain"]);
+const WORKSPACE_PROGRESS_METRICS = new Set(["distance_km", "duration_minutes", "sessions_completed", "average_pace", "planned_sessions", "completed_sessions", "note"]);
 
 const PROFESSIONAL_CATEGORIES = {
   coach: { en: "Sports Coach", ar: "مدرب رياضي", sessions: ["training", "race"] },
@@ -41,7 +44,7 @@ function corsHeaders(request, env) {
   if (origin && !allowed.includes(origin)) return null;
   const headers = new Headers({
     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    "access-control-allow-headers": "authorization, content-type, x-admin-setup-key",
+    "access-control-allow-headers": "authorization, content-type, x-admin-setup-key, x-file-name",
     "access-control-max-age": "600",
     "vary": "Origin",
   });
@@ -212,18 +215,32 @@ async function ownerBusinessSnapshot(env) {
     const row = await env.DB.prepare(sql).first();
     return Number(row?.count || 0);
   };
+  const [pendingProviderProfiles, approvedProviders, openBookingRequests, pendingCoachArticles, registeredAthletes,
+    unlinkedPrograms, activeTrainingTeams, pendingCommunityPosts, publishedCommunityPosts, pendingCommunityComments, weeklyChallenges] = await Promise.all([
+    firstCount("SELECT COUNT(*) AS count FROM provider_profiles WHERE status='pending'"),
+    firstCount("SELECT COUNT(*) AS count FROM provider_profiles WHERE status='approved'"),
+    firstCount("SELECT COUNT(*) AS count FROM booking_requests WHERE status IN ('received','reviewing')"),
+    firstCount("SELECT COUNT(*) AS count FROM coach_blog_posts WHERE status='pending'"),
+    firstCount("SELECT COUNT(*) AS count FROM users u WHERE role='provider' AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id)"),
+    firstCount("SELECT COUNT(*) AS count FROM athlete_programs_v2 WHERE athlete_user_id IS NULL"),
+    firstCount("SELECT COUNT(*) AS count FROM training_teams"),
+    firstCount("SELECT COUNT(*) AS count FROM community_posts WHERE status='pending'"),
+    firstCount("SELECT COUNT(*) AS count FROM community_posts WHERE status='published'"),
+    firstCount("SELECT COUNT(*) AS count FROM community_comments c JOIN community_posts p ON p.id=c.post_id WHERE c.status='published' AND p.status='pending'"),
+    firstCount("SELECT COUNT(*) AS count FROM community_posts WHERE kind='challenge' AND status='published' AND created_at>=datetime('now','-7 days')"),
+  ]);
   return {
-    pending_provider_profiles: await firstCount("SELECT COUNT(*) AS count FROM provider_profiles WHERE status='pending'"),
-    approved_providers: await firstCount("SELECT COUNT(*) AS count FROM provider_profiles WHERE status='approved'"),
-    open_booking_requests: await firstCount("SELECT COUNT(*) AS count FROM booking_requests WHERE status IN ('received','reviewing')"),
-    pending_coach_articles: await firstCount("SELECT COUNT(*) AS count FROM coach_blog_posts WHERE status='pending'"),
-    registered_athletes: await firstCount("SELECT COUNT(*) AS count FROM users u WHERE role='provider' AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id)"),
-    unlinked_programs: await firstCount("SELECT COUNT(*) AS count FROM athlete_programs_v2 WHERE athlete_user_id IS NULL"),
-    active_training_teams: await firstCount("SELECT COUNT(*) AS count FROM training_teams"),
-    pending_community_posts: await firstCount("SELECT COUNT(*) AS count FROM community_posts WHERE status='pending'"),
-    published_community_posts: await firstCount("SELECT COUNT(*) AS count FROM community_posts WHERE status='published'"),
-    pending_community_comments: await firstCount("SELECT COUNT(*) AS count FROM community_comments c JOIN community_posts p ON p.id=c.post_id WHERE c.status='published' AND p.status='pending'"),
-    weekly_challenges: await firstCount("SELECT COUNT(*) AS count FROM community_posts WHERE kind='challenge' AND status='published' AND created_at>=datetime('now','-7 days')"),
+    pending_provider_profiles: pendingProviderProfiles,
+    approved_providers: approvedProviders,
+    open_booking_requests: openBookingRequests,
+    pending_coach_articles: pendingCoachArticles,
+    registered_athletes: registeredAthletes,
+    unlinked_programs: unlinkedPrograms,
+    active_training_teams: activeTrainingTeams,
+    pending_community_posts: pendingCommunityPosts,
+    published_community_posts: publishedCommunityPosts,
+    pending_community_comments: pendingCommunityComments,
+    weekly_challenges: weeklyChallenges,
   };
 }
 
@@ -346,6 +363,7 @@ async function register(request, env) {
   } catch {
     return reply(request, env, { error: "account_already_exists_or_storage_error" }, 409);
   }
+  if (isMember) await linkBookingsToUser(env, { id: userId, email, role });
   return issueSession(request, env, userId, email, isAdminEmail ? "admin" : isMember ? "member" : role, 201);
 }
 
@@ -390,6 +408,7 @@ async function login(request, env) {
   const matches = user && (await verifyPassword(password, user.password_hash) || (rawPassword !== password && await verifyPassword(rawPassword, user.password_hash)));
   if (!user || !matches) return reply(request, env, { error: "invalid_credentials" }, 401);
   if (user.role === "provider" && await env.DB.prepare("SELECT 1 AS removed FROM provider_profiles WHERE user_id=? AND status='rejected' AND review_note='Removed by owner'").bind(user.id).first()) return reply(request,env,{error:"provider_removed_by_owner"},403);
+  await linkBookingsToUser(env, user);
   return issueSession(request, env, user.id, user.email, user.role);
 }
 
@@ -432,8 +451,8 @@ async function publicProviders(url, request, env, id = null) {
     FROM provider_profiles WHERE status='approved' AND (? IS NULL OR id=?) AND (?='' OR provider_type=?) AND (?='' OR city LIKE ?)
     AND (?='' OR display_name LIKE ? OR bio LIKE ? OR specialties_json LIKE ? OR qualifications LIKE ? OR services_json LIKE ? OR certificate_name LIKE ?) ORDER BY display_name LIMIT 50`)
     .bind(id,id,type,type,city,`%${city}%`,query,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`).all();
-  const providers = [];
-  for (const row of rows.results || []) {
+  const viewerKeyPromise = id && viewer?.id ? viewerKey(request, env, viewer) : Promise.resolve("");
+  const providers = await Promise.all((rows.results || []).map(async (row) => {
     const fields = cleanPublicFields(safeParse(row.public_fields_json));
     const show = (field) => fields.includes(field);
     const [achievements, cover, followerRow, following] = await Promise.all([
@@ -442,7 +461,11 @@ async function publicProviders(url, request, env, id = null) {
       env.DB.prepare("SELECT COUNT(*) AS count FROM user_follows WHERE coach_user_id=?").bind(row.user_id).first(),
       viewer?.id ? env.DB.prepare("SELECT 1 AS yes FROM user_follows WHERE follower_user_id=? AND coach_user_id=?").bind(viewer.id,row.user_id).first() : Promise.resolve(null),
     ]);
-    providers.push({
+    if (id && viewer?.id !== row.user_id) {
+      await env.DB.prepare("INSERT OR IGNORE INTO provider_profile_views(provider_id,viewer_key,created_at) VALUES(?,?,?)")
+        .bind(row.id, await viewerKeyPromise, new Date().toISOString()).run();
+    }
+    return {
       id: row.id, provider_type: row.provider_type, display_name: row.display_name,
       professional_category: { en: professionalLabel(row.provider_type, "en"), ar: professionalLabel(row.provider_type, "ar") },
       verified: row.verified === 1, qualifications: row.qualifications, services: safeParse(row.services_json), coaching_mode: row.coaching_mode,
@@ -469,12 +492,8 @@ async function publicProviders(url, request, env, id = null) {
       whatsapp_number: show("whatsapp") && row.whatsapp_public ? row.whatsapp_number : null,
       social_links: show("social_links") ? safeParse(row.social_links_json) : [],
       public_fields: fields,
-    });
-    if (id && viewer?.id !== row.user_id) {
-      await env.DB.prepare("INSERT OR IGNORE INTO provider_profile_views(provider_id,viewer_key,created_at) VALUES(?,?,?)")
-        .bind(row.id, await viewerKey(request, env, viewer), new Date().toISOString()).run();
-    }
-  }
+    };
+  }));
   if (id) return providers.length ? reply(request, env, { provider: providers[0] }) : reply(request, env, { error: "provider_unavailable" }, 404);
   return reply(request, env, { providers });
 }
@@ -535,6 +554,278 @@ async function createNotification(env, userId, type, title, body = "", entityTyp
 
 async function coachProfileForUser(env, userId) {
   return env.DB.prepare("SELECT id,user_id,display_name,status,provider_type FROM provider_profiles WHERE user_id=?").bind(userId).first();
+}
+
+// Member accounts deliberately reuse the legacy provider role without a public
+// provider profile. Link bookings made before sign-up so a confirmed booking can
+// later become a private workspace for the same person.
+async function linkBookingsToUser(env, user) {
+  const email = emailValue(user?.email);
+  if (!email || user?.role !== "provider") return;
+  if (await env.DB.prepare("SELECT id FROM provider_profiles WHERE user_id=?").bind(user.id).first()) return;
+  await env.DB.prepare("UPDATE booking_requests SET customer_user_id=? WHERE lower(customer_email)=? AND customer_user_id IS NULL")
+    .bind(user.id, email).run();
+}
+
+async function bookingAthleteUser(env, booking) {
+  if (booking.customer_user_id) {
+    return env.DB.prepare("SELECT id,email,role FROM users WHERE id=?").bind(booking.customer_user_id).first();
+  }
+  const email = emailValue(booking.customer_email);
+  if (!email) return null;
+  return env.DB.prepare(`SELECT u.id,u.email,u.role FROM users u WHERE u.email=? AND u.role='provider'
+    AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id)`).bind(email).first();
+}
+
+// A confirmed booking supplies the coach's confirmation. The member must also
+// accept the connection (or must have requested it originally) before a private
+// workspace becomes active.
+async function activateWorkspaceForBooking(env, bookingId) {
+  const booking = await env.DB.prepare("SELECT * FROM booking_requests WHERE id=?").bind(bookingId).first();
+  if (!booking || booking.status !== "accepted") return { activated: false, reason: "booking_not_confirmed" };
+  const provider = await env.DB.prepare("SELECT user_id FROM provider_profiles WHERE id=? AND status='approved' AND provider_type='coach'")
+    .bind(booking.provider_id).first();
+  if (!provider) return { activated: false, reason: "coach_unavailable" };
+  const athlete = await bookingAthleteUser(env, booking);
+  if (!athlete || athlete.id === provider.user_id || athlete.role !== "provider") return { activated: false, reason: "athlete_account_required" };
+  if (await env.DB.prepare("SELECT id FROM provider_profiles WHERE user_id=?").bind(athlete.id).first()) return { activated: false, reason: "athlete_account_required" };
+
+  const now = new Date().toISOString();
+  const existing = await env.DB.prepare("SELECT * FROM coach_connections WHERE coach_user_id=? AND athlete_user_id=?")
+    .bind(provider.user_id, athlete.id).first();
+  if (!existing) {
+    const id = randomId();
+    await env.DB.prepare(`INSERT INTO coach_connections
+      (id,coach_user_id,athlete_user_id,status,created_at,updated_at,booking_id,source,athlete_accepted_at,workspace_status,workspace_created_at)
+      VALUES(?,?,?,'pending',?,?,?,'booking',NULL,'pending',NULL)`)
+      .bind(id, provider.user_id, athlete.id, now, now, bookingId).run();
+    await createNotification(env, athlete.id, "workspace_review", "Confirm your coaching workspace",
+      "Your confirmed booking created a private workspace. Open your dashboard to accept it.", "coach_connection", id);
+    return { activated: false, reason: "awaiting_athlete_acceptance", connection_id: id };
+  }
+  if (existing.status === "declined") {
+    await env.DB.prepare(`UPDATE coach_connections SET status='pending',source='booking',booking_id=?,
+      athlete_accepted_at=NULL,workspace_status='pending',workspace_created_at=NULL,updated_at=? WHERE id=?`)
+      .bind(bookingId, now, existing.id).run();
+    await createNotification(env, athlete.id, "workspace_review", "Confirm your coaching workspace",
+      "Your confirmed booking created a private workspace. Open your dashboard to accept it.", "coach_connection", existing.id);
+    return { activated: false, reason: "awaiting_athlete_acceptance", connection_id: existing.id };
+  }
+  if (existing.status === "accepted") {
+    await env.DB.prepare(`UPDATE coach_connections SET booking_id=?,workspace_status='active',
+      athlete_accepted_at=COALESCE(athlete_accepted_at,?),workspace_created_at=COALESCE(workspace_created_at,?),updated_at=? WHERE id=?`)
+      .bind(bookingId, now, now, now, existing.id).run();
+    await createNotification(env, athlete.id, "workspace_ready", "Private coaching workspace ready", "", "coach_connection", existing.id);
+    await createNotification(env, provider.user_id, "workspace_ready", "Private coaching workspace ready", "", "coach_connection", existing.id);
+    return { activated: true, connection_id: existing.id };
+  }
+  // An athlete-requested connection plus a confirmed booking is mutual acceptance.
+  if (existing.source === "request") {
+    await env.DB.prepare(`UPDATE coach_connections SET status='accepted',booking_id=?,athlete_accepted_at=?,
+      workspace_status='active',workspace_created_at=?,updated_at=? WHERE id=?`)
+      .bind(bookingId, now, now, now, existing.id).run();
+    await createNotification(env, athlete.id, "workspace_ready", "Private coaching workspace ready", "", "coach_connection", existing.id);
+    await createNotification(env, provider.user_id, "workspace_ready", "Private coaching workspace ready", "", "coach_connection", existing.id);
+    return { activated: true, connection_id: existing.id };
+  }
+  await env.DB.prepare("UPDATE coach_connections SET booking_id=?,updated_at=? WHERE id=?").bind(bookingId, now, existing.id).run();
+  await createNotification(env, athlete.id, "workspace_review", "Confirm your coaching workspace",
+    "Your confirmed booking created a private workspace. Open your dashboard to accept it.", "coach_connection", existing.id);
+  return { activated: false, reason: "awaiting_athlete_acceptance", connection_id: existing.id };
+}
+
+async function closeWorkspaceForBooking(env, bookingId) {
+  await env.DB.prepare("UPDATE coach_connections SET workspace_status='closed',updated_at=? WHERE booking_id=? AND workspace_status='active'")
+    .bind(new Date().toISOString(), bookingId).run();
+}
+
+async function workspaceAccess(request, env, connectionId) {
+  const auth = await authenticated(request, env);
+  if (auth.response) return { response: auth.response };
+  if (auth.user.role === "admin") return { response: reply(request, env, { error: "forbidden" }, 403) };
+  const connection = await env.DB.prepare("SELECT * FROM coach_connections WHERE id=?").bind(connectionId).first();
+  if (!connection || (connection.coach_user_id !== auth.user.id && connection.athlete_user_id !== auth.user.id)) {
+    return { response: reply(request, env, { error: "connection_not_found" }, 404) };
+  }
+  const athlete = connection.athlete_user_id === auth.user.id
+    ? auth.user
+    : await env.DB.prepare("SELECT id,email,role FROM users WHERE id=?").bind(connection.athlete_user_id).first();
+  const member = athlete?.role === "provider" && !await env.DB.prepare("SELECT id FROM provider_profiles WHERE user_id=?").bind(athlete.id).first();
+  if (!await isApprovedCoachUser(env, connection.coach_user_id) || !member) {
+    return { response: reply(request, env, { error: "connection_not_found" }, 404) };
+  }
+  if (connection.status !== "accepted" || connection.workspace_status !== "active") {
+    return { response: reply(request, env, { error: "workspace_not_active" }, 409) };
+  }
+  return { auth, connection };
+}
+
+function cleanAttachmentName(value) {
+  return text(value, 120).replace(/\\/g, "/").split("/").pop().replace(/[\x00-\x1f\x7f]/g, "").trim().slice(0, 120) || "attachment";
+}
+
+function workspaceAttachmentType(bytes, declared) {
+  const type = text(declared, 80).toLowerCase();
+  if (!WORKSPACE_ATTACHMENT_TYPES.has(type)) return "";
+  const buffer = new Uint8Array(bytes);
+  if (type.startsWith("image/")) return profilePhotoType(bytes) === type ? type : "";
+  if (type === "application/pdf") return new TextDecoder().decode(buffer.slice(0, 5)) === "%PDF-" ? type : "";
+  return type === "text/plain" ? type : "";
+}
+
+async function workspacePayload(request, env, connection, viewer) {
+  const athleteId = connection.athlete_user_id, coachId = connection.coach_user_id;
+  const [bookingRow, sportsRow, coachRow, athleteRow, messages, attachments, progress, programs, sessions, feedback, teamEvents] = await Promise.all([
+    env.DB.prepare("SELECT id,customer_name,city,session_type,preferred_date,status,created_at FROM booking_requests WHERE id=?").bind(connection.booking_id || "").first(),
+    env.DB.prepare("SELECT display_name,garmin_public_url,goals,experience_level,sports_json FROM member_sports_profiles WHERE user_id=?").bind(athleteId).first(),
+    env.DB.prepare("SELECT display_name FROM provider_profiles WHERE user_id=?").bind(coachId).first(),
+    env.DB.prepare("SELECT email FROM users WHERE id=?").bind(athleteId).first(),
+    env.DB.prepare("SELECT id,sender_user_id,body,created_at,read_at FROM coach_messages WHERE connection_id=? ORDER BY created_at LIMIT 200").bind(connection.id).all(),
+    env.DB.prepare("SELECT id,uploader_user_id,file_name,content_type,byte_size,created_at FROM coach_workspace_attachments WHERE connection_id=? ORDER BY created_at DESC LIMIT 100").bind(connection.id).all(),
+    env.DB.prepare("SELECT id,author_user_id,metric,value,unit,note,recorded_at,created_at FROM coach_workspace_progress WHERE connection_id=? ORDER BY recorded_at DESC LIMIT 100").bind(connection.id).all(),
+    env.DB.prepare("SELECT id,athlete_name,athlete_user_id,week_start,coach_note,athlete_type FROM athlete_programs_v2 WHERE coach_user_id=? AND athlete_user_id=? ORDER BY week_start DESC LIMIT 60").bind(coachId, athleteId).all(),
+    env.DB.prepare(`SELECT s.program_id,s.id,s.session_code,s.day_key,s.sport_type,s.details,
+        c.completed_at,c.actual_km,c.duration_minutes
+      FROM athlete_programs_v2 p JOIN athlete_program_sessions_v2 s ON s.program_id=p.id
+      LEFT JOIN athlete_program_completions_v2 c ON c.session_id=s.id AND c.athlete_user_id=p.athlete_user_id
+      WHERE p.coach_user_id=? AND p.athlete_user_id=? ORDER BY p.week_start DESC,s.sort_order LIMIT 500`).bind(coachId, athleteId).all(),
+    env.DB.prepare(`SELECT f.id,f.program_id,f.rating,f.body,f.created_at,p.week_start,p.athlete_name
+      FROM training_feedback f JOIN athlete_programs_v2 p ON p.id=f.program_id
+      WHERE p.coach_user_id=? AND p.athlete_user_id=? ORDER BY f.created_at DESC LIMIT 100`).bind(coachId, athleteId).all(),
+    env.DB.prepare(`SELECT s.id,s.title,s.starts_at,s.location,s.description,s.status
+      FROM training_sessions s JOIN training_teams t ON t.id=s.team_id
+      JOIN training_team_members m ON m.team_id=t.id AND m.user_id=?
+      WHERE t.coach_user_id=? AND s.status!='cancelled' ORDER BY s.starts_at LIMIT 100`).bind(athleteId, coachId).all(),
+  ]);
+  const programMap = new Map((programs.results || []).map((program) => [program.id, { ...program, sessions: [] }]));
+  for (const session of sessions.results || []) programMap.get(session.program_id)?.sessions.push(session);
+  const programList = [...programMap.values()];
+  const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+  const calendar = (teamEvents.results || []).map((event) => ({ ...event, source: "team_session" }));
+  for (const program of programList) {
+    const base = Date.parse(`${program.week_start}T00:00:00Z`);
+    for (const session of program.sessions) {
+      const index = days.indexOf(session.day_key);
+      if (index < 0 || !Number.isFinite(base)) continue;
+      calendar.push({ id: `${session.id}:${session.session_code}`, title: `${session.session_code} · ${program.athlete_name || "Athlete"}`,
+        description: session.details, location: "", starts_at: new Date(base + index * 86400000).toISOString(),
+        status: session.completed_at ? "completed" : "planned", source: "training_program" });
+    }
+  }
+  calendar.sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
+  const who = (userId) => userId === coachId ? "coach" : "athlete";
+  const history = [
+    ...(messages.results || []).map((row) => ({ type: "message", at: row.created_at, actor: who(row.sender_user_id), title: "Private message", detail: row.body })),
+    ...(attachments.results || []).map((row) => ({ type: "attachment", at: row.created_at, actor: who(row.uploader_user_id), title: row.file_name, detail: row.content_type })),
+    ...(progress.results || []).map((row) => ({ type: "progress", at: row.recorded_at, actor: who(row.author_user_id), title: `${row.metric}: ${row.value}${row.unit ? " " + row.unit : ""}`, detail: row.note })),
+    ...(feedback.results || []).map((row) => ({ type: "feedback", at: row.created_at, actor: "athlete", title: `${row.rating || "—"}/5 · ${row.week_start || ""}`, detail: row.body })),
+    ...programList.flatMap((program) => program.sessions.filter((session) => session.completed_at).map((session) => ({
+      type: "session_completed", at: session.completed_at, actor: "athlete", title: `${program.week_start} · ${session.session_code}`,
+      detail: [session.actual_km ? `${session.actual_km} km` : "", session.duration_minutes ? `${session.duration_minutes} min` : ""].filter(Boolean).join(" · "),
+    }))),
+  ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 200);
+  const publicUrl = sportsRow?.garmin_public_url || "";
+  return reply(request, env, {
+    workspace: {
+      id: connection.id,
+      status: connection.workspace_status,
+      created_at: connection.workspace_created_at,
+      coach: { user_id: coachId, name: coachRow?.display_name || "MZ Active coach" },
+      athlete: { user_id: athleteId, name: sportsRow?.display_name || athleteRow?.email?.split("@")[0] || "MZ Active member" },
+      booking: bookingRow || null,
+      viewing_as: who(viewer.id),
+      permissions: { coach: viewer.id === coachId, athlete: viewer.id === athleteId, admin: false },
+      garmin: {
+        public_url: publicUrl,
+        sync_status: publicUrl ? "public_profile_link_only" : "not_provided",
+        sync_enabled: false,
+        note: "Official Garmin Connect authorization and activity sync are not enabled. Only an athlete-provided public profile link is shown.",
+      },
+      messages: messages.results || [],
+      attachments: attachments.results || [],
+      progress: progress.results || [],
+      programs: programList,
+      feedback: feedback.results || [],
+      calendar: calendar.slice(0, 300),
+      history,
+    },
+  });
+}
+
+async function handleWorkspaceApi(request, env, url) {
+  const path = url.pathname, method = request.method;
+  let match = /^\/api\/connections\/([\w-]{36})\/workspace$/.exec(path);
+  if (match && method === "GET") {
+    const access = await workspaceAccess(request, env, match[1]);
+    if (access.response) return access.response;
+    return workspacePayload(request, env, access.connection, access.auth.user);
+  }
+  match = /^\/api\/connections\/([\w-]{36})\/attachments$/.exec(path);
+  if (match && method === "GET") {
+    const access = await workspaceAccess(request, env, match[1]);
+    if (access.response) return access.response;
+    const rows = await env.DB.prepare("SELECT id,uploader_user_id,file_name,content_type,byte_size,created_at FROM coach_workspace_attachments WHERE connection_id=? ORDER BY created_at DESC LIMIT 100")
+      .bind(access.connection.id).all();
+    return reply(request, env, { attachments: rows.results || [] });
+  }
+  if (match && method === "POST") {
+    const access = await workspaceAccess(request, env, match[1]);
+    if (access.response) return access.response;
+    if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
+    if (!await rateLimit(request, env, "workspace-attachment", 20)) return reply(request, env, { error: "rate_limited" }, 429);
+    const length = Number(request.headers.get("content-length") || 0);
+    if (length > MAX_WORKSPACE_ATTACHMENT_BYTES) return reply(request, env, { error: "attachment_too_large" }, 413);
+    const bytes = await request.arrayBuffer();
+    if (!bytes.byteLength || bytes.byteLength > MAX_WORKSPACE_ATTACHMENT_BYTES) return reply(request, env, { error: "attachment_too_large" }, 413);
+    const declared = request.headers.get("content-type") || "";
+    const contentType = workspaceAttachmentType(bytes, declared);
+    if (!contentType) return reply(request, env, { error: "invalid_attachment" }, 400);
+    const id = randomId(), now = new Date().toISOString();
+    const fileName = cleanAttachmentName(request.headers.get("x-file-name") || "attachment");
+    await env.DB.prepare(`INSERT INTO coach_workspace_attachments(id,connection_id,uploader_user_id,file_name,content_type,bytes,byte_size,created_at)
+      VALUES(?,?,?,?,?,?,?,?)`).bind(id, access.connection.id, access.auth.user.id, fileName, contentType, bytes, bytes.byteLength, now).run();
+    const other = access.auth.user.id === access.connection.coach_user_id ? access.connection.athlete_user_id : access.connection.coach_user_id;
+    await createNotification(env, other, "workspace_attachment", "New workspace attachment", fileName, "coach_connection", access.connection.id);
+    return reply(request, env, { id, file_name: fileName, content_type: contentType, byte_size: bytes.byteLength, created_at: now }, 201);
+  }
+  match = /^\/api\/connections\/([\w-]{36})\/attachments\/([\w-]{36})$/.exec(path);
+  if (match && method === "GET") {
+    const access = await workspaceAccess(request, env, match[1]);
+    if (access.response) return access.response;
+    const row = await env.DB.prepare("SELECT bytes,content_type,file_name FROM coach_workspace_attachments WHERE id=? AND connection_id=?")
+      .bind(match[2], access.connection.id).first();
+    if (!row) return reply(request, env, { error: "attachment_not_found" }, 404);
+    const response = binaryReply(request, env, row.bytes, row.content_type, "private, no-store");
+    response.headers.set("content-disposition", `inline; filename="${cleanAttachmentName(row.file_name).replace(/"/g, "")}"`);
+    return response;
+  }
+  match = /^\/api\/connections\/([\w-]{36})\/progress$/.exec(path);
+  if (match && method === "GET") {
+    const access = await workspaceAccess(request, env, match[1]);
+    if (access.response) return access.response;
+    const rows = await env.DB.prepare("SELECT id,author_user_id,metric,value,unit,note,recorded_at,created_at FROM coach_workspace_progress WHERE connection_id=? ORDER BY recorded_at DESC LIMIT 100")
+      .bind(access.connection.id).all();
+    return reply(request, env, { progress: rows.results || [] });
+  }
+  if (match && method === "POST") {
+    const access = await workspaceAccess(request, env, match[1]);
+    if (access.response) return access.response;
+    if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
+    if (!await rateLimit(request, env, "workspace-progress", 30)) return reply(request, env, { error: "rate_limited" }, 429);
+    const body = await readJson(request);
+    const metric = text(body?.metric, 40), value = text(body?.value, 40), unit = text(body?.unit, 20), note = text(body?.note, 300);
+    const recordedAt = text(body?.recorded_at, 10);
+    if (!body || !WORKSPACE_PROGRESS_METRICS.has(metric) || !value || !/^\d{4}-\d{2}-\d{2}$/.test(recordedAt)) {
+      return reply(request, env, { error: "invalid_progress" }, 400);
+    }
+    const id = randomId(), now = new Date().toISOString();
+    await env.DB.prepare(`INSERT INTO coach_workspace_progress(id,connection_id,author_user_id,metric,value,unit,note,recorded_at,created_at)
+      VALUES(?,?,?,?,?,?,?,?,?)`).bind(id, access.connection.id, access.auth.user.id, metric, value, unit, note, recordedAt, now).run();
+    const other = access.auth.user.id === access.connection.coach_user_id ? access.connection.athlete_user_id : access.connection.coach_user_id;
+    await createNotification(env, other, "workspace_progress", "New progress update", `${metric}: ${value}${unit ? " " + unit : ""}`, "coach_connection", access.connection.id);
+    return reply(request, env, { id, created_at: now }, 201);
+  }
+  return null;
 }
 
 async function canPublishImmediately(env, user) {
@@ -764,8 +1055,10 @@ async function createBooking(request, env) {
     body.provider_whatsapp = visibility.includes("whatsapp") ? provider.public_whatsapp : null;
   }
   const id = randomId();
-  await env.DB.prepare(`INSERT INTO booking_requests(id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,consent_at,status,created_at,payment_status,session_type,service_name,distance,target_pace,program_duration_months)
-    VALUES(?,?,?,?,?,?,?,?,?,'received',?,'pending_payment',?,?,?,?,?)`).bind(id,providerId,name,email||null,phone,city,text(body.preferred_date,10)||null,goal,new Date().toISOString(),new Date().toISOString(),sessionType,serviceName,distance,targetPace,programDuration).run();
+  const viewer = await currentUser(request, env);
+  const customerUserId = viewer && await isMemberAccount(env, viewer) ? viewer.id : null;
+  await env.DB.prepare(`INSERT INTO booking_requests(id,provider_id,customer_user_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,consent_at,status,created_at,payment_status,session_type,service_name,distance,target_pace,program_duration_months)
+    VALUES(?,?,?,?,?,?,?,?,?,?,'received',?,'pending_payment',?,?,?,?,?)`).bind(id,providerId,customerUserId,name,email||null,phone,city,text(body.preferred_date,10)||null,goal,new Date().toISOString(),new Date().toISOString(),sessionType,serviceName,distance,targetPace,programDuration).run();
   if (providerId) {
     const owner = await env.DB.prepare("SELECT user_id FROM provider_profiles WHERE id=?").bind(providerId).first();
     await createNotification(env, owner?.user_id, "booking_received", "New booking request", `${name} · ${city}`, "booking_request", id);
@@ -819,34 +1112,34 @@ async function dashboardOverview(request, env, user) {
     return reply(request, env, { error: "dashboard_role_required" }, 403);
   }
   for (const team of teams) {
-    const sessions = await env.DB.prepare(`SELECT s.id,s.title,s.description,s.location,s.starts_at,s.status,
-      (SELECT COUNT(*) FROM training_completions c WHERE c.session_id=s.id) AS completion_count,
-      CASE WHEN mine.user_id IS NULL THEN 0 ELSE 1 END AS completed_by_me
-      FROM training_sessions s LEFT JOIN training_completions mine ON mine.session_id=s.id AND mine.user_id=?
-      WHERE s.team_id=? AND s.status!='cancelled' ORDER BY s.starts_at DESC LIMIT 40`).bind(user.id, team.id).all();
-    const messages = await env.DB.prepare("SELECT id,body,created_at FROM training_messages WHERE team_id=? ORDER BY created_at DESC LIMIT 30").bind(team.id).all();
+    const [sessions, messages, members, programs] = await Promise.all([
+      env.DB.prepare(`SELECT s.id,s.title,s.description,s.location,s.starts_at,s.status,
+        (SELECT COUNT(*) FROM training_completions c WHERE c.session_id=s.id) AS completion_count,
+        CASE WHEN mine.user_id IS NULL THEN 0 ELSE 1 END AS completed_by_me
+        FROM training_sessions s LEFT JOIN training_completions mine ON mine.session_id=s.id AND mine.user_id=?
+        WHERE s.team_id=? AND s.status!='cancelled' ORDER BY s.starts_at DESC LIMIT 40`).bind(user.id, team.id).all(),
+      env.DB.prepare("SELECT id,body,created_at FROM training_messages WHERE team_id=? ORDER BY created_at DESC LIMIT 30").bind(team.id).all(),
+      team.is_coach
+        ? env.DB.prepare("SELECT user_id,display_name,joined_at FROM training_team_members WHERE team_id=? ORDER BY display_name LIMIT 200").bind(team.id).all()
+        : Promise.resolve(null),
+      team.is_coach
+        ? env.DB.prepare(`SELECT p.id,p.athlete_user_id,p.week_start,p.coach_note,p.created_at,m.display_name AS athlete_name
+            FROM athlete_programs p JOIN training_team_members m ON m.team_id=p.team_id AND m.user_id=p.athlete_user_id
+            WHERE p.team_id=? ORDER BY p.week_start DESC LIMIT 60`).bind(team.id).all()
+        : env.DB.prepare(`SELECT p.id,p.athlete_user_id,p.week_start,p.coach_note,p.created_at,m.display_name AS athlete_name
+            FROM athlete_programs p JOIN training_team_members m ON m.team_id=p.team_id AND m.user_id=p.athlete_user_id
+            WHERE p.team_id=? AND p.athlete_user_id=? ORDER BY p.week_start DESC LIMIT 30`).bind(team.id,user.id).all(),
+    ]);
     team.sessions = sessions.results || [];
     team.messages = messages.results || [];
-    if (team.is_coach) {
-      const members = await env.DB.prepare("SELECT user_id,display_name,joined_at FROM training_team_members WHERE team_id=? ORDER BY display_name LIMIT 200").bind(team.id).all();
-      team.members = members.results || [];
-    }
-    const programs = team.is_coach
-      ? await env.DB.prepare(`SELECT p.id,p.athlete_user_id,p.week_start,p.coach_note,p.created_at,m.display_name AS athlete_name
-          FROM athlete_programs p JOIN training_team_members m ON m.team_id=p.team_id AND m.user_id=p.athlete_user_id
-          WHERE p.team_id=? ORDER BY p.week_start DESC LIMIT 60`).bind(team.id).all()
-      : await env.DB.prepare(`SELECT p.id,p.athlete_user_id,p.week_start,p.coach_note,p.created_at,m.display_name AS athlete_name
-          FROM athlete_programs p JOIN training_team_members m ON m.team_id=p.team_id AND m.user_id=p.athlete_user_id
-          WHERE p.team_id=? AND p.athlete_user_id=? ORDER BY p.week_start DESC LIMIT 30`).bind(team.id,user.id).all();
-    team.programs = [];
-    for (const program of programs.results || []) {
-      const rows = await env.DB.prepare(`SELECT s.id,s.session_code,s.day_key,s.session_type,s.details,s.planned_km,
-          c.completed_at,c.actual_km,c.duration_minutes
-        FROM athlete_program_sessions s LEFT JOIN athlete_program_completions c
-          ON c.session_id=s.id AND c.athlete_user_id=?
-        WHERE s.program_id=? ORDER BY s.sort_order`).bind(program.athlete_user_id,program.id).all();
-      team.programs.push({ ...program, sessions: rows.results || [] });
-    }
+    if (team.is_coach) team.members = members?.results || [];
+    const teamPrograms = programs.results || [];
+    const sessionRows = await Promise.all(teamPrograms.map((program) => env.DB.prepare(`SELECT s.id,s.session_code,s.day_key,s.session_type,s.details,s.planned_km,
+        c.completed_at,c.actual_km,c.duration_minutes
+      FROM athlete_program_sessions s LEFT JOIN athlete_program_completions c
+        ON c.session_id=s.id AND c.athlete_user_id=?
+      WHERE s.program_id=? ORDER BY s.sort_order`).bind(program.athlete_user_id, program.id).all()));
+    team.programs = teamPrograms.map((program, index) => ({ ...program, sessions: sessionRows[index].results || [] }));
   }
   let programRows;
   if (dashboardRole === "admin") {
@@ -856,15 +1149,12 @@ async function dashboardOverview(request, env, user) {
   } else {
     programRows = await env.DB.prepare(`SELECT p.*,u.email AS athlete_email FROM athlete_programs_v2 p LEFT JOIN users u ON u.id=p.athlete_user_id WHERE p.athlete_user_id=? ORDER BY p.week_start DESC LIMIT 100`).bind(user.id).all();
   }
-  const programs = [];
-  for (const program of programRows.results || []) {
-    const completionOwner = program.athlete_user_id;
-    const rows = await env.DB.prepare(`SELECT s.id,s.session_code,s.day_key,s.sport_type,s.details,c.completed_at,c.actual_km,c.duration_minutes
+  const allPrograms = programRows.results || [];
+  const sessionRows = await Promise.all(allPrograms.map((program) => env.DB.prepare(`SELECT s.id,s.session_code,s.day_key,s.sport_type,s.details,c.completed_at,c.actual_km,c.duration_minutes
       FROM athlete_program_sessions_v2 s LEFT JOIN athlete_program_completions_v2 c
         ON c.session_id=s.id AND c.athlete_user_id=?
-      WHERE s.program_id=? ORDER BY s.sort_order`).bind(completionOwner,program.id).all();
-    programs.push({...program,sessions:rows.results||[]});
-  }
+      WHERE s.program_id=? ORDER BY s.sort_order`).bind(program.athlete_user_id, program.id).all()));
+  const programs = allPrograms.map((program, index) => ({ ...program, sessions: sessionRows[index].results || [] }));
   return reply(request, env, { role: dashboardRole, teams, programs, ...(dashboardRole === "admin" ? { coaches } : {}) });
 }
 
@@ -1201,7 +1491,13 @@ async function adminApplications(request, env, user) {
       env.DB.prepare("INSERT INTO moderation_events(id,actor_user_id,entity_type,entity_id,from_status,to_status,created_at) SELECT ?,?,'booking_request',?,?,?,? WHERE changes()=1")
         .bind(randomId(),user.id,bookingMatch[1],previous.status,status,new Date().toISOString())
     ]);
-    return result.meta.changes ? reply(request,env,{updated:true,status}) : reply(request,env,{error:"booking_status_changed"},409);
+    if (!result.meta.changes) return reply(request,env,{error:"booking_status_changed"},409);
+    if (status === "accepted") {
+      const workspace = await activateWorkspaceForBooking(env, bookingMatch[1]);
+      return reply(request,env,{updated:true,status,workspace});
+    }
+    if (status === "cancelled") await closeWorkspaceForBooking(env, bookingMatch[1]);
+    return reply(request,env,{updated:true,status});
   }
   return reply(request, env, { error: "not_found" }, 404);
 }
@@ -1569,14 +1865,28 @@ async function handleCommunityApi(request, env, url) {
   if (match && method === "PATCH") {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
+    if (auth.user.role === "admin") return reply(request, env, { error: "forbidden" }, 403);
     const body = await readJson(request), decision = body?.status;
     if (!["accepted", "declined"].includes(decision)) return reply(request, env, { error: "invalid_connection_status" }, 400);
     const connection = await env.DB.prepare("SELECT * FROM coach_connections WHERE id=?").bind(match[1]).first();
-    if (!connection || connection.coach_user_id !== auth.user.id) return reply(request, env, { error: "connection_not_found" }, 404);
+    if (!connection || (connection.coach_user_id !== auth.user.id && connection.athlete_user_id !== auth.user.id)) return reply(request, env, { error: "connection_not_found" }, 404);
     if (connection.status !== "pending") return reply(request, env, { error: "connection_already_reviewed" }, 409);
-    await env.DB.prepare("UPDATE coach_connections SET status=?,updated_at=? WHERE id=?").bind(decision, new Date().toISOString(), connection.id).run();
-    await createNotification(env, connection.athlete_user_id, "connection_reviewed", decision === "accepted" ? "Connection accepted" : "Connection declined", "", "coach_connection", connection.id);
-    return reply(request, env, { updated: true, status: decision });
+    const athleteDecision = connection.source === "booking" && connection.athlete_user_id === auth.user.id;
+    const coachDecision = connection.coach_user_id === auth.user.id;
+    if (!athleteDecision && !coachDecision) return reply(request, env, { error: "forbidden" }, 403);
+    const booking = connection.booking_id ? await env.DB.prepare("SELECT id,status FROM booking_requests WHERE id=?").bind(connection.booking_id).first() : null;
+    if (athleteDecision && decision === "accepted" && (!booking || booking.status !== "accepted")) return reply(request, env, { error: "booking_not_confirmed" }, 409);
+    const now = new Date().toISOString();
+    const athleteAcceptedAt = athleteDecision || connection.source === "request" ? now : connection.athlete_accepted_at;
+    const activate = decision === "accepted" && booking?.status === "accepted" && (athleteDecision || Boolean(athleteAcceptedAt));
+    await env.DB.prepare(`UPDATE coach_connections SET status=?,athlete_accepted_at=?,workspace_status=?,workspace_created_at=?,updated_at=? WHERE id=?`)
+      .bind(decision, athleteAcceptedAt || null, activate ? "active" : decision === "declined" ? "none" : connection.workspace_status,
+        activate ? connection.workspace_created_at || now : null, now, connection.id).run();
+    const recipient = athleteDecision ? connection.coach_user_id : connection.athlete_user_id;
+    await createNotification(env, recipient, decision === "accepted" && activate ? "workspace_ready" : "connection_reviewed",
+      decision === "accepted" && activate ? "Private coaching workspace ready" : decision === "accepted" ? "Connection accepted" : "Connection declined",
+      "", "coach_connection", connection.id);
+    return reply(request, env, { updated: true, status: decision, workspace_active: Boolean(activate) });
   }
   match = /^\/api\/connections\/([\w-]{36})\/messages$/.exec(path);
   if (match && ["GET", "POST"].includes(method)) {
@@ -1634,7 +1944,13 @@ async function handleCommunityApi(request, env, url) {
       env.DB.prepare("INSERT INTO moderation_events(id,actor_user_id,entity_type,entity_id,from_status,to_status,created_at) SELECT ?,?,'booking_request',?,?,?,? WHERE changes()=1")
         .bind(randomId(), auth.user.id, booking.id, booking.status, status, new Date().toISOString()),
     ]);
-    return updated.meta?.changes ? reply(request, env, { updated: true, status }) : reply(request, env, { error: "booking_status_changed" }, 409);
+    if (!updated.meta?.changes) return reply(request, env, { error: "booking_status_changed" }, 409);
+    if (status === "accepted") {
+      const workspace = await activateWorkspaceForBooking(env, booking.id);
+      return reply(request, env, { updated: true, status, workspace });
+    }
+    if (status === "cancelled") await closeWorkspaceForBooking(env, booking.id);
+    return reply(request, env, { updated: true, status });
   }
   match = /^\/api\/dashboard\/notifications(?:\/([\w-]{36}))?$/.exec(path);
   if (match && ["GET", "PATCH"].includes(method)) {
@@ -1869,6 +2185,8 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: Object.fromEntries(cors) });
     const communityResponse = await handleCommunityApi(request, env, url);
     if (communityResponse) return communityResponse;
+    const workspaceResponse = await handleWorkspaceApi(request, env, url);
+    if (workspaceResponse) return workspaceResponse;
     if (request.method === "GET" && url.pathname === "/api/auth/setup-status") {
       const existing = await env.DB.prepare("SELECT id FROM users WHERE role='admin' LIMIT 1").first();
       return reply(request,env,{setup_available:!existing && Boolean(env.ADMIN_EMAILS && env.ADMIN_SETUP_KEY)});

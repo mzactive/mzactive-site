@@ -1,0 +1,13 @@
+{
+  "name": "mzactive-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static MZ Active site with free Playwright E2E and Lighthouse performance checks",
+  "scripts": {
+    "test:static": "node --test tests/*.cjs",
+    "test:backend": "npm test --prefix backend",
+    "test:e2e": "npx playwright test --config playwright.config.cjs",
+    "test:e2e:list": "npx playwright test --config playwright.config.cjs --list",
+    "perf:lighthouse": "node scripts/perf-budget.cjs"
+  }
+}
