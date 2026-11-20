@@ -66,3 +66,12 @@ test('profile initialization waits for the DOM and never leaves a loading screen
   assert.match(html, /id="coverPhoto"[^>]*fetchpriority="high"/);
   assert.match(html, /mzactive-coaching-session-960w\.webp/);
 });
+
+test('profile skeleton reserves layout and clears busy state when loading finishes', () => {
+  assert.doesNotMatch(html, /<article class="profile-page" hidden>/);
+  assert.match(html, /<article class="profile-page" aria-busy="true">/);
+  assert.match(css, /\.profile-page\[aria-busy="true"\] #name::before\{content:"MZ Active Coach"\}/);
+  assert.match(css, /html\[dir="rtl"\] \.profile-page\[aria-busy="true"\] #name::before\{content:"مدرب MZ Active"\}/);
+  assert.match(js, /q\('\.profile-page'\)\.setAttribute\('aria-busy', 'false'\)/);
+  assert.match(css, /\.load-notice\{position:fixed/);
+});

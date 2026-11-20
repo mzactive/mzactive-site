@@ -62,6 +62,7 @@
   }
   function setUnavailable() {
     q('.profile-page').hidden = true;
+    q('.profile-page').setAttribute('aria-busy', 'false');
     q('.load-notice').hidden = true;
     $('#unavailable').hidden = false;
     $('#unavailableMessage').textContent = failure === 404
@@ -88,6 +89,7 @@
     const p = profile;
     q('.load-notice').hidden = true;
     q('.profile-page').hidden = false;
+    q('.profile-page').setAttribute('aria-busy', 'false');
     document.title = `${p.display_name} | MZ Active`;
     $('#name').textContent = p.display_name || '';
     $('#headline').textContent = [roleName(p), ...(p.specialties || []).slice(0, 2)].filter(Boolean).join(' · ');
