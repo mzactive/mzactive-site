@@ -20,10 +20,10 @@
     const binary=body instanceof Blob;
     const r=await fetch(base+'/api/'+path,{method,headers:{'content-type':binary?body.type:'application/json',...headers},body:binary?body:JSON.stringify(body),cache:'no-store'});
     if(r.status===401 && !path.startsWith('auth/'))lock();
-    if(!r.ok){const d=await r.json().catch(()=>({}));throw Error(d.error||'request_failed')}
+    if(!r.ok){const d=await r.json().catch(()=>({}));throw Error(d.error||(r.status>=500?'service_unavailable':'request_failed'))}
     return r.headers.get('content-type')?.startsWith('image/')?r.blob():r.json();
   }
-  function errorMessage(err){const messages={invalid_credentials:['Email or password is incorrect.','البريد أو كلمة المرور غير صحيحة.'],unauthorized:['Please sign in again.','يرجى تسجيل الدخول مجدداً.'],forbidden:['An administrator account is required.','يلزم حساب مسؤول.'],rate_limited:['Try again in a minute.','حاول بعد دقيقة.'],daily_limit_reached:['Daily AI allowance reached.','تم بلوغ الحد اليومي للتحليل.'],assistant_unavailable:['AI analysis failed. Check the task history.','تعذر التحليل. راجع سجل المهام.'],profile_changed_reload_review:['This profile changed. Refresh before reviewing.','تغير الملف. حدّث البيانات قبل المراجعة.'],coach_profile_incomplete:['The coach must complete their biography and specialties first.','يجب إكمال النبذة والتخصصات أولاً.']};return t(...(messages[err.message]||['Could not complete the request. Refresh and try again.','تعذر إتمام الطلب. حدّث الصفحة وحاول مجدداً.']))}
+  function errorMessage(err){const messages={service_unavailable:['The service is temporarily unavailable. Please try again shortly.','الخدمة غير متاحة مؤقتاً. يرجى المحاولة بعد قليل.'],invalid_credentials:['Email or password is incorrect.','البريد أو كلمة المرور غير صحيحة.'],unauthorized:['Please sign in again.','يرجى تسجيل الدخول مجدداً.'],forbidden:['An administrator account is required.','يلزم حساب مسؤول.'],rate_limited:['Try again in a minute.','حاول بعد دقيقة.'],daily_limit_reached:['Daily AI allowance reached.','تم بلوغ الحد اليومي للتحليل.'],assistant_unavailable:['AI analysis failed. Check the task history.','تعذر التحليل. راجع سجل المهام.'],profile_changed_reload_review:['This profile changed. Refresh before reviewing.','تغير الملف. حدّث البيانات قبل المراجعة.'],coach_profile_incomplete:['The coach must complete their biography and specialties first.','يجب إكمال النبذة والتخصصات أولاً.']};return t(...(messages[err.message]||['Could not complete the request. Refresh and try again.','تعذر إتمام الطلب. حدّث الصفحة وحاول مجدداً.']))}
   function button(text,fn){const b=node('button',text);b.type='button';b.onclick=async()=>{b.disabled=true;try{await fn()}catch(e){notice(errorMessage(e))}finally{b.disabled=false}};return b}
   function link(text,href){const a=node('a',text,'link');a.href=href;return a}
   function card(container,title,details){const c=node('article',null,'card');c.append(node('h3',title));if(details)c.append(node('p',details));container.append(c);return c}
@@ -75,12 +75,30 @@
     group(root,t('Recent decisions and activity','آخر القرارات والأنشطة'),events.slice(0,100),(r,e)=>card(r,e.action?name(e.action):e.entity_type==='provider_profile'?t('Coach profile','ملف المدرب'):e.entity_type==='registration'?t('New registration','تسجيل جديد'):t('Booking','حجز'),[date(e.created_at),e.action?name(e.agent_type):name(e.from_status),e.to_status?name(e.to_status):''].filter(Boolean).join(' · ')));
   }
   async function render(){const n=++sequence;staticLabels();$('nav').replaceChildren();for(const [id,v] of Object.entries(tabs)){const b=button(t(...v),()=>go(id));b.setAttribute('aria-current',id===tab);$('nav').append(b)}$('title').textContent=t(...tabs[tab]);$('view').textContent=t('Loading…','جارٍ التحميل…');const root=node('div');try{await paint(root);if(n===sequence)$('view').replaceChildren(root)}catch(err){if(n===sequence||$('workspace').hidden)notice(errorMessage(err));if(n===sequence)$('view').replaceChildren(button(t('Retry','إعادة المحاولة'),render))}}
-  async function open(){await api('admin/history');$('login').hidden=true;$('bootstrap').hidden=true;$('workspace').hidden=false;$('out').hidden=false;await render()}
+  async function open(){
+    try {
+      await api('admin/history');
+    } catch (err) {
+      if (['unauthorized','forbidden'].includes(err.message)) {
+        lock();
+        notice(errorMessage(err));
+        return;
+      }
+      notice(errorMessage(err));
+      $('login').hidden=true;
+      $('bootstrap').hidden=true;
+      $('workspace').hidden=false;
+      $('out').hidden=false;
+      $('view').replaceChildren(button(t('Retry','إعادة المحاولة'),open));
+      return;
+    }
+    notice('');
+$('login').hidden=true;$('bootstrap').hidden=true;$('workspace').hidden=false;$('out').hidden=false;await render()}
   async function sign(form,setup){const f=form.elements;const d=await api(setup?'auth/register':'auth/login',{method:'POST',headers:setup?{'x-admin-setup-key':f.key.value}:{},body:{email:f.email.value,password:f.password.value,...(setup?{consent:true}:{})}});if(d.user?.role!=='admin')throw Error('forbidden');sessionStorage.setItem(key,d.token);form.reset();notice('');await open()}
   for(const id of ['setup','login'])$(id).onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,b=form.querySelector('button');b.disabled=true;try{await sign(form,id==='setup')}catch(err){lock();notice(errorMessage(err))}finally{b.disabled=false}};
   $('out').onclick=async()=>{try{await api('auth/logout',{method:'POST',body:{}})}finally{lock();notice('')}};
   $('language').onclick=()=>lang.set(t('ar','en'),{manual:true});
   document.addEventListener('mzactive:language-change',()=>{staticLabels();if(!$('workspace').hidden)render()});staticLabels();
-  if(sessionStorage.getItem(key))open().catch(err=>{lock();notice(errorMessage(err))});
+  if(sessionStorage.getItem(key))open();
   api('auth/setup-status').then(d=>{$('bootstrap').hidden=!d.setup_available||!$('workspace').hidden}).catch(()=>{});
 })();
