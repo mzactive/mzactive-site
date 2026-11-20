@@ -80,7 +80,7 @@
 
       for (const profile of profiles.slice(0, 4)) {
         const publicFields = new Set(Array.isArray(profile.public_fields) ? profile.public_fields : []);
-        const card = node('article', 'coach-card');
+        const card = node('a', 'coach-card');
         if (profile.has_profile_photo && publicFields.has('profile_photo')) {
           const image = node('img', 'coach-card-photo');
           image.src = `${api}/api/providers/${encodeURIComponent(profile.id)}/photo?v=${encodeURIComponent(profile.profile_photo_updated_at || '')}`;
@@ -113,9 +113,8 @@
           card.append(authoredNode('p', 'coach-bio', bio.length > 150 ? `${bio.slice(0, 147).trimEnd()}…` : bio));
         }
 
-        const link = node('a', 'button button-outline', currentLabels().view);
-        link.href = `coaches.html?search=${encodeURIComponent(profile.display_name)}`;
-        card.append(link);
+        card.href = `coach.html?id=${encodeURIComponent(profile.id)}`;
+        card.setAttribute('aria-label', currentLabels().view + ' · ' + profile.display_name);
         directory.append(card);
       }
     }

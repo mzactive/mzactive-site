@@ -1,0 +1,27 @@
+* { box-sizing: border-box }
+body { margin: 0; font-size: 1rem; line-height: 1.6 }
+nav, main { width: min(94%, 860px); margin: auto }
+header { border-bottom: 1px solid var(--line) }
+nav { display: flex; gap: 1rem; align-items: center; padding-block: .8rem }
+nav a:first-child { margin-inline-end: auto; line-height: 0 }
+.brand { width: min(170px, 30vw); height: auto }
+a { color: inherit }
+button { font: inherit; cursor: pointer }
+nav button, .secondary, .btn { display: inline-block; padding: .65rem 1rem; border: 1px solid var(--line); border-radius: 20px; font-weight: 700; text-align: center; text-decoration: none }
+.secondary { background: var(--panel); color: var(--text) }
+main { margin-block: clamp(1rem,3vw,2.5rem) }
+.card { border: 1px solid var(--line); border-radius: 26px; overflow: hidden; overflow-wrap: anywhere }
+#portrait { display: block; width: 100%; max-height: 500px; object-fit: contain; background: var(--bg) }
+.content { padding: clamp(1rem,4vw,2.5rem) }
+h1 { margin: 0; line-height: 1.1; font-size: clamp(2rem,6vw,3.5rem); text-align: start }
+h2 { font-size: 1.3rem; margin-block: 1.3rem .4rem }
+#sports { margin: 0 0 .4rem; font-weight: 700; color: var(--lime) }
+.actions, dl, .gallery { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,155px),1fr)); gap: .6rem }
+dl div, .gallery img { border: 1px solid var(--line); border-radius: 12px }
+dl div { padding: .7rem 1rem }
+dt { color: var(--muted) }
+dd { margin: 0; font-weight: bold }
+.gallery img { width: 100%; aspect-ratio: 4/3; object-fit: cover }
+#sections p { white-space: pre-line }
+#share { width: 100%; margin-top: 1.5rem }
+@media (max-width: 520px) { .actions { grid-template-columns: 1fr } nav { gap: .5rem } }

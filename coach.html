@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Coach profile | MZ Active</title>
+  <script src="assets/js/language-preference.js"></script>
+  <link rel="stylesheet" href="assets/css/site-theme.css">
+  <link rel="stylesheet" href="assets/css/homepage.css">
+  <link rel="stylesheet" href="assets/css/coach-profile.css">
+  <script defer src="assets/js/api-base.js"></script>
+  <script defer src="assets/js/coach-profile.js"></script>
+</head>
+<body>
+  <header><nav><a href="index.html"><img class="brand" src="assets/brand/mzactive-logo.webp" alt="MZ Active"></a>
+    <a href="coaches.html" data-en="Find a Coach" data-ar="ابحث عن مدرب"></a>
+    <button id="language" class="site-language-control" type="button"></button></nav></header>
+  <main>
+    <p id="notice" role="status"></p>
+    <article class="card" hidden>
+      <img id="portrait" hidden fetchpriority="high" alt="">
+      <div class="content">
+        <p id="sports"></p><h1 id="name" dir="auto"></h1><p id="location"></p>
+        <div class="actions"><a id="book" class="btn button-primary" data-en="Book a Session" data-ar="احجز جلسة تدريب"></a>
+          <a id="contact" class="secondary" data-en="Contact Coach" data-ar="تواصل مع المدرب"></a></div>
+        <dl id="facts"></dl>
+        <div id="sections"></div>
+        <button id="share" class="secondary" data-en="Share My Profile" data-ar="مشاركة ملفي الشخصي"></button>
+        <output id="shared" aria-live="polite"></output>
+      </div>
+    </article>
+  </main>
+</body>
+</html>

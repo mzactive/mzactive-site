@@ -271,7 +271,7 @@ test("profile edits accept optional details and normalize Qatar WhatsApp numbers
   }; } } };
   const response = await worker.fetch(new Request("https://api.example.test/api/me/profile", {
     method: "PUT", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify({ provider_type: "coach", display_name: "", city: "", bio: "", whatsapp_number: "66297954", whatsapp_public: true, social_links: ["javascript:alert(1)"] }),
+    body: JSON.stringify({ provider_type: "coach", display_name: "", city: "", bio: "", program_durations: [1], whatsapp_number: "66297954", whatsapp_public: true, social_links: ["javascript:alert(1)"] }),
   }), env);
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).warnings, ["social_links_skipped"]);

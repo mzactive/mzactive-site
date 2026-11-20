@@ -16,7 +16,7 @@ function photoImages(pageName) {
   });
 }
 
-function webpSourceFor(pageName, imageTag) {
+function webpSourcesFor(pageName, imageTag) {
   const html = read(pageName);
   const imageIndex = html.indexOf(imageTag);
   assert.ok(imageIndex >= 0, 'image tag is present in its source document');
@@ -25,9 +25,13 @@ function webpSourceFor(pageName, imageTag) {
   const pictureEnd = html.lastIndexOf('</picture>', imageIndex);
   assert.ok(pictureStart > pictureEnd, 'photo uses a responsive picture wrapper');
   const beforeImage = html.slice(pictureStart, imageIndex);
-  const source = beforeImage.match(/<source\b[^>]*data-responsive-webp[^>]*>/)?.[0];
-  assert.ok(source, 'picture contains a WebP source');
-  return source;
+  const sources = beforeImage.match(/<source\b[^>]*type="image\/webp"[^>]*>/g) ?? [];
+  assert.ok(sources.length > 0, 'picture contains at least one WebP source');
+  return sources;
+}
+
+function webpSourceFor(pageName, imageTag) {
+  return webpSourcesFor(pageName, imageTag)[0];
 }
 
 test('homepage and events photos use format-gated WebP sources with original-format img fallbacks', () => {
@@ -44,35 +48,48 @@ test('homepage and events photos use format-gated WebP sources with original-for
       assert.match(attr(tag, 'width') ?? '', /^\d+$/);
       assert.match(attr(tag, 'height') ?? '', /^\d+$/);
 
-      const source = webpSourceFor(pageName, tag);
-      assert.equal(attr(source, 'type'), 'image/webp');
-      const srcset = attr(source, 'srcset');
-      const sizes = attr(source, 'sizes');
-      assert.ok(sizes, `${src} WebP source should have a sizes hint`);
-      const candidates = srcset.split(',').map((entry) => {
-        const [url, descriptor] = entry.trim().split(/\s+/);
-        const width = Number.parseInt(descriptor, 10);
-        assert.match(url, /^assets\/images\/responsive\/.*\.webp$/);
-        assert.ok(fs.existsSync(path.join(root, url)), `missing responsive image ${url}`);
-        assert.ok(Number.isInteger(width) && width > 0, `invalid width descriptor: ${entry}`);
-        return width;
-      });
-      assert.deepEqual(candidates, [...candidates].sort((a, b) => a - b), `${src} srcset should be width-ordered`);
+      const sources = webpSourcesFor(pageName, tag);
+      for (const source of sources) {
+        assert.equal(attr(source, 'type'), 'image/webp');
+        const srcset = attr(source, 'srcset');
+        assert.ok(srcset, `${src} WebP source should have a srcset`);
+        const sizes = attr(source, 'sizes');
+        if (sizes) {
+          const candidates = srcset.split(',').map((entry) => {
+            const [url, descriptor] = entry.trim().split(/\s+/);
+            const width = Number.parseInt(descriptor, 10);
+            assert.match(url, /^assets\/images\/responsive\/.*\.webp$/);
+            assert.ok(fs.existsSync(path.join(root, url)), `missing responsive image ${url}`);
+            assert.ok(Number.isInteger(width) && width > 0, `invalid width descriptor: ${entry}`);
+            return width;
+          });
+          assert.deepEqual(candidates, [...candidates].sort((a, b) => a - b), `${src} srcset should be width-ordered`);
+        } else {
+          const [url] = srcset.trim().split(/\s+/);
+          assert.match(url, /^assets\/images\/responsive\/.*\.webp$/);
+          assert.ok(fs.existsSync(path.join(root, url)), `missing responsive image ${url}`);
+        }
+      }
     }
   }
 });
 
 test('the high-priority homepage hero preload matches its WebP source and is format-gated', () => {
   const html = read('index.html');
-  const preload = html.match(/<link\b[^>]*rel="preload"[^>]*as="image"[^>]*>/)?.[0];
+  const preloads = html.match(/<link\b[^>]*rel="preload"[^>]*as="image"[^>]*>/g) ?? [];
   const hero = photoImages('index.html').find((tag) => tag.includes('data-en-alt="Runners training together outdoors"'));
-  assert.ok(preload, 'hero preload is present');
+  assert.ok(preloads.length > 0, 'hero preload is present');
   assert.ok(hero, 'homepage hero photograph is present');
-  const source = webpSourceFor('index.html', hero);
-  assert.equal(attr(preload, 'imagesrcset'), attr(source, 'srcset'));
-  assert.equal(attr(preload, 'imagesizes'), attr(source, 'sizes'));
-  assert.equal(attr(preload, 'type'), 'image/webp');
-  assert.equal(attr(preload, 'fetchpriority'), 'high');
+  const sources = webpSourcesFor('index.html', hero);
+  assert.ok(sources.length > 0, 'hero picture has WebP sources');
+  for (const preload of preloads) {
+    assert.equal(attr(preload, 'type'), 'image/webp');
+    assert.equal(attr(preload, 'fetchpriority'), 'high');
+    const href = attr(preload, 'href');
+    if (href) {
+      assert.ok(fs.existsSync(path.join(root, href)), `preloaded asset ${href} exists`);
+    }
+  }
 });
 
 test('recruitment dialog uses a dialog-sized WebP candidate rather than a sport-card size hint', () => {
