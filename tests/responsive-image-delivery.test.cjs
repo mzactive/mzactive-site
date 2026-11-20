@@ -126,3 +126,15 @@ test('coach-login background retains the original JPEG fallback and selects exis
     assert.ok(fs.existsSync(path.join(root, `assets/images/responsive/mzactive-hero-doha-${width}w.webp`)));
   }
 });
+
+test('community and pacer heroes preload format-gated WebP backgrounds', () => {
+  for (const [page, asset] of [
+    ['community.html', 'mzactive-runners-768w.webp'],
+    ['pacer.html', 'qatar-finish-line-768w.webp'],
+  ]) {
+    const html = read(page);
+    assert.ok(html.includes(`rel="preload" as="image" href="assets/images/responsive/${asset}" type="image/webp"`), page);
+    assert.ok(html.includes(`@supports (background-image: image-set(url("assets/images/responsive/${asset}") type("image/webp")))`), page);
+    assert.ok(fs.existsSync(path.join(root, 'assets/images/responsive', asset)), asset);
+  }
+});
