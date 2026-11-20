@@ -67,3 +67,20 @@ test('all site pages expose install metadata and the mobile viewport', () => {
   assert.match(subdirectory, /rel="manifest" href="\/manifest\.json"/);
   assert.match(subdirectory, /assets\/js\/pwa-register\.js/);
 });
+
+test('every footer includes the bilingual MZA app installation section', () => {
+  const withFooter = [...pages, '4-week-10k/index.html'].filter(page => /<\/footer>/.test(read(page)));
+  assert.ok(withFooter.length >= 13);
+  for (const page of withFooter) {
+    const html = read(page);
+    assert.match(html, /class="footer-install"/, page);
+    assert.match(html, /data-en="Install the MZA app"/, page);
+    assert.match(html, /data-ar="تثبيت تطبيق MZA"/, page);
+  }
+});
+
+test('service worker cache refresh bypasses stale profile and language assets', () => {
+  assert.match(sw, /mza-shell-v2/);
+  assert.match(sw, /\/assets\/js\/language-preference\.js\?v=20261120/);
+  assert.match(sw, /\/assets\/css\/site-theme\.css\?v=20261120/);
+});

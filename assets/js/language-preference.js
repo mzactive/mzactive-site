@@ -19,16 +19,18 @@
   };
 
   let language = readManualPreference() || detectLanguage();
+  const applyBodyDirection = () => {
+    if (!document.body) return;
+    document.body.dir = language === 'ar' ? 'rtl' : 'ltr';
+    document.body.classList.toggle('rtl', language === 'ar');
+  };
   const setLanguage = (next, { manual = false } = {}) => {
     if (!isLanguage(next)) throw new TypeError('Language must be "en" or "ar".');
     const changed = next !== language;
     language = next;
     document.documentElement.lang = language;
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
-    if (document.body) {
-      document.body.dir = document.documentElement.dir;
-      document.body.classList.toggle('rtl', language === 'ar');
-    }
+    applyBodyDirection();
     if (manual) {
       try {
         localStorage.setItem(storageKey, language);
@@ -51,10 +53,8 @@
   });
   document.documentElement.lang = language;
   document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
-  if (document.body) {
-    document.body.dir = document.documentElement.dir;
-    document.body.classList.toggle('rtl', language === 'ar');
-  }
+  if (document.body) applyBodyDirection();
+  else document.addEventListener('DOMContentLoaded', applyBodyDirection, { once: true });
   window.addEventListener('storage', event => {
     if (event.key !== storageKey) return;
     setLanguage(isLanguage(event.newValue) ? event.newValue : detectLanguage());

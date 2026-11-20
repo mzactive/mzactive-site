@@ -1,5 +1,23 @@
 (() => {
-  const $ = id => document.getElementById(id);
+  const $ = selector => document.getElementById(String(selector).replace(/^#/, ''));
+  const q = selector => document.querySelector(selector);
+  const ready = callback => {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', callback, { once: true });
+    else callback();
+  };
+  const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    try {
+      return await fetch(url, { ...options, ...(controller ? { signal: controller.signal } : {}) });
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+  const whenIdle = callback => {
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(callback, { timeout: 1200 });
+    else setTimeout(callback, 0);
+  };
   const id = new URLSearchParams(location.search).get('id') || '';
   const apiBase = window.MZACTIVE_API_BASE;
   const endpoint = `${apiBase}/api/providers/${encodeURIComponent(id)}`;
@@ -43,8 +61,8 @@
     });
   }
   function setUnavailable() {
-    $('.profile-page').hidden = true;
-    $('.load-notice').hidden = true;
+    q('.profile-page').hidden = true;
+    q('.load-notice').hidden = true;
     $('#unavailable').hidden = false;
     $('#unavailableMessage').textContent = failure === 404
       ? t('This profile is unavailable or is not publicly approved.','هذا الملف غير متاح أو لم تتم الموافقة على نشره.')
@@ -61,15 +79,15 @@
   function renderProfile() {
     updateStaticLabels();
     if (!profile) {
-      $('.load-notice').hidden = false;
-      $('.load-notice').textContent = failure
+      q('.load-notice').hidden = false;
+      q('.load-notice').textContent = failure
         ? t('Could not load this coach profile.','تعذر تحميل ملف المدرب.')
         : t('Loading coach profile…','جارٍ تحميل ملف المدرب…');
       return;
     }
     const p = profile;
-    $('.load-notice').hidden = true;
-    $('.profile-page').hidden = false;
+    q('.load-notice').hidden = true;
+    q('.profile-page').hidden = false;
     document.title = `${p.display_name} | MZ Active`;
     $('#name').textContent = p.display_name || '';
     $('#headline').textContent = [roleName(p), ...(p.specialties || []).slice(0, 2)].filter(Boolean).join(' · ');
@@ -170,7 +188,7 @@
     const number = String(p.whatsapp_number || '').replace(/\D/g, '');
     const social = (p.social_links || []).find(value => safeProfileUrl(value));
     $('#contact')?.remove();
-    $('#share').setAttribute('aria-label', t('Share coach profile','مشاركة ملف المدرب'));
+    $('#share')?.setAttribute('aria-label', t('Share coach profile','مشاركة ملف المدرب'));
 
     document.dispatchEvent(new CustomEvent('mzactive:coach-profile-rendered', { detail: { id: p.id } }));
     exposeOwnerTools(p);
@@ -214,7 +232,7 @@
     communityPosts = [];
     renderCommunityPosts();
     try {
-      const data = await fetch(`${apiBase}/api/community/posts?coach_id=${encodeURIComponent(id)}`, { headers: { accept: 'application/json' } });
+      const data = await fetchWithTimeout(`${apiBase}/api/community/posts?coach_id=${encodeURIComponent(id)}`, { headers: { accept: 'application/json' } });
       if (data.ok) communityPosts = (await data.json()).posts || [];
     } catch { /* keep the public profile usable when the feed is unavailable */ }
     renderCommunityPosts();
@@ -443,44 +461,46 @@
       $('#coverInput').value = '';
     }
   }
-  $('#share').addEventListener('click', async () => {
-    const url = new URL('coach.html', location.href);
-    url.searchParams.set('id', id);
-    const status = $('#shared');
-    try {
-      if (navigator.share) await navigator.share({ title:document.title, url:url.href });
-      else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url.href);
-        status.textContent = t('Profile link copied.','تم نسخ رابط الملف.');
-      } else status.textContent = url.href;
-    } catch (err) {
-      if (err.name !== 'AbortError') status.textContent = url.href;
-    }
-  });
-  $('#changePhoto').addEventListener('click', () => $('#photoInput').click());
-  $('#photoInput').addEventListener('change', event => uploadPhoto(event.target.files?.[0]));
-  $('#changeCover').addEventListener('click', () => $('#coverInput').click());
-  $('#coverInput').addEventListener('change', event => uploadCover(event.target.files?.[0]));
-  document.addEventListener('mzactive:language-change', () => {
-    renderProfile();
-    if (ownerData) renderOwnerSummary(ownerData);
-    if (ownerData?.bookings) renderBookingInbox();
+  ready(() => {
+    $('#share')?.addEventListener('click', async () => {
+      const url = new URL('coach.html', location.href);
+      url.searchParams.set('id', id);
+      const status = $('#shared');
+      try {
+        if (navigator.share) await navigator.share({ title:document.title, url:url.href });
+        else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(url.href);
+          status.textContent = t('Profile link copied.','تم نسخ رابط الملف.');
+        } else status.textContent = url.href;
+      } catch (err) {
+        if (err.name !== 'AbortError') status.textContent = url.href;
+      }
+    });
+    $('#changePhoto')?.addEventListener('click', () => $('#photoInput').click());
+    $('#photoInput')?.addEventListener('change', event => uploadPhoto(event.target.files?.[0]));
+    $('#changeCover')?.addEventListener('click', () => $('#coverInput').click());
+    $('#coverInput')?.addEventListener('change', event => uploadCover(event.target.files?.[0]));
+    document.addEventListener('mzactive:language-change', () => {
+      renderProfile();
+      if (ownerData) renderOwnerSummary(ownerData);
+      if (ownerData?.bookings) renderBookingInbox();
+    });
+    load();
   });
 
   async function load() {
     if (!/^[\w-]{36}$/.test(id)) { failure = 404; setUnavailable(); return; }
     try {
-      const response = await fetch(endpoint, { headers:{ accept:'application/json' } });
+      const response = await fetchWithTimeout(endpoint, { headers:{ accept:'application/json' } });
       if (!response.ok) { failure = response.status; setUnavailable(); return; }
       const payload = await response.json();
       profile = payload.provider || null;
       if (!profile) { failure = 404; setUnavailable(); return; }
       renderProfile();
-      loadCommunityPosts();
+      whenIdle(loadCommunityPosts);
     } catch {
       failure = 503;
       setUnavailable();
     }
   }
-  load();
 })();

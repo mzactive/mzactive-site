@@ -6,10 +6,12 @@
   <meta name="theme-color" content="#091D21">
   <meta name="description" content="View an approved MZ Active coach profile, credentials, services and training gallery.">
   <title>Coach profile | MZ Active</title>
-  <script src="assets/js/language-preference.js"></script>
-  <link rel="stylesheet" href="assets/css/site-theme.css">
+  <script src="assets/js/language-preference.js?v=20261120" defer></script>
+  <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120">
   <link rel="stylesheet" href="assets/css/coach-profile.css">
-<link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js" defer></script></head>
+<link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js" defer></script>
+<link rel="preload" as="image" href="assets/images/responsive/mzactive-coaching-session-960w.webp" type="image/webp" media="(max-width: 760px)" fetchpriority="high">
+<link rel="preload" as="image" href="assets/images/responsive/mzactive-coaching-session-1280w.webp" type="image/webp" media="(min-width: 761px)" fetchpriority="high"></head>
 <body>
   <header class="site-header">
     <div class="header-main">
@@ -31,7 +33,7 @@
     <article class="profile-page" hidden>
       <section class="profile-card profile-heading" aria-labelledby="name">
         <div class="cover-wrap">
-          <img id="coverPhoto" class="cover-photo" src="assets/images/mzactive-coaching-session.jpg" alt="MZ Active group training in Doha">
+          <picture class="responsive-photo" style="display:contents"><source type="image/webp" srcset="assets/images/responsive/mzactive-coaching-session-320w.webp 320w, assets/images/responsive/mzactive-coaching-session-640w.webp 640w, assets/images/responsive/mzactive-coaching-session-960w.webp 960w, assets/images/responsive/mzactive-coaching-session-1280w.webp 1280w" sizes="(max-width: 760px) 100vw, min(960px, 80vw)"><img id="coverPhoto" class="cover-photo" src="assets/images/mzactive-coaching-session.jpg" alt="MZ Active group training in Doha" width="1280" height="720" decoding="async" fetchpriority="high"></picture>
           <button id="changeCover" class="cover-edit" type="button" hidden aria-describedby="cover-help">
             <span aria-hidden="true">▧</span><span data-en="Edit cover" data-ar="تعديل الغلاف">Edit cover</span>
           </button>
@@ -168,12 +170,19 @@
     </section>
   </main>
 
-  <footer class="site-footer"><div class="footer-inner"><a class="brand" href="index.html"><img src="assets/brand/mzactive-logo.webp" alt="MZ Active"></a><p data-en="Train Smart. Perform Strong." data-ar="تدرب بذكاء. حقق أداءً أقوى.">Train Smart. Perform Strong.</p><div><a href="coaches.html" data-en="Coaches" data-ar="المدربون">Coaches</a><a href="admin.html" rel="nofollow" data-en="Admin moderation" data-ar="إشراف الإدارة">Admin moderation</a><a href="privacy.html" data-en="Privacy" data-ar="الخصوصية">Privacy</a></div></div></footer>
+  <footer class="site-footer"><div class="footer-inner"><a class="brand" href="index.html"><img src="assets/brand/mzactive-logo.webp" alt="MZ Active"></a><p data-en="Train Smart. Perform Strong." data-ar="تدرب بذكاء. حقق أداءً أقوى.">Train Smart. Perform Strong.</p><div><a href="coaches.html" data-en="Coaches" data-ar="المدربون">Coaches</a><a href="admin.html" rel="nofollow" data-en="Admin moderation" data-ar="إشراف الإدارة">Admin moderation</a><a href="privacy.html" data-en="Privacy" data-ar="الخصوصية">Privacy</a></div></div>        <div class="footer-install" role="region" aria-labelledby="footerInstallTitle">
+          <div>
+            <h2 id="footerInstallTitle" data-en="Install the MZA app" data-ar="تثبيت تطبيق MZA">Install the MZA app</h2>
+            <p data-en="Open this site in Safari or Chrome, tap Share or the menu, then choose Add to Home Screen. Saved pages work offline." data-ar="افتح هذا الموقع في Safari أو Chrome، واضغط مشاركة أو قائمة المتصفح، ثم اختر «إضافة إلى الشاشة الرئيسية». تعمل الصفحات المحفوظة دون اتصال.">Open this site in Safari or Chrome, tap Share or the menu, then choose Add to Home Screen. Saved pages work offline.</p>
+          </div>
+          <span class="footer-install-badge" aria-hidden="true">MZA</span>
+        </div>
+</footer>
 
-  <script src="assets/js/api-base.js"></script>
-  <script src="assets/js/coach-profile.js"></script>
-  <script src="assets/js/site-language.js?v=e6d09d69c65c"></script>
-  <script src="assets/js/whatsapp-chat.js"></script>
+  <script src="assets/js/api-base.js" defer></script>
+  <script src="assets/js/coach-profile.js?v=20261120" defer></script>
+  <script src="assets/js/site-language.js?v=e6d09d69c65c" defer></script>
+  <script src="assets/js/whatsapp-chat.js" defer></script>
   <script src="assets/js/assistant-chat.js" defer></script>
 </body>
 </html>

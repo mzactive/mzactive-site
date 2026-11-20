@@ -128,7 +128,10 @@
     }
 
     renderFeatured();
-    fetch(`${api}/api/providers`)
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timeout = controller ? setTimeout(() => controller.abort(), 8000) : null;
+    fetch(`${api}/api/providers`, controller ? { signal: controller.signal } : {})
+      .finally(() => { if (timeout) clearTimeout(timeout); })
       .then(response => {
         if (!response.ok) throw new Error(`provider_directory_http_${response.status}`);
         return response.json();

@@ -15,7 +15,7 @@ test('coach profile keeps the existing dynamic coach route and official MZ Activ
 });
 
 test('profile content is rendered from approved API data and verification is explicit', () => {
-  assert.match(js, /fetch\(endpoint/);
+  assert.match(js, /fetchWithTimeout\(endpoint/);
   assert.match(js, /p\.verified === true/);
   assert.match(js, /This profile is unavailable or is not publicly approved/);
   assert.doesNotMatch(html, /Omar Al-Haddad|128 Followers|100\+ Athletes Coached/);
@@ -51,4 +51,18 @@ test('profile is responsive and uses the existing automatic English/Arabic langu
   assert.match(css, /@media\(max-width:760px\)/);
   assert.match(css, /@media\(max-width:520px\)/);
   assert.match(css, /html\[dir="rtl"\]/);
+});
+
+test('profile initialization waits for the DOM and never leaves a loading screen stranded', () => {
+  assert.match(js, /const \$ = selector => document\.getElementById\(String\(selector\)\.replace\(\/\^#\/, ''\)\)/);
+  assert.match(js, /const ready = callback =>/);
+  assert.match(js, /ready\(\(\) => \{/);
+  assert.match(js, /\$\('#share'\)\?\.addEventListener/);
+  assert.match(js, /fetchWithTimeout\(endpoint/);
+  assert.match(js, /whenIdle\(loadCommunityPosts\)/);
+  assert.doesNotMatch(js, /\$\('\.|\$\("\./);
+  assert.match(html, /assets\/js\/language-preference\.js(\?v=[^"]*)?" defer/);
+  assert.match(html, /assets\/js\/coach-profile\.js(\?v=[^"]*)?" defer/);
+  assert.match(html, /id="coverPhoto"[^>]*fetchpriority="high"/);
+  assert.match(html, /mzactive-coaching-session-960w\.webp/);
 });
