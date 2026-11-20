@@ -76,4 +76,5 @@ test('profile skeleton reserves layout and clears busy state when loading finish
   assert.match(css, /\.load-notice\{position:fixed/);
   assert.match(html, /assets\/css\/coach-profile\.css\?v=20261120b/);
   assert.match(html, /assets\/js\/coach-profile\.js\?v=20261120b/);
+  assert.match(html, /<img src="assets\/brand\/mzactive-logo\.webp" alt="MZ Active" width="687" height="216">/g);
 });
