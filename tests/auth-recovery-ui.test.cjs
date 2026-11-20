@@ -28,7 +28,7 @@ test('reset-password.html is mobile-first, bilingual and PWA-ready', () => {
   assert.match(resetHtml, /assets\/brand\/mzactive-logo\.webp/);
   assert.match(resetHtml, /class="lang-toggle" id="lang"/);
   assert.ok(resetHtml.includes(`auth.css${VERSION}`));
-  assert.ok(resetHtml.includes(`reset-password.js${VERSION}`));
+  assert.match(resetHtml, /reset-password\.js\?v=20261120(?:f|g)/);
   assert.match(authCss, /#091d21/);
   assert.match(authCss, /#f2b718/);
   assert.match(authCss, /max-width: 640px/);
