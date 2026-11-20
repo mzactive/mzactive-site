@@ -5,6 +5,30 @@ const MAX_BODY_BYTES = 16_384;
 const MAX_PROFILE_PHOTO_BYTES = 1_000_000;
 const MAX_DAILY_ASSISTANT_REQUESTS = 60;
 
+const PROFESSIONAL_CATEGORIES = {
+  coach: { en: "Sports Coach", ar: "مدرب رياضي", sessions: ["training", "race"] },
+  pacer: { en: "Champion Pacer", ar: "مرافق جري", sessions: ["training", "race"] },
+  nutritionist: { en: "Nutritionist", ar: "أخصائي تغذية رياضية", sessions: ["nutrition", "consultation"] },
+  physiotherapist: { en: "Physiotherapist", ar: "أخصائي علاج طبيعي رياضي", sessions: ["assessment", "therapy"] },
+  sports_massage_therapist: { en: "Sports Massage Therapist", ar: "معالج تدليك رياضي", sessions: ["massage", "therapy"] },
+};
+const LICENSED_PROVIDER_TYPES = ["nutritionist", "physiotherapist", "sports_massage_therapist"];
+const BOOKING_SESSION_TYPES = ["race", "training", "consultation", "assessment", "therapy", "massage", "nutrition"];
+function professionalType(value) {
+  return Object.prototype.hasOwnProperty.call(PROFESSIONAL_CATEGORIES, value) ? value : "";
+}
+function professionalLabel(type, language = "en") {
+  return PROFESSIONAL_CATEGORIES[type]?.[language] || PROFESSIONAL_CATEGORIES.coach[language];
+}
+function cleanCredentialDate(value) {
+  const date = text(value, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "";
+}
+function maskLicenseNumber(value) {
+  const number = text(value, 80);
+  return number.length <= 4 ? number : `${number.slice(0, 2)}${"•".repeat(Math.max(2, number.length - 4))}${number.slice(-2)}`;
+}
+
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
   status,
   headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...extra },
@@ -96,11 +120,12 @@ async function collectionEnabled(env) {
   return env.DATA_COLLECTION_ENABLED === "true";
 }
 
-async function reserveAssistantRequest(env) {
-  const day = new Date().toISOString().slice(0, 10);
+async function reserveAssistantRequest(env, surface = "public") {
+  // Surfaces have separate buckets so public traffic cannot exhaust the owner Brain.
+  const bucket = `${new Date().toISOString().slice(0, 10)}:${surface}`;
   const row = await env.DB.prepare(`INSERT INTO ai_chat_usage(usage_date,request_count) VALUES(?,1)
     ON CONFLICT(usage_date) DO UPDATE SET request_count=request_count+1
-    WHERE request_count < ? RETURNING request_count`).bind(day, MAX_DAILY_ASSISTANT_REQUESTS).first();
+    WHERE request_count < ? RETURNING request_count`).bind(bucket, MAX_DAILY_ASSISTANT_REQUESTS).first();
   return Boolean(row);
 }
 
@@ -114,7 +139,7 @@ async function assistantChat(request, env) {
     const content = text(item?.content, 400);
     return role && content ? [{ role, content }] : [];
   }) : [];
-  if (!await reserveAssistantRequest(env)) return reply(request, env, { error: "daily_limit_reached" }, 429);
+  if (!await reserveAssistantRequest(env, "public")) return reply(request, env, { error: "daily_limit_reached" }, 429);
   const system = `You are the MZ Active website assistant for athletes and coaches. Be brief, kind, and practical. Reply in the language of the user's message (English or Arabic). Use only these verified facts: MZ Active helps people find coaches and pacers in Qatar; only profiles approved by MZ Active appear publicly; coaches can create or update a profile at https://mzactive.com/providers.html; profile photo uploads accept JPG, PNG, or WebP up to 1 MB, and Qatar local WhatsApp numbers can be entered as 8 digits; a coach's profile remains private until Admin approval. Clients can browse https://mzactive.com/coaches.html and send a request at https://mzactive.com/pacer.html. A request is not a confirmed booking, the site does not collect payments, and payment/availability must be coordinated separately. Do not promise a coach's availability, rates, approval, booking, payment, medical result, or reply time. Do not claim to have accessed a user's account or contacted MZ Active. Never make approval or rejection decisions. Do not ask for passwords, payment credentials, identity documents, health records, or other sensitive details. For information you cannot verify, say so plainly and offer the relevant page link. Do not send routine questions to the site owner when the self-service pages can help.`;
   try {
     const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
@@ -137,7 +162,7 @@ async function coachAssistant(request, env, user) {
   const body = await readJson(request), task = body?.task;
   const prompt = text(body?.prompt, 1200);
   if (!body || !["help","training","weekly","blog"].includes(task) || !prompt) return reply(request, env, { error: "assistant_prompt_required" }, 400);
-  if (!await reserveAssistantRequest(env)) return reply(request, env, { error: "daily_limit_reached" }, 429);
+  if (!await reserveAssistantRequest(env, "coach")) return reply(request, env, { error: "daily_limit_reached" }, 429);
   const taskGuide = task === "weekly"
     ? "Create a clear, conservative 7-day training week from the coach's goal and availability. Include recovery/rest days and avoid sudden high loads. Return only one valid JSON object, without markdown, with exactly these keys: {\"days\":{\"monday\":\"...\",\"tuesday\":\"...\",\"wednesday\":\"...\",\"thursday\":\"...\",\"friday\":\"...\",\"saturday\":\"...\",\"sunday\":\"...\"},\"coach_note\":\"...\"}. Keep each day to at most 350 characters. Use the language of the coach's prompt. This is a draft for the coach to review and adapt. Do not diagnose or prescribe injury treatment."
     : task === "blog"
@@ -224,10 +249,9 @@ async function ownerAssistant(request, env) {
 
 async function runOwnerAnalysis(env, task, prompt, source, taskId=randomId()) {
   const now = new Date().toISOString();
-  const storageType = ({growth:"analytics",community:"marketing"})[task] || task;
   const claim = await env.DB.prepare(`INSERT INTO owner_agent_tasks(id,agent_type,source,title,status,approval_status,input_json,created_at,started_at)
     VALUES(?,?,?,?,'running','not_required',?,?,?) ON CONFLICT(id) DO NOTHING`)
-    .bind(taskId,storageType,source,taskPromptTitle(task),JSON.stringify({prompt, agent:task}),now,now).run();
+    .bind(taskId,task,source,taskPromptTitle(task),JSON.stringify({prompt, agent:task}),now,now).run();
   if (!claim.meta.changes) return {task_id:taskId};
   const guides = {
     operations: "Turn the request into a concise operational checklist with owners, priorities, and verification steps. Do not claim that changes were made.",
@@ -251,7 +275,7 @@ async function runOwnerAnalysis(env, task, prompt, source, taskId=randomId()) {
     }
     await env.DB.prepare("UPDATE owner_agent_tasks SET output_json=? WHERE id=?").bind(JSON.stringify({snapshot}),taskId).run();
     if (!env.AI?.run) throw Error("assistant_unavailable");
-    if (!await reserveAssistantRequest(env)) throw Error("daily_limit_reached");
+    if (!await reserveAssistantRequest(env, "owner")) throw Error("daily_limit_reached");
     const system = `You are the private MZ Active Owner AI Brain for business operations. ${guides[task]} Reply in the language used in the prompt (English or Arabic). Use only the supplied request and this verified live MZ Active snapshot: ${JSON.stringify(snapshot)}. Do not invent customers, revenue, bookings, health outcomes, or system status. Never request passwords, payment credentials, identity documents, or health records. Do not make approval decisions or claim to have taken actions.`;
 
     const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
@@ -291,7 +315,7 @@ async function register(request, env) {
   const body = await readJson(request);
   const email = emailValue(body?.email), password = text(body?.password, 128);
   const isMember = body?.account_type === "member";
-  const type = body?.provider_type === "pacer" ? "pacer" : body?.provider_type === "coach" ? "coach" : "";
+  const type = professionalType(body?.provider_type);
   const displayName = text(body?.display_name, 100) || "Coach profile", city = text(body?.city, 80), bio = text(body?.bio, 4000) || "Profile awaiting completion by the provider.";
   const whatsappInput = text(body?.whatsapp_number, 32), whatsapp = normalizeWhatsApp(whatsappInput), whatsappPublic = body?.whatsapp_public === true;
   const canPublishWhatsApp = Boolean(whatsapp && whatsappPublic);
@@ -331,7 +355,7 @@ function cleanList(value, maxItems, maxLength) {
 function cleanProgramDurations(value) {
   return [...new Set((Array.isArray(value) ? value : []).map(Number).filter((months) => [1,2,3].includes(months)))].sort();
 }
-const PUBLIC_PROFILE_FIELDS = ["city","specialties","languages","bio","experience_years","indicative_rate_qar","profile_photo","social_links","program_durations","whatsapp"];
+const PUBLIC_PROFILE_FIELDS = ["city","specialties","languages","bio","experience_years","indicative_rate_qar","profile_photo","social_links","program_durations","whatsapp","credentials"];
 function cleanPublicFields(value) {
   return [...new Set((Array.isArray(value) ? value : []).filter((field) => PUBLIC_PROFILE_FIELDS.includes(field)))];
 }
@@ -369,10 +393,10 @@ async function publicProviders(url, request, env, id = null) {
   const type = url.searchParams.get("type") || "", city = text(url.searchParams.get("city") || "",80);
   const query = text(url.searchParams.get("q") || "",80);
   const viewer = await currentUser(request, env);
-  const rows = await env.DB.prepare(`SELECT id,user_id,verified,qualifications,services_json,coaching_mode,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=provider_profiles.id) AS gallery_slots,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json
+  const rows = await env.DB.prepare(`SELECT id,user_id,verified,qualifications,services_json,coaching_mode,certificate_name,certificate_issuer,license_number,license_issuer,license_expires_on,license_status,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=provider_profiles.id) AS gallery_slots,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json
     FROM provider_profiles WHERE status='approved' AND (? IS NULL OR id=?) AND (?='' OR provider_type=?) AND (?='' OR city LIKE ?)
-    AND (?='' OR display_name LIKE ? OR bio LIKE ? OR specialties_json LIKE ?) ORDER BY display_name LIMIT 50`)
-    .bind(id,id,type,type,city,`%${city}%`,query,`%${query}%`,`%${query}%`,`%${query}%`).all();
+    AND (?='' OR display_name LIKE ? OR bio LIKE ? OR specialties_json LIKE ? OR qualifications LIKE ? OR services_json LIKE ? OR certificate_name LIKE ?) ORDER BY display_name LIMIT 50`)
+    .bind(id,id,type,type,city,`%${city}%`,query,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`).all();
   const providers = [];
   for (const row of rows.results || []) {
     const fields = cleanPublicFields(safeParse(row.public_fields_json));
@@ -385,7 +409,14 @@ async function publicProviders(url, request, env, id = null) {
     ]);
     providers.push({
       id: row.id, provider_type: row.provider_type, display_name: row.display_name,
+      professional_category: { en: professionalLabel(row.provider_type, "en"), ar: professionalLabel(row.provider_type, "ar") },
       verified: row.verified === 1, qualifications: row.qualifications, services: safeParse(row.services_json), coaching_mode: row.coaching_mode,
+      credentials: show("credentials") && row.license_status === "verified" ? {
+        certificate_name: row.certificate_name, certificate_issuer: row.certificate_issuer,
+        license_issuer: row.license_issuer, license_expires_on: row.license_expires_on,
+        license_number_masked: maskLicenseNumber(row.license_number),
+      } : null,
+      license_verified: row.license_status === "verified" && show("credentials"),
       gallery_slots: safeParse(row.gallery_slots),
       country: show("city") ? row.country : "", city: show("city") ? row.city : "",
       specialties: show("specialties") ? safeParse(row.specialties_json) : [],
@@ -441,6 +472,12 @@ function cleanProfilePhotoUrl(value) {
     if (url.protocol !== "https:" || url.username || url.password || !url.hostname.includes(".")) return null;
     return url.href;
   } catch { return null; }
+}
+function cleanGarminPublicUrl(value) {
+  const url = cleanProfilePhotoUrl(value);
+  if (!url) return url;
+  const host = new URL(url).hostname.toLowerCase();
+  return host === "garmin.com" || host.endsWith(".garmin.com") ? url : null;
 }
 function safeParse(value) { try { return JSON.parse(value); } catch { return []; } }
 
@@ -612,10 +649,12 @@ async function manageGallery(slot, request, env) {
 
 async function saveProfile(request, env, user) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
-  const existing = await env.DB.prepare("SELECT status,review_note,program_durations_json FROM provider_profiles WHERE user_id=?").bind(user.id).first();
+  const existing = await env.DB.prepare(`SELECT status,review_note,program_durations_json,provider_type,qualifications,services_json,
+    certificate_name,certificate_issuer,certificate_number,license_number,license_issuer,license_country,license_expires_on
+    FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
   if (existing?.status === "rejected" && existing.review_note === "Removed by owner") return reply(request, env, { error: "provider_removed_by_owner" }, 403);
   const body = await readJson(request);
-  const type = body?.provider_type === "pacer" ? "pacer" : body?.provider_type === "coach" ? "coach" : "";
+  const type = professionalType(body?.provider_type);
   const submittedProgramDurations = body && Object.prototype.hasOwnProperty.call(body, "program_durations")
     ? cleanProgramDurations(body.program_durations)
     : null;
@@ -623,6 +662,7 @@ async function saveProfile(request, env, user) {
     ? (submittedProgramDurations || cleanProgramDurations(safeParse(existing?.program_durations_json)))
     : [];
   if (body?.coaching_mode !== undefined && !["","online","in-person","both"].includes(body.coaching_mode)) return reply(request, env, { error: "invalid_coaching_mode" }, 400);
+  if (body?.license_expires_on !== undefined && body.license_expires_on && !cleanCredentialDate(body.license_expires_on)) return reply(request, env, { error: "invalid_license_date" }, 400);
   const publicFields = cleanPublicFields(body?.public_fields || DEFAULT_PUBLIC_FIELDS);
   const name = text(body?.display_name,100), city = text(body?.city,80), bio = text(body?.bio,4000);
   const whatsappInput = text(body?.whatsapp_number,32), whatsapp = normalizeWhatsApp(whatsappInput), whatsappPublic = body?.whatsapp_public === true;
@@ -630,15 +670,33 @@ async function saveProfile(request, env, user) {
   const socialLinks = cleanSocialLinks(body?.social_links);
   if (!body || !type) return reply(request, env, { error: "invalid_profile_type" }, 400);
   if (type === "coach" && !programDurations.length) return reply(request, env, { error: "coach_program_required" }, 400);
+  const credentials = {
+    certificate_name: text(body?.certificate_name,120), certificate_issuer: text(body?.certificate_issuer,120),
+    certificate_number: text(body?.certificate_number,80), license_number: text(body?.license_number,80),
+    license_issuer: text(body?.license_issuer,120), license_country: text(body?.license_country,80),
+    license_expires_on: cleanCredentialDate(body?.license_expires_on),
+  };
+  const credentialKeys = Object.keys(credentials);
+  const credentialsSubmitted = credentialKeys.some((key) => body[key] !== undefined);
+  const credentialsChanged = credentialsSubmitted && credentialKeys.some((key) => (existing?.[key] || "") !== credentials[key]);
+  const qualifications = body.qualifications === undefined ? null : text(body.qualifications,1500);
+  const services = body.services === undefined ? null : cleanList(body.services,12,120);
   const warnings = [];
   if (whatsappInput && (!whatsapp || !whatsappPublic)) warnings.push("whatsapp_not_saved");
   if (socialLinks === null) warnings.push("social_links_skipped");
+  if (LICENSED_PROVIDER_TYPES.includes(type) && credentialsSubmitted && (!credentials.license_number || !credentials.license_issuer)) warnings.push("license_details_incomplete");
   const now = new Date().toISOString();
-  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=CASE WHEN ?='' THEN display_name ELSE ? END,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,program_durations_json=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,public_fields_json=?,qualifications=COALESCE(?,qualifications),services_json=COALESCE(?,services_json),coaching_mode=COALESCE(?,coaching_mode),status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
+  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=CASE WHEN ?='' THEN display_name ELSE ? END,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,program_durations_json=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,public_fields_json=?,qualifications=COALESCE(?,qualifications),services_json=COALESCE(?,services_json),coaching_mode=COALESCE(?,coaching_mode),certificate_name=CASE WHEN ?=1 THEN ? ELSE certificate_name END,certificate_issuer=CASE WHEN ?=1 THEN ? ELSE certificate_issuer END,certificate_number=CASE WHEN ?=1 THEN ? ELSE certificate_number END,license_number=CASE WHEN ?=1 THEN ? ELSE license_number END,license_issuer=CASE WHEN ?=1 THEN ? ELSE license_issuer END,license_country=CASE WHEN ?=1 THEN ? ELSE license_country END,license_expires_on=CASE WHEN ?=1 THEN ? ELSE license_expires_on END,license_status=CASE WHEN ?=1 THEN 'pending' ELSE license_status END,license_review_note=CASE WHEN ?=1 THEN '' ELSE license_review_note END,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
     .bind(type,name,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),JSON.stringify(programDurations),canPublishWhatsApp?whatsapp:null,canPublishWhatsApp?1:0,JSON.stringify(socialLinks||[]),JSON.stringify(publicFields),
-      body.qualifications === undefined ? null : text(body.qualifications,1000),
-      body.services === undefined ? null : JSON.stringify(cleanList(body.services,12,120)),
-      body.coaching_mode === undefined ? null : body.coaching_mode,now,user.id).run();
+      qualifications,services === null ? null : JSON.stringify(services),body.coaching_mode === undefined ? null : body.coaching_mode,
+      Number(credentialsSubmitted),credentials.certificate_name,
+      Number(credentialsSubmitted),credentials.certificate_issuer,
+      Number(credentialsSubmitted),credentials.certificate_number,
+      Number(credentialsSubmitted),credentials.license_number,
+      Number(credentialsSubmitted),credentials.license_issuer,
+      Number(credentialsSubmitted),credentials.license_country,
+      Number(credentialsSubmitted),credentials.license_expires_on || null,
+      Number(credentialsChanged),Number(credentialsChanged),now,user.id).run();
   return reply(request, env, { status: "pending_review", warnings });
 }
 
@@ -647,14 +705,19 @@ async function createBooking(request, env) {
   if (!await rateLimit(request, env, "booking", 5)) return reply(request, env, { error: "rate_limited" }, 429);
   const body = await readJson(request), email = emailValue(body?.customer_email);
   const name = text(body?.customer_name,100), phone = text(body?.customer_phone,40), city = text(body?.city,80), goal = text(body?.goal_summary,1000);
-  const sessionType = ["race","training"].includes(body?.session_type) ? body.session_type : "";
-  const distance = text(body?.distance,60), targetPace = text(body?.target_pace,40);
+  const sessionType = BOOKING_SESSION_TYPES.includes(body?.session_type) ? body.session_type : "";
+  const serviceName = text(body?.service_name,120), distance = text(body?.distance,60), targetPace = text(body?.target_pace,40);
   if (!body || !/^\+?[\d\s()-]{7,40}$/.test(phone) || !name || !city || !goal || !sessionType || body.consent !== true) return reply(request, env, { error: "invalid_booking_request" }, 400);
   let providerId = text(body.provider_id,36) || null, programDuration = Number(body.program_duration_months) || null;
   if (providerId) {
-    const provider = await env.DB.prepare("SELECT id,display_name,provider_type,public_fields_json,program_durations_json,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS public_whatsapp FROM provider_profiles WHERE id=? AND status='approved'").bind(providerId).first();
+    const provider = await env.DB.prepare("SELECT id,display_name,provider_type,services_json,public_fields_json,program_durations_json,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS public_whatsapp FROM provider_profiles WHERE id=? AND status='approved'").bind(providerId).first();
     if (!provider) return reply(request, env, { error: "provider_unavailable" }, 404);
     const visibility = cleanPublicFields(safeParse(provider.public_fields_json));
+    const offeredServices = cleanList(safeParse(provider.services_json),12,120);
+    if (!PROFESSIONAL_CATEGORIES[provider.provider_type]?.sessions.includes(sessionType)) return reply(request, env, { error: "invalid_session_for_provider" }, 400);
+    if (LICENSED_PROVIDER_TYPES.includes(provider.provider_type)) {
+      if (!serviceName || (offeredServices.length && !offeredServices.includes(serviceName))) return reply(request, env, { error: "service_required" }, 400);
+    }
     if (provider.provider_type === "coach" && sessionType === "training") {
       const offered = cleanProgramDurations(safeParse(provider.program_durations_json));
       if (offered.length && visibility.includes("program_durations")) {
@@ -662,16 +725,17 @@ async function createBooking(request, env) {
       } else programDuration = null;
     } else programDuration = null;
     body.provider_name = provider.display_name;
+    body.provider_category = professionalLabel(provider.provider_type, "en");
     body.provider_whatsapp = visibility.includes("whatsapp") ? provider.public_whatsapp : null;
   }
   const id = randomId();
-  await env.DB.prepare(`INSERT INTO booking_requests(id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,consent_at,status,created_at,payment_status,session_type,distance,target_pace,program_duration_months)
-    VALUES(?,?,?,?,?,?,?,?,?,'received',?,'pending_payment',?,?,?,?)`).bind(id,providerId,name,email||null,phone,city,text(body.preferred_date,10)||null,goal,new Date().toISOString(),new Date().toISOString(),sessionType,distance,targetPace,programDuration).run();
+  await env.DB.prepare(`INSERT INTO booking_requests(id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,consent_at,status,created_at,payment_status,session_type,service_name,distance,target_pace,program_duration_months)
+    VALUES(?,?,?,?,?,?,?,?,?,'received',?,'pending_payment',?,?,?,?,?)`).bind(id,providerId,name,email||null,phone,city,text(body.preferred_date,10)||null,goal,new Date().toISOString(),new Date().toISOString(),sessionType,serviceName,distance,targetPace,programDuration).run();
   if (providerId) {
     const owner = await env.DB.prepare("SELECT user_id FROM provider_profiles WHERE id=?").bind(providerId).first();
     await createNotification(env, owner?.user_id, "booking_received", "New booking request", `${name} · ${city}`, "booking_request", id);
   }
-  return reply(request, env, { request_id: id, status: "received_pending_payment", provider_name: body.provider_name || "MZ Active Champion Pacer", provider_whatsapp: body.provider_whatsapp || null }, 201);
+  return reply(request, env, { request_id: id, status: "received_pending_payment", provider_name: body.provider_name || "MZ Active Champion Pacer", provider_category: body.provider_category || "Sports Coach", provider_whatsapp: body.provider_whatsapp || null }, 201);
 }
 
 function newJoinCode() {
@@ -1043,12 +1107,12 @@ async function adminApplications(request, env, user) {
     return reply(request, env, { photo_uploaded: true, status: profile.status, updated_at: now });
   }
   if (request.method === "GET" && requestUrl.pathname === "/api/admin/applications") {
-    const providers = await env.DB.prepare(`SELECT p.id,p.qualifications,p.services_json,p.coaching_mode,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=p.id) AS gallery_slots,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.whatsapp_number,p.whatsapp_public,p.social_links_json,p.status,p.review_note,p.updated_at,u.email
+    const providers = await env.DB.prepare(`SELECT p.id,p.qualifications,p.services_json,p.coaching_mode,p.certificate_name,p.certificate_issuer,p.certificate_number,p.license_number,p.license_issuer,p.license_country,p.license_expires_on,p.license_status,p.license_review_note,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=p.id) AS gallery_slots,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.whatsapp_number,p.whatsapp_public,p.social_links_json,p.status,p.review_note,p.updated_at,u.email
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all();
     const approvedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.updated_at,u.email
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='approved' ORDER BY p.updated_at DESC LIMIT 100`).all();
-    const suspendedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.review_note,p.updated_at,u.email\n      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='rejected' AND p.review_note='Removed by owner' AND p.provider_type='coach' ORDER BY p.updated_at DESC LIMIT 100`).all();
-    const bookings = await env.DB.prepare(`SELECT id,provider_id,(SELECT display_name FROM provider_profiles WHERE id=booking_requests.provider_id) AS coach_name,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,distance,target_pace,program_duration_months,created_at
+    const suspendedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.review_note,p.updated_at,u.email\n      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='rejected' AND p.review_note='Removed by owner' ORDER BY p.updated_at DESC LIMIT 100`).all();
+    const bookings = await env.DB.prepare(`SELECT id,provider_id,(SELECT display_name FROM provider_profiles WHERE id=booking_requests.provider_id) AS coach_name,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,service_name,distance,target_pace,program_duration_months,created_at
       FROM booking_requests ORDER BY CASE WHEN status IN ('received','reviewing') THEN 0 ELSE 1 END, created_at DESC LIMIT 100`).all();
     return reply(request, env, { providers: providers.results || [], approved_providers: approvedProviders.results || [], suspended_providers: suspendedProviders.results || [], bookings: bookings.results || [] });
   }
@@ -1056,18 +1120,33 @@ async function adminApplications(request, env, user) {
   if (match && request.method === "PATCH") {
     const body = await readJson(request), status = body?.status;
     if (!body || !["approved","rejected","suspended"].includes(status)) return reply(request, env, { error: "invalid_review_status" }, 400);
-    const previous = await env.DB.prepare("SELECT status,provider_type,review_note,bio,specialties_json FROM provider_profiles WHERE id=?").bind(match[1]).first();
+    const previous = await env.DB.prepare(`SELECT status,provider_type,review_note,bio,specialties_json,qualifications,services_json,license_number,license_issuer,license_status,license_review_note
+      FROM provider_profiles WHERE id=?`).bind(match[1]).first();
     if (!previous) return reply(request, env, { updated: false }, 404);
     const ownerRemoved = previous.status === "rejected" && previous.review_note === "Removed by owner";
     const allowed = (previous.status === "pending" && ["approved","rejected"].includes(status))
-      || (previous.provider_type === "coach" && previous.status === "approved" && status === "suspended")
-      || (previous.provider_type === "coach" && ownerRemoved && status === "approved");
+      || (previous.status === "approved" && status === "suspended")
+      || (ownerRemoved && status === "approved");
     if (!allowed) return reply(request, env, { error: "invalid_provider_status_change" }, 409);
     if (status==="approved" && previous.provider_type==="coach" && (!safeParse(previous.specialties_json)?.length || !previous.bio?.trim() || previous.bio==="Profile awaiting completion by the provider.")) return reply(request,env,{error:"coach_profile_incomplete"},422);
+    const licensed = LICENSED_PROVIDER_TYPES.includes(previous.provider_type);
+    if (status === "approved" && licensed && (
+      !previous.qualifications?.trim() || !cleanList(safeParse(previous.services_json),12,120).length
+      || !previous.license_number?.trim() || !previous.license_issuer?.trim() || body.license_verified !== true
+    )) return reply(request, env, { error: "professional_license_incomplete" }, 422);
     const storedStatus = status === "suspended" ? "rejected" : status;
     const note = status === "suspended" ? "Removed by owner" : status === "approved" ? null : text(body.note,500)||null;
-    const result = await env.DB.prepare("UPDATE provider_profiles SET status=?,review_note=?,updated_at=?,verified=? WHERE id=? AND status=? AND (? IS NULL OR updated_at=?)")
-      .bind(storedStatus,note,new Date().toISOString(),Number(status === "approved" && previous.provider_type === "coach" && body.verified === true),match[1],previous.status,body.review_version ?? null,body.review_version ?? null).run();
+    const verified = status === "approved" && (
+      (previous.provider_type === "coach" && body.verified === true)
+      || (licensed && body.license_verified === true)
+      || (!licensed && previous.provider_type !== "coach" && body.verified === true)
+    );
+    const nextLicenseStatus = licensed && status === "approved" && body.license_verified === true ? "verified"
+      : licensed && status === "rejected" && body.license_verified === false ? "rejected"
+        : licensed && status === "suspended" ? "pending" : previous.license_status;
+    const nextLicenseNote = licensed && body.license_review_note !== undefined ? text(body.license_review_note,300) : previous.license_review_note || "";
+    const result = await env.DB.prepare("UPDATE provider_profiles SET status=?,review_note=?,updated_at=?,verified=?,license_status=?,license_review_note=? WHERE id=? AND status=? AND (? IS NULL OR updated_at=?)")
+      .bind(storedStatus,note,new Date().toISOString(),Number(verified),nextLicenseStatus,nextLicenseNote,match[1],previous.status,body.review_version ?? null,body.review_version ?? null).run();
     const updated = Boolean(result.meta?.changes);
     if (!updated) return reply(request, env, { error: "profile_changed_reload_review" }, 409);
     await env.DB.prepare(`INSERT INTO moderation_events(id,actor_user_id,entity_type,entity_id,from_status,to_status,created_at) VALUES(?,?,'provider_profile',?,?,?,?)`)
@@ -1220,7 +1299,7 @@ async function handleCommunityApi(request, env, url) {
     }
     const body = await readJson(request);
     if (!body) return reply(request, env, { error: "invalid_profile" }, 400);
-    const garmin = cleanProfilePhotoUrl(body.garmin_public_url);
+    const garmin = cleanGarminPublicUrl(body.garmin_public_url);
     if (garmin === null) return reply(request, env, { error: "invalid_garmin_url" }, 400);
     const now = new Date().toISOString();
     await env.DB.prepare(`INSERT INTO member_sports_profiles(user_id,display_name,city,sports_json,experience_level,goals,age_range,gender,garmin_public_url,updated_at)
@@ -1255,10 +1334,15 @@ async function handleCommunityApi(request, env, url) {
   if (match && method === "GET") {
     const target = await env.DB.prepare("SELECT user_id FROM provider_profiles WHERE id=? AND status='approved'").bind(match[1]).first();
     if (!target) return reply(request, env, { error: "coach_unavailable" }, 404);
-    const rows = await env.DB.prepare(`SELECT f.follower_user_id,u.email,msp.display_name,f.created_at FROM user_follows f
+    const rows = await env.DB.prepare(`SELECT f.follower_user_id,msp.display_name,f.created_at FROM user_follows f
       JOIN users u ON u.id=f.follower_user_id LEFT JOIN member_sports_profiles msp ON msp.user_id=f.follower_user_id
       WHERE f.coach_user_id=? ORDER BY f.created_at DESC LIMIT 100`).bind(target.user_id).all();
-    return reply(request, env, { followers: rows.results || [], follower_count: (rows.results || []).length });
+    const followers = (rows.results || []).map((row) => ({
+      follower_user_id: row.follower_user_id,
+      display_name: row.display_name || "MZ Active member",
+      created_at: row.created_at,
+    }));
+    return reply(request, env, { followers, follower_count: followers.length });
   }
 
   // Community feed, posts and media.
@@ -1304,15 +1388,19 @@ async function handleCommunityApi(request, env, url) {
     if (!post || (post.status !== "published" && !viewer && method === "GET")) return reply(request, env, { error: "post_not_found" }, 404);
     if (post.status !== "published" && viewer?.id !== post.author_user_id && viewer?.role !== "admin" && method === "GET") return reply(request, env, { error: "post_not_found" }, 404);
     if (method === "GET") {
-      if (post.status === "published" && viewer?.id !== post.author_user_id) await recordPostView(env, post.id, request, env, viewer);
+      if (post.status === "published" && viewer?.id !== post.author_user_id) await recordPostView(env, post.id, request, viewer);
       const [enriched] = await enrichPosts(env, [post], viewer?.id || "");
-      const comments = await env.DB.prepare(`SELECT c.id,c.body,c.status,c.created_at,u.email,msp.display_name,pp.display_name AS coach_name
+      const comments = await env.DB.prepare(`SELECT c.id,c.body,c.status,c.created_at,msp.display_name,pp.display_name AS coach_name
         FROM community_comments c JOIN users u ON u.id=c.user_id
         LEFT JOIN member_sports_profiles msp ON msp.user_id=c.user_id
         LEFT JOIN provider_profiles pp ON pp.user_id=c.user_id
         WHERE c.post_id=? AND (?=1 OR c.status='published') ORDER BY c.created_at LIMIT 200`)
         .bind(post.id, viewer?.role === "admin" || viewer?.id === post.author_user_id ? 1 : 0).all();
-      return reply(request, env, { post: enriched, comments: (comments.results || []).map((row) => ({ ...row, author_name: displayName(row) })) });
+      const safeComments = (comments.results || []).map((row) => ({
+        id: row.id, body: row.body, status: row.status, created_at: row.created_at,
+        author_name: displayName(row),
+      }));
+      return reply(request, env, { post: enriched, comments: safeComments });
     }
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
@@ -1373,11 +1461,14 @@ async function handleCommunityApi(request, env, url) {
     const post = await env.DB.prepare("SELECT id,author_user_id,status FROM community_posts WHERE id=?").bind(match[1]).first();
     if (!post || post.status !== "published") return reply(request, env, { error: "post_not_found" }, 404);
     if (method === "GET") {
-      const rows = await env.DB.prepare(`SELECT c.id,c.body,c.created_at,u.email,msp.display_name,pp.display_name AS coach_name
+      const rows = await env.DB.prepare(`SELECT c.id,c.body,c.created_at,msp.display_name,pp.display_name AS coach_name
         FROM community_comments c JOIN users u ON u.id=c.user_id
         LEFT JOIN member_sports_profiles msp ON msp.user_id=c.user_id LEFT JOIN provider_profiles pp ON pp.user_id=c.user_id
         WHERE c.post_id=? AND c.status='published' ORDER BY c.created_at LIMIT 200`).bind(post.id).all();
-      return reply(request, env, { comments: (rows.results || []).map((row) => ({ ...row, author_name: displayName(row) })) });
+      const comments = (rows.results || []).map((row) => ({
+        id: row.id, body: row.body, created_at: row.created_at, author_name: displayName(row),
+      }));
+      return reply(request, env, { comments });
     }
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
@@ -1669,8 +1760,9 @@ async function handleCommunityApi(request, env, url) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
     if (auth.user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
-    if (!env.AI?.run || !await reserveAssistantRequest(env)) return reply(request, env, { error: "assistant_unavailable" }, 503);
+    if (!env.AI || typeof env.AI.run !== "function") return reply(request, env, { error: "assistant_unavailable" }, 503);
     if (!await rateLimit(request, env, "community-challenge", 5)) return reply(request, env, { error: "rate_limited" }, 429);
+    if (!await reserveAssistantRequest(env, "community-challenge")) return reply(request, env, { error: "daily_limit_reached" }, 429);
     const body = await readJson(request), prompt = text(body?.prompt, 1200), language = body?.language === "ar" ? "ar" : "en";
     try {
       const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
@@ -1773,8 +1865,8 @@ export default {
       if (!user) return reply(request, env, { error: "unauthorized" }, 401);
       if (user.role === "admin") return reply(request, env, { user: { email:user.email, role:user.role } });
       if (request.method === "PUT") return saveProfile(request, env, user);
-      const profile = await env.DB.prepare(`SELECT id,verified,qualifications,services_json,coaching_mode,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=provider_profiles.id) AS gallery_slots,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json,status,review_note,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
-      return reply(request, env, { profile: profile ? { ...profile, services:safeParse(profile.services_json), gallery_slots:safeParse(profile.gallery_slots), specialties:safeParse(profile.specialties_json), languages:safeParse(profile.languages_json), program_durations:safeParse(profile.program_durations_json), social_links:safeParse(profile.social_links_json), public_fields:cleanPublicFields(safeParse(profile.public_fields_json)) } : null });
+      const profile = await env.DB.prepare(`SELECT id,verified,qualifications,services_json,coaching_mode,certificate_name,certificate_issuer,certificate_number,license_number,license_issuer,license_country,license_expires_on,license_status,license_review_note,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=provider_profiles.id) AS gallery_slots,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json,status,review_note,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
+      return reply(request, env, { profile: profile ? { ...profile, professional_category:{ en:professionalLabel(profile.provider_type,"en"), ar:professionalLabel(profile.provider_type,"ar") }, services:safeParse(profile.services_json), gallery_slots:safeParse(profile.gallery_slots), specialties:safeParse(profile.specialties_json), languages:safeParse(profile.languages_json), program_durations:safeParse(profile.program_durations_json), social_links:safeParse(profile.social_links_json), public_fields:cleanPublicFields(safeParse(profile.public_fields_json)) } : null });
     }
     if (request.method === "PUT" && url.pathname === "/api/me/profile/photo") {
       const user = await currentUser(request, env);
@@ -1803,5 +1895,5 @@ export default {
   },
 };
 
-export { hashPassword, verifyPassword, emailValue, readJson, cleanList, clampInt, clampNullableInt, normalizeWhatsApp, cleanSocialLinks, cleanProfilePhotoUrl, profilePhotoType };
+export { hashPassword, verifyPassword, emailValue, readJson, cleanList, clampInt, clampNullableInt, normalizeWhatsApp, cleanSocialLinks, cleanProfilePhotoUrl, cleanGarminPublicUrl, professionalType, professionalLabel, profilePhotoType };
 

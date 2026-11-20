@@ -32,8 +32,8 @@
         loading: 'Loading approved coaches…',
         unavailable: 'Approved coach profiles are temporarily unavailable. Please try the directory again later.',
         empty: 'There are no approved coach profiles to feature right now.',
-        coach: 'Coach',
-        pacer: 'Pacer',
+        coach: 'Sports Coach',
+        pacer: 'Champion Pacer',
         location: 'Location not listed',
         view: 'View profile'
       },
@@ -41,7 +41,7 @@
         loading: 'جارٍ تحميل المدربين المعتمدين…',
         unavailable: 'ملفات المدربين المعتمدة غير متاحة مؤقتاً. يرجى تجربة الدليل لاحقاً.',
         empty: 'لا توجد حالياً ملفات مدربين معتمدة لعرضها.',
-        coach: 'مدرب',
+        coach: 'مدرب رياضي',
         pacer: 'مرافق جري',
         location: 'الموقع غير مذكور',
         view: 'عرض الملف'
@@ -94,7 +94,8 @@
           card.append(makePhotoPlaceholder());
         }
 
-        const type = profile.provider_type === 'pacer' ? currentLabels().pacer : currentLabels().coach;
+        const category = lang === 'ar' ? profile.professional_category?.ar : profile.professional_category?.en;
+        const type = category || (profile.provider_type === 'pacer' ? currentLabels().pacer : currentLabels().coach);
         card.append(node('p', 'coach-type', type));
         card.append(authoredNode('h3', '', profile.display_name));
 

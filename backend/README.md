@@ -30,9 +30,10 @@ Never bind the existing `mz-ai-trader-ledger` database to this application. Appl
 
 ## Owner agents
 
-Apply `migrations/0011_owner_agents.sql` before enabling the Owner AI Brain task history.
-The Worker exposes authenticated agent snapshots and approval routes; agents only create drafts and
-record activity. Profile, booking, article, and payment decisions remain explicit Admin actions.
+Apply `migrations/0011_owner_agents.sql` and `migrations/0016_owner_agent_task_types.sql` before enabling
+the Owner AI Brain task history. The second migration widens the stored agent taxonomy after 0011 was
+already applied. The Worker exposes authenticated agent snapshots and approval routes; agents only create
+drafts and record activity. Profile, booking, article, and payment decisions remain explicit Admin actions.
 Configure a Cloudflare scheduled trigger to call the Worker `scheduled` export for safe monitoring
 and analytics snapshots. Add the cron trigger in the deployment configuration, not in website source.
 
@@ -40,7 +41,8 @@ and analytics snapshots. Add the cron trigger in the deployment configuration, n
 
 The repository includes `wrangler.preview.toml` and `wrangler.production.toml`. Both hourly cron
 configs call the Worker scheduled export. Preview writes remain disabled in the Preview config.
-Production configuration is deliberately guarded by placeholders and cannot deploy automatically.
+Production configuration contains the live D1 binding ID as reference only; `npm run preflight -- production`
+hard-blocks deployment until an owner explicitly reviews and enables it. Do not deploy from this branch.
 
 - Run `npm run preflight -- preview` after setting a dedicated Preview D1 database ID.
 - Run `npm run preview:local` for an authenticated-free local preview.

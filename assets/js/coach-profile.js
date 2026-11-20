@@ -31,8 +31,10 @@
     return String(name || '').trim().split(/\s+/).slice(0, 2).map(part => part[0] || '').join('').toLocaleUpperCase();
   }
   function roleName(p) {
+    const category = language.get() === 'ar' ? p.professional_category?.ar : p.professional_category?.en;
+    if (category) return category;
     if (p.provider_type === 'pacer') return t('Pacer','مرافق جري');
-    return t('Coach','مدرب');
+    return t('Sports Coach','مدرب رياضي');
   }
   function updateStaticLabels() {
     document.querySelectorAll('[data-en][data-ar]').forEach(el => {
@@ -120,6 +122,11 @@
     addFact(facts, t('Indicative rate','السعر الاسترشادي'), p.indicative_rate_qar ? `${p.indicative_rate_qar}${t(' QAR',' ر.ق.')}` : '');
     const qualifications = String(p.qualifications || '').trim();
     if (qualifications) addFact(facts, t('Qualifications','المؤهلات'), qualifications);
+    if (p.credentials) {
+      const parts = [p.credentials.certificate_name, p.credentials.certificate_issuer, p.credentials.license_issuer,
+        p.credentials.license_number_masked, p.credentials.license_expires_on].filter(Boolean);
+      addFact(facts, t('Verified credentials','مؤهلات موثقة'), parts.join(' · '));
+    }
     $('#credentialsEmpty').hidden = facts.children.length > 0;
     renderAchievements();
     renderCommunityPosts();
