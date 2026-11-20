@@ -29,7 +29,7 @@ test('registered coach can publish, book, edit and re-submit a moderated profile
     }
   };
   async function call(path,method='GET',body,token,expected=200) {
-    const headers = {'x-admin-setup-key':'local-test'};
+    const headers = body?.email===env.ADMIN_EMAILS ? {'x-admin-setup-key':'local-test'} : {};
     if(token) headers.authorization = 'Bearer ' + token;
     const request = new Request('https://example.test/api/'+path,{
       method,headers,body:body instanceof Uint8Array ? body : JSON.stringify(body)
@@ -82,5 +82,37 @@ test('registered coach can publish, book, edit and re-submit a moderated profile
   assert.deepEqual(updated.gallery_slots,[]); assert.equal(updated.has_profile_photo,0);
   const privateBooking = await call('bookings','POST',{...booking,program_duration_months:null},null,201);
   assert.equal(privateBooking.provider_whatsapp,null);
+  await call('admin/athletes','GET',undefined,coach,403);
+  await call('admin/history','GET',undefined,null,401);
+  await call('auth/login','POST',{email:env.ADMIN_EMAILS,password:signup.password});
+  await call('admin/bookings/'+saved.request_id,'PATCH',{status:'cancelled'},admin);
+  await call('admin/bookings/'+saved.request_id,'PATCH',{status:'accepted'},admin,409);
+  const member = await call('auth/register','POST',{...signup,email:'athlete@example.test',account_type:'member'},null,201);
+  const plan = await call('dashboard/programs','POST',{athlete_name:'QA',athlete_phone:'+97455555555',athlete_type:'runner',week_start:'2026-11-23',sessions:[{day_key:'monday',sport_type:'run',details:'QA workout'}]},coach,201);
+  assert.ok((await call('admin/athletes','GET',undefined,admin)).unlinked.some(p=>p.id===plan.id));
+  await call('admin/programs/'+plan.id+'/athlete','PATCH',{athlete_id:member.user.id},admin);
+  assert.equal((await call('dashboard','GET',undefined,member.token)).programs[0].sessions[0].details,'QA workout');
+  await call('admin/programs/'+plan.id+'/athlete','PATCH',{athlete_id:member.user.id},admin,409);
+  const event={scheduledTime:6*3600000};
+  env.AI={run:async()=>({response:'Test recommendation'})};
+  await worker.scheduled(event,env); await worker.scheduled(event,env);
+  let brain=await call('admin/agents','GET',undefined,admin);
+  assert.equal(brain.tasks.length,1);assert.equal(brain.pending.length,1);
+  assert.equal(JSON.parse(brain.tasks[0].output_json).answer,'Test recommendation');
+  await call('admin/agents/'+brain.tasks[0].id,'PATCH',{decision:'approved'},admin);
+  await call('admin/agents/'+brain.tasks[0].id,'PATCH',{decision:'rejected'},admin,409);
+  delete env.AI;
+  await worker.scheduled({scheduledTime:8*3600000},env);
+  brain=await call('admin/agents','GET',undefined,admin);
+  assert.equal(brain.tasks.filter(t=>t.status==='failed').length,1);
+  assert.equal(brain.pending.length,0);
+  const history=await call('admin/history','GET',undefined,admin);
+  assert.ok(history.events.some(e=>e.entity_type==='registration'));
+  assert.ok(history.events.some(e=>e.entity_type==='booking_request'&&e.to_status==='received'));
+  await call('admin/'+path,'PATCH',{status:'suspended'},admin);
+  await call('me/profile','GET',undefined,coach,401);
+  await call('auth/login','POST',{email:'coach@example.test',password:signup.password},null,403);
+  await call('admin/'+path,'PATCH',{status:'approved'},admin);
+  await call('auth/login','POST',{email:'coach@example.test',password:signup.password});
   db.close();
 });

@@ -89,7 +89,7 @@ async function currentUser(request, env) {
   if (!match) return null;
   const tokenHash = await sha256(match[1]);
   return env.DB.prepare(`SELECT u.id, u.email, u.role FROM sessions s JOIN users u ON u.id=s.user_id
-    WHERE s.token_hash=? AND s.expires_at>?`).bind(tokenHash, Math.floor(Date.now() / 1000)).first();
+    WHERE s.token_hash=? AND s.expires_at>? AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id AND p.status='rejected' AND p.review_note='Removed by owner')`).bind(tokenHash, Math.floor(Date.now() / 1000)).first();
 }
 
 async function collectionEnabled(env) {
@@ -145,7 +145,7 @@ async function coachAssistant(request, env, user) {
     : task === "training"
       ? "Give a practical, general training suggestion. Keep it conservative and adaptable; ask the coach to adjust it to the athlete's level and context. Do not diagnose injuries or prescribe treatment."
       : "Give concise, practical help for a coach using MZ Active, writing a client message, or communicating with a team. Do not claim to have accessed any account or contacted anyone.";
-  const system = `You are the private MZ Active assistant for an approved coach. Reply in the language used in the prompt (English or Arabic). ${taskGuide} Do not request client names, phone numbers, passwords, medical histories, or other sensitive personal data. You only know the text in this request. For injury, illness, or medical questions, recommend a qualified health professional. Keep the answer clear and ready for the coach to review.`;
+    const system = `You are the private MZ Active assistant for an approved coach. Reply in the language used in the prompt (English or Arabic). ${taskGuide} Do not request client names, phone numbers, passwords, medical histories, or other sensitive personal data. You only know the text in this request. For injury, illness, or medical questions, recommend a qualified health professional. Keep the answer clear and ready for the coach to review.`;
   try {
     const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
       messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
@@ -176,6 +176,7 @@ function taskPromptTitle(task) {
     operations: "Operations queue review",
     marketing: "Marketing draft",
     support: "Customer support draft",
+    growth: "Growth experiment", community: "Community engagement draft",
     monitoring: "Website monitoring review",
     analytics: "Business analytics summary",
   })[task] || "Owner agent task";
@@ -189,8 +190,10 @@ async function ownerBusinessSnapshot(env) {
   return {
     pending_provider_profiles: await firstCount("SELECT COUNT(*) AS count FROM provider_profiles WHERE status='pending'"),
     approved_providers: await firstCount("SELECT COUNT(*) AS count FROM provider_profiles WHERE status='approved'"),
-    open_booking_requests: await firstCount("SELECT COUNT(*) AS count FROM booking_requests WHERE status IN ('received','reviewing') OR payment_status='pending_payment'"),
+    open_booking_requests: await firstCount("SELECT COUNT(*) AS count FROM booking_requests WHERE status IN ('received','reviewing')"),
     pending_coach_articles: await firstCount("SELECT COUNT(*) AS count FROM coach_blog_posts WHERE status='pending'"),
+    registered_athletes: await firstCount("SELECT COUNT(*) AS count FROM users u WHERE role='provider' AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id)"),
+    unlinked_programs: await firstCount("SELECT COUNT(*) AS count FROM athlete_programs_v2 WHERE athlete_user_id IS NULL"),
     active_training_teams: await firstCount("SELECT COUNT(*) AS count FROM training_teams"),
   };
 }
@@ -205,51 +208,67 @@ async function failOwnerTask(env, taskId, message) {
 }
 
 async function ownerAssistant(request, env) {
-  if (!env.AI || typeof env.AI.run !== "function") return reply(request, env, { error: "assistant_unavailable" }, 503);
   if (!await rateLimit(request, env, "owner-assistant", 8)) return reply(request, env, { error: "rate_limited" }, 429);
   const body = await readJson(request), task = body?.task;
   const prompt = text(body?.prompt, 1600);
-  if (!body || !["operations","marketing","support","monitoring","analytics"].includes(task) || !prompt) {
+  if (!body || !["operations","marketing","support","monitoring","analytics","growth","community"].includes(task) || !prompt) {
     return reply(request, env, { error: "assistant_prompt_required" }, 400);
   }
-  if (!await reserveAssistantRequest(env)) return reply(request, env, { error: "daily_limit_reached" }, 429);
-  const snapshot = await ownerBusinessSnapshot(env);
-  const taskId = randomId(), now = new Date().toISOString();
-  await env.DB.prepare(`INSERT INTO owner_agent_tasks(id,agent_type,source,title,status,approval_status,input_json,created_at,started_at)
-    VALUES(?,?, 'manual', ?, 'running', 'pending', ?, ?, ?)`)
-    .bind(taskId,task,taskPromptTitle(task),JSON.stringify({ prompt }),now,now).run();
-  await env.DB.prepare(`INSERT INTO owner_agent_activity(id,agent_type,action,status,details_json,created_at)
-    VALUES(?,?, 'run_started', 'running', ?, ?)`)
-    .bind(randomId(),task,JSON.stringify({ task_id: taskId }),now).run();
+  const outcome = await runOwnerAnalysis(env, task, prompt, "manual");
+  return reply(request, env, outcome, outcome.answer ? 200 : outcome.error === "daily_limit_reached" ? 429 : 503);
+}
+
+async function runOwnerAnalysis(env, task, prompt, source, taskId=randomId()) {
+  const now = new Date().toISOString();
+  const storageType = ({growth:"analytics",community:"marketing"})[task] || task;
+  const claim = await env.DB.prepare(`INSERT INTO owner_agent_tasks(id,agent_type,source,title,status,approval_status,input_json,created_at,started_at)
+    VALUES(?,?,?,?,'running','not_required',?,?,?) ON CONFLICT(id) DO NOTHING`)
+    .bind(taskId,storageType,source,taskPromptTitle(task),JSON.stringify({prompt, agent:task}),now,now).run();
+  if (!claim.meta.changes) return {task_id:taskId};
   const guides = {
     operations: "Turn the request into a concise operational checklist with owners, priorities, and verification steps. Do not claim that changes were made.",
     marketing: "Draft practical bilingual-ready marketing copy or a campaign plan for MZ Active. Preserve a respectful, athletic brand tone and do not invent offers, reviews, or results.",
     support: "Draft a clear customer-support response for MZ Active. State uncertainty plainly, avoid promises, and direct the user to the correct self-service page only when relevant.",
+    growth: "Use the current funnel counts to recommend one measurable growth experiment. Do not invent conversions or historical trends.",
+    community: "Draft a community engagement proposal. Community moderation and verified event data are unavailable. Do not invent members or events.",
     monitoring: "Turn the supplied website or service observations into a prioritized monitoring review with risks, likely next checks, and safe escalation steps.",
     analytics: "Turn the supplied business data into a short decision summary with trends, caveats, and concrete next metrics to track. Do not infer causation or invent missing data.",
   };
-  const system = `You are the private MZ Active Owner AI Brain for business operations. ${guides[task]} Reply in the language used in the prompt (English or Arabic). Use only the supplied request and this verified live MZ Active snapshot: ${JSON.stringify(snapshot)}. Do not invent customers, revenue, bookings, health outcomes, or system status. Never request passwords, payment credentials, identity documents, or health records. Do not make approval decisions or claim to have taken actions.`;
   try {
+    const snapshot = await ownerBusinessSnapshot(env);
+    if (task === "monitoring") {
+      snapshot.website = {};
+      for (const page of ["", "coaches.html", "admin.html"]) {
+        try {
+          const response = await fetch("https://mzactive.com/" + page,{method:"HEAD",signal:AbortSignal.timeout(4000)});
+          snapshot.website[page || "homepage"] = response.status;
+        } catch { snapshot.website[page || "homepage"] = "check_failed"; }
+      }
+    }
+    await env.DB.prepare("UPDATE owner_agent_tasks SET output_json=? WHERE id=?").bind(JSON.stringify({snapshot}),taskId).run();
+    if (!env.AI?.run) throw Error("assistant_unavailable");
+    if (!await reserveAssistantRequest(env)) throw Error("daily_limit_reached");
+    const system = `You are the private MZ Active Owner AI Brain for business operations. ${guides[task]} Reply in the language used in the prompt (English or Arabic). Use only the supplied request and this verified live MZ Active snapshot: ${JSON.stringify(snapshot)}. Do not invent customers, revenue, bookings, health outcomes, or system status. Never request passwords, payment credentials, identity documents, or health records. Do not make approval decisions or claim to have taken actions.`;
+
     const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
       messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
       max_tokens: 500,
       temperature: 0.2,
     });
     const answer = text(result?.response, 5000);
-    if (!answer) {
-      await failOwnerTask(env, taskId, "assistant_unavailable");
-      return reply(request, env, { error: "assistant_unavailable" }, 503);
-    }
+    if (!answer) throw Error("assistant_unavailable");
     const completedAt = new Date().toISOString();
-    await env.DB.prepare(`UPDATE owner_agent_tasks SET status='completed',approval_status='pending',output_json=?,completed_at=? WHERE id=?`)
-      .bind(JSON.stringify({ answer }),completedAt,taskId).run();
-    await env.DB.prepare(`INSERT INTO owner_agent_activity(id,agent_type,action,status,details_json,created_at)
-      VALUES(?,?, 'run_completed', 'completed', ?, ?)`)
-      .bind(randomId(),task,JSON.stringify({ task_id: taskId, approval_status: "pending" }),completedAt).run();
-    return reply(request, env, { answer });
-  } catch {
-    await failOwnerTask(env, taskId, "assistant_unavailable");
-    return reply(request, env, { error: "assistant_unavailable" }, 503);
+    await env.DB.batch([
+      env.DB.prepare("UPDATE owner_agent_tasks SET status='completed',approval_status='pending',output_json=?,completed_at=? WHERE id=?")
+        .bind(JSON.stringify({snapshot,answer}),completedAt,taskId),
+      env.DB.prepare("INSERT INTO owner_agent_activity(id,agent_type,action,status,details_json,created_at) VALUES(?,?,'run_completed','completed',?,?)")
+        .bind(randomId(),task,JSON.stringify({task_id:taskId}),completedAt)
+    ]);
+    return { answer, task_id:taskId };
+  } catch (err) {
+    const error = err.message === "daily_limit_reached" ? err.message : "assistant_unavailable";
+    await failOwnerTask(env, taskId, error);
+    return {error, task_id:taskId};
   }
 }
 
@@ -278,6 +297,8 @@ async function register(request, env) {
   if (!body || !email || password.length < 12 || body.consent !== true || (!isAdminEmail && !type && !isMember)) {
     return reply(request, env, { error: "invalid_registration" }, 400);
   }
+  if (request.headers.has("x-admin-setup-key") && !isAdminEmail) return reply(request,env,{error:"admin_setup_unavailable"},403);
+  if (isAdminEmail && await env.DB.prepare("SELECT id FROM users WHERE role='admin' LIMIT 1").first()) return reply(request,env,{error:"admin_already_exists"},409);
   if (isAdminEmail && (!env.ADMIN_SETUP_KEY || !(await safeEqual(request.headers.get("x-admin-setup-key") || "", env.ADMIN_SETUP_KEY)))) {
     return reply(request, env, { error: "admin_setup_required" }, 403);
   }
@@ -336,6 +357,7 @@ async function login(request, env) {
   if (!await rateLimit(request, env, "login", 12) || !await rateLimit(request, env, `login:${email}`, 8)) return reply(request, env, { error: "rate_limited" }, 429);
   const user = await env.DB.prepare("SELECT id,email,password_hash,role FROM users WHERE email=?").bind(email).first();
   if (!user || !await verifyPassword(password, user.password_hash)) return reply(request, env, { error: "invalid_credentials" }, 401);
+  if (user.role === "provider" && await env.DB.prepare("SELECT 1 AS removed FROM provider_profiles WHERE user_id=? AND status='rejected' AND review_note='Removed by owner'").bind(user.id).first()) return reply(request,env,{error:"provider_removed_by_owner"},403);
   return issueSession(request, env, user.id, user.email, user.role);
 }
 
@@ -614,7 +636,7 @@ async function dashboardOverview(request, env, user) {
   }
   const programs = [];
   for (const program of programRows.results || []) {
-    const completionOwner = dashboardRole === "admin" ? program.athlete_user_id : user.id;
+    const completionOwner = program.athlete_user_id;
     const rows = await env.DB.prepare(`SELECT s.id,s.session_code,s.day_key,s.sport_type,s.details,c.completed_at,c.actual_km,c.duration_minutes
       FROM athlete_program_sessions_v2 s LEFT JOIN athlete_program_completions_v2 c
         ON c.session_id=s.id AND c.athlete_user_id=?
@@ -815,22 +837,49 @@ async function adminApplications(request, env, user) {
       FROM owner_agent_tasks ORDER BY created_at DESC LIMIT 100`).all();
     const activity = await env.DB.prepare(`SELECT id,agent_type,action,status,details_json,created_at
       FROM owner_agent_activity ORDER BY created_at DESC LIMIT 100`).all();
-    return reply(request, env, { snapshot, status: "available", tasks: tasks.results || [], activity: activity.results || [] });
+    const pending = await env.DB.prepare(`SELECT id,agent_type,title,status,source,approval_status,input_json,output_json,created_at FROM owner_agent_tasks
+      WHERE status='completed' AND approval_status='pending' AND json_valid(output_json) AND json_extract(output_json,'$.answer') IS NOT NULL ORDER BY created_at`).all();
+    return reply(request, env, { snapshot, pending:pending.results || [], status: env.AI?.run ? "available" : "not_configured", tasks: tasks.results || [], activity: activity.results || [] });
+  }
+  if (request.method === "GET" && requestUrl.pathname === "/api/admin/athletes") {
+    const athletes = await env.DB.prepare(`SELECT u.id,u.email, (SELECT COUNT(*) FROM athlete_programs_v2 WHERE athlete_user_id=u.id) AS programs
+      FROM users u WHERE role='provider' AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id) ORDER BY u.email`).all();
+    const unlinked = await env.DB.prepare("SELECT id,athlete_name,week_start FROM athlete_programs_v2 WHERE athlete_user_id IS NULL ORDER BY week_start DESC").all();
+    return reply(request,env,{athletes:athletes.results,unlinked:unlinked.results});
+  }
+  const assign = /^\/api\/admin\/programs\/([\w-]{36})\/athlete$/.exec(requestUrl.pathname);
+  if (request.method === "PATCH" && assign) {
+    const body = await readJson(request), athlete = text(body?.athlete_id,36);
+    const [update] = await env.DB.batch([
+      env.DB.prepare(`UPDATE athlete_programs_v2 SET athlete_user_id=? WHERE id=? AND athlete_user_id IS NULL
+        AND EXISTS(SELECT 1 FROM users u WHERE u.id=? AND role='provider' AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id))`).bind(athlete,assign[1],athlete),
+      env.DB.prepare("INSERT INTO owner_agent_activity(id,actor_user_id,agent_type,action,status,details_json,created_at) SELECT ?,?,'owner','program_assigned','completed',?,? WHERE changes()=1")
+        .bind(randomId(),user.id,JSON.stringify({program_id:assign[1],athlete_id:athlete}),new Date().toISOString())
+    ]);
+    return update.meta.changes ? reply(request,env,{updated:true}) : reply(request,env,{error:"assignment_unavailable"},409);
+  }
+  if (request.method === "GET" && requestUrl.pathname === "/api/admin/history") {
+    const rows = await env.DB.prepare(`SELECT entity_type,from_status,to_status,created_at FROM moderation_events
+      UNION ALL SELECT 'registration',NULL,'received',created_at FROM users WHERE role!='admin'
+      UNION ALL SELECT 'booking_request',NULL,'received',created_at FROM booking_requests
+      ORDER BY created_at DESC LIMIT 100`).all();
+    return reply(request,env,{events:rows.results});
   }
   const agentTaskMatch = /^\/api\/admin\/agents\/([\w-]{36})$/.exec(requestUrl.pathname);
   if (agentTaskMatch && request.method === "PATCH") {
     const body = await readJson(request), decision = body?.decision;
     if (!body || !["approved","rejected"].includes(decision)) return reply(request, env, { error: "invalid_agent_decision" }, 400);
-    const task = await env.DB.prepare("SELECT id,status,approval_status FROM owner_agent_tasks WHERE id=?")
+    const task = await env.DB.prepare("SELECT id,status,approval_status,output_json FROM owner_agent_tasks WHERE id=?")
       .bind(agentTaskMatch[1]).first();
     if (!task) return reply(request, env, { error: "agent_task_not_found" }, 404);
-    if (task.status !== "completed" || task.approval_status !== "pending") return reply(request, env, { error: "agent_task_not_pending" }, 409);
+    if (!safeParse(task.output_json)?.answer || task.status !== "completed" || task.approval_status !== "pending") return reply(request, env, { error: "agent_task_not_pending" }, 409);
     const now = new Date().toISOString();
-    await env.DB.prepare("UPDATE owner_agent_tasks SET approval_status=? WHERE id=?")
-      .bind(decision,task.id).run();
-    await env.DB.prepare(`INSERT INTO owner_agent_activity(id,actor_user_id,agent_type,action,status,details_json,created_at)
-      VALUES(?,?, 'owner', ?, ?, ?, ?)`)
-      .bind(randomId(),user.id,decision,decision,JSON.stringify({ task_id: task.id }),now).run();
+    const [updated] = await env.DB.batch([
+      env.DB.prepare("UPDATE owner_agent_tasks SET approval_status=? WHERE id=? AND approval_status='pending'").bind(decision,task.id),
+      env.DB.prepare("INSERT INTO owner_agent_activity(id,actor_user_id,agent_type,action,status,details_json,created_at) SELECT ?,?,'owner',?,?,?,? WHERE changes()=1")
+        .bind(randomId(),user.id,decision,decision,JSON.stringify({task_id:task.id}),now)
+    ]);
+    if (!updated.meta.changes) return reply(request,env,{error:"agent_task_not_pending"},409);
     return reply(request, env, { updated: true, decision, task_id: task.id });
   }
   if (request.method === "GET" && requestUrl.pathname === "/api/admin/blog") {
@@ -845,7 +894,7 @@ async function adminApplications(request, env, user) {
     const status = action === "publish" ? "published" : "draft", now = new Date().toISOString();
     const result = await env.DB.prepare("UPDATE coach_blog_posts SET status=?,updated_at=?,published_at=? WHERE id=? AND status='pending'")
       .bind(status,now,action === "publish" ? now : null,blogReview[1]).run();
-    return reply(request, env, { updated: Boolean(result.meta?.changes), status });
+    return result.meta?.changes ? reply(request, env, { updated:true, status }) : reply(request,env,{error:"article_already_reviewed"},409);
   }
   const gallery = /^\/api\/admin\/providers\/([\w-]{36})\/gallery\/([1-3])$/.exec(requestUrl.pathname);
   if (gallery && request.method === "GET") return galleryImage(gallery[1], Number(gallery[2]), request, env, false);
@@ -870,27 +919,28 @@ async function adminApplications(request, env, user) {
       .bind(bytes, contentType, now, now, profile.id).run();
     return reply(request, env, { photo_uploaded: true, status: profile.status, updated_at: now });
   }
-  if (request.method === "GET") {
+  if (request.method === "GET" && requestUrl.pathname === "/api/admin/applications") {
     const providers = await env.DB.prepare(`SELECT p.id,p.qualifications,p.services_json,p.coaching_mode,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=p.id) AS gallery_slots,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.whatsapp_number,p.whatsapp_public,p.social_links_json,p.status,p.review_note,p.updated_at,u.email
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all();
     const approvedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.updated_at,u.email
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='approved' ORDER BY p.updated_at DESC LIMIT 100`).all();
     const suspendedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.review_note,p.updated_at,u.email\n      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='rejected' AND p.review_note='Removed by owner' AND p.provider_type='coach' ORDER BY p.updated_at DESC LIMIT 100`).all();
-    const bookings = await env.DB.prepare(`SELECT id,provider_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,distance,target_pace,program_duration_months,created_at
-      FROM booking_requests WHERE status IN ('received','reviewing') OR payment_status='pending_payment' ORDER BY created_at LIMIT 100`).all();
+    const bookings = await env.DB.prepare(`SELECT id,provider_id,(SELECT display_name FROM provider_profiles WHERE id=booking_requests.provider_id) AS coach_name,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,distance,target_pace,program_duration_months,created_at
+      FROM booking_requests ORDER BY CASE WHEN status IN ('received','reviewing') THEN 0 ELSE 1 END, created_at DESC LIMIT 100`).all();
     return reply(request, env, { providers: providers.results || [], approved_providers: approvedProviders.results || [], suspended_providers: suspendedProviders.results || [], bookings: bookings.results || [] });
   }
   const match = /^\/api\/admin\/providers\/([\w-]{36})$/.exec(new URL(request.url).pathname);
   if (match && request.method === "PATCH") {
     const body = await readJson(request), status = body?.status;
     if (!body || !["approved","rejected","suspended"].includes(status)) return reply(request, env, { error: "invalid_review_status" }, 400);
-    const previous = await env.DB.prepare("SELECT status,provider_type,review_note FROM provider_profiles WHERE id=?").bind(match[1]).first();
+    const previous = await env.DB.prepare("SELECT status,provider_type,review_note,bio,specialties_json FROM provider_profiles WHERE id=?").bind(match[1]).first();
     if (!previous) return reply(request, env, { updated: false }, 404);
     const ownerRemoved = previous.status === "rejected" && previous.review_note === "Removed by owner";
     const allowed = (previous.status === "pending" && ["approved","rejected"].includes(status))
       || (previous.provider_type === "coach" && previous.status === "approved" && status === "suspended")
       || (previous.provider_type === "coach" && ownerRemoved && status === "approved");
     if (!allowed) return reply(request, env, { error: "invalid_provider_status_change" }, 409);
+    if (status==="approved" && previous.provider_type==="coach" && (!safeParse(previous.specialties_json)?.length || !previous.bio?.trim() || previous.bio==="Profile awaiting completion by the provider.")) return reply(request,env,{error:"coach_profile_incomplete"},422);
     const storedStatus = status === "suspended" ? "rejected" : status;
     const note = status === "suspended" ? "Removed by owner" : status === "approved" ? null : text(body.note,500)||null;
     const result = await env.DB.prepare("UPDATE provider_profiles SET status=?,review_note=?,updated_at=?,verified=? WHERE id=? AND status=? AND (? IS NULL OR updated_at=?)")
@@ -903,18 +953,18 @@ async function adminApplications(request, env, user) {
   }
   const bookingMatch = /^\/api\/admin\/bookings\/([\w-]{36})$/.exec(new URL(request.url).pathname);
   if (bookingMatch && request.method === "PATCH") {
-    const body = await readJson(request), status = body?.status, paymentStatus = body?.payment_status;
-    if (!body || (!(["reviewing","accepted","declined","cancelled"].includes(status)) && !("payment_status" in body && ["pending_payment","confirmed","cancelled"].includes(paymentStatus)))) return reply(request, env, { error: "invalid_booking_status" }, 400);
+    const body = await readJson(request), status = body?.status;
+    const allowed = {received:["reviewing","accepted","declined","cancelled"],reviewing:["accepted","declined","cancelled"],accepted:["cancelled"]};
+    if (!body || body.payment_status || !["reviewing","accepted","declined","cancelled"].includes(status)) return reply(request,env,{error:"invalid_booking_status"},400);
     const previous = await env.DB.prepare("SELECT status,payment_status FROM booking_requests WHERE id=?").bind(bookingMatch[1]).first();
-    if (!previous) return reply(request, env, { updated: false }, 404);
-    const result = status && ["reviewing","accepted","declined","cancelled"].includes(status)
-      ? await env.DB.prepare("UPDATE booking_requests SET status=? WHERE id=?").bind(status,bookingMatch[1]).run()
-      : await env.DB.prepare("UPDATE booking_requests SET payment_status=? WHERE id=?").bind(paymentStatus,bookingMatch[1]).run();
-    const updated = Boolean(result.meta?.changes);
-    const from = status ? previous.status : previous.payment_status, to = status || paymentStatus;
-    if (updated) await env.DB.prepare(`INSERT INTO moderation_events(id,actor_user_id,entity_type,entity_id,from_status,to_status,created_at) VALUES(?,?,'booking_request',?,?,?,?)`)
-      .bind(randomId(),user.id,bookingMatch[1],from,to,new Date().toISOString()).run();
-    return reply(request, env, { updated, status: status || previous.status, payment_status: paymentStatus || previous.payment_status });
+    if (!previous) return reply(request,env,{error:"booking_not_found"},404);
+    if (!allowed[previous.status]?.includes(status)) return reply(request,env,{error:"booking_status_changed"},409);
+    const [result] = await env.DB.batch([
+      env.DB.prepare("UPDATE booking_requests SET status=? WHERE id=? AND status=?").bind(status,bookingMatch[1],previous.status),
+      env.DB.prepare("INSERT INTO moderation_events(id,actor_user_id,entity_type,entity_id,from_status,to_status,created_at) SELECT ?,?,'booking_request',?,?,?,? WHERE changes()=1")
+        .bind(randomId(),user.id,bookingMatch[1],previous.status,status,new Date().toISOString())
+    ]);
+    return result.meta.changes ? reply(request,env,{updated:true,status}) : reply(request,env,{error:"booking_status_changed"},409);
   }
   return reply(request, env, { error: "not_found" }, 404);
 }
@@ -925,6 +975,10 @@ export default {
     const cors = corsHeaders(request, env);
     if (!cors) return json({ error: "origin_not_allowed" }, 403);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: Object.fromEntries(cors) });
+    if (request.method === "GET" && url.pathname === "/api/auth/setup-status") {
+      const existing = await env.DB.prepare("SELECT id FROM users WHERE role='admin' LIMIT 1").first();
+      return reply(request,env,{setup_available:!existing && Boolean(env.ADMIN_EMAILS && env.ADMIN_SETUP_KEY)});
+    }
     if (request.method === "GET" && url.pathname === "/health") return reply(request, env, { ok: true, intake_enabled: env.DATA_COLLECTION_ENABLED === "true" });
     if (request.method === "POST" && url.pathname === "/api/assistant/chat") return assistantChat(request, env);
     if (request.method === "GET" && url.pathname === "/api/blog/posts") return publicBlogPosts(request, env);
@@ -973,20 +1027,12 @@ export default {
     }
     return reply(request, env, { error: "not_found" }, 404);
   },
-  async scheduled(_event, env) {
-    const now = new Date().toISOString();
-    for (const agentType of ["monitoring", "analytics"]) {
-      const id = randomId();
-      await env.DB.prepare(`INSERT INTO owner_agent_tasks(id,agent_type,source,title,status,approval_status,input_json,created_at,started_at)
-        VALUES(?, ?, 'scheduled', ?, 'running', 'pending', ?, ?, ?)`)
-        .bind(id,agentType,taskPromptTitle(agentType),JSON.stringify({ scheduled_at: now }),now,now).run();
-      const snapshot = await ownerBusinessSnapshot(env);
-      await env.DB.prepare(`UPDATE owner_agent_tasks SET status='completed',approval_status='pending',output_json=?,completed_at=? WHERE id=?`)
-        .bind(JSON.stringify({ snapshot, summary: "Scheduled snapshot captured; AI interpretation not run in the scheduled pass." }),now,id).run();
-      await env.DB.prepare(`INSERT INTO owner_agent_activity(id,agent_type,action,status,details_json,created_at)
-        VALUES(?,?, 'scheduled_snapshot_completed', 'completed', ?, ?)`)
-        .bind(randomId(),agentType,JSON.stringify({ task_id: id, snapshot }),now).run();
-    }
+  async scheduled(event, env) {
+    const hour = Math.floor((event.scheduledTime || Date.now()) / 3600000);
+    const tasks = ["operations","monitoring","analytics","marketing","growth","community"];
+    const task = tasks[hour % tasks.length];
+    const id = "00000000-0000-4000-8000-" + hour.toString(16).padStart(12,"0");
+    await runOwnerAnalysis(env,task,"Review current aggregate platform data. Give one specific recommendation and draft the owner's next action in English and Arabic.","scheduled",id);
   },
 };
 
