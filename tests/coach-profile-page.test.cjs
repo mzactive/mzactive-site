@@ -74,4 +74,6 @@ test('profile skeleton reserves layout and clears busy state when loading finish
   assert.match(css, /html\[dir="rtl"\] \.profile-page\[aria-busy="true"\] #name::before\{content:"مدرب MZ Active"\}/);
   assert.match(js, /q\('\.profile-page'\)\.setAttribute\('aria-busy', 'false'\)/);
   assert.match(css, /\.load-notice\{position:fixed/);
+  assert.match(html, /assets\/css\/coach-profile\.css\?v=20261120b/);
+  assert.match(html, /assets\/js\/coach-profile\.js\?v=20261120b/);
 });
