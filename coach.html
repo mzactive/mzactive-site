@@ -31,10 +31,11 @@
     <article class="profile-page" hidden>
       <section class="profile-card profile-heading" aria-labelledby="name">
         <div class="cover-wrap">
-          <img class="cover-photo" src="assets/images/mzactive-coaching-session.jpg" alt="MZ Active group training in Doha">
-          <button class="cover-edit" type="button" disabled aria-describedby="cover-help">
+          <img id="coverPhoto" class="cover-photo" src="assets/images/mzactive-coaching-session.jpg" alt="MZ Active group training in Doha">
+          <button id="changeCover" class="cover-edit" type="button" hidden aria-describedby="cover-help">
             <span aria-hidden="true">▧</span><span data-en="Edit cover" data-ar="تعديل الغلاف">Edit cover</span>
           </button>
+          <input id="coverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
         </div>
         <div class="identity-row">
           <div class="identity-photo-wrap">
@@ -54,10 +55,12 @@
             <button id="changePhoto" class="button button-light" type="button" hidden><span aria-hidden="true">▧</span><span data-en="Change photo" data-ar="تغيير الصورة">Change photo</span></button>
             <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
             <button id="share" class="button button-light" type="button"><span aria-hidden="true">↗</span><span data-en="Share profile" data-ar="مشاركة الملف">Share profile</span></button>
+            <button id="followCoach" class="button button-light" type="button" hidden><span data-en="Follow" data-ar="متابعة">Follow</span></button>
+            <a id="connectCoach" class="button button-light" href="dashboard.html" hidden data-en="Message privately" data-ar="مراسلة خاصة">Message privately</a>
             <a id="book" class="button button-primary" href="#"><span data-en="Request a session" data-ar="اطلب جلسة تدريب">Request a session</span></a>
           </div>
         </div>
-        <p id="cover-help" class="cover-help" data-en="Cover-photo uploads need secure image-storage support that is not available in the current API." data-ar="يتطلب تحميل صورة الغلاف دعماً آمناً لتخزين الصور غير متاح في الواجهة الحالية.">Cover-photo uploads need secure image-storage support that is not available in the current API.</p>
+        <p id="cover-help" class="cover-help" data-en="Cover photos are stored securely. Approved coaches publish new covers and achievements immediately." data-ar="تُحفظ صور الغلاف بأمان. ينشر المدربون المعتمدون أغلفة الإنجازات الجديدة فوراً.">Cover photos are stored securely. Approved coaches publish new covers and achievements immediately.</p>
         <nav class="profile-tabs" aria-label="Coach profile sections">
           <a class="active" href="#overview" data-en="Overview" data-ar="نظرة عامة">Overview</a>
           <a href="#community" data-en="Community" data-ar="المجتمع">Community</a>
@@ -83,7 +86,8 @@
           </section>
           <section class="surface">
             <h2 data-en="Achievements" data-ar="الإنجازات">Achievements</h2>
-            <p id="achievementsText" class="integration-copy" data-en="A reviewed achievements field is not part of the current public profile API." data-ar="لا يتضمن ملف المدرب العام الحالي حقلاً معتمداً للإنجازات.">A reviewed achievements field is not part of the current public profile API.</p>
+            <div id="achievementsList" class="services-list" data-user-content></div>
+            <p id="achievementsEmpty" class="empty-copy" data-en="No published achievements have been added." data-ar="لم تتم إضافة إنجازات منشورة بعد.">No published achievements have been added.</p>
           </section>
           <section class="surface">
             <h2 data-en="Links" data-ar="الروابط">Links</h2>
@@ -101,7 +105,8 @@
 
           <section class="surface" id="community">
             <div class="section-heading"><div><p class="eyebrow" data-en="COMMUNITY" data-ar="المجتمع">COMMUNITY</p><h2 data-en="Community activity" data-ar="نشاط المجتمع">Community activity</h2></div><a class="text-link" href="community.html" data-en="Explore community ↗" data-ar="استكشف المجتمع ↗">Explore community ↗</a></div>
-            <div class="integration-panel"><span class="integration-mark" aria-hidden="true">i</span><div><strong data-en="Coach posts and community media are not available through the current profile API." data-ar="لا تتيح واجهة الملف الحالية منشورات المدرب أو وسائط المجتمع.">Coach posts and community media are not available through the current profile API.</strong><p data-en="This profile does not display sample posts or photos. Existing coach articles use an admin review queue; immediate publishing, event posts and community photo uploads need additional backend support." data-ar="لا يعرض هذا الملف منشورات أو صوراً تجريبية. تخضع مقالات المدربين الحالية لمراجعة الإدارة؛ ويتطلب النشر الفوري ومنشورات الفعاليات وتحميل صور المجتمع دعماً إضافياً في الخادم.">This profile does not display sample posts or photos. Existing coach articles use an admin review queue; immediate publishing, event posts and community photo uploads need additional backend support.</p></div></div>
+            <div id="coachPosts" class="cards" data-user-content></div>
+            <p id="coachPostsEmpty" class="empty-copy" data-en="This coach has not published a community post yet." data-ar="لم ينشر هذا المدرب أي منشور مجتمعي بعد.">This coach has not published a community post yet.</p>
           </section>
 
           <section class="surface" id="gallerySection" hidden>
@@ -111,13 +116,14 @@
 
           <section class="surface" id="bookings">
             <div class="section-heading"><div><p class="eyebrow" data-en="BOOKINGS" data-ar="الحجوزات">BOOKINGS</p><h2 data-en="Session requests" data-ar="طلبات الجلسات">Session requests</h2></div><a id="bookSectionLink" class="text-link" href="#" data-en="Request a session ↗" data-ar="اطلب جلسة ↗">Request a session ↗</a></div>
-            <p class="integration-copy" data-en="Athletes can send a booking request through the existing form. A coach-specific booking inbox and status controls are not exposed by the current API." data-ar="يمكن للرياضيين إرسال طلب حجز عبر النموذج الحالي. لا توفر الواجهة الحالية صندوق حجوزات خاصاً بالمدرب أو أدوات لتحديث حالتها.">Athletes can send a booking request through the existing form. A coach-specific booking inbox and status controls are not exposed by the current API.</p>
+            <p class="integration-copy" data-en="Athletes send requests through the existing form. Coaches see their private booking inbox after signing in; no payment is collected here." data-ar="يرسل الرياضيون الطلبات عبر النموذج الحالي. يرى المدربون صندوق حجوزاتهم الخاص بعد تسجيل الدخول؛ لا يتم تحصيل أي دفع هنا.">Athletes send requests through the existing form. Coaches see their private booking inbox after signing in; no payment is collected here.</p>
+            <div id="bookingInbox" class="cards" data-user-content></div>
           </section>
 
           <section class="surface" id="analytics">
             <div class="section-heading"><div><p class="eyebrow" data-en="ANALYTICS" data-ar="التحليلات">ANALYTICS</p><h2 data-en="Profile insights" data-ar="إحصاءات الملف">Profile insights</h2></div></div>
             <div id="ownerMetrics" class="metric-grid" hidden></div>
-            <p id="analyticsUnavailable" class="integration-copy" data-en="Followers, reach, post engagement and booking analytics are not tracked by the current backend. No counts are estimated or invented." data-ar="لا يتتبع الخادم الحالي المتابعين أو الوصول أو التفاعل مع المنشورات أو تحليلات الحجوزات. لا نعرض أعداداً تقديرية أو مختلقة.">Followers, reach, post engagement and booking analytics are not tracked by the current backend. No counts are estimated or invented.</p>
+            <p id="analyticsUnavailable" class="integration-copy" data-en="For visitors, only public counts are shown. Signed-in coaches see real follower, profile-view, engagement and booking totals from the database." data-ar="يظهر للزوار العدد العام فقط. يرى المدربون المسجّلون أعداد المتابعين ومشاهدات الملف والتفاعل والحجوزات من قاعدة البيانات.">For visitors, only public counts are shown. Signed-in coaches see real follower, profile-view, engagement and booking totals from the database.</p>
           </section>
         </div>
 
@@ -129,7 +135,7 @@
             <a href="dashboard.html#coachTeams"><span class="action-icon" aria-hidden="true">♧</span><span data-en="Group session" data-ar="جلسة جماعية">Group session</span><span class="action-arrow" aria-hidden="true">›</span></a>
             <a href="dashboard.html#whatsappTrainingForm"><span class="action-icon" aria-hidden="true">▦</span><span data-en="Training program" data-ar="برنامج تدريبي">Training program</span><span class="action-arrow" aria-hidden="true">›</span></a>
             <a href="events.html"><span class="action-icon" aria-hidden="true">▣</span><span data-en="Browse community events" data-ar="استعرض فعاليات المجتمع">Browse community events</span><span class="action-arrow" aria-hidden="true">›</span></a>
-            <p class="card-footnote" data-en="Article submissions currently require admin review. Community events and athlete photo posts need additional API support." data-ar="تتطلب المقالات الحالية مراجعة الإدارة. ويتطلب نشر فعاليات المجتمع وصور الرياضيين دعماً إضافياً في الواجهة.">Article submissions currently require admin review. Community events and athlete photo posts need additional API support.</p>
+            <p class="card-footnote" data-en="Approved coaches publish community posts and events immediately. Member posts are moderated by MZ Active." data-ar="ينشر المدربون المعتمدون منشورات المجتمع والفعاليات فوراً. تخضع منشورات الأعضاء لإشراف MZ Active.">Approved coaches publish community posts and events immediately. Member posts are moderated by MZ Active.</p>
           </section>
 
           <section class="surface glance-card">
@@ -146,7 +152,7 @@
 
           <section class="surface integration-summary">
             <h2 data-en="Platform capabilities" data-ar="إمكانات المنصة">Platform capabilities</h2>
-            <p data-en="Training plans, team rosters and group messages use existing private coach tools. Direct private messaging, followers, community moderation and coach booking management require additional backend endpoints." data-ar="تستخدم الخطط التدريبية وقوائم الفرق ورسائل المجموعة أدوات المدرب الخاصة الحالية. تتطلب الرسائل الخاصة المباشرة والمتابعون وإشراف المجتمع وإدارة حجوزات المدرب نقاط تكامل إضافية في الخادم.">Training plans, team rosters and group messages use existing private coach tools. Direct private messaging, followers, community moderation and coach booking management require additional backend endpoints.</p>
+            <p data-en="Training plans, private messages, followers, community moderation, booking management and real engagement analytics use the authenticated MZ Active API." data-ar="تستخدم الخطط التدريبية والرسائل الخاصة والمتابعون وإشراف المجتمع وإدارة الحجوزات وتحليلات التفاعل الحقيقية واجهة MZ Active الموثّقة.">Training plans, private messages, followers, community moderation, booking management and real engagement analytics use the authenticated MZ Active API.</p>
           </section>
         </aside>
       </div>

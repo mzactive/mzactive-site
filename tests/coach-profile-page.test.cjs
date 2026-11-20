@@ -29,11 +29,19 @@ test('existing booking, image, dashboard and team-management paths are reused', 
   assert.match(html, /dashboard\.html#coachTeams/);
 });
 
-test('unsupported community, cover, inbox and analytics claims are disclosed rather than simulated', () => {
-  assert.match(html, /Cover-photo uploads need secure image-storage support/);
-  assert.match(html, /immediate publishing, event posts and community photo uploads need additional backend support/);
-  assert.match(html, /coach-specific booking inbox and status controls are not exposed/);
-  assert.match(html, /Followers, reach, post engagement and booking analytics are not tracked/);
+test('cover, achievements, community, inbox and analytics use live authenticated API paths', () => {
+  assert.match(html, /id="coverPhoto"/);
+  assert.match(html, /id="changeCover"/);
+  assert.match(html, /id="followCoach"/);
+  assert.match(html, /id="achievementsList"/);
+  assert.match(html, /id="coachPosts"/);
+  assert.match(html, /id="bookingInbox"/);
+  assert.match(js, /\/api\/me\/profile\/cover/);
+  assert.match(js, /\/api\/community\/posts/);
+  assert.match(js, /\/api\/coaches\/.*\/follow/);
+  assert.match(js, /\/api\/dashboard\/analytics/);
+  assert.match(js, /\/api\/dashboard\/bookings/);
+  assert.doesNotMatch(html, /secure image-storage support|need additional backend support|status controls are not exposed|analytics are not tracked/);
 });
 
 test('profile is responsive and uses the existing automatic English/Arabic language preference', () => {
