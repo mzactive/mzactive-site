@@ -23,9 +23,12 @@ test('MZA manifest reuses the official logo and brand colors', () => {
   assert.ok(manifest.icons.some(icon => icon.purpose === 'maskable'));
   for (const icon of manifest.icons) {
     assert.equal(icon.type, 'image/png');
-    assert.ok(fs.existsSync(path.join(root, icon.src.replace(/^\//, ''))), icon.src);
+    assert.match(icon.src, /\?v=20261120c$/);
+    const asset = icon.src.replace(/^\//, '').split('?')[0];
+    assert.ok(fs.existsSync(path.join(root, asset)), icon.src);
   }
   assert.ok(fs.existsSync(path.join(root, 'assets/brand/mzactive-logo.webp')));
+  assert.ok(fs.existsSync(path.join(root, 'assets/brand/mzactive-logo-gold.png')));
 });
 
 test('service worker keeps accounts, API traffic and private pages network-only', () => {
@@ -76,11 +79,13 @@ test('every footer includes the bilingual MZA app installation section', () => {
     assert.match(html, /class="footer-install"/, page);
     assert.match(html, /data-en="Install the MZA app"/, page);
     assert.match(html, /data-ar="تثبيت تطبيق MZA"/, page);
+    assert.match(html, /class="footer-vision-link"[^>]*href="(?:\.\.\/)?vision\.html"/, page);
+    assert.match(html, /data-en="Our Vision" data-ar="رؤيتنا"/, page);
   }
 });
 
 test('service worker cache refresh bypasses stale profile and language assets', () => {
-  assert.match(sw, /mza-shell-v3/);
-  assert.match(sw, /\/assets\/js\/language-preference\.js\?v=20261120b/);
-  assert.match(sw, /\/assets\/css\/site-theme\.css\?v=20261120b/);
+  assert.match(sw, /mza-shell-v4/);
+  assert.match(sw, /\/assets\/js\/language-preference\.js\?v=20261120c/);
+  assert.match(sw, /\/assets\/css\/site-theme\.css\?v=20261120c/);
 });

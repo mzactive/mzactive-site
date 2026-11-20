@@ -1,16 +1,16 @@
 // MZA app shell. Private pages, API traffic and cross-origin requests stay network-only.
-const CACHE = 'mza-shell-v3';
+const CACHE = 'mza-shell-v4';
 const SHELL = [
   '/offline.html',
   '/manifest.json',
-  '/assets/icons/icon-192.png',
-  '/assets/icons/icon-512.png',
-  '/assets/icons/icon-maskable-192.png',
-  '/assets/icons/icon-maskable-512.png',
-  '/assets/icons/apple-touch-icon-180.png',
-  '/assets/css/site-theme.css?v=20261120b',
-  '/assets/js/language-preference.js?v=20261120b',
-  '/assets/js/site-language.js',
+  '/assets/icons/icon-192.png?v=20261120c',
+  '/assets/icons/icon-512.png?v=20261120c',
+  '/assets/icons/icon-maskable-192.png?v=20261120c',
+  '/assets/icons/icon-maskable-512.png?v=20261120c',
+  '/assets/icons/apple-touch-icon-180.png?v=20261120c',
+  '/assets/css/site-theme.css?v=20261120c',
+  '/assets/js/language-preference.js?v=20261120c',
+  '/assets/js/site-language.js?v=20261120c',
   '/assets/js/api-base.js',
 ];
 

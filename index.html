@@ -253,6 +253,19 @@ body:not(.home-page) .site-language-control .language-chevron {
   }
 }
 
+/* Corporate vision link in every footer. */
+.footer-vision-link {
+  display: inline-block;
+  margin: 8px 12px 0 0;
+  color: #f2b718;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.footer-vision-link:hover,
+.footer-vision-link:focus-visible { text-decoration: underline; }
+html[dir="rtl"] .footer-vision-link { margin: 8px 0 0 12px; }
+
 /* MZA app installation hint in every footer. */
 .footer-install {
   grid-column: 1 / -1;
@@ -1055,8 +1068,8 @@ html[dir="rtl"] .footer-install { text-align: right; }
 <link rel="preload" as="image" href="assets/images/responsive/mzactive-runners-640w.webp" type="image/webp" fetchpriority="high" media="(max-width: 520px)">
   <link rel="preload" as="image" href="assets/images/responsive/mzactive-runners-960w.webp" type="image/webp" fetchpriority="high" media="(min-width: 521px)">
 <script src="assets/js/api-base.js" defer></script>
-  <script src="assets/js/language-preference.js?v=20261120b" defer></script>
-<link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js" defer></script></head>
+  <script src="assets/js/language-preference.js?v=20261120c" defer></script>
+<link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js" defer></script></head>
 <body class="home-page">
   <header class="site-header">
     <div class="header-inner">
@@ -1312,7 +1325,8 @@ html[dir="rtl"] .footer-install { text-align: right; }
         <button class="lang-toggle footer-language" type="button" aria-label="Change language"><span data-language-label>العربية</span></button>
       </div>
     </div>
-          <div class="footer-install" role="region" aria-labelledby="footerInstallTitle">
+          <a class="footer-vision-link" href="vision.html" data-en="Our Vision" data-ar="رؤيتنا">Our Vision</a>
+        <div class="footer-install" role="region" aria-labelledby="footerInstallTitle">
           <div>
             <h2 id="footerInstallTitle" data-en="Install the MZA app" data-ar="تثبيت تطبيق MZA">Install the MZA app</h2>
             <p data-en="Open this site in Safari or Chrome, tap Share or the menu, then choose Add to Home Screen. Saved pages work offline." data-ar="افتح هذا الموقع في Safari أو Chrome، واضغط مشاركة أو قائمة المتصفح، ثم اختر «إضافة إلى الشاشة الرئيسية». تعمل الصفحات المحفوظة دون اتصال.">Open this site in Safari or Chrome, tap Share or the menu, then choose Add to Home Screen. Saved pages work offline.</p>
@@ -1334,8 +1348,8 @@ html[dir="rtl"] .footer-install { text-align: right; }
     </div>
   </dialog>
 
-  <script src="assets/js/site-language.js?v=e6d09d69c65c" defer></script>
-  <script src="assets/js/homepage.js?v=20261120b" defer></script>
+  <script src="assets/js/site-language.js?v=20261120c" defer></script>
+  <script src="assets/js/homepage.js?v=20261120c" defer></script>
   <script src="assets/js/whatsapp-chat.js" defer></script>
   <script src="assets/js/assistant-chat.js" defer></script>
 </body>

@@ -237,6 +237,19 @@ body:not(.home-page) .site-language-control .language-chevron {
   }
 }
 
+/* Corporate vision link in every footer. */
+.footer-vision-link {
+  display: inline-block;
+  margin: 8px 12px 0 0;
+  color: #f2b718;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.footer-vision-link:hover,
+.footer-vision-link:focus-visible { text-decoration: underline; }
+html[dir="rtl"] .footer-vision-link { margin: 8px 0 0 12px; }
+
 /* MZA app installation hint in every footer. */
 .footer-install {
   grid-column: 1 / -1;

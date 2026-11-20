@@ -12,6 +12,7 @@ Responsive, multi-page MZ Active website for the coaching brand and sports-servi
 - `providers.html` — bilingual Coach/Pacer registration, sign-in, profile editing and review status
 - `admin.html` — private Admin sign-in, provider moderation and booking-request queue (`noindex`)
 - `privacy.html` — operational privacy notice that documents the paused state and remaining policy decisions
+- `vision.html` — bilingual corporate vision, live products, future initiatives and Get in Touch form
 - `4-week-10k/` — existing 4-week 10K digital product
 
 ## Preserve the existing coaching route
