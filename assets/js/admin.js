@@ -46,7 +46,20 @@
     if(status!=='removed')upload(c,p);
     if(p.provider_type==='coach'&&status!=='pending'){const restore=status==='removed';c.append(button(restore?t('Restore access','استعادة الوصول'):t('Suspend access','تعليق الوصول'),()=>{if(confirm(t('Change access for ','تغيير صلاحية الوصول لـ ')+p.display_name+'؟'))return save(path,{status:restore?'approved':'suspended',review_version:p.updated_at})}))}
   }
-  function booking(root,b){const c=card(root,b.customer_name,[name(b.status),b.coach_name,b.city,b.preferred_date,b.customer_phone,b.customer_email,b.session_type,b.distance,b.target_pace,b.program_duration_months?b.program_duration_months+' '+t('months','أشهر'):'',b.goal_summary].filter(Boolean).join(' · '));const actions={reviewing:['Review','بدء المراجعة'],accepted:['Confirm booking','تأكيد الحجز'],declined:['Decline','رفض'],cancelled:['Cancel booking','إلغاء الحجز']};for(const status of ({received:['reviewing','accepted','declined','cancelled'],reviewing:['accepted','declined','cancelled'],accepted:['cancelled']}[b.status]||[])){c.append(button(t(...actions[status]),()=>{if(status!=='reviewing'&&!confirm(t(...actions[status])+'؟'))return;return save('admin/bookings/'+b.id,{status})}))}}
+  function booking(root,b){const c=card(root,b.customer_name,[name(b.status),b.coach_name,b.city,b.preferred_date,b.customer_phone,b.customer_email,b.session_type,b.distance,b.target_pace,b.program_duration_months?b.program_duration_months+' '+t('months','أشهر'):'',b.goal_summary].filter(Boolean).join(' · '));const actions={reviewing:['Review','بدء المراجعة'],accepted:['Confirm booking','تأكيد الحجز'],declined:['Decline','رفض'],cancelled:['Cancel booking','إلغاء الحجز']};for(const status of ({received:['reviewing','accepted','declined','cancelled'],reviewing:['accepted','declined','cancelled'],accepted:['cancelled']}[b.status]||[])){c.append(button(t(...actions[status]),()=>{if(status!=='reviewing'&&!confirm(t(...actions[status])+'؟'))return;return save('admin/bookings/'+b.id,{status})}))}  const rawPhone=String(b.customer_phone||'').replace(/[\s().-]/g,'');
+    const phone=/^\+[1-9]\d{7,14}$/.test(rawPhone)?rawPhone.slice(1):/^\d{8}$/.test(rawPhone)?'974'+rawPhone:'';
+    const messages={
+      accepted:['Hello, your MZActive booking has been confirmed.','مرحباً، تم تأكيد حجزك لدى MZActive.'],
+      declined:['Hello, we could not accept your MZActive booking request.','مرحباً، تعذر قبول طلب حجزك لدى MZActive.'],
+      cancelled:['Hello, your MZActive booking has been cancelled.','مرحباً، تم إلغاء حجزك لدى MZActive.'],
+    };
+    if(phone&&messages[b.status]){
+      const contact=link(t('Notify by WhatsApp','إشعار عبر واتساب'),'https://wa.me/'+phone+'?text='+encodeURIComponent(t(...messages[b.status])));
+      contact.target='_blank';
+      contact.rel='noopener noreferrer';
+      c.append(contact);
+    }
+  }
   function agentName(task){return name(parse(task.input_json)?.agent||task.agent_type)}
   function phase(task){const out=parse(task.output_json);if(task.status==='failed')return name('failed');if(out?.answer)return t('AI analysis completed','اكتمل التحليل الذكي');if(out?.snapshot)return t('Data collected','تم جمع البيانات');return name(task.status)}
   function taskCard(root,task){const output=parse(task.output_json),c=card(root,agentName(task),[date(task.created_at),task.source==='scheduled'?t('Automatic','تلقائي'):t('Manual','يدوي'),phase(task)].join(' · '));if(task.status==='failed'){c.append(node('p',errorMessage(Error(task.error_message))));return}if(!output?.answer)return;c.append(node('p',output.answer),node('strong',task.approval_status==='pending'?t('Awaiting approval','بانتظار الموافقة'):name(task.approval_status)));if(task.approval_status==='pending')for(const decision of ['approved','rejected'])c.append(button(decision==='approved'?t('Approve draft','اعتماد المسودة'):t('Reject draft','رفض المسودة'),()=>save('admin/agents/'+task.id,{decision})))}
