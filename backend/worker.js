@@ -1,4 +1,9 @@
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
+const PASSWORD_RESET_TTL_SECONDS = 15 * 60;
+// Administrator links expire sooner and get a tighter rate limit; the offline
+// owner key stays available only as an emergency fallback.
+const ADMIN_PASSWORD_RESET_TTL_SECONDS = 5 * 60;
+const RESET_EMAIL_SUBJECT = "Reset your MZ Active password / إعادة تعيين كلمة مرور MZ Active";
 // Cloudflare Workers Web Crypto caps PBKDF2 at 100,000 iterations.
 const PASSWORD_ITERATIONS = 100_000;
 const MAX_BODY_BYTES = 16_384;
@@ -108,6 +113,19 @@ async function rateLimit(request, env, label, max = 12) {
     request_count = CASE WHEN window_start = excluded.window_start THEN request_count + 1 ELSE 1 END,
     window_start = excluded.window_start RETURNING request_count`).bind(bucket, windowStart).first();
   await env.DB.prepare("DELETE FROM rate_limit_buckets WHERE window_start < ?").bind(windowStart - 1440).run();
+  return row?.request_count <= max;
+}
+
+// IP-independent bucket for per-email and per-token abuse limits. The bucket
+// key is a hash, so raw email addresses and reset tokens are never persisted.
+async function rateLimitScoped(env, label, max, windowMinutes = 1) {
+  const minutes = Math.max(1, Math.floor(windowMinutes));
+  const bucket = await sha256(`scoped:${label}`);
+  const windowStart = Math.floor(Date.now() / (60_000 * minutes));
+  const row = await env.DB.prepare(`INSERT INTO rate_limit_buckets(bucket, window_start, request_count)
+    VALUES(?, ?, 1) ON CONFLICT(bucket) DO UPDATE SET
+    request_count = CASE WHEN window_start = excluded.window_start THEN request_count + 1 ELSE 1 END,
+    window_start = excluded.window_start RETURNING request_count`).bind(bucket, windowStart).first();
   return row?.request_count <= max;
 }
 
@@ -425,13 +443,13 @@ async function recoverAdminPassword(request, env) {
   if (!admin || newPassword.length < 12 || !await safeEqual(key, env.ADMIN_RECOVERY_KEY)) return reply(request, env, { error: "invalid_recovery" }, 400);
   await env.DB.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(await hashPassword(newPassword), admin.id).run();
   await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(admin.id).run();
+  await recordAuthEvent(env, admin.id, "admin_emergency_reset", "offline owner key");
   return reply(request, env, { ok: true });
 }
 
 async function changePassword(request, env) {
   const user = await currentUser(request, env);
   if (!user) return reply(request, env, { error: "unauthorized" }, 401);
-  if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
   if (!await rateLimit(request, env, "change-password", 5)) return reply(request, env, { error: "rate_limited" }, 429);
   const body = await readJson(request), current = text(body?.current_password, 128), next = text(body?.new_password, 128);
   if (!current || next.length < 12) return reply(request, env, { error: "invalid_password" }, 400);
@@ -440,6 +458,105 @@ async function changePassword(request, env) {
   await env.DB.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(await hashPassword(next), user.id).run();
   const token = request.headers.get("Authorization").slice(7);
   await env.DB.prepare("DELETE FROM sessions WHERE user_id=? AND token_hash<>?").bind(user.id, await sha256(token)).run();
+  await recordAuthEvent(env, user.id, "password_changed", "authenticated change");
+  return reply(request, env, { ok: true });
+}
+
+function emailDeliveryConfigured(env) {
+  return Boolean(env.RESEND_API_KEY && env.EMAIL_FROM);
+}
+
+async function recordAuthEvent(env, userId, kind, detail = "") {
+  await env.DB.prepare("INSERT INTO auth_events(id,user_id,kind,detail,created_at) VALUES(?,?,?,?,?)")
+    .bind(randomId(), userId || null, kind, text(detail, 120), new Date().toISOString()).run();
+}
+
+function resetEmailHtml(link) {
+  const url = link.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
+  return `<div style="background:#091d21;color:#f0f5f3;font-family:Arial,sans-serif;padding:24px">
+  <div style="max-width:560px;margin:0 auto;background:#103538;border:1px solid #2e6567;border-radius:14px;padding:24px">
+    <p style="color:#f2b718;font-weight:700;margin:0 0 12px">MZ Active · password reset</p>
+    <p style="margin:0 0 10px">Reset your MZ Active password. This link expires in 15 minutes and can be used once. If you did not request it, ignore this email.</p>
+    <p style="margin:0 0 18px"><a href="${url}" style="background:#f2b718;color:#172a22;border-radius:999px;padding:10px 18px;text-decoration:none;font-weight:700">Reset password</a></p>
+    <p style="margin:0;color:#b8cbc6" dir="rtl" lang="ar">إعادة تعيين كلمة مرور MZ Active. تنتهي صلاحية هذا الرابط بعد ١٥ دقيقة ويمكن استخدامه مرة واحدة فقط. إذا لم تطلب ذلك، تجاهل هذه الرسالة.</p>
+  </div></div>`;
+}
+
+async function sendPasswordResetEmail(env, email, token) {
+  const link = `https://mzactive.com/reset-password.html?token=${encodeURIComponent(token)}`;
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      from: env.EMAIL_FROM,
+      to: [email],
+      subject: RESET_EMAIL_SUBJECT,
+      html: resetEmailHtml(link),
+      text: `Reset your MZ Active password: ${link}\n\nإعادة تعيين كلمة مرور MZ Active: ${link}`,
+    }),
+  });
+  if (!response.ok) throw new Error("email_delivery_failed");
+  const result = await response.json().catch(() => ({}));
+  return text(result?.id, 120);
+}
+
+// One identity system for admins, members and every professional category:
+// all roles share this request/reset flow and are keyed by registered email.
+async function forgotPassword(request, env) {
+  if (!emailDeliveryConfigured(env)) return reply(request, env, { error: "recovery_unavailable" }, 503);
+  const body = await readJson(request);
+  const email = emailValue(body?.email);
+  if (!email) return reply(request, env, { error: "invalid_email" }, 400);
+  if (!await rateLimit(request, env, "forgot-password", 5) ||
+      !await rateLimitScoped(env, `forgot:${await sha256(email)}`, 3, 60)) {
+    return reply(request, env, { error: "rate_limited" }, 429);
+  }
+  const generic = { ok: true, message: "If an account exists for this email, a reset link has been sent. Check your inbox." };
+  const user = await env.DB.prepare("SELECT id,email,role FROM users WHERE email=?").bind(email).first();
+  if (!user) return reply(request, env, generic);
+  const now = Math.floor(Date.now() / 1000);
+  const token = b64(crypto.getRandomValues(new Uint8Array(32)));
+  const tokenHash = await sha256(token);
+  const expiresAt = now + (user.role === "admin" ? ADMIN_PASSWORD_RESET_TTL_SECONDS : PASSWORD_RESET_TTL_SECONDS);
+  await env.DB.prepare("DELETE FROM password_reset_tokens WHERE expires_at<? OR used_at IS NOT NULL").bind(now).run();
+  await env.DB.prepare("INSERT INTO password_reset_tokens(id,user_id,token_hash,expires_at,used_at,created_at,email_provider_id) VALUES(?,?,?,?,NULL,?,NULL)")
+    .bind(randomId(), user.id, tokenHash, expiresAt, new Date().toISOString()).run();
+  try {
+    const providerId = await sendPasswordResetEmail(env, user.email, token);
+    await env.DB.prepare("UPDATE password_reset_tokens SET email_provider_id=? WHERE token_hash=?").bind(providerId, tokenHash).run();
+  } catch {
+    await env.DB.prepare("DELETE FROM password_reset_tokens WHERE token_hash=?").bind(tokenHash).run();
+    return reply(request, env, { error: "recovery_unavailable" }, 503);
+  }
+  await recordAuthEvent(env, user.id, "reset_requested", user.role === "admin" ? "admin link" : "account link");
+  return reply(request, env, generic);
+}
+
+async function resetPassword(request, env) {
+  if (!emailDeliveryConfigured(env)) return reply(request, env, { error: "recovery_unavailable" }, 503);
+  const body = await readJson(request);
+  const token = text(body?.token, 200), newPassword = text(body?.new_password, 128);
+  if (!token || newPassword.length < 12) return reply(request, env, { error: "invalid_password" }, 400);
+  const tokenHash = await sha256(token);
+  if (!await rateLimit(request, env, "reset-password", 8) ||
+      !await rateLimitScoped(env, `reset:${tokenHash}`, 5, 60)) {
+    return reply(request, env, { error: "rate_limited" }, 429);
+  }
+  const row = await env.DB.prepare("SELECT id,user_id FROM password_reset_tokens WHERE token_hash=? AND used_at IS NULL AND expires_at>?")
+    .bind(tokenHash, Math.floor(Date.now() / 1000)).first();
+  if (!row) return reply(request, env, { error: "invalid_token" }, 400);
+  const user = await env.DB.prepare("SELECT id,email,role FROM users WHERE id=?").bind(row.user_id).first();
+  if (!user) return reply(request, env, { error: "invalid_token" }, 400);
+  const now = new Date().toISOString();
+  const passwordHash = await hashPassword(newPassword);
+  await env.DB.batch([
+    env.DB.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(passwordHash, user.id),
+    env.DB.prepare("UPDATE password_reset_tokens SET used_at=? WHERE id=?").bind(now, row.id),
+    env.DB.prepare("DELETE FROM password_reset_tokens WHERE user_id=? AND used_at IS NULL").bind(user.id),
+    env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(user.id),
+    env.DB.prepare("INSERT INTO auth_events(id,user_id,kind,detail,created_at) VALUES(?,?,?,?,?)")
+      .bind(randomId(), user.id, "reset_completed", user.role === "admin" ? "admin email link" : "email link", now),
+  ]);
   return reply(request, env, { ok: true });
 }
 
@@ -1343,6 +1460,11 @@ async function adminApplications(request, env, user) {
   if (request.method === "POST" && requestUrl.pathname === "/api/admin/assistant") {
     return ownerAssistant(request, env);
   }
+  if (request.method === "GET" && requestUrl.pathname === "/api/admin/auth-events") {
+    // Privileged accounts get a tamper-evident, privacy-safe audit view.
+    const events = await env.DB.prepare("SELECT id,user_id,kind,detail,created_at FROM auth_events ORDER BY created_at DESC LIMIT 50").all();
+    return reply(request, env, { events: events.results || [], email_delivery: emailDeliveryConfigured(env) ? "configured" : "not_configured" });
+  }
   if (request.method === "GET" && requestUrl.pathname === "/api/admin/agents") {
     const snapshot = await ownerBusinessSnapshot(env);
     const tasks = await env.DB.prepare(`SELECT id,agent_type,source,title,status,approval_status,input_json,output_json,error_message,created_at,started_at,completed_at
@@ -2206,6 +2328,8 @@ export default {
     if (request.method === "POST" && url.pathname === "/api/auth/register") return register(request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/login") return login(request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/recover") return recoverAdminPassword(request, env);
+    if (request.method === "POST" && url.pathname === "/api/auth/forgot-password") return forgotPassword(request, env);
+    if (request.method === "POST" && url.pathname === "/api/auth/reset-password") return resetPassword(request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/change-password") return changePassword(request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/logout") {
       const user = await currentUser(request, env);

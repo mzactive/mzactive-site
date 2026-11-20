@@ -39,6 +39,8 @@ Providers can create a Coach or Pacer account, edit its profile, and check moder
 - The public directory, provider portal, Admin queue and booking form are connected to the API. Public profile search returns only Admin-approved profiles; the roster starts empty.
 - The Worker intake gate is enabled for release. Keep the D1 database limited to marketplace data and turn off `DATA_COLLECTION_ENABLED` if collection needs to pause.
 - Admin bootstrap uses the allowlisted email and one-time secret configured on the Worker; complete it at `admin.html`, then rotate/remove the setup secret. Never put it in website source.
+- Password recovery is centralized for every role through `forgot-password.html`-style dialogs on the Admin, dashboard and provider portals plus `reset-password.html`; the same registered-email flow is used for members and all professional categories. Only token hashes are stored, links expire, are single-use, and invalidate all sessions. The offline Admin key remains an emergency-only fallback.
+- The MZA PWA install action uses the browser's native prompt when available. iPhone Safari and social browsers receive accurate manual instructions; installed standalone sessions hide install controls. No App Store or Play Store listing is implied.
 - High-resolution athlete photo upload is not active yet because dedicated secure image storage has not been configured. The application form states this clearly.
 - There is no booking calendar, marketplace checkout, or commission payout system.
 - Do not publish unverified provider profiles or imply that a request is a confirmed booking.

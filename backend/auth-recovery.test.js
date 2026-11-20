@@ -93,14 +93,15 @@ test('successful admin recovery rotates the password and signs out every session
   db.close();
 });
 
-test('authenticated admins can change their password but non-admins cannot', async () => {
+test('authenticated accounts can change their password and keep only the current session', async () => {
   const { db, env } = makeEnv();
   const password = 'owner-password-long', next = 'changed-password-long';
   await call(env, 'auth/register', 'POST', { email: env.ADMIN_EMAILS, password, consent: true }, null, 201);
   await call(env, 'auth/register', 'POST', { email: 'coach@example.test', password, consent: true, provider_type: 'coach' }, null, 201);
   const admin = (await call(env, 'auth/login', 'POST', { email: env.ADMIN_EMAILS, password })).token;
   const coach = (await call(env, 'auth/login', 'POST', { email: 'coach@example.test', password })).token;
-  await call(env, 'auth/change-password', 'POST', { current_password: password, new_password: next }, coach, 403);
+  await call(env, 'auth/change-password', 'POST', { current_password: password, new_password: next }, coach);
+  await call(env, 'auth/login', 'POST', { email: 'coach@example.test', password: next });
   await call(env, 'auth/change-password', 'POST', { current_password: 'wrong-password-long', new_password: next }, admin, 400);
   assert.deepEqual(await call(env, 'auth/change-password', 'POST', { current_password: password, new_password: next }, admin), { ok: true });
   await call(env, 'auth/login', 'POST', { email: env.ADMIN_EMAILS, password }, null, 401);

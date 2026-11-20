@@ -1,0 +1,126 @@
+/* MZA install affordances. Uses the approved landing-page palette only. */
+[hidden] { display: none !important; }
+
+.mza-install-button {
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hero-actions .mza-install-button.button-primary {
+  min-height: 31px;
+  padding: 7px 14px;
+  border: 1px solid #f2b718;
+  border-radius: 999px;
+  color: #172a22;
+  background: linear-gradient(180deg, #ffd42e, #efa900);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+.hero-actions .mza-install-button.button-primary:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.footer-install-button {
+  margin-top: 11px;
+  min-height: 38px;
+  padding: 8px 16px;
+  border: 1px solid #f2b718;
+  border-radius: 999px;
+  color: #172a22;
+  background: linear-gradient(180deg, #ffd42e, #efa900);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.footer-install-button:focus-visible,
+.hero-actions .mza-install-button:focus-visible,
+.mza-install-dialog button:focus-visible {
+  outline: 2px solid #67b9ac;
+  outline-offset: 2px;
+}
+
+.mza-is-installed .mza-install-button,
+.mza-is-installed .footer-install {
+  display: none !important;
+}
+
+.mza-install-dialog {
+  width: min(92vw, 420px);
+  max-height: min(86vh, 640px);
+  padding: 0;
+  border: 1px solid #2e6567;
+  border-radius: 18px;
+  color: #f0f5f3;
+  background: #091d21;
+  box-shadow: 0 18px 48px #0008;
+}
+
+.mza-install-dialog::backdrop {
+  background: #091d21b8;
+  backdrop-filter: blur(2px);
+}
+
+.mza-install-dialog__panel {
+  position: relative;
+  padding: 42px 20px 20px;
+}
+
+.mza-install-dialog__close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  color: #b8cbc6;
+  background: #103538;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mza-install-dialog__title {
+  margin: 0 0 10px;
+  color: #f2b718;
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.mza-install-dialog__message {
+  margin: 0;
+  color: #c5d5d1;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.mza-install-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.mza-install-dialog__confirm {
+  min-height: 40px;
+  padding: 8px 18px;
+  border: 1px solid #f2b718;
+  border-radius: 999px;
+  color: #172a22;
+  background: #f2b718;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mza-install-button, .footer-install-button, .mza-install-dialog button {
+    transition: transform .15s ease, background-color .15s ease;
+  }
+  .mza-install-button:active, .footer-install-button:active, .mza-install-dialog button:active {
+    transform: translateY(1px);
+  }
+}

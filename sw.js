@@ -10,6 +10,8 @@ const SHELL = [
   '/assets/icons/icon-maskable-512.png?v=20261120c',
   '/assets/icons/apple-touch-icon-180.png?v=20261120c',
   '/assets/css/site-theme.css?v=20261120e',
+  '/assets/css/pwa-install.css?v=20261120f',
+  '/assets/js/pwa-install.js?v=20261120f',
   '/assets/js/language-preference.js?v=20261120c',
   '/assets/js/site-language.js?v=20261120e',
   '/assets/js/api-base.js',
