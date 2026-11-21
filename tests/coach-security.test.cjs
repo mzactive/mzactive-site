@@ -74,6 +74,10 @@ test('management and coach contact flows use configured details and explicit sta
   assert.match(adminJs, /Mark sent/);
   assert.match(dashboard, /id="coachContactPanel"/);
   assert.match(contactJs, /management_contact_not_configured/);
+  assert.match(worker, /Hello MZ Active Management/);
+  assert.match(worker, /Hello \$\{target\.name\}/);
+  assert.match(worker, /whatsappLink\(detail, prepared\)/);
+  assert.match(worker, /whatsappLink\(target\.whatsapp, prepared\)/);
 });
 
 test('Momo is rule-based, draft-only, deduplicated and scheduled through the Worker', () => {

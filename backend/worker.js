@@ -886,7 +886,7 @@ async function ownerContactRequest(request, env, user, intent) {
   if (!message) return reply(request, env, { error: "invalid_contact_request" }, 400);
   const profile = await env.DB.prepare("SELECT id FROM provider_profiles WHERE user_id=?").bind(user.id).first();
   if (!profile) return reply(request, env, { error: "profile_not_found" }, 404);
-  const prepared = `${message}\n\n— ${user.email || "MZ Active coach"}`;
+  const prepared = `Hello MZ Active Management,\n\n${message}\n\n— Coach account: ${user.email || "MZ Active coach"}`;
   const now = new Date().toISOString();
   if (intent !== "send") {
     const id = randomId();
@@ -2608,9 +2608,8 @@ async function adminApplications(request, env, user) {
       if (body.channel === "email" && !target.email) return reply(request, env, { error: "coach_email_unavailable", contact: managementContactConfig(env) }, 422);
       if (body.channel === "whatsapp" && !target.whatsapp) return reply(request, env, { error: "coach_whatsapp_unavailable" }, 422);
       const intent = ["prepare","open","send"].includes(body.intent) ? body.intent : "prepare";
-      const prepared = body.channel === "email"
-        ? `${message}\n\n— MZ Active Management\n${managementContactConfig(env).email || ""}`.trim()
-        : message;
+      const prepared = `Hello ${target.name},\n\n${message}\n\n— MZ Active Management` +
+        (body.channel === "email" && managementContactConfig(env).email ? `\n${managementContactConfig(env).email}` : "");
       if (intent !== "send") {
         const id = randomId(), now = new Date().toISOString();
         await env.DB.prepare(`INSERT INTO coach_contact_records(id,coach_profile_id,actor_user_id,channel,purpose,prepared_message,status,follow_up_status,provider_message_id,error,followup_id,created_at,updated_at)

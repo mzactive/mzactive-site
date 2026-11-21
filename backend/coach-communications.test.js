@@ -200,3 +200,73 @@ test('coach security, contact states, completeness and Momo drafts are enforced 
     restore();
   }
 });
+
+test('WhatsApp contact links use the correct registered number, a professional draft and manual sending', async () => {
+  const { db, env, sent, restore } = setup();
+  try {
+    const signup = { password: 'local-test-password', consent: true, provider_type: 'coach' };
+    const coach = (await call(env, 'auth/register', 'POST', { ...signup, email: 'coach@example.test' }, null, 201)).token;
+    const privateCoach = (await call(env, 'auth/register', 'POST', { ...signup, email: 'private@example.test' }, null, 201)).token;
+    const admin = (await call(env, 'auth/register', 'POST', { ...signup, email: env.ADMIN_EMAILS }, null, 201)).token;
+
+    const profileId = (await call(env, 'me/profile', 'GET', undefined, coach)).profile.id;
+    const privateId = (await call(env, 'me/profile', 'GET', undefined, privateCoach)).profile.id;
+    await call(env, 'me/profile', 'PUT', {
+      provider_type: 'coach', display_name: 'Akram Babanacer', city: 'Doha',
+      specialties: ['Running'], languages: ['English'], bio: 'Public biography',
+      services: ['Running sessions'], coaching_mode: 'both', program_durations: [1],
+      whatsapp_number: '+97455555555', whatsapp_public: true,
+    }, coach);
+    await call(env, 'me/profile', 'PUT', {
+      provider_type: 'coach', display_name: 'Private Coach', city: 'Doha',
+      specialties: ['Running'], languages: ['English'], bio: 'Private biography',
+      services: ['Running sessions'], coaching_mode: 'both', program_durations: [1],
+      whatsapp_number: '+97455556666', whatsapp_public: false,
+    }, privateCoach);
+    for (const id of [profileId, privateId]) {
+      const application = (await call(env, 'admin/applications', 'GET', undefined, admin)).providers.find(p => p.id === id);
+      await call(env, 'admin/providers/' + id, 'PATCH', {
+        status: 'approved', verified: true, review_version: application.updated_at,
+      }, admin);
+    }
+
+    // Management -> coach: the deep link targets the coach's own registered
+    // number, contains a professional prefilled draft and never sends itself.
+    const sentBefore = sent.length;
+    const toCoach = await call(env, 'admin/coaches/' + profileId + '/contacts', 'POST', {
+      channel: 'whatsapp', purpose: 'programs', message: 'Your weekly plan is ready.', intent: 'prepare',
+    }, admin, 201);
+    const coachUrl = new URL(toCoach.link);
+    assert.equal(coachUrl.hostname, 'wa.me');
+    assert.equal(coachUrl.pathname, '/97455555555');
+    const coachText = coachUrl.searchParams.get('text');
+    assert.match(coachText, /^Hello Akram Babanacer,/);
+    assert.match(coachText, /Your weekly plan is ready\./);
+    assert.match(coachText, /— MZ Active Management$/);
+    assert.equal(toCoach.status, 'drafted');
+    assert.equal(toCoach.recipient, '97455555555');
+    assert.equal(sent.length, sentBefore, 'preparing WhatsApp must not send email');
+
+    // Coach -> management: the deep link targets the Worker-secret number only.
+    const toManagement = await call(env, 'me/contacts?intent=prepare', 'POST', {
+      channel: 'whatsapp', purpose: 'profile_support', message: 'Please update my profile.',
+    }, coach, 201);
+    const managementUrl = new URL(toManagement.link);
+    assert.equal(managementUrl.hostname, 'wa.me');
+    assert.equal(managementUrl.pathname, '/97451111111');
+    const managementText = managementUrl.searchParams.get('text');
+    assert.match(managementText, /^Hello MZ Active Management,/);
+    assert.match(managementText, /Please update my profile\./);
+    assert.equal(toManagement.status, 'drafted');
+    assert.equal(toManagement.recipient, '97451111111');
+    assert.equal(sent.length, sentBefore);
+
+    // A private number is never returned by the public profile endpoint.
+    const publicView = (await call(env, 'providers/' + privateId)).provider;
+    assert.equal(publicView.whatsapp_number, null);
+    const publicCoachView = (await call(env, 'providers/' + profileId)).provider;
+    assert.equal(publicCoachView.whatsapp_number, '97455555555');
+  } finally {
+    restore();
+  }
+});
