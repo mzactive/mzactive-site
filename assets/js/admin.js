@@ -12,7 +12,7 @@
     bookings:['Triage requests and confirm approved sessions.','فرز الطلبات وتأكيد الجلسات المعتمدة.'],
     messages:['Conversation metadata only; private message bodies stay protected.','بيانات المحادثات فقط؛ تبقى نصوص الرسائل الخاصة محمية.'],
     athletes:['Searchable athlete CRM with consent-based coaching actions.','دليل رياضي قابل للبحث مع إجراءات تدريب قائمة على الموافقة.'],
-    community:['Moderate posts, comments, achievements and challenges.','مراجعة المنشورات والتعليقات والإنجازات والتحديات.'],
+    community:['Moderate groups, reports, posts, comments and achievements.','مراجعة المجتمعات والبلاغات والمنشورات والتعليقات والإنجازات.'],
     articles:['Publish or return coach-written articles.','نشر مقالات المدربين أو إعادتها للتعديل.'],
     ai:['Review assistive drafts before any decision takes effect.','راجع المسودات المساعدة قبل تنفيذ أي قرار.'],
     history:['A chronological record of management decisions.','سجل زمني لقرارات الإدارة.'],
@@ -182,6 +182,76 @@
     if(!labels[status])return null;
     const suffix=status==='sent'?'':' · '+t('attempt','محاولة')+' '+attempts;
     return node('small',t(...labels[status])+suffix,'email-status email-'+status);
+  }
+  function stateName(value){return name(String(value||'').replaceAll('_',' '))}
+  async function completenessIndicator(p,tag){
+    try{
+      const data=await api('admin/coaches/'+encodeURIComponent(p.id)+'/completeness');
+      const c=data.completeness||{};
+      tag.textContent=t('Completeness: ','اكتمال الملف: ')+c.percent+'%';
+      tag.classList.toggle('is-incomplete',!c.complete);
+      tag.title=(c.required||[]).length?t('Missing required: ','ناقص مطلوب: ')+c.required.join(', '):t('All required fields are complete.','كل الحقول المطلوبة مكتملة.');
+      return c;
+    }catch{tag.textContent=t('Completeness unavailable','اكتمال الملف غير متاح');return null}
+  }
+  async function contactTools(root,p){
+    const box=node('section',null,'contact-tools');
+    box.append(node('h4',t('Contact management','إدارة التواصل')));
+    const config=await api('admin/contact-config').catch(()=>({contact:{configured:false},email_delivery:false}));
+    const setup=node('p',t('Management email and WhatsApp must be configured by the platform before contact links are shown. No personal contact details are hard-coded in this portal.','يجب إعداد بريد الإدارة وواتساب المنصة قبل عرض روابط التواصل. لا توجد بيانات اتصال شخصية مكتوبة في هذه البوابة.'),'contact-setup-note');
+    if(!config.contact?.configured){setup.classList.add('contact-missing');box.append(setup)}
+    else box.append(node('small',t('Configured channels: ','القنوات المعدة: ')+[config.contact.email_configured?'email':'',config.contact.whatsapp_configured?'WhatsApp':''].filter(Boolean).join(' · '),'contact-config'));
+    const purpose=node('select');purpose.setAttribute('aria-label',t('Reason','السبب'));
+    for(const [code,en,ar] of [['profile_support','Profile support','دعم الملف'],['bookings','Bookings','الحجوزات'],['programs','Programs','البرامج'],['technical_issue','Technical issue','مشكلة تقنية'],['other','Other','أخرى']]){const o=node('option',t(en,ar));o.value=code;purpose.append(o)}
+    const message=node('textarea');message.rows=3;message.maxLength=4000;message.placeholder=t('Write the message for this coach','اكتب الرسالة لهذا المدرب');message.setAttribute('aria-label',message.placeholder);
+    const statusLine=node('small',t('No contact recorded yet.','لا يوجد سجل تواصل بعد.'),'contact-state');
+    const refresh=async()=>{
+      const data=await api('admin/coaches/'+encodeURIComponent(p.id)+'/contacts').catch(()=>({contacts:[]}));
+      const latest=data.contacts?.[0];
+      statusLine.textContent=latest
+        ? t('Last contact: ','آخر تواصل: ')+stateName(latest.status)+' · '+date(latest.created_at)
+        : t('No contact recorded yet.','لا يوجد سجل تواصل بعد.');
+      statusLine.dataset.state=latest?.status||'none';
+      return latest;
+    };
+    const prepare=(channel,intent)=>async()=>{
+      const body={channel,purpose:purpose.value,message:message.value.trim(),intent};
+      if(!body.message){notice(t('Write a message first.','اكتب الرسالة أولاً.'));return}
+      const result=await api('admin/coaches/'+encodeURIComponent(p.id)+'/contacts',{method:'POST',body});
+      if(result.link){
+        const open=window.open(result.link,'_blank','noopener,noreferrer');
+        if(!open)notice(t('Open the prepared message from the blocked-popup link.','افتح الرسالة المعدة من رابط النافذة المحجوبة.'));
+      }
+      notice(t('Draft saved. Status: ','حُفظت المسودة. الحالة: ')+stateName(result.status),'success');
+      await refresh();
+    };
+    const mark=status=>async()=>{
+      const latest=await refresh();
+      if(!latest){notice(t('Prepare a contact first.','جهّز وسيلة تواصل أولاً.'));return}
+      await api('admin/contacts/'+encodeURIComponent(latest.id),{method:'PATCH',body:{status}});
+      await refresh();notice(t('Status updated to ','تم تحديث الحالة إلى ')+stateName(status),'success');
+    };
+    const controls=node('div',null,'contact-controls');
+    controls.append(button(t('Prepare email','إعداد بريد'),prepare('email','prepare')),button(t('Prepare WhatsApp','إعداد واتساب'),prepare('whatsapp','prepare')));
+    if(config.email_delivery)controls.append(button(t('Send email','إرسال بريد'),prepare('email','send')));
+    controls.append(button(t('Mark opened','تحديد كمفتوح'),mark('opened')),button(t('Mark sent','تحديد كمرسل'),mark('confirmed_sent')),button(t('Complete','إكمال'),mark('completed')));
+    box.append(purpose,message,controls,statusLine);
+    root.append(box);
+    await refresh();
+  }
+  async function momoFollowups(root){
+    const intro=node('p',t('Momo prepares rule-based profile follow-up drafts only. Nothing is sent automatically; every draft needs a human decision.','يجهّز Momo مسودات متابعة ملفات بقواعد ثابتة فقط. لا يُرسل أي شيء تلقائياً؛ كل مسودة تحتاج قراراً بشرياً.'),'momo-note');
+    root.append(intro);
+    const data=await api('admin/momo-followups').catch(()=>({followups:[]}));
+    if(!(data.followups||[]).length){root.append(node('p',t('No open follow-ups.','لا توجد متابعات مفتوحة.'),'muted'));return}
+    const list=node('div',null,'momo-list');root.append(list);
+    for(const f of data.followups){
+      const c=card(list,[f.coach_name,f.priority].filter(Boolean).join(' · '),f.message,f.id);
+      c.append(node('small',t('Status: ','الحالة: ')+stateName(f.status)+' · '+t('Attempts: ','المحاولات: ')+Number(f.attempt_count||0),'momo-state'));
+      if((f.missing_fields||[]).length)c.append(node('small',t('Missing: ','ناقص: ')+f.missing_fields.join(', '),'momo-missing'));
+      c.append(button(t('Send approved email','إرسال بريد بعد الموافقة'),()=>save('admin/momo-followups/'+encodeURIComponent(f.id)+'/contact',{})));
+      c.append(button(t('Dismiss','تجاهل'),()=>save('admin/momo-followups/'+encodeURIComponent(f.id)+'/dismiss',{})));
+    }
   }
   function applyReview(p,next,result){
     for(const list of [applications?.providers,applications?.approved_providers,applications?.rejected_providers,applications?.suspended_providers]){
@@ -381,6 +451,9 @@
       if(p.review_note)c.append(node('p',p.review_note));
       const line=emailStatusLine(p);if(line)c.append(line);
     }
+    if(status==='approved'||status==='removed'||status==='pending'){
+      contactTools(c,p).catch(()=>{});
+    }
     if(status==='approved'||status==='removed'){
       const restore=status==='removed';
       c.append(button(restore?t('Restore access','استعادة الوصول'):t('Suspend access','تعليق الوصول'),()=>{
@@ -398,6 +471,11 @@
     summary.append(meta,badge(status==='removed'?'suspended':status,status==='pending'&&!p.profile_complete?'incomplete':''));
     if(status==='pending'&&!p.profile_complete)summary.append(node('small',t('Incomplete','غير مكتمل'),'incomplete-tag'));
     const mail=emailStatusLine(p);if(mail)summary.append(mail);
+    const completeness=node('small',t('Completeness: —','اكتمال الملف: —'),'completeness-tag');
+    summary.append(completeness);
+    completenessIndicator(p,completeness).then(result=>{
+      if(result)completeness.textContent=t('Completeness: ','اكتمال الملف: ')+result.percent+'%';
+    }).catch(()=>{});
     details.append(summary);
     details.addEventListener('toggle',()=>{if(details.open)fillCoachCard(details,p,status)});
     root.append(details);return details;
@@ -494,6 +572,63 @@
       else item.append(button(t('Hide','إخفاء'),()=>save('admin/community/posts/'+p.id,{status:'hidden'})));
       return item;
     });
+  }
+  const communityStatusName = code => ({
+    active:t('Active','نشط'), suspended:t('Suspended','موقوف'), removed:t('Removed','محذوف'),
+    open:t('Open','مفتوح'), reviewed:t('Reviewed','تمت المراجعة'), dismissed:t('Dismissed','مرفوض'), actioned:t('Actioned','تم اتخاذ إجراء'),
+  })[code] || name(code);
+  async function communityGroupsSection(root){
+    root.append(node('h3',t('Community groups','مجتمعات المجتمع')));
+    const filters=node('div','grid'),groups=node('div','grid');
+    const search=node('input');search.type='search';search.maxLength=100;search.placeholder=t('Search by name, sport or location','ابحث بالاسم أو الرياضة أو المكان');
+    const status=node('select');status.setAttribute('aria-label',t('Community status','حالة المجتمع'));
+    for(const code of ['','active','suspended','removed']){const option=node('option',code?communityStatusName(code):t('All statuses','كل الحالات'));option.value=code;status.append(option)}
+    const filter=node('label',t('Find communities','ابحث عن مجتمعات'));filter.append(search,status);
+    filters.append(filter);
+    root.append(filters,groups);
+    async function load(){
+      const params=new URLSearchParams();if(search.value.trim())params.set('q',search.value.trim());if(status.value)params.set('status',status.value);
+      const data=await api('admin/communities'+(params.size?'?'+params:''));
+      groups.replaceChildren();
+      if(!(data.communities||[]).length){groups.append(node('p',t('No communities match these filters.','لا توجد مجتمعات مطابقة.'),'muted'));return}
+      for(const item of data.communities){
+        const c=card(groups,item.name,[item.sport,item.location,communityStatusName(item.status),`${item.member_count||0} ${t('members','أعضاء')}`,item.open_reports?`${item.open_reports} ${t('open reports','بلاغات مفتوحة')}`:''].filter(Boolean).join(' · '),item.id);
+        c.append(node('p',String(item.description||'').slice(0,180)));
+        const linkToCommunity=link(t('Open community','افتح المجتمع'),'community.html?community='+encodeURIComponent(item.id));linkToCommunity.target='_blank';linkToCommunity.rel='noopener noreferrer';c.append(linkToCommunity);
+        if(item.status!=='active')c.append(button(t('Restore','استعادة'),async()=>{await api('admin/communities/'+item.id,{method:'PATCH',body:{status:'active'}});notice(t('Community restored.','تمت استعادة المجتمع.'),'success');await load()}));
+        if(item.status==='active'||item.status==='suspended')c.append(button(t('Suspend','إيقاف'),async()=>{const reason=window.prompt(t('Reason for suspension (optional)','سبب الإيقاف (اختياري)'),'');if(reason===null)return;await api('admin/communities/'+item.id,{method:'PATCH',body:{status:'suspended',reason}});notice(t('Community suspended.','تم إيقاف المجتمع.'),'success');await load()}));
+        if(managementIsAdmin)c.append(button(t('Remove','حذف'),async()=>{const reason=window.prompt(t('Reason for removal (required)','سبب الحذف (مطلوب)'),'');if(!reason)return;if(!confirm(t('Remove this community permanently from public access?','إزالة هذا المجتمع نهائياً من الوصول العام؟')))return;await api('admin/communities/'+item.id,{method:'PATCH',body:{status:'removed',reason}});notice(t('Community removed.','تم حذف المجتمع.'),'success');await load()}));
+        const audit=node('div');audit.hidden=true;c.append(audit);
+        c.append(button(t('Audit history','سجل التدقيق'),async()=>{const data=await api('admin/communities/'+item.id+'/audit');audit.hidden=false;audit.replaceChildren(...(data.audit||[]).map(entry=>node('p',[date(entry.created_at),communityStatusName(entry.action)||name(entry.action),entry.entity_type].filter(Boolean).join(' · '))))}));
+      }
+    }
+    filters.append(button(t('Search','بحث'),load));
+    await load();
+  }
+  async function communityReportsSection(root){
+    root.append(node('h3',t('Reports and flagged content','البلاغات والمحتوى المُبلَّغ')));
+    const filters=node('div','grid'),list=node('div','grid');
+    const status=node('select');status.setAttribute('aria-label',t('Report status','حالة البلاغ'));
+    for(const code of ['','open','reviewed','dismissed','actioned']){const option=node('option',code?communityStatusName(code):t('Open and recent','المفتوحة والأخيرة'));option.value=code;status.append(option)}
+    filters.append(status);root.append(filters,list);
+    async function load(){
+      const data=await api('admin/community/reports'+(status.value?'?status='+encodeURIComponent(status.value):''));
+      list.replaceChildren();
+      if(!(data.reports||[]).length){list.append(node('p',t('No reports in this view.','لا توجد بلاغات في هذا العرض.'),'muted'));return}
+      for(const report of data.reports){
+        const details=[date(report.created_at),communityStatusName(report.status),name(report.entity_type),report.reason,report.reporter_email,report.community_name].filter(Boolean).join(' · ');
+        const c=card(list,t('Report','بلاغ'),details,report.id);
+        c.append(node('p',t('Flagged content id: ','معرف المحتوى المُبلَّغ: ')+report.entity_id));
+        const open=link(t('Open community','افتح المجتمع'),'community.html?community='+encodeURIComponent(report.community_id));open.target='_blank';open.rel='noopener noreferrer';c.append(open);
+        for(const decision of ['reviewed','dismissed','actioned'])c.append(button(t(communityStatusName(decision),communityStatusName(decision)),async()=>{
+          if(decision==='actioned'&&!confirm(t('Hide the flagged content and record this decision?','إخفاء المحتوى المُبلَّغ وتسجيل هذا القرار؟')))return;
+          await api('admin/community/reports/'+report.id,{method:'PATCH',body:{status:decision}});
+          notice(t('Report updated.','تم تحديث البلاغ.'),'success');await load();
+        }));
+      }
+    }
+    status.onchange=load;filters.append(button(t('Refresh','تحديث'),load));
+    await load();
   }
   const dashboardCardsFor = [
     ['bookings',['Open bookings','حجوزات مفتوحة']],
@@ -843,7 +978,9 @@
       const select=node('select'),prompt=node('textarea');prompt.maxLength=1600;
       for(const code of ['operations','monitoring','analytics','marketing','growth','community','support']){const o=node('option',name(code));o.value=code;select.append(o)}
       const l=node('label',t('Agent','الوكيل')),q=node('label',t('Question or objective','السؤال أو الهدف'));l.append(select);q.append(prompt);root.append(l,q,button(t('Run analysis','تنفيذ التحليل'),async()=>{if(!prompt.value.trim()){prompt.focus();return}try{await api('admin/assistant',{method:'POST',body:{task:select.value,prompt:prompt.value.trim()}});agentsOverview=null;notice(t('Draft saved for review.','حُفظت المسودة للمراجعة.'))}finally{await render()}}));
-      group(root,t('Recent runs','آخر عمليات التنفيذ'),tasks.slice(0,30),taskCard);return;
+      group(root,t('Recent runs','آخر عمليات التنفيذ'),tasks.slice(0,30),taskCard);
+      root.append(node('h3',t('Momo follow-ups','متابعات Momo')));
+      await momoFollowups(root);return;
     }
     if(tab==='bookings'){const d=await api('admin/applications');group(root,t('Recent and open requests','الطلبات المفتوحة والأخيرة'),d.bookings,booking);return}
     if(tab==='messages'){const d=await api('admin/messages');root.append(node('p',t('Message previews stay private. This view shows only conversation metadata for moderation.','تبقى معاينات الرسائل خاصة. تعرض هذه الشاشة بيانات المحادثة فقط للإشراف.'),'muted'));group(root,t('Unread and recent messages','الرسائل غير المقروءة والأخيرة'),d.messages,messageCard);return}
@@ -856,6 +993,8 @@
       group(root,t('Comments for review','تعليقات للمراجعة'),d.comments,communityComment);
       group(root,t('Achievements for review','إنجازات للمراجعة'),d.achievements,achievementReview);
       challengeTools(root,(d.posts||[]).filter(p=>p.kind==='challenge'));
+      try{await communityGroupsSection(root)}catch{root.append(node('p',t('Community group tools require management view and community permissions.','أدوات المجتمع تتطلب صلاحيات العرض والمجتمع.'),'muted'))}
+      try{await communityReportsSection(root)}catch{root.append(node('p',t('Community report tools are unavailable for this account.','أدوات البلاغات غير متاحة لهذا الحساب.'),'muted'))}
       return;
     }
     if(tab==='articles'){const d=await api('admin/blog');group(root,t('Awaiting moderation','بانتظار المراجعة'),d.posts,(r,p)=>{const c=card(r,p.title,[p.coach_name,p.summary,p.body].join('\n'),p.id);for(const a of ['publish','return'])c.append(button(a==='publish'?t('Publish article','نشر المقال'):t('Return for edits','إعادة للتعديل'),()=>{if(a==='publish'&&!confirm(t('Publish this article?','نشر هذا المقال؟')))return;return save('admin/blog/'+p.id,{action:a})}))});return}

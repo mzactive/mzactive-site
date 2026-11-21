@@ -1,4 +1,5 @@
 import { ATHLETE_INVITATION_TTL_DAYS, onboardingIncomplete, lastActivityAt, isActive, coachMatches, invitationEmail } from "./athlete-crm.js";
+import { handleCommunityGroupsApi } from "./community-groups.js";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
 const PASSWORD_RESET_TTL_SECONDS = 15 * 60;
@@ -18,6 +19,9 @@ const MAX_WORKSPACE_ATTACHMENT_BYTES = 1_000_000;
 const WORKSPACE_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain"]);
 const WORKSPACE_PROGRESS_METRICS = new Set(["distance_km", "duration_minutes", "sessions_completed", "average_pace", "planned_sessions", "completed_sessions", "note"]);
 const ATHLETE_CRM_INVITE_LIMIT = 10;
+const MOMO_REMINDER_INTERVAL_DAYS = 7;
+const MOMO_ESCALATE_AFTER_DAYS = 14;
+const MOMO_MAX_ATTEMPTS = 3;
 const MANAGEMENT_PERMISSION_CODES = ["management.view", "management.coaches", "management.bookings", "management.community", "management.articles", "management.ai", "management.audit"];
 // Each notification category maps to an existing least-privilege permission.
 // There is no new role and no broad "see everything" shortcut.
@@ -408,11 +412,17 @@ function cleanList(value, maxItems, maxLength) {
 function cleanProgramDurations(value) {
   return [...new Set((Array.isArray(value) ? value : []).map(Number).filter((months) => [1,2,3].includes(months)))].sort();
 }
-const PUBLIC_PROFILE_FIELDS = ["city","specialties","languages","bio","experience_years","indicative_rate_qar","profile_photo","social_links","program_durations","whatsapp","credentials"];
+const PUBLIC_PROFILE_FIELDS = ["city","specialties","languages","bio","experience_years","indicative_rate_qar","profile_photo","social_links","program_durations","whatsapp","credentials","qualifications","services"];
 function cleanPublicFields(value) {
-  return [...new Set((Array.isArray(value) ? value : []).filter((field) => PUBLIC_PROFILE_FIELDS.includes(field)))];
+  const fields = [...new Set((Array.isArray(value) ? value : []).filter((field) => PUBLIC_PROFILE_FIELDS.includes(field)))];
+  // Qualifications and services were shown on every approved profile before
+  // field-level privacy existed. Legacy stored lists predate those options and
+  // cannot express an opt-out, so they remain public for stored profiles.
+  if (fields.length && !fields.includes("qualifications")) fields.push("qualifications");
+  if (fields.length && !fields.includes("services")) fields.push("services");
+  return fields;
 }
-const DEFAULT_PUBLIC_FIELDS = ["city","specialties","languages","bio","experience_years","indicative_rate_qar","profile_photo","social_links","program_durations","whatsapp"];
+const DEFAULT_PUBLIC_FIELDS = ["city","specialties","languages","bio","experience_years","indicative_rate_qar","profile_photo","social_links","program_durations","whatsapp","qualifications","services"];
 function clampInt(value, min, max) { return Number.isInteger(value) ? Math.max(min, Math.min(max, value)) : 0; }
 function clampNullableInt(value, min, max) { return value === null || value === "" || value === undefined ? null : Number.isInteger(value) ? Math.max(min, Math.min(max, value)) : null; }
 
@@ -633,6 +643,281 @@ async function retryCoachWelcomeEmails(env) {
   return sent;
 }
 
+function parsedList(value) {
+  const items = safeParse(value);
+  return Array.isArray(items) ? items : [];
+}
+
+function requestLanguage(request) {
+  try {
+    const url = new URL(request.url);
+    if (url.searchParams.get("lang") === "ar") return "ar";
+  } catch { /* use header below */ }
+  return /\bar\b/i.test(request.headers.get("Accept-Language") || "") ? "ar" : "en";
+}
+
+// Completeness is deliberately separate from approval. These are the same
+// business rules the review queue already uses; they never block approval.
+function profileCompletion(row = {}) {
+  const type = String(row.provider_type || "");
+  const licensed = LICENSED_PROVIDER_TYPES.includes(type);
+  const services = cleanList(parsedList(row.services_json), 12, 120);
+  const specialties = cleanList(parsedList(row.specialties_json), 20, 80);
+  const languages = cleanList(parsedList(row.languages_json), 10, 40);
+  const socialLinks = cleanList(parsedList(row.social_links_json), 5, 300);
+  const bio = String(row.bio || "").trim();
+  const bioReady = Boolean(bio && bio !== "Profile awaiting completion by the provider.");
+  const required = [];
+  if (!String(row.display_name || "").trim()) required.push("display_name");
+  if (!emailValue(row.email || "")) required.push("email");
+  if (licensed) {
+    if (!String(row.qualifications || "").trim()) required.push("qualifications");
+    if (!services.length) required.push("services");
+    if (!String(row.license_number || "").trim()) required.push("license_number");
+    if (!String(row.license_issuer || "").trim()) required.push("license_issuer");
+  } else {
+    if (!bioReady) required.push("bio");
+    if (!specialties.length) required.push("specialties");
+  }
+  const recommended = [];
+  if (!Number(row.has_profile_photo)) recommended.push("profile_photo");
+  if (!Number(row.has_cover)) recommended.push("cover_photo");
+  if (!String(row.city || "").trim() && !String(row.country || "").trim()) recommended.push("location");
+  if (!Number(row.experience_years || 0)) recommended.push("experience");
+  if (!languages.length) recommended.push("languages");
+  if (!licensed && !services.length) recommended.push("services");
+  if (!licensed && !String(row.qualifications || "").trim()) recommended.push("qualifications");
+  if (!normalizeWhatsApp(row.whatsapp_number)) recommended.push("whatsapp_number");
+  if (!socialLinks.length) recommended.push("social_links");
+  const requiredTotal = 2 + (licensed ? 4 : 2);
+  const recommendedTotal = licensed ? 7 : 9;
+  const requiredDone = requiredTotal - required.length;
+  const recommendedDone = recommendedTotal - recommended.length;
+  return {
+    percent: requiredTotal ? Math.round((requiredDone / requiredTotal) * 100) : 100,
+    complete: required.length === 0,
+    required,
+    recommended,
+    score: Math.round(((requiredDone + recommendedDone) / (requiredTotal + recommendedTotal)) * 100),
+  };
+}
+
+// Contact details are read from Worker bindings by name only. Nothing is
+// hardcoded in source, and a missing binding produces a visible setup state.
+function managementContactConfig(env) {
+  const email = emailValue(env.MANAGEMENT_CONTACT_EMAIL || "");
+  const whatsapp = normalizeWhatsApp(env.MANAGEMENT_CONTACT_WHATSAPP || "") || "";
+  return {
+    email,
+    whatsapp,
+    email_configured: Boolean(email),
+    whatsapp_configured: Boolean(whatsapp),
+    configured: Boolean(email || whatsapp),
+  };
+}
+
+function whatsappLink(number, message) {
+  const digits = normalizeWhatsApp(number);
+  if (!digits) return null;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text(message, 1200))}`;
+}
+
+async function sendManagementEmail(env, to, subject, message) {
+  if (!emailDeliveryConfigured(env)) return { ok: false, error: "email_unavailable" };
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        from: env.EMAIL_FROM,
+        to: [to],
+        subject: text(subject, 180) || "MZ Active management message",
+        text: text(message, 4000),
+      }),
+    });
+    if (!response.ok) return { ok: false, error: "email_delivery_failed" };
+    const result = await response.json().catch(() => ({}));
+    return { ok: true, provider_id: text(result?.id, 120) };
+  } catch {
+    return { ok: false, error: "email_delivery_failed" };
+  }
+}
+
+const COACH_CONTACT_PURPOSES = ["profile_support","bookings","programs","technical_issue","other"];
+const COACH_CONTACT_STATES = ["drafted","opened","confirmed_sent","completed","failed"];
+const MOMO_FIELD_LABELS = {
+  display_name: ["profile name", "اسم الملف"],
+  email: ["registered email", "البريد المسجل"],
+  bio: ["professional biography", "النبذة المهنية"],
+  specialties: ["sports and specialties", "الرياضات والتخصصات"],
+  qualifications: ["qualifications", "المؤهلات"],
+  services: ["published services", "الخدمات المعلنة"],
+  license_number: ["professional license number", "رقم الترخيص المهني"],
+  license_issuer: ["license issuer", "جهة الترخيص"],
+  profile_photo: ["profile photograph", "صورة الملف"],
+  cover_photo: ["cover photograph", "صورة الغلاف"],
+  location: ["location", "الموقع"],
+  experience: ["years of experience", "سنوات الخبرة"],
+  languages: ["languages", "اللغات"],
+  whatsapp_number: ["contact number", "رقم التواصل"],
+  social_links: ["professional links", "الروابط المهنية"],
+};
+
+function momoMessage(name, missing, language = "en") {
+  const labels = missing.slice(0, 6).map(field => (MOMO_FIELD_LABELS[field] || [field, field])[language === "ar" ? 1 : 0]);
+  const list = labels.map(label => language === "ar" ? `• ${label}` : `- ${label}`).join("\n");
+  if (language === "ar") {
+    return `مرحباً ${name || "المدرب"}،\n\nلاحظنا أن ملفك في MZ Active يحتاج إلى بعض المعلومات قبل أن يكتمل ظهوره للرياضيين.\n\nالمعلومات المطلوبة:\n${list}\n\nيمكنك تحديث ملفك من هنا: ${COACH_PROFILE_URL}\n\nهذه رسالة مساعدة من Momo، مساعد MZ Active. لم يتم إرسال أي تحديث أو نشر نيابة عنك.\n\nفريق MZ Active`;
+  }
+  return `Hi ${name || "Coach"},\n\nA few details are still missing from your MZ Active profile before it is complete for athletes.\n\nMissing information:\n${list}\n\nUpdate your profile here: ${COACH_PROFILE_URL}\n\nThis is an automated reminder from Momo, the MZ Active assistant. Nothing has been published or changed on your behalf.\n\nThe MZ Active Team`;
+}
+
+function momoPriority(completion, followup, now) {
+  const attempts = Number(followup?.attempt_count || 0) + 1;
+  const age = followup?.created_at ? (Date.parse(now) - Date.parse(followup.created_at)) / 86400000 : 0;
+  if (attempts >= MOMO_MAX_ATTEMPTS || age >= MOMO_ESCALATE_AFTER_DAYS) return "escalated";
+  if (completion.required.length) return "high";
+  return "normal";
+}
+
+// Momo only writes drafts and task records. It never sends a message and never
+// changes a coach profile, approval status, booking, or assignment.
+async function runMomoCoachFollowUps(env) {
+  const rows = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.city,p.country,p.bio,p.specialties_json,p.languages_json,p.qualifications,p.services_json,p.license_number,p.license_issuer,p.experience_years,p.whatsapp_number,p.social_links_json,
+    CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,
+    CASE WHEN EXISTS(SELECT 1 FROM provider_covers c WHERE c.provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,
+    u.email FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='approved' ORDER BY p.updated_at DESC LIMIT 200`).all();
+  const now = new Date().toISOString();
+  let created = 0, resolved = 0;
+  for (const row of rows.results || []) {
+    const completion = profileCompletion(row);
+    const existing = await env.DB.prepare("SELECT * FROM momo_coach_followups WHERE coach_profile_id=?").bind(row.id).first();
+    if (completion.complete) {
+      if (existing && !["resolved", "dismissed"].includes(existing.status)) {
+        await env.DB.prepare("UPDATE momo_coach_followups SET status='resolved',updated_at=?,next_check_at=NULL WHERE id=?").bind(now, existing.id).run();
+        resolved += 1;
+      }
+      continue;
+    }
+    if (existing?.status === "dismissed") continue;
+    if (existing && existing.next_check_at && Date.parse(existing.next_check_at) > Date.parse(now)) continue;
+    const missing = completion.required.length ? completion.required : completion.recommended.slice(0, 4);
+    const priority = momoPriority(completion, existing, now);
+    const messageEn = momoMessage(row.display_name, missing, "en");
+    const messageAr = momoMessage(row.display_name, missing, "ar");
+    const attempts = Number(existing?.attempt_count || 0) + 1;
+    const nextCheck = new Date(Date.parse(now) + MOMO_REMINDER_INTERVAL_DAYS * 86400000).toISOString();
+    const followupId = existing?.id || randomId();
+    if (existing) {
+      await env.DB.prepare(`UPDATE momo_coach_followups SET missing_fields_json=?,priority=?,message_en=?,message_ar=?,status=?,attempt_count=?,next_check_at=?,updated_at=? WHERE id=?`)
+        .bind(JSON.stringify(missing), priority, messageEn, messageAr, priority === "escalated" ? "escalated" : "open", attempts, nextCheck, now, followupId).run();
+    } else {
+      await env.DB.prepare(`INSERT INTO momo_coach_followups(id,coach_profile_id,missing_fields_json,priority,message_en,message_ar,status,task_id,attempt_count,last_contacted_at,next_check_at,created_at,updated_at)
+        VALUES(?,?,?,?,?,?,'open',NULL,?,NULL,?,?,?)`)
+        .bind(followupId, row.id, JSON.stringify(missing), priority, messageEn, messageAr, attempts, nextCheck, now, now).run();
+    }
+    const pending = await env.DB.prepare(`SELECT id FROM owner_agent_tasks WHERE status='completed' AND approval_status='pending'
+      AND json_extract(input_json,'$.momo_followup_id')=? LIMIT 1`).bind(followupId).first();
+    if (pending) {
+      await env.DB.prepare("UPDATE momo_coach_followups SET task_id=? WHERE id=?").bind(pending.id, followupId).run();
+      continue;
+    }
+    const taskId = randomId();
+    const draft = priority === "escalated"
+      ? `${messageEn}\n\nHuman review: this coach has been reminded ${attempts} times and the profile is still incomplete.`
+      : messageEn;
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO owner_agent_tasks(id,agent_type,source,title,status,approval_status,input_json,output_json,created_at,completed_at)
+        VALUES(?,'support','scheduled',?,'completed','pending',?,?,?,?)`)
+        .bind(taskId, `Momo coach follow-up: ${row.display_name || "Coach"}`,
+          JSON.stringify({ agent: "momo", momo_followup_id: followupId, coach_id: row.id, priority }),
+          JSON.stringify({ answer: draft, message_en: messageEn, message_ar: messageAr, missing, priority, coach_id: row.id, profile_edit_url: COACH_PROFILE_URL }),
+          now, now),
+      env.DB.prepare("UPDATE momo_coach_followups SET task_id=?,updated_at=? WHERE id=?").bind(taskId, now, followupId),
+      env.DB.prepare(`INSERT INTO owner_agent_activity(id,agent_type,action,status,details_json,created_at)
+        VALUES(?,'support','momo_followup_drafted','completed',?,?)`)
+        .bind(randomId(), JSON.stringify({ coach_id: row.id, followup_id: followupId, priority }), now),
+    ]);
+    created += 1;
+  }
+  return { created, resolved, checked: (rows.results || []).length };
+}
+
+async function coachContactTargets(env, profileId) {
+  const row = await env.DB.prepare(`SELECT p.id,p.display_name,p.user_id,u.email,p.whatsapp_number
+    FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.id=?`).bind(profileId).first();
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.display_name || "Coach",
+    user_id: row.user_id,
+    email: emailValue(row.email || ""),
+    whatsapp: normalizeWhatsApp(row.whatsapp_number || "") || "",
+  };
+}
+
+async function createCoachContactRecord(env, target, actor, channel, purpose, preparedMessage, result, forcedStatus = "") {
+  const id = randomId(), now = new Date().toISOString();
+  const status = forcedStatus || (result.ok ? "confirmed_sent" : "failed");
+  const followUp = "open";
+  await env.DB.prepare(`INSERT INTO coach_contact_records(id,coach_profile_id,actor_user_id,channel,purpose,prepared_message,status,follow_up_status,provider_message_id,error,followup_id,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind(id, target.id, actor.id, channel, purpose, text(preparedMessage, 4000), status, followUp,
+      result.provider_id || null, result.error || null, null, now, now).run();
+  return { id, status, follow_up_status: followUp, updated_at: now };
+}
+
+async function ownerCompleteness(env, user) {
+  const row = await env.DB.prepare(`SELECT p.*,u.email,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,
+    CASE WHEN EXISTS(SELECT 1 FROM provider_covers c WHERE c.provider_id=p.id) THEN 1 ELSE 0 END AS has_cover
+    FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.user_id=?`).bind(user.id).first();
+  return row ? { ...profileCompletion(row), status: row.status, profile_id: row.id } : null;
+}
+
+async function ownerContactRequest(request, env, user, intent) {
+  const body = await readJson(request);
+  if (!body || !["email","whatsapp"].includes(body.channel) || !COACH_CONTACT_PURPOSES.includes(body.purpose)) {
+    return reply(request, env, { error: "invalid_contact_request" }, 400);
+  }
+  const config = managementContactConfig(env);
+  const detail = body.channel === "email" ? config.email : config.whatsapp;
+  if (!detail) return reply(request, env, { error: "management_contact_not_configured", contact: config }, 422);
+  const message = text(body.message, 4000);
+  if (!message) return reply(request, env, { error: "invalid_contact_request" }, 400);
+  const profile = await env.DB.prepare("SELECT id FROM provider_profiles WHERE user_id=?").bind(user.id).first();
+  if (!profile) return reply(request, env, { error: "profile_not_found" }, 404);
+  const prepared = `${message}\n\n— ${user.email || "MZ Active coach"}`;
+  const now = new Date().toISOString();
+  if (intent !== "send") {
+    const id = randomId();
+    await env.DB.prepare(`INSERT INTO coach_contact_records(id,coach_profile_id,actor_user_id,channel,purpose,prepared_message,status,follow_up_status,provider_message_id,error,followup_id,created_at,updated_at)
+      VALUES(?,?,?,?,?,?,'drafted','open',NULL,NULL,?,?,?)`)
+      .bind(id, profile.id, user.id, body.channel, body.purpose, prepared, null, now, now).run();
+    return reply(request, env, {
+      id, status: "drafted", contact: config, recipient: detail,
+      link: body.channel === "email"
+        ? `mailto:${encodeURIComponent(detail)}?subject=${encodeURIComponent(`MZ Active · ${body.purpose.replaceAll("_"," ")}`)}&body=${encodeURIComponent(prepared)}`
+        : whatsappLink(detail, prepared),
+    }, 201);
+  }
+  if (body.channel === "email" && emailDeliveryConfigured(env)) {
+    const result = await sendManagementEmail(env, detail, `MZ Active · ${body.purpose.replaceAll("_"," ")}`, prepared);
+    const recordId = randomId();
+    await env.DB.prepare(`INSERT INTO coach_contact_records(id,coach_profile_id,actor_user_id,channel,purpose,prepared_message,status,follow_up_status,provider_message_id,error,followup_id,created_at,updated_at)
+      VALUES(?,?,?,?,?,?,?,'open',?,?,?,?,?)`)
+      .bind(recordId, profile.id, user.id, body.channel, body.purpose, prepared, result.ok ? "confirmed_sent" : "failed",
+        result.provider_id || null, result.error || null, null, now, now).run();
+    return result.ok
+      ? reply(request, env, { id: recordId, status: "confirmed_sent", delivery: "provider_accepted", contact: config }, 201)
+      : reply(request, env, { id: recordId, status: "failed", error: result.error, contact: config }, 503);
+  }
+  const id = randomId();
+  await env.DB.prepare(`INSERT INTO coach_contact_records(id,coach_profile_id,actor_user_id,channel,purpose,prepared_message,status,follow_up_status,provider_message_id,error,followup_id,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,'drafted','open',NULL,?,NULL,?,?)`)
+    .bind(id, profile.id, user.id, body.channel, body.purpose, prepared, body.channel === "whatsapp" ? "awaiting_human_confirmation" : null, now, now).run();
+  return reply(request, env, { id, status: "drafted", contact: config, recipient: detail, link: whatsappLink(detail, prepared) }, 201);
+}
+
 // One identity system for admins, members and every professional category:
 // all roles share this request/reset flow and are keyed by registered email.
 async function forgotPassword(request, env) {
@@ -720,7 +1005,10 @@ async function publicProviders(url, request, env, id = null) {
     return {
       id: row.id, provider_type: row.provider_type, display_name: row.display_name,
       professional_category: { en: professionalLabel(row.provider_type, "en"), ar: professionalLabel(row.provider_type, "ar") },
-      verified: row.verified === 1, qualifications: row.qualifications, services: safeParse(row.services_json), coaching_mode: row.coaching_mode,
+      verified: row.verified === 1,
+      qualifications: show("qualifications") ? row.qualifications : "",
+      services: show("services") ? cleanList(safeParse(row.services_json), 12, 120) : [],
+      coaching_mode: row.coaching_mode,
       credentials: show("credentials") && row.license_status === "verified" ? {
         certificate_name: row.certificate_name, certificate_issuer: row.certificate_issuer,
         license_issuer: row.license_issuer, license_expires_on: row.license_expires_on,
@@ -744,6 +1032,13 @@ async function publicProviders(url, request, env, id = null) {
       whatsapp_number: show("whatsapp") && row.whatsapp_public ? row.whatsapp_number : null,
       social_links: show("social_links") ? safeParse(row.social_links_json) : [],
       public_fields: fields,
+      // The server decides ownership from the session, never from a query
+      // parameter or a client-side comparison of profile IDs.
+      viewer: {
+        authenticated: Boolean(viewer),
+        owner: Boolean(viewer && viewer.id === row.user_id),
+        can_message: Boolean(viewer && viewer.id !== row.user_id),
+      },
     };
   }));
   if (id) return providers.length ? reply(request, env, { provider: providers[0] }) : reply(request, env, { error: "provider_unavailable" }, 404);
@@ -753,6 +1048,8 @@ function normalizeWhatsApp(value) {
   const raw = text(value, 32).replace(/[\s().-]/g, "");
   if (!raw) return "";
   if (/^\d{8}$/.test(raw)) return `974${raw}`;
+  // Stored numbers are normalized digits, so this helper must be idempotent.
+  if (/^974\d{8}$/.test(raw)) return raw;
   if (!/^\+[1-9]\d{7,14}$/.test(raw)) return null;
   return raw.slice(1);
 }
@@ -788,7 +1085,7 @@ function cleanGarminPublicUrl(value) {
 function safeParse(value) { try { return JSON.parse(value); } catch { return []; } }
 
 const COMMUNITY_KINDS = ["post", "event", "group_session", "challenge"];
-const SPORTS = ["running", "walking", "cycling", "swimming", "strength", "boxing", "padel", "football", "other"];
+const SPORTS = ["running", "walking", "fitness", "strength", "cycling", "swimming", "padel", "triathlon", "hyrox", "boxing", "football", "other"];
 
 async function viewerKey(request, env, user) {
   if (user?.id) return `user:${user.id}`;
@@ -1141,7 +1438,12 @@ async function enrichPosts(env, rows, userId = "") {
     const value = counts.get(row.id) || { likes: 0, comments: 0, photos: [] };
     return {
       id: row.id, kind: row.kind, body: row.body, sport: row.sport, language: row.language,
-      starts_at: row.starts_at, location: row.location, capacity: row.capacity,
+      title: row.title || "", community_id: row.community_id || "", visibility: row.visibility || "public",
+      series_id: row.series_id || "", recurrence: row.recurrence || "none",
+      starts_at: row.starts_at, starts_at_local: row.starts_at_local || "",
+      timezone: row.timezone || "Asia/Qatar", organizer_profile_id: row.organizer_profile_id || "",
+      online_details: row.online_details || "", cancelled_at: row.cancelled_at || "", edited_at: row.edited_at || "",
+      location: row.location, capacity: row.capacity,
       status: row.status, created_at: row.created_at, published_at: row.published_at,
       author_user_id: row.author_user_id,
       author_name: row.display_name || row.email?.split("@")[0] || "MZ Active member",
@@ -1171,6 +1473,7 @@ function binaryReply(request, env, bytes, contentType, cacheControl) {
   if (!headers) return json({ error: "origin_not_allowed" }, 403);
   headers.set("content-type", contentType);
   headers.set("cache-control", cacheControl);
+  headers.set("vary", `${headers.get("vary") || "Origin"}, Authorization`);
   headers.set("x-content-type-options", "nosniff");
   headers.set("content-disposition", "inline");
   return new Response(bytes, { headers });
@@ -2223,10 +2526,10 @@ async function handleAthleteInvitationApi(request, env, url) {
 }
 
 function requiredManagementPermission(path) {
-  if (path.includes("/assistant") || path.includes("/agents")) return "management.ai";
+  if (path.includes("/assistant") || path.includes("/agents") || path.includes("/momo")) return "management.ai";
   if (path.includes("/athletes/") && path.includes("/recommendations")) return "management.ai";
   if (path.includes("/auth-events")) return "management.audit";
-  if (path.includes("/community") || path.includes("/achievements")) return "management.community";
+  if (path.includes("/community") || path.includes("/communities") || path.includes("/achievements")) return "management.community";
   if (path.includes("/blog")) return "management.articles";
   if (path.includes("/booking")) return "management.bookings";
   if (path.includes("/messages")) return "management.coaches";
@@ -2275,6 +2578,104 @@ async function adminApplications(request, env, user) {
   if (!await hasManagementPermission(env, user, "management.view")) return reply(request, env, { error: "forbidden" }, 403);
   const needed = requiredManagementPermission(path);
   if (needed !== "management.view" && !await hasManagementPermission(env, user, needed)) return reply(request, env, { error: "forbidden" }, 403);
+
+  if (request.method === "GET" && path === "/api/admin/contact-config") {
+    return reply(request, env, { contact: managementContactConfig(env), email_delivery: emailDeliveryConfigured(env) });
+  }
+  const coachContactMatch = /^\/api\/admin\/coaches\/([\w-]{36})\/(completeness|contacts)$/.exec(path);
+  if (coachContactMatch) {
+    const profile = await env.DB.prepare(`SELECT p.*,u.email,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,
+      CASE WHEN EXISTS(SELECT 1 FROM provider_covers c WHERE c.provider_id=p.id) THEN 1 ELSE 0 END AS has_cover
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.id=?`).bind(coachContactMatch[1]).first();
+    if (!profile) return reply(request, env, { error: "coach_not_found" }, 404);
+    if (coachContactMatch[2] === "completeness" && request.method === "GET") {
+      return reply(request, env, { completeness: profileCompletion(profile), status: profile.status });
+    }
+    if (coachContactMatch[2] === "contacts" && request.method === "GET") {
+      const records = await env.DB.prepare(`SELECT c.*,u.email AS actor_email FROM coach_contact_records c
+        JOIN users u ON u.id=c.actor_user_id WHERE c.coach_profile_id=? ORDER BY c.created_at DESC LIMIT 100`)
+        .bind(profile.id).all();
+      return reply(request, env, { contacts: records.results || [] });
+    }
+    if (coachContactMatch[2] === "contacts" && request.method === "POST") {
+      const body = await readJson(request);
+      if (!body || !["email","whatsapp"].includes(body.channel) || !COACH_CONTACT_PURPOSES.includes(body.purpose)) {
+        return reply(request, env, { error: "invalid_contact_request" }, 400);
+      }
+      const target = await coachContactTargets(env, profile.id);
+      const message = text(body.message, 4000);
+      if (!target || !message) return reply(request, env, { error: "invalid_contact_request" }, 400);
+      if (body.channel === "email" && !target.email) return reply(request, env, { error: "coach_email_unavailable", contact: managementContactConfig(env) }, 422);
+      if (body.channel === "whatsapp" && !target.whatsapp) return reply(request, env, { error: "coach_whatsapp_unavailable" }, 422);
+      const intent = ["prepare","open","send"].includes(body.intent) ? body.intent : "prepare";
+      const prepared = body.channel === "email"
+        ? `${message}\n\n— MZ Active Management\n${managementContactConfig(env).email || ""}`.trim()
+        : message;
+      if (intent !== "send") {
+        const id = randomId(), now = new Date().toISOString();
+        await env.DB.prepare(`INSERT INTO coach_contact_records(id,coach_profile_id,actor_user_id,channel,purpose,prepared_message,status,follow_up_status,provider_message_id,error,followup_id,created_at,updated_at)
+          VALUES(?,?,?,?,?,?,'drafted','open',NULL,NULL,?,?,?)`)
+          .bind(id, profile.id, user.id, body.channel, body.purpose, prepared, null, now, now).run();
+        return reply(request, env, {
+          id, status: "drafted", channel: body.channel,
+          link: body.channel === "email"
+            ? `mailto:${encodeURIComponent(target.email)}?subject=${encodeURIComponent("MZ Active · profile follow-up")}&body=${encodeURIComponent(prepared)}`
+            : whatsappLink(target.whatsapp, prepared),
+          recipient: body.channel === "email" ? target.email : target.whatsapp,
+          contact: managementContactConfig(env),
+        }, 201);
+      }
+      if (body.channel === "email") {
+        const result = await sendManagementEmail(env, target.email, "MZ Active · profile follow-up", prepared);
+        const record = await createCoachContactRecord(env, target, user, "email", body.purpose, prepared, result);
+        return result.ok
+          ? reply(request, env, { ...record, status: "confirmed_sent", delivery: "provider_accepted" }, 201)
+          : reply(request, env, { ...record, error: result.error }, 503);
+      }
+      const record = await createCoachContactRecord(env, target, user, "whatsapp", body.purpose, prepared, { ok: false }, "drafted");
+      return reply(request, env, { ...record, link: whatsappLink(target.whatsapp, prepared), recipient: target.whatsapp }, 201);
+    }
+  }
+  const contactStateMatch = /^\/api\/admin\/contacts\/([\w-]{36})$/.exec(path);
+  if (contactStateMatch && request.method === "PATCH") {
+    const body = await readJson(request), status = body?.status;
+    if (!COACH_CONTACT_STATES.includes(status)) return reply(request, env, { error: "invalid_contact_status" }, 400);
+    const result = await env.DB.prepare("UPDATE coach_contact_records SET status=?,updated_at=? WHERE id=? AND status<>'completed'")
+      .bind(status, new Date().toISOString(), contactStateMatch[1]).run();
+    return result.meta?.changes ? reply(request, env, { updated: true, status }) : reply(request, env, { error: "contact_not_updatable" }, 409);
+  }
+  if (request.method === "GET" && path === "/api/admin/momo-followups") {
+    if (!await hasManagementPermission(env, user, "management.ai")) return reply(request, env, { error: "forbidden" }, 403);
+    const rows = await env.DB.prepare(`SELECT f.*,p.display_name AS coach_name,u.email AS coach_email
+      FROM momo_coach_followups f JOIN provider_profiles p ON p.id=f.coach_profile_id JOIN users u ON u.id=p.user_id
+      WHERE f.status IN ('open','contacted','escalated') ORDER BY CASE f.priority WHEN 'escalated' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,f.created_at LIMIT 100`).all();
+    return reply(request, env, { followups: (rows.results || []).map((row) => ({
+      ...row,
+      missing_fields: parsedList(row.missing_fields_json),
+      message: requestLanguage(request) === "ar" ? row.message_ar : row.message_en,
+    })) });
+  }
+  const momoActionMatch = /^\/api\/admin\/momo-followups\/([\w-]{36})\/(dismiss|contact)$/.exec(path);
+  if (momoActionMatch && request.method === "POST") {
+    if (!await hasManagementPermission(env, user, "management.ai")) return reply(request, env, { error: "forbidden" }, 403);
+    const followup = await env.DB.prepare("SELECT * FROM momo_coach_followups WHERE id=?").bind(momoActionMatch[1]).first();
+    if (!followup) return reply(request, env, { error: "followup_not_found" }, 404);
+    const now = new Date().toISOString();
+    if (momoActionMatch[2] === "dismiss") {
+      await env.DB.prepare("UPDATE momo_coach_followups SET status='dismissed',updated_at=? WHERE id=?").bind(now, followup.id).run();
+      return reply(request, env, { updated: true, status: "dismissed" });
+    }
+    const target = await coachContactTargets(env, followup.coach_profile_id);
+    if (!target?.email) return reply(request, env, { error: "coach_email_unavailable" }, 422);
+    const message = requestLanguage(request) === "ar" ? followup.message_ar : followup.message_en;
+    const result = await sendManagementEmail(env, target.email, "MZ Active · complete your profile", message);
+    const record = await createCoachContactRecord(env, target, user, "email", "profile_support", message, result);
+    await env.DB.prepare(`UPDATE momo_coach_followups SET status=?,last_contacted_at=?,task_id=?,updated_at=? WHERE id=?`)
+      .bind(result.ok ? "contacted" : "escalated", now, record.id, now, followup.id).run();
+    return result.ok
+      ? reply(request, env, { updated: true, status: "contacted", contact: record })
+      : reply(request, env, { error: result.error, contact: record }, 503);
+  }
   if (request.method === "GET" && path === "/api/admin/dashboard") {
     const permissions = await managementPermissionCodes(env, user);
     return reply(request, env, await managementDashboard(env, user, permissions));
@@ -2596,6 +2997,21 @@ async function loadPost(env, id) {
   return env.DB.prepare(`${POST_SELECT} WHERE p.id=?`).bind(id).first();
 }
 
+// Posts inside private communities are never public, including their media and
+// comments. Legacy routes predate communities, so enforce the group audience here.
+async function postVisibleToViewer(env, post, viewer) {
+  if (!post?.community_id) return true;
+  if (viewer?.role === "admin") return true;
+  const community = await env.DB.prepare("SELECT status,visibility FROM communities WHERE id=?")
+    .bind(post.community_id).first();
+  if (!community || community.status !== "active") return false;
+  if (community.visibility === "public") return true;
+  if (!viewer) return false;
+  const member = await env.DB.prepare("SELECT 1 AS allowed FROM community_group_members WHERE community_id=? AND user_id=? AND status='active'")
+    .bind(post.community_id, viewer.id).first();
+  return Boolean(member?.allowed);
+}
+
 async function canModifyPost(env, user, post) {
   if (!user || !post) return false;
   if (user.role === "admin") return true;
@@ -2770,7 +3186,9 @@ async function handleCommunityApi(request, env, url) {
       let coachUser = "";
       if (coachId) coachUser = (await env.DB.prepare("SELECT user_id FROM provider_profiles WHERE id=? AND status='approved'").bind(coachId).first())?.user_id || "";
       const rows = await env.DB.prepare(`${POST_SELECT}
-        WHERE p.status='published' AND (?='' OR p.kind=?) AND (?='' OR p.sport=?) AND (?='' OR p.author_user_id=?)
+        WHERE p.status='published' AND (p.community_id IS NULL OR EXISTS(
+          SELECT 1 FROM communities c WHERE c.id=p.community_id AND c.status='active' AND c.visibility='public'))
+        AND (?='' OR p.kind=?) AND (?='' OR p.sport=?) AND (?='' OR p.author_user_id=?)
         ORDER BY COALESCE(p.published_at,p.created_at) DESC LIMIT 100`)
         .bind(kind, COMMUNITY_KINDS.includes(kind) ? kind : kind, sport, sport, coachUser, coachUser).all();
       return reply(request, env, { posts: await enrichPosts(env, rows.results, viewer?.id || "") });
@@ -2801,19 +3219,20 @@ async function handleCommunityApi(request, env, url) {
   if (match && ["GET", "PATCH", "DELETE"].includes(method)) {
     const viewer = await currentUser(request, env);
     const post = await loadPost(env, match[1]);
-    if (!post || (post.status !== "published" && !viewer && method === "GET")) return reply(request, env, { error: "post_not_found" }, 404);
+    if (!post || !await postVisibleToViewer(env, post, viewer)) return reply(request, env, { error: "post_not_found" }, 404);
+    if (post.status !== "published" && !viewer && method === "GET") return reply(request, env, { error: "post_not_found" }, 404);
     if (post.status !== "published" && viewer?.id !== post.author_user_id && viewer?.role !== "admin" && method === "GET") return reply(request, env, { error: "post_not_found" }, 404);
     if (method === "GET") {
       if (post.status === "published" && viewer?.id !== post.author_user_id) await recordPostView(env, post.id, request, viewer);
       const [enriched] = await enrichPosts(env, [post], viewer?.id || "");
-      const comments = await env.DB.prepare(`SELECT c.id,c.body,c.status,c.created_at,msp.display_name,pp.display_name AS coach_name
+      const comments = await env.DB.prepare(`SELECT c.id,c.user_id,c.body,c.status,c.created_at,msp.display_name,pp.display_name AS coach_name
         FROM community_comments c JOIN users u ON u.id=c.user_id
         LEFT JOIN member_sports_profiles msp ON msp.user_id=c.user_id
         LEFT JOIN provider_profiles pp ON pp.user_id=c.user_id
         WHERE c.post_id=? AND (?=1 OR c.status='published') ORDER BY c.created_at LIMIT 200`)
         .bind(post.id, viewer?.role === "admin" || viewer?.id === post.author_user_id ? 1 : 0).all();
       const safeComments = (comments.results || []).map((row) => ({
-        id: row.id, body: row.body, status: row.status, created_at: row.created_at,
+        id: row.id, user_id: row.user_id, body: row.body, status: row.status, created_at: row.created_at,
         author_name: displayName(row),
       }));
       return reply(request, env, { post: enriched, comments: safeComments });
@@ -2827,7 +3246,9 @@ async function handleCommunityApi(request, env, url) {
     }
     const body = await readJson(request), content = text(body?.body, 4000);
     if (!content) return reply(request, env, { error: "post_body_required" }, 400);
-    const status = auth.user.role === "admin" ? post.status : postStatusFor(auth.user, await canPublishImmediately(env, auth.user));
+    // Never resurrect a post a moderator hid just because its author edited it.
+    const status = post.status === "hidden" ? "hidden"
+      : auth.user.role === "admin" ? post.status : postStatusFor(auth.user, await canPublishImmediately(env, auth.user));
     await env.DB.prepare("UPDATE community_posts SET body=?,sport=?,language=?,status=?,updated_at=? WHERE id=?")
       .bind(content, SPORTS.includes(text(body?.sport, 40)) ? text(body.sport, 40) : post.sport,
         body?.language === "ar" ? "ar" : post.language, status, new Date().toISOString(), post.id).run();
@@ -2835,15 +3256,16 @@ async function handleCommunityApi(request, env, url) {
   }
   match = /^\/api\/community\/posts\/([\w-]{36})\/photos\/([1-3])$/.exec(path);
   if (match && ["GET", "PUT"].includes(method)) {
-    const post = await env.DB.prepare("SELECT id,author_user_id,status FROM community_posts WHERE id=?").bind(match[1]).first();
+    const post = await env.DB.prepare("SELECT id,author_user_id,status,community_id,visibility FROM community_posts WHERE id=?").bind(match[1]).first();
     if (!post) return reply(request, env, { error: "post_not_found" }, 404);
+    const viewer = await currentUser(request, env);
+    if (!await postVisibleToViewer(env, post, viewer)) return reply(request, env, { error: "post_not_found" }, 404);
     if (method === "GET") {
       if (post.status !== "published") {
-        const viewer = await currentUser(request, env);
         if (!viewer || (viewer.id !== post.author_user_id && viewer.role !== "admin")) return reply(request, env, { error: "post_not_found" }, 404);
       }
       const row = await env.DB.prepare("SELECT bytes,content_type FROM community_post_photos WHERE post_id=? AND slot=?").bind(post.id, Number(match[2])).first();
-      return row ? binaryReply(request, env, row.bytes, row.content_type, "public, max-age=3600")
+      return row ? binaryReply(request, env, row.bytes, row.content_type, "private, no-store")
         : reply(request, env, { error: "photo_not_found" }, 404);
     }
     const auth = await authenticated(request, env);
@@ -2861,8 +3283,8 @@ async function handleCommunityApi(request, env, url) {
   if (match && ["POST", "DELETE"].includes(method)) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    const post = await env.DB.prepare("SELECT id,author_user_id,status FROM community_posts WHERE id=? AND status='published'").bind(match[1]).first();
-    if (!post) return reply(request, env, { error: "post_not_found" }, 404);
+    const post = await env.DB.prepare("SELECT id,author_user_id,status,community_id FROM community_posts WHERE id=? AND status='published'").bind(match[1]).first();
+    if (!post || !await postVisibleToViewer(env, post, auth.user)) return reply(request, env, { error: "post_not_found" }, 404);
     if (method === "POST") {
       await env.DB.prepare("INSERT OR IGNORE INTO community_likes(post_id,user_id,created_at) VALUES(?,?,?)").bind(post.id, auth.user.id, new Date().toISOString()).run();
       if (post.author_user_id !== auth.user.id) await createNotification(env, post.author_user_id, "post_like", "New post like", "A community member liked your post.", "community_post", post.id);
@@ -2874,15 +3296,17 @@ async function handleCommunityApi(request, env, url) {
   }
   match = /^\/api\/community\/posts\/([\w-]{36})\/comments$/.exec(path);
   if (match && ["GET", "POST"].includes(method)) {
-    const post = await env.DB.prepare("SELECT id,author_user_id,status FROM community_posts WHERE id=?").bind(match[1]).first();
+    const post = await env.DB.prepare("SELECT id,author_user_id,status,community_id FROM community_posts WHERE id=?").bind(match[1]).first();
     if (!post || post.status !== "published") return reply(request, env, { error: "post_not_found" }, 404);
+    const viewer = await currentUser(request, env);
+    if (!await postVisibleToViewer(env, post, viewer)) return reply(request, env, { error: "post_not_found" }, 404);
     if (method === "GET") {
-      const rows = await env.DB.prepare(`SELECT c.id,c.body,c.created_at,msp.display_name,pp.display_name AS coach_name
+      const rows = await env.DB.prepare(`SELECT c.id,c.user_id,c.body,c.created_at,msp.display_name,pp.display_name AS coach_name
         FROM community_comments c JOIN users u ON u.id=c.user_id
         LEFT JOIN member_sports_profiles msp ON msp.user_id=c.user_id LEFT JOIN provider_profiles pp ON pp.user_id=c.user_id
         WHERE c.post_id=? AND c.status='published' ORDER BY c.created_at LIMIT 200`).bind(post.id).all();
       const comments = (rows.results || []).map((row) => ({
-        id: row.id, body: row.body, created_at: row.created_at, author_name: displayName(row),
+        id: row.id, user_id: row.user_id, body: row.body, created_at: row.created_at, author_name: displayName(row),
       }));
       return reply(request, env, { comments });
     }
@@ -2900,13 +3324,22 @@ async function handleCommunityApi(request, env, url) {
   if (match && ["POST", "DELETE"].includes(method)) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    const post = await env.DB.prepare("SELECT id,kind,status FROM community_posts WHERE id=? AND status='published'").bind(match[1]).first();
-    if (!post || !["event", "group_session"].includes(post.kind)) return reply(request, env, { error: "event_not_found" }, 404);
+    const post = await env.DB.prepare("SELECT id,kind,status,community_id,capacity,title,body,author_user_id,cancelled_at FROM community_posts WHERE id=? AND status='published'").bind(match[1]).first();
+    if (!post || !["event", "group_session"].includes(post.kind) || post.cancelled_at) return reply(request, env, { error: "event_not_found" }, 404);
+    if (!await postVisibleToViewer(env, post, auth.user)) return reply(request, env, { error: "event_not_found" }, 404);
     if (method === "POST") {
       const body = await readJson(request), response = body?.response === "interested" ? "interested" : "going";
+      const previous = await env.DB.prepare("SELECT response FROM community_rsvps WHERE post_id=? AND user_id=?").bind(post.id, auth.user.id).first();
+      if (response === "going" && previous?.response !== "going" && post.capacity != null) {
+        const count = await env.DB.prepare("SELECT COUNT(*) AS count FROM community_rsvps WHERE post_id=? AND response='going'").bind(post.id).first();
+        if (Number(count?.count || 0) >= Number(post.capacity)) return reply(request, env, { error: "event_full" }, 409);
+      }
       await env.DB.prepare(`INSERT INTO community_rsvps(post_id,user_id,response,created_at) VALUES(?,?,?,?)
         ON CONFLICT(post_id,user_id) DO UPDATE SET response=excluded.response`)
         .bind(post.id, auth.user.id, response, new Date().toISOString()).run();
+      if (response === "going" && post.author_user_id !== auth.user.id) {
+        await createNotification(env, post.author_user_id, "event_rsvp", "New event RSVP", `${post.title || post.body || "A member"} – going`, "community_post", post.id);
+      }
       return reply(request, env, { rsvp: response });
     }
     await env.DB.prepare("DELETE FROM community_rsvps WHERE post_id=? AND user_id=?").bind(post.id, auth.user.id).run();
@@ -3272,6 +3705,13 @@ export default {
     if (invitationResponse) return invitationResponse;
     const communityResponse = await handleCommunityApi(request, env, url);
     if (communityResponse) return communityResponse;
+    const communityGroupsResponse = await handleCommunityGroupsApi(request, env, url, {
+      text, randomId, safeParse, cleanList, clampInt, reply, binaryReply, currentUser, authenticated,
+      readJson, readImageBody, createNotification, rateLimit, rateLimitScoped, coachProfileForUser,
+      isApprovedCoachUser, canPublishImmediately, postStatusFor, enrichPosts, displayName,
+      hasManagementPermission, postSelect: POST_SELECT, sports: SPORTS, now: () => new Date().toISOString(),
+    });
+    if (communityGroupsResponse) return communityGroupsResponse;
     const workspaceResponse = await handleWorkspaceApi(request, env, url);
     if (workspaceResponse) return workspaceResponse;
     if (request.method === "GET" && url.pathname === "/api/auth/setup-status") {
@@ -3309,6 +3749,35 @@ export default {
       if (!user) return reply(request, env, { error: "unauthorized" }, 401);
       return reply(request, env, await managementAccess(env, user));
     }
+    if (request.method === "GET" && url.pathname === "/api/me/completeness") {
+      const user = await currentUser(request, env);
+      if (!user) return reply(request, env, { error: "unauthorized" }, 401);
+      return reply(request, env, { completeness: await ownerCompleteness(env, user) });
+    }
+    if (request.method === "GET" && url.pathname === "/api/me/contact-config") {
+      const user = await currentUser(request, env);
+      if (!user) return reply(request, env, { error: "unauthorized" }, 401);
+      return reply(request, env, { contact: managementContactConfig(env), purposes: COACH_CONTACT_PURPOSES });
+    }
+    if ((request.method === "GET" || request.method === "POST") && url.pathname === "/api/me/contacts") {
+      const user = await currentUser(request, env);
+      if (!user) return reply(request, env, { error: "unauthorized" }, 401);
+      if (request.method === "POST") return ownerContactRequest(request, env, user, url.searchParams.get("intent") || "prepare");
+      const rows = await env.DB.prepare(`SELECT c.* FROM coach_contact_records c JOIN provider_profiles p ON p.id=c.coach_profile_id
+        WHERE p.user_id=? ORDER BY c.created_at DESC LIMIT 50`).bind(user.id).all();
+      return reply(request, env, { contacts: rows.results || [] });
+    }
+    const ownerContactState = /^\/api\/me\/contacts\/([\w-]{36})$/.exec(url.pathname);
+    if (ownerContactState && request.method === "PATCH") {
+      const user = await currentUser(request, env);
+      if (!user) return reply(request, env, { error: "unauthorized" }, 401);
+      const body = await readJson(request), status = body?.status;
+      if (!COACH_CONTACT_STATES.includes(status)) return reply(request, env, { error: "invalid_contact_status" }, 400);
+      const result = await env.DB.prepare(`UPDATE coach_contact_records SET status=?,updated_at=? WHERE id=? AND status<>'completed'
+        AND coach_profile_id IN (SELECT id FROM provider_profiles WHERE user_id=?)`)
+        .bind(status, new Date().toISOString(), ownerContactState[1], user.id).run();
+      return result.meta?.changes ? reply(request, env, { updated: true, status }) : reply(request, env, { error: "contact_not_found" }, 404);
+    }
     if ((request.method === "GET" || request.method === "PUT") && url.pathname === "/api/me/profile") {
       const user = await currentUser(request, env);
       if (!user) return reply(request, env, { error: "unauthorized" }, 401);
@@ -3338,6 +3807,7 @@ export default {
   async scheduled(event, env) {
     // Failed welcome deliveries retry safely; approval itself is never retried.
     try { await retryCoachWelcomeEmails(env); } catch { /* never block the scheduled analysis */ }
+    try { await runMomoCoachFollowUps(env); } catch { /* never block the scheduled analysis */ }
     const hour = Math.floor((event.scheduledTime || Date.now()) / 3600000);
     const tasks = ["operations","monitoring","analytics","marketing","growth","community"];
     const task = tasks[hour % tasks.length];

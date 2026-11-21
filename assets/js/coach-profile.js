@@ -32,6 +32,7 @@
   let privateCoverPreview = '';
   let analyticsData = null;
   let communityPosts = null;
+  let communityEvents = null;
 
   function node(tag, text, className) {
     const item = document.createElement(tag);
@@ -130,7 +131,7 @@
 
     const bookingHref = `pacer.html?provider=${encodeURIComponent(id)}#request`;
     $('#book').href = bookingHref;
-    $('#bookSectionLink').href = bookingHref;
+    if ($('bookSectionLink')) $('bookSectionLink').href = bookingHref;
     const bio = $('#bio');
     bio.textContent = p.bio || '';
     bio.hidden = !p.bio;
@@ -153,6 +154,7 @@
     }
     $('#credentialsEmpty').hidden = facts.children.length > 0;
     renderAchievements();
+    renderCommunityEvents();
     renderCommunityPosts();
     renderAnalytics();
 
@@ -197,7 +199,145 @@
     $('#share')?.setAttribute('aria-label', t('Share coach profile','مشاركة ملف المدرب'));
 
     document.dispatchEvent(new CustomEvent('mzactive:coach-profile-rendered', { detail: { id: p.id } }));
-    exposeOwnerTools(p);
+    if (p.viewer?.owner) exposeOwnerTools(p);
+    else if (p.viewer?.can_message) buildViewerActions(p);
+  }
+
+  function actionButton(label, className, id) {
+    const button = node('button', undefined, `button ${className}`);
+    button.type = 'button';
+    if (id) button.id = id;
+    const glyph = node('span', '▧');
+    glyph.setAttribute('aria-hidden', 'true');
+    button.append(glyph, node('span', label));
+    return button;
+  }
+  function buildOwnerControls(p) {
+    const actions = q('.profile-actions');
+    if (!actions || $('#editProfile')) return;
+    const edit = node('a', undefined, 'button button-gold');
+    edit.id = 'editProfile';
+    edit.href = 'dashboard.html#editCoachProfile';
+    const editGlyph = node('span', '✎');
+    editGlyph.setAttribute('aria-hidden', 'true');
+    edit.append(editGlyph, node('span', t('Edit profile','تعديل الملف')));
+    const changePhoto = actionButton(t('Change photo','تغيير الصورة'), 'button-light', 'changePhoto');
+    const photoInput = node('input');
+    photoInput.id = 'photoInput';
+    photoInput.type = 'file';
+    photoInput.accept = 'image/jpeg,image/png,image/webp';
+    photoInput.hidden = true;
+    actions.append(edit, changePhoto, photoInput);
+    const cover = q('.cover-wrap');
+    if (cover && !$('#changeCover')) {
+      const changeCover = actionButton(t('Edit cover','تعديل الغلاف'), 'cover-edit', 'changeCover');
+      const coverInput = node('input');
+      coverInput.id = 'coverInput';
+      coverInput.type = 'file';
+      coverInput.accept = 'image/jpeg,image/png,image/webp';
+      coverInput.hidden = true;
+      cover.append(changeCover, coverInput);
+    }
+    const tabs = $('#profileTabs');
+    if (tabs && !tabs.querySelector('[data-owner-tab]')) {
+      for (const [href, en, ar] of [
+        ['dashboard.html#whatsappTrainingForm','Training Programs','البرامج التدريبية'],
+        ['dashboard.html#coachTeams','My Athletes','رياضيّاي'],
+        ['#bookings','Bookings','الحجوزات'],
+        ['#analytics','Analytics','التحليلات'],
+      ]) {
+        const link = node('a', t(en,ar));
+        link.href = href;
+        link.dataset.ownerTab = 'true';
+        tabs.append(link);
+      }
+    }
+    const main = q('.main-column');
+    if (main && !$('#bookings')) {
+      const bookings = node('section', undefined, 'surface');
+      bookings.id = 'bookings';
+      const heading = node('div', undefined, 'section-heading');
+      const headingCopy = node('div');
+      const eyebrow = node('p', t('BOOKINGS','الحجوزات'), 'eyebrow');
+      headingCopy.append(eyebrow, node('h2', t('Session requests','طلبات الجلسات')));
+      const request = node('a', t('Request a session ↗','اطلب جلسة ↗'), 'text-link');
+      request.id = 'bookSectionLink';
+      request.href = `pacer.html?provider=${encodeURIComponent(p.id)}#request`;
+      heading.append(headingCopy, request);
+      const copy = node('p', t('Athletes send requests through the existing form. Your private booking inbox is shown here after sign-in; no payment is collected here.','يرسل الرياضيون الطلبات عبر النموذج الحالي. يظهر صندوق حجوزاتك الخاص هنا بعد تسجيل الدخول؛ لا يتم تحصيل أي دفع هنا.'), 'integration-copy');
+      const inbox = node('div', undefined, 'cards');
+      inbox.id = 'bookingInbox';
+      inbox.dataset.userContent = 'true';
+      bookings.append(heading, copy, inbox);
+      const analytics = node('section', undefined, 'surface');
+      analytics.id = 'analytics';
+      const analyticsHeading = node('div', undefined, 'section-heading');
+      const analyticsCopy = node('div');
+      analyticsCopy.append(node('p', t('ANALYTICS','التحليلات'), 'eyebrow'), node('h2', t('Profile insights','إحصاءات الملف')));
+      analyticsHeading.append(analyticsCopy);
+      const metrics = node('div', undefined, 'metric-grid');
+      metrics.id = 'ownerMetrics';
+      analytics.append(analyticsHeading, metrics);
+      main.append(bookings, analytics);
+    }
+    const rail = $('#ownerRail');
+    if (rail && rail.children.length === 0) {
+      rail.hidden = false;
+      const create = node('section', undefined, 'create-card');
+      create.append(node('h2', t('Create','إنشاء')));
+      for (const [href, en, ar] of [
+        ['dashboard.html#coachBlogForm','Write an article','اكتب مقالاً'],
+        ['providers.html#provider-portal','Manage profile photos','إدارة صور الملف'],
+        ['dashboard.html#coachTeams','Group session','جلسة جماعية'],
+        ['dashboard.html#whatsappTrainingForm','Training program','برنامج تدريبي'],
+      ]) {
+        const link = node('a', t(en,ar));
+        link.href = href;
+        create.append(link);
+      }
+      const glance = node('section', undefined, 'surface glance-card');
+      const glanceHeading = node('div', undefined, 'section-heading');
+      glanceHeading.append(node('h2', t('Coach at a glance','لمحة عن المدرب')));
+      const snapshot = node('div', undefined, 'snapshot-empty');
+      snapshot.id = 'coachSnapshot';
+      const metrics = node('div', undefined, 'metric-grid');
+      metrics.id = 'snapshotMetrics';
+      glance.append(glanceHeading, snapshot, metrics);
+      const upcoming = node('section', undefined, 'surface upcoming-card');
+      const upcomingHeading = node('div', undefined, 'section-heading');
+      upcomingHeading.append(node('h2', t('Upcoming sessions','الجلسات القادمة')));
+      const upcomingList = node('div', undefined, 'upcoming-list');
+      upcomingList.id = 'upcomingSessions';
+      upcoming.append(upcomingHeading, upcomingList);
+      rail.append(create, glance, upcoming);
+    }
+    changePhoto.addEventListener('click', () => photoInput.click());
+    photoInput.addEventListener('change', event => uploadPhoto(event.target.files?.[0]));
+    changeCover.addEventListener('click', () => $('#coverInput').click());
+    $('#coverInput')?.addEventListener('change', event => uploadCover(event.target.files?.[0]));
+  }
+
+  function buildViewerActions(p) {
+    const actions = q('.profile-actions');
+    if (!actions || $('#followCoach')) return;
+    const token = localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey) || '';
+    if (!token) return;
+    const follow = node('button', t(p.is_following ? 'Following' : 'Follow', p.is_following ? 'متابَع' : 'متابعة'), 'button button-light');
+    follow.id = 'followCoach';
+    follow.type = 'button';
+    const connect = node('a', t('Message privately','مراسلة خاصة'), 'button button-light');
+    connect.id = 'connectCoach';
+    connect.href = 'dashboard.html#wsConnections';
+    actions.append(follow, connect);
+    follow.addEventListener('click', async () => {
+      follow.disabled = true;
+      try {
+        const result = await api(`/api/coaches/${encodeURIComponent(p.id)}/follow`, token, { method: p.is_following ? 'DELETE' : 'POST', body: {} });
+        p.is_following = result.following;
+        p.follower_count = result.follower_count;
+        follow.textContent = t(result.following ? 'Following' : 'Follow', result.following ? 'متابَع' : 'متابعة');
+      } finally { follow.disabled = false; }
+    });
   }
   function renderAchievements() {
     const root = $('#achievementsList');
@@ -212,6 +352,55 @@
       root.append(card);
     }
     $('#achievementsEmpty').hidden = items.length > 0;
+  }
+  function formatEventDate(value) {
+    if (!value) return '';
+    try {
+      return new Intl.DateTimeFormat(language.get() === 'ar' ? 'ar-QA' : 'en-QA',
+        { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+    } catch { return String(value); }
+  }
+  function renderCommunityEvents() {
+    const root = $('#coachCommunityEvents');
+    if (!root) return;
+    root.replaceChildren();
+    const events = communityEvents || [];
+    const token = localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey) || '';
+    for (const event of events) {
+      const card = node('article', undefined, 'card');
+      card.append(node('strong', event.title || event.body.slice(0, 80)));
+      card.append(node('p', event.body));
+      card.append(node('small', [formatEventDate(event.starts_at), event.location || event.online_details,
+        event.capacity ? `${t('Capacity', 'السعة')}: ${event.capacity}` : '',
+        `${t('Going', 'مشارك')}: ${event.going || 0}`].filter(Boolean).join(' · ')));
+      const actions = node('div', undefined, 'inline-actions');
+      if (event.community_id) {
+        const link = node('a', t('Open community', 'افتح المجتمع'), 'button button-light');
+        link.href = `community.html?community=${encodeURIComponent(event.community_id)}`;
+        actions.append(link);
+      }
+      const going = node('button', event.rsvp === 'going' ? t('Going ✓', 'مشارك ✓') : t('RSVP', 'سجّل حضورك'), 'button button-light');
+      going.type = 'button';
+      going.addEventListener('click', async () => {
+        if (!token) { window.location.href = event.community_id ? `community.html?community=${encodeURIComponent(event.community_id)}` : 'community.html#upcoming'; return; }
+        try {
+          const method = event.rsvp === 'going' ? 'DELETE' : 'POST';
+          const response = await fetchWithTimeout(`${apiBase}/api/community/posts/${encodeURIComponent(event.id)}/rsvp`, {
+            method,
+            headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+            body: method === 'POST' ? JSON.stringify({ response: 'going' }) : undefined,
+          });
+          if (!response.ok) throw new Error('rsvp_failed');
+          event.rsvp = method === 'POST' ? 'going' : '';
+          renderCommunityEvents();
+        } catch { /* keep the public profile usable */ }
+      });
+      actions.append(going);
+      card.append(actions);
+      root.append(card);
+    }
+    const empty = $('#coachEventsEmpty');
+    if (empty) empty.hidden = events.length > 0;
   }
   function renderCommunityPosts() {
     const root = $('#coachPosts');
@@ -236,11 +425,25 @@
   }
   async function loadCommunityPosts() {
     communityPosts = [];
+    communityEvents = [];
+    renderCommunityEvents();
     renderCommunityPosts();
+    try {
+      const communityData = await fetchWithTimeout(`${apiBase}/api/providers/${encodeURIComponent(id)}/community`, { headers: { accept: 'application/json' } });
+      if (communityData.ok) {
+        const payload = await communityData.json();
+        communityEvents = payload.events || [];
+        communityPosts = payload.posts || [];
+        renderCommunityEvents();
+        renderCommunityPosts();
+        return;
+      }
+    } catch { /* fall back to the legacy public feed */ }
     try {
       const data = await fetchWithTimeout(`${apiBase}/api/community/posts?coach_id=${encodeURIComponent(id)}`, { headers: { accept: 'application/json' } });
       if (data.ok) communityPosts = (await data.json()).posts || [];
     } catch { /* keep the public profile usable when the feed is unavailable */ }
+    renderCommunityEvents();
     renderCommunityPosts();
   }
   function metricTile(value, label) {
@@ -260,7 +463,7 @@
       [a.accepted_bookings, t('Confirmed','مؤكدة')],
     ]) root.append(metricTile(value, label));
     root.hidden = false;
-    $('#analyticsUnavailable').hidden = true;
+    if ($('analyticsUnavailable')) $('#analyticsUnavailable').hidden = true;
   }
   function renderBookingInbox() {
     const root = $('#bookingInbox');
@@ -339,15 +542,12 @@
     if (!token || ownerToken === token) return;
     try {
       const me = await api('/api/me/profile', token);
-      if (me.profile?.id !== p.id) {
-        setupViewerActions(p, token);
-        return;
-      }
+      // Double confirmation: the server marked this profile as owned by the
+      // session, and the authenticated profile endpoint agrees. No query
+      // parameter or client-side ID comparison can enable private controls.
+      if (me.profile?.id !== p.id) return;
       ownerToken = token;
-      $('#changePhoto').hidden = false;
-      $('#changeCover').hidden = false;
-      $('#snapshotMetrics').hidden = false;
-      $('#coachSnapshot').hidden = true;
+      buildOwnerControls(p);
       const data = await api('/api/dashboard', token);
       ownerData = data;
       renderOwnerSummary(ownerData);
@@ -355,24 +555,6 @@
     } catch {
       // The public profile remains usable if the private dashboard is unavailable.
     }
-  }
-  function setupViewerActions(p, token) {
-    const follow = $('#followCoach'), connect = $('#connectCoach');
-    if (!follow || !connect) return;
-    follow.hidden = false;
-    connect.hidden = false;
-    connect.href = 'dashboard.html#connections';
-    const label = following => following ? t('Following','متابَع') : t('Follow','متابعة');
-    follow.firstElementChild.textContent = label(p.is_following === true);
-    follow.addEventListener('click', async () => {
-      follow.disabled = true;
-      try {
-        const result = await api(`/api/coaches/${encodeURIComponent(p.id)}/follow`, token, { method: p.is_following ? 'DELETE' : 'POST', body: {} });
-        p.is_following = result.following;
-        p.follower_count = result.follower_count;
-        follow.firstElementChild.textContent = label(result.following);
-      } finally { follow.disabled = false; }
-    });
   }
   async function loadPrivateData(token) {
     try {
@@ -498,10 +680,6 @@
         if (err.name !== 'AbortError') status.textContent = url.href;
       }
     });
-    $('#changePhoto')?.addEventListener('click', () => $('#photoInput').click());
-    $('#photoInput')?.addEventListener('change', event => uploadPhoto(event.target.files?.[0]));
-    $('#changeCover')?.addEventListener('click', () => $('#coverInput').click());
-    $('#coverInput')?.addEventListener('change', event => uploadCover(event.target.files?.[0]));
     document.addEventListener('mzactive:language-change', () => {
       renderProfile();
       if (ownerData) renderOwnerSummary(ownerData);

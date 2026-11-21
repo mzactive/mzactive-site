@@ -34,10 +34,7 @@
       <section class="profile-card profile-heading" aria-labelledby="name">
         <div class="cover-wrap">
           <picture class="responsive-photo" style="display:contents"><source type="image/webp" srcset="assets/images/responsive/mzactive-coaching-session-320w.webp 320w, assets/images/responsive/mzactive-coaching-session-640w.webp 640w, assets/images/responsive/mzactive-coaching-session-960w.webp 960w, assets/images/responsive/mzactive-coaching-session-1280w.webp 1280w" sizes="(max-width: 760px) 100vw, min(960px, 80vw)"><img id="coverPhoto" class="cover-photo" src="assets/images/mzactive-coaching-session.jpg" alt="MZ Active group training in Doha" width="1280" height="720" decoding="async" fetchpriority="high"></picture>
-          <button id="changeCover" class="cover-edit" type="button" hidden aria-describedby="cover-help">
-            <span aria-hidden="true">▧</span><span data-en="Edit cover" data-ar="تعديل الغلاف">Edit cover</span>
-          </button>
-          <input id="coverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+          <!-- Owner photo controls are created only after the API confirms ownership. -->
         </div>
         <div class="identity-row">
           <div class="identity-photo-wrap">
@@ -53,24 +50,18 @@
             <div id="specialties" class="specialty-list" data-user-content></div>
           </div>
           <div class="profile-actions">
-            <a id="editProfile" class="button button-gold" href="providers.html#provider-portal"><span aria-hidden="true">✎</span><span data-en="Edit profile" data-ar="تعديل الملف">Edit profile</span></a>
-            <button id="changePhoto" class="button button-light" type="button" hidden><span aria-hidden="true">▧</span><span data-en="Change photo" data-ar="تغيير الصورة">Change photo</span></button>
-            <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+            <!-- Owner and signed-in viewer controls are created by coach-profile.js
+                 only after the API identifies the viewer. Public visitors receive
+                 Share profile and Request a session only. -->
             <button id="share" class="button button-light" type="button"><span aria-hidden="true">↗</span><span data-en="Share profile" data-ar="مشاركة الملف">Share profile</span></button>
-            <button id="followCoach" class="button button-light" type="button" hidden><span data-en="Follow" data-ar="متابعة">Follow</span></button>
-            <a id="connectCoach" class="button button-light" href="dashboard.html" hidden data-en="Message privately" data-ar="مراسلة خاصة">Message privately</a>
             <a id="book" class="button button-primary" href="#"><span data-en="Request a session" data-ar="اطلب جلسة تدريب">Request a session</span></a>
           </div>
         </div>
         <p id="cover-help" class="cover-help" data-en="Cover photos are stored securely. Approved coaches publish new covers and achievements immediately." data-ar="تُحفظ صور الغلاف بأمان. ينشر المدربون المعتمدون أغلفة الإنجازات الجديدة فوراً.">Cover photos are stored securely. Approved coaches publish new covers and achievements immediately.</p>
-        <nav class="profile-tabs" aria-label="Coach profile sections">
+        <nav id="profileTabs" class="profile-tabs" aria-label="Coach profile sections">
           <a class="active" href="#overview" data-en="Overview" data-ar="نظرة عامة">Overview</a>
           <a href="#community" data-en="Community" data-ar="المجتمع">Community</a>
-          <a href="dashboard.html#whatsappTrainingForm" data-en="Training Programs" data-ar="البرامج التدريبية">Training Programs</a>
-          <a href="dashboard.html#coachTeams" data-en="My Athletes" data-ar="رياضيّاي">My Athletes</a>
-          <a href="dashboard.html#coachTeams" data-en="Calendar" data-ar="التقويم">Calendar</a>
-          <a href="#bookings" data-en="Bookings" data-ar="الحجوزات">Bookings</a>
-          <a href="#analytics" data-en="Analytics" data-ar="التحليلات">Analytics</a>
+          <!-- Private workspace tabs are appended only for the confirmed profile owner. -->
         </nav>
       </section>
 
@@ -107,6 +98,10 @@
 
           <section class="surface" id="community">
             <div class="section-heading"><div><p class="eyebrow" data-en="COMMUNITY" data-ar="المجتمع">COMMUNITY</p><h2 data-en="Community activity" data-ar="نشاط المجتمع">Community activity</h2></div><a class="text-link" href="community.html" data-en="Explore community ↗" data-ar="استكشف المجتمع ↗">Explore community ↗</a></div>
+            <h3 data-en="Upcoming public sessions" data-ar="الجلسات العامة القادمة">Upcoming public sessions</h3>
+            <div id="coachCommunityEvents" class="cards" data-user-content></div>
+            <p id="coachEventsEmpty" class="empty-copy" data-en="No public community sessions are scheduled yet." data-ar="لا توجد جلسات مجتمعية عامة مجدولة بعد.">No public community sessions are scheduled yet.</p>
+            <h3 data-en="Public posts" data-ar="المنشورات العامة">Public posts</h3>
             <div id="coachPosts" class="cards" data-user-content></div>
             <p id="coachPostsEmpty" class="empty-copy" data-en="This coach has not published a community post yet." data-ar="لم ينشر هذا المدرب أي منشور مجتمعي بعد.">This coach has not published a community post yet.</p>
           </section>
@@ -116,47 +111,11 @@
             <div id="gallery" class="gallery" data-user-content></div>
           </section>
 
-          <section class="surface" id="bookings">
-            <div class="section-heading"><div><p class="eyebrow" data-en="BOOKINGS" data-ar="الحجوزات">BOOKINGS</p><h2 data-en="Session requests" data-ar="طلبات الجلسات">Session requests</h2></div><a id="bookSectionLink" class="text-link" href="#" data-en="Request a session ↗" data-ar="اطلب جلسة ↗">Request a session ↗</a></div>
-            <p class="integration-copy" data-en="Athletes send requests through the existing form. Coaches see their private booking inbox after signing in; no payment is collected here." data-ar="يرسل الرياضيون الطلبات عبر النموذج الحالي. يرى المدربون صندوق حجوزاتهم الخاص بعد تسجيل الدخول؛ لا يتم تحصيل أي دفع هنا.">Athletes send requests through the existing form. Coaches see their private booking inbox after signing in; no payment is collected here.</p>
-            <div id="bookingInbox" class="cards" data-user-content></div>
-          </section>
-
-          <section class="surface" id="analytics">
-            <div class="section-heading"><div><p class="eyebrow" data-en="ANALYTICS" data-ar="التحليلات">ANALYTICS</p><h2 data-en="Profile insights" data-ar="إحصاءات الملف">Profile insights</h2></div></div>
-            <div id="ownerMetrics" class="metric-grid" hidden></div>
-            <p id="analyticsUnavailable" class="integration-copy" data-en="For visitors, only public counts are shown. Signed-in coaches see real follower, profile-view, engagement and booking totals from the database." data-ar="يظهر للزوار العدد العام فقط. يرى المدربون المسجّلون أعداد المتابعين ومشاهدات الملف والتفاعل والحجوزات من قاعدة البيانات.">For visitors, only public counts are shown. Signed-in coaches see real follower, profile-view, engagement and booking totals from the database.</p>
-          </section>
+          <!-- Booking inbox and analytics sections are owner-only and created by JS. -->
         </div>
 
-        <aside class="right-rail" aria-label="Coach workspace shortcuts">
-          <section class="create-card">
-            <h2><span aria-hidden="true">＋</span><span data-en="Create" data-ar="إنشاء">Create</span></h2>
-            <a href="dashboard.html#coachBlogForm"><span class="action-icon" aria-hidden="true">▤</span><span data-en="Write an article" data-ar="اكتب مقالاً">Write an article</span><span class="action-arrow" aria-hidden="true">›</span></a>
-            <a href="providers.html#provider-portal"><span class="action-icon" aria-hidden="true">▧</span><span data-en="Manage profile photos" data-ar="إدارة صور الملف">Manage profile photos</span><span class="action-arrow" aria-hidden="true">›</span></a>
-            <a href="dashboard.html#coachTeams"><span class="action-icon" aria-hidden="true">♧</span><span data-en="Group session" data-ar="جلسة جماعية">Group session</span><span class="action-arrow" aria-hidden="true">›</span></a>
-            <a href="dashboard.html#whatsappTrainingForm"><span class="action-icon" aria-hidden="true">▦</span><span data-en="Training program" data-ar="برنامج تدريبي">Training program</span><span class="action-arrow" aria-hidden="true">›</span></a>
-            <a href="events.html"><span class="action-icon" aria-hidden="true">▣</span><span data-en="Browse community events" data-ar="استعرض فعاليات المجتمع">Browse community events</span><span class="action-arrow" aria-hidden="true">›</span></a>
-            <p class="card-footnote" data-en="Approved coaches publish community posts and events immediately. Member posts are moderated by MZ Active." data-ar="ينشر المدربون المعتمدون منشورات المجتمع والفعاليات فوراً. تخضع منشورات الأعضاء لإشراف MZ Active.">Approved coaches publish community posts and events immediately. Member posts are moderated by MZ Active.</p>
-          </section>
-
-          <section class="surface glance-card">
-            <div class="section-heading"><h2 data-en="Coach at a glance" data-ar="لمحة عن المدرب">Coach at a glance</h2></div>
-            <div id="coachSnapshot" class="snapshot-empty"><p data-en="Sign in to view private team and program information." data-ar="سجّل الدخول لعرض معلومات الفرق والبرامج الخاصة.">Sign in to view private team and program information.</p><a href="dashboard.html" class="text-link" data-en="Open coach workspace ↗" data-ar="افتح مساحة المدرب ↗">Open coach workspace ↗</a></div>
-            <div id="snapshotMetrics" class="metric-grid" hidden></div>
-          </section>
-
-          <section class="surface upcoming-card">
-            <div class="section-heading"><h2 data-en="Upcoming sessions" data-ar="الجلسات القادمة">Upcoming sessions</h2></div>
-            <div id="upcomingSessions" class="upcoming-list"><p class="empty-copy" data-en="Private team sessions are available in the coach workspace after sign-in." data-ar="تتوفر جلسات الفريق الخاصة في مساحة المدرب بعد تسجيل الدخول.">Private team sessions are available in the coach workspace after sign-in.</p></div>
-            <a href="dashboard.html#coachTeams" class="text-link" data-en="View team calendar ↗" data-ar="اعرض تقويم الفريق ↗">View team calendar ↗</a>
-          </section>
-
-          <section class="surface integration-summary">
-            <h2 data-en="Platform capabilities" data-ar="إمكانات المنصة">Platform capabilities</h2>
-            <p data-en="Training plans, private messages, followers, community moderation, booking management and real engagement analytics use the authenticated MZ Active API." data-ar="تستخدم الخطط التدريبية والرسائل الخاصة والمتابعون وإشراف المجتمع وإدارة الحجوزات وتحليلات التفاعل الحقيقية واجهة MZ Active الموثّقة.">Training plans, private messages, followers, community moderation, booking management and real engagement analytics use the authenticated MZ Active API.</p>
-          </section>
-        </aside>
+        <!-- Owner-only workspace rail. It stays empty for public visitors. -->
+        <aside id="ownerRail" class="right-rail" aria-label="Coach workspace shortcuts" hidden></aside>
       </div>
 
       <p id="shared" class="share-status" role="status" aria-live="polite"></p>
@@ -181,7 +140,7 @@
 </footer>
 
   <script src="assets/js/api-base.js" defer></script>
-  <script src="assets/js/coach-profile.js?v=20261120c" defer></script>
+  <script src="assets/js/coach-profile.js?v=20261121n" defer></script>
   <script src="assets/js/site-language.js?v=20261120h" defer></script>
   <script src="assets/js/whatsapp-chat.js" defer></script>
   <script src="assets/js/assistant-chat.js" defer></script>

@@ -25,19 +25,22 @@ test('existing booking, image, dashboard and team-management paths are reused', 
   assert.match(js, /pacer\.html\?provider=/);
   assert.match(js, /\/api\/me\/profile\/photo/);
   assert.match(js, /\/api\/dashboard/);
-  assert.match(html, /dashboard\.html#whatsappTrainingForm/);
-  assert.match(html, /dashboard\.html#coachTeams/);
+  assert.match(js, /dashboard\.html#whatsappTrainingForm/);
+  assert.match(js, /dashboard\.html#coachTeams/);
 });
 
 test('cover, achievements, community, inbox and analytics use live authenticated API paths', () => {
   assert.match(html, /id="coverPhoto"/);
-  assert.match(html, /id="changeCover"/);
-  assert.match(html, /id="followCoach"/);
+  assert.match(js, /'changeCover'/);
+  assert.match(js, /follow\.id = 'followCoach'/);
   assert.match(html, /id="achievementsList"/);
+  assert.match(html, /id="coachCommunityEvents"/);
   assert.match(html, /id="coachPosts"/);
-  assert.match(html, /id="bookingInbox"/);
+  assert.match(js, /id = 'bookingInbox'/);
   assert.match(js, /\/api\/me\/profile\/cover/);
+  assert.match(js, /\/api\/providers\/\$\{encodeURIComponent\(id\)\}\/community/);
   assert.match(js, /\/api\/community\/posts/);
+  assert.match(js, /\/api\/community\/posts\/\$\{encodeURIComponent\(event\.id\)\}\/rsvp/);
   assert.match(js, /\/api\/coaches\/.*\/follow/);
   assert.match(js, /\/api\/dashboard\/analytics/);
   assert.match(js, /\/api\/dashboard\/bookings/);
@@ -75,6 +78,6 @@ test('profile skeleton reserves layout and clears busy state when loading finish
   assert.match(js, /q\('\.profile-page'\)\.setAttribute\('aria-busy', 'false'\)/);
   assert.match(css, /\.load-notice\{position:fixed/);
   assert.match(html, /assets\/css\/coach-profile\.css\?v=20261120c/);
-  assert.match(html, /assets\/js\/coach-profile\.js\?v=20261120c/);
+  assert.match(html, /assets\/js\/coach-profile\.js\?v=20261121n/);
   assert.match(html, /<img src="assets\/brand\/mzactive-logo\.webp" alt="MZ Active" width="687" height="216">/g);
 });

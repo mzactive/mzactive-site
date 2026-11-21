@@ -4,6 +4,8 @@ compatibility_date = "2026-11-18"
 preview_urls = false
 
 [vars]
+# Management contact details are supplied as Worker secrets outside this repo:
+# MANAGEMENT_CONTACT_EMAIL, MANAGEMENT_CONTACT_WHATSAPP. No values are stored here.
 DATA_COLLECTION_ENABLED = "true"
 PUBLIC_ORIGINS = "https://mzactive.com,https://www.mzactive.com"
 

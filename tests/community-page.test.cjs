@@ -5,6 +5,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'community.html'), 'utf8');
 const js = fs.readFileSync(path.join(root, 'assets/js/community-feed.js'), 'utf8');
+const groups = fs.readFileSync(path.join(root, 'assets/js/community-groups.js'), 'utf8');
 
 test('community page uses the real feed, media and sports profile API', () => {
   assert.match(html, /assets\/js\/api-base\.js/);
@@ -19,6 +20,24 @@ test('community page uses the real feed, media and sports profile API', () => {
   assert.match(js, /\/me\/sports-profile/);
   assert.match(js, /garmin_public_url/);
   assert.doesNotMatch(html, /Account creation and notifications are not yet active|Preview only: no membership/);
+});
+
+test('community feed follows the selected real community without losing the global feed', () => {
+  assert.match(html, /assets\/js\/community-groups\.js/);
+  assert.match(html, /id="communityDetail"/);
+  assert.match(html, /id="communityEventList"/);
+  assert.match(html, /id="chatList"/);
+  assert.match(html, /id="postAccessNotice"/);
+  assert.match(js, /mzactive:community-change/);
+  assert.match(js, /mzactive:community-refresh/);
+  assert.match(js, /\/communities\/\$\{encodeURIComponent\(communityState\.id\)\}\/posts/);
+  assert.match(js, /\/communities\/\$\{encodeURIComponent\(communityState\.id\)\}\/posts\/\$\{id\}/);
+  assert.match(js, /\/rsvp/);
+  assert.match(js, /reportEntity\('post'/);
+  assert.match(js, /method: 'PATCH'/);
+  assert.match(js, /method: 'DELETE'/);
+  assert.match(groups, /window\.MZActiveCommunity/);
+  assert.match(groups, /\/api\/communities\/\$\{community\.id\}\/messages/);
 });
 
 test('community page keeps bilingual labels, RTL and responsive layout', () => {
