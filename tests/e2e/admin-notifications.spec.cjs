@@ -91,19 +91,25 @@ test('notification badges, center and deep links use live counts and keep read s
   await expect(panel).toContainText('New Booking');
   await expect(panel).toContainText('Pending Coach');
   await expect(panel).toContainText('member@example.invalid');
-  await expect(panel.locator('[data-record-link]').first()).toHaveAttribute('href', /tab=bookings&record=/);
+  await expect(panel.locator('.notification-group-title').first()).toContainText('Needs Action (3)');
+  await expect(await panel.locator('.notification-type').allTextContents()).toEqual([
+    'Coach application', 'Booking request', 'Private message',
+  ]);
 
-  await panel.locator('.notification-item').first().locator('.notification-read').click();
+  const bookingRow = panel.locator('.notification-item').filter({ hasText: 'New Booking' });
+  await expect(bookingRow.locator('[data-record-link]')).toHaveAttribute('href', /tab=bookings&record=/);
+  await bookingRow.locator('.notification-read').click();
   await expect(page.locator('#notificationBadge')).toHaveText('2');
-  await expect(page.locator('#notificationPanel .notification-item').first()).toContainText('Read');
+  await expect(bookingRow).toContainText('Read');
   const patch = mock.calls.filter(call => call.path === '/api/admin/notifications');
   expect(patch).toHaveLength(1);
   expect(patch[0].body).toEqual({ id: 'bookings:' + BOOKING_ID });
   expect(mock.calls.some(call => call.path.startsWith('/api/admin/bookings/'))).toBe(false);
 
   // The panel and its deep links must stay visible after a row is replaced.
-  await expect(page.locator('#notificationPanel [data-record-link]').first()).toBeVisible();
-  await page.locator('#notificationPanel [data-record-link]').first().click();
+  const bookingLink = panel.locator('[data-record-link]').filter({ hasText: 'New Booking' });
+  await expect(bookingLink).toBeVisible();
+  await bookingLink.click();
   await expect(panel).toBeHidden();
   await expect(page.locator('#nav [data-nav-tab=bookings]')).toHaveAttribute('aria-current', 'true');
   await expect(page).toHaveURL(/tab=bookings&record=/);

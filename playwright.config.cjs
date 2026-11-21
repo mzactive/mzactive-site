@@ -47,6 +47,12 @@ const config = {
   },
   projects: [
     {
+      name: 'desktop',
+      use: { browserName: 'chromium', viewport: { width: 1440, height: 900 } },
+      // These journeys assert mobile-only navigation and install prompts.
+      testIgnore: ['**/mobile-nav.spec.cjs', '**/pwa-install.spec.cjs'],
+    },
+    {
       name: 'iphone',
       use: {
         browserName: 'chromium',

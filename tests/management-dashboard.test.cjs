@@ -33,6 +33,9 @@ test('the admin client refreshes real counters, badges, read state and record li
   assert.match(js, /badge\.hidden=total<=0/);
   assert.match(js, /data-record-link/);
   assert.match(js, /recordId=targetRecord;go\(targetTab,true\)/);
+  assert.match(js, /Needs Action','يحتاج إجراءً'/);
+  assert.match(js, /AI Recommendations','توصيات الذكاء الاصطناعي'/);
+  assert.match(js, /item\.category!=='ai'/);
   assert.match(js, /data-record-id/);
   assert.match(js, /record-focus/);
   assert.match(js, /async function save\([\s\S]{0,200}refreshNotifications\(\)/);
@@ -59,6 +62,13 @@ test('notification and dashboard styles are responsive and RTL-aware', () => {
   assert.match(css, /\.nav-badge\{/);
   assert.match(css, /html\[dir="rtl"\] \.notification-panel/);
   assert.match(css, /@media\(max-width:760px\)\{\.notification-panel\{position:fixed/);
+  assert.match(css, /body\.notification-open main\{padding-top:calc\(1rem \+ var\(--notification-push,0px\)\)\}/);
+  assert.match(css, /#notificationList\{flex:1 1 auto;min-height:0;overflow-y:auto/);
+  assert.match(css, /\.notification-panel footer\{flex:0 0 auto/);
+  assert.match(js, /function positionNotificationPanel\(\)/);
+  assert.match(js, /window\.innerWidth-rect\.right/);
+  assert.match(js, /window\.innerHeight-top-12/);
+  assert.match(js, /window\.addEventListener\('resize'/);
   // The logo rule must not collapse nested notification links to zero height.
   assert.match(css, /\.bar>a\{margin-inline-end:auto;line-height:0\}/);
   assert.match(css, /\.notification-link\{grid-column:1\/-1;font-weight:700;line-height:1\.4/);

@@ -145,6 +145,7 @@
     try{
       dashboard=await api('admin/dashboard');
       paintNotificationBadges();paintNotificationCenter();
+      if(!$('notificationPanel').hidden)positionNotificationPanel();
       if(tab==='overview')renderDashboard(dashboard);
     }catch{}finally{notificationRefreshing=false}
   }
@@ -167,7 +168,11 @@
     list.replaceChildren();
     const items=dashboard?.notifications||[];
     if(!items.length){list.append(node('p',t('Nothing needs your attention.','لا شيء يتطلب انتباهك.'),'notification-empty'));return}
-    for(const item of items){
+    const priority={coaches:0,bookings:1,messages:2,community:3,articles:4};
+    const newest=(a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||''));
+    const urgent=items.filter(item=>item.category!=='ai').sort((a,b)=>(priority[a.category]??5)-(priority[b.category]??5)||newest(a,b));
+    const recommendations=items.filter(item=>item.category==='ai').sort(newest);
+    const rowFor=item=>{
       const row=node('article',null,'notification-item'+(item.read_at?'':' is-unread'));
       row.append(node('span',notificationName(item.event_type),'notification-type'));
       const when=node('time',date(item.created_at),'notification-time');when.dateTime=item.created_at;row.append(when);
@@ -180,8 +185,15 @@
         });
         read.classList.add('notification-read');row.append(read);
       }else row.append(node('small',t('Read','مقروء'),'notification-read-state'));
-      list.append(row);
-    }
+      return row;
+    };
+    const section=(title,rows)=>{
+      if(!rows.length)return;
+      list.append(node('h3',title+' ('+rows.length+')','notification-group-title'));
+      for(const item of rows)list.append(rowFor(item));
+    };
+    section(t('Needs Action','يحتاج إجراءً'),urgent);
+    section(t('AI Recommendations','توصيات الذكاء الاصطناعي'),recommendations);
   }
   function paintActivity(root,events){
     root.append(node('h3',t('Recent activity','النشاط الأخير')));
@@ -196,10 +208,26 @@
     }
     root.append(list);
   }
+  function positionNotificationPanel(){
+    const panel=$('notificationPanel'),bell=$('notificationsOpen');
+    if(panel.hidden)return;
+    const rect=bell.getBoundingClientRect();
+    const mobile=window.matchMedia('(max-width:760px)').matches;
+    const top=Math.max(8,Math.min(rect.bottom+8,window.innerHeight-80));
+    const available=Math.max(160,window.innerHeight-top-12);
+    panel.style.setProperty('--notification-top',top+'px');
+    panel.style.setProperty('--notification-end',Math.max(8,window.innerWidth-rect.right)+'px');
+    panel.style.setProperty('--notification-start',Math.max(8,rect.left)+'px');
+    panel.style.setProperty('--notification-height',(mobile?available:Math.min(620,available))+'px');
+    document.body.style.setProperty('--notification-push',(panel.offsetHeight+16)+'px');
+  }
   function setNotificationPanel(open){
-    $('notificationPanel').hidden=!open;
+    const panel=$('notificationPanel'),wasOpen=!panel.hidden;
+    panel.hidden=!open;
+    document.body.classList.toggle('notification-open',open);
     $('notificationsOpen').setAttribute('aria-expanded',String(open));
-    if(open)paintNotificationCenter();
+    if(open){paintNotificationCenter();positionNotificationPanel();$('notificationsClose').focus()}
+    else if(wasOpen)document.body.style.removeProperty('--notification-push');
   }
   function startNotificationPolling(){
     if(notificationPoll)clearInterval(notificationPoll);
@@ -230,7 +258,8 @@
       const path=typeof event.composedPath==='function'?event.composedPath():[event.target];
       if(!path.includes($('notificationPanel'))&&!path.includes($('notificationsOpen')))setNotificationPanel(false);
     });
-    document.addEventListener('keydown',event=>{if(event.key==='Escape')setNotificationPanel(false)});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('notificationPanel').hidden){setNotificationPanel(false);$('notificationsOpen').focus()}});
+    window.addEventListener('resize',()=>{if(!$('notificationPanel').hidden)positionNotificationPanel()});
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshNotifications()});
   }
   async function review(p,next,extra={}){
