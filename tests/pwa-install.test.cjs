@@ -5,8 +5,8 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const installJs = read('assets/js/pwa-install.js');
-const installCss = read('assets/css/pwa-install.css');
+const installJs = read('assets/js/pwa-install-v2.js');
+const installCss = read('assets/css/pwa-install-v2.css');
 const index = read('index.html');
 const admin = read('admin.html');
 const sw = read('sw.js');
@@ -45,7 +45,7 @@ test('iOS Safari, iOS browsers, social browsers and Android guidance are explici
 
 test('install styles are attached by the single install module without blocking the inline homepage CSS', () => {
   assert.match(installJs, /data-mza-install-styles/);
-  assert.match(installJs, /pwa-install\.css\?v=20261122a/);
+  assert.match(installJs, /pwa-install-v2\.css\?v=20261122a/);
   assert.doesNotMatch(index.slice(0, index.indexOf('</head>')), /<link\b[^>]*rel="stylesheet"/i);
 });
 
@@ -150,18 +150,18 @@ test('public footers use the compact bilingual promotion and one shared module',
     assert.match(html, /data-mza-install-link/, page);
     assert.match(html, /data-en="Get the MZA App" data-ar="احصل على تطبيق MZA"/, page);
     assert.match(html, /class="mza-install-button footer-install-button"[^>]*data-en="Get the MZA App"/, page);
-    assert.match(html, /assets\/js\/pwa-install\.js\?v=20261122a/, page);
+    assert.match(html, /assets\/js\/pwa-install-v2\.js\?v=20261122a/, page);
   }
 });
 
 test('the Management Portal has no installation promotion or install script', () => {
-  assert.doesNotMatch(admin, /footer-install|pwa-install\.js|mza-install-button|data-mza-install/);
+  assert.doesNotMatch(admin, /footer-install|pwa-install(?:-v2)?\.js|mza-install-button|data-mza-install/);
 });
 
 test('install assets join the offline-safe versioned shell', () => {
   assert.match(sw, /mza-shell-v8/);
-  assert.match(sw, /\/assets\/css\/pwa-install\.css\?v=20261122a/);
-  assert.match(sw, /\/assets\/js\/pwa-install\.js\?v=20261122a/);
+  assert.match(sw, /\/assets\/css\/pwa-install-v2\.css\?v=20261122a/);
+  assert.match(sw, /\/assets\/js\/pwa-install-v2\.js\?v=20261122a/);
   assert.match(installCss, /#091d21/);
   assert.match(installCss, /#103538/);
   assert.match(installCss, /#f2b718/);

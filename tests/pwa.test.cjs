@@ -83,7 +83,7 @@ test('public footers include the compact bilingual MZA app link; the portal does
     assert.match(html, /class="footer-vision-link"[^>]*href="(?:\.\.\/)?vision\.html"/, page);
     assert.match(html, /data-en="Our Vision" data-ar="رؤيتنا"/, page);
   }
-  assert.doesNotMatch(read('admin.html'), /footer-install|pwa-install\.js/);
+  assert.doesNotMatch(read('admin.html'), /footer-install|pwa-install(?:-v2)?\.js/);
 });
 
 test('service worker cache refresh bypasses stale profile and language assets', () => {

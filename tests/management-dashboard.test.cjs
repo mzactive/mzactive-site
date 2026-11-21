@@ -18,7 +18,7 @@ test('Management Portal exposes a notification center instead of install or reco
   }
   assert.match(html, /aria-controls="notificationPanel"/);
   assert.match(html, /data-en-aria-label="Notification center" data-ar-aria-label="مركز الإشعارات"/);
-  assert.doesNotMatch(html, /footer-install|pwa-install\.js|mza-install-button|emergencyRecovery|<form id="recover"/);
+  assert.doesNotMatch(html, /footer-install|pwa-install(?:-v2)?\.js|mza-install-button|emergencyRecovery|<form id="recover"/);
 });
 
 test('the admin client refreshes real counters, badges, read state and record links', () => {

@@ -8,8 +8,8 @@
   // attached from this single module instead of adding a blocking stylesheet.
   const script = document.currentScript;
   const cssHref = script
-    ? new URL('../css/pwa-install.css?v=20261122a', script.src).href
-    : '/assets/css/pwa-install.css?v=20261122a';
+    ? new URL('../css/pwa-install-v2.css?v=20261122a', script.src).href
+    : '/assets/css/pwa-install-v2.css?v=20261122a';
   const injectStyles = () => {
     if (document.querySelector('link[data-mza-install-styles]') || !document.head) return;
     const link = document.createElement('link');
