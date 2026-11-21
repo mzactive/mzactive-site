@@ -112,7 +112,11 @@ test('fixed UI honors safe-area insets and dvh has a vh fallback', () => {
 
 test('service worker registration is cache-busted on every page that registers it', () => {
   let checked = 0;
-  for (const page of fs.readdirSync(root).filter(file => file.endsWith('.html'))) {
+  const htmlPages = [
+    ...fs.readdirSync(root).filter(file => file.endsWith('.html')),
+    '4-week-10k/index.html',
+  ];
+  for (const page of htmlPages) {
     const html = read(page);
     if (!html.includes('pwa-register.js')) continue;
     checked += 1;

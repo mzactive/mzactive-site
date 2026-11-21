@@ -51,6 +51,7 @@ Even against production HTML, **all worker API traffic and every cross-origin re
 | `private-workspace.spec.cjs` | Private message round-trip, program history, session draft persistence keyed by a hash of the fake token (never the token itself), member permission boundaries. |
 | `garmin.spec.cjs` | Garmin is shown as a public HTTPS profile link only; explicit "no credentials or health data" wording; non-HTTPS input is rejected without an API call. No sync/OAuth flow exists or is tested as if it did. |
 | `pwa.spec.cjs` | Service worker script served by a route mock, update detected via `registration.update()`, waiting-worker confirmation contract, page remains usable. |
+| `pwa-install.spec.cjs` | One click-only install controller across header and footer; native prompt guard; iOS Safari and Android Chrome steps; Instagram/WhatsApp in-app-browser detection and safe browser handoff; persisted dismissal/installed state; 360px layout, EN/AR and RTL. |
 | `mobile-nav.spec.cjs` | Mobile menu open/navigate/close and pages that settle instead of spinning forever. |
 
 ### PWA update prompt
