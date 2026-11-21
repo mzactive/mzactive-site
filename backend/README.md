@@ -17,7 +17,7 @@ Cloudflare Worker API for coach/pacer accounts, profile review, approved directo
 - `POST /api/auth/recover` — Admin-only emergency locked-out password reset using the offline `ADMIN_RECOVERY_KEY`; invalidates all existing sessions. This is not the normal Forgot Password flow.
 - `POST /api/auth/change-password` — authenticated self-service password change for every role; keeps the current session and signs out other sessions.
 - `GET|PUT /api/me/profile` — read or edit the signed-in provider profile; edits return it to pending review.
-- `POST /api/bookings` — stores a booking request with `payment_status=pending_payment`; after a successful save the website opens a pre-filled WhatsApp message to +97466297954 so MZ Active can coordinate Fawran manually. No payment gateway or payment credentials are used.
+- `POST /api/bookings` — stores a booking request with `payment_status=pending_payment`; after a successful save the website opens a pre-filled WhatsApp message to the configured management number so MZ Active can coordinate Fawran manually. No payment gateway or payment credentials are used.
 - `GET /api/admin/applications` — Admin review queue for pending profiles and booking requests.
 - `PATCH /api/admin/providers/{id}` and `/api/admin/bookings/{id}` — Admin-only moderation, including manual Fawran receipt confirmation.
 

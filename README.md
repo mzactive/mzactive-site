@@ -32,9 +32,9 @@ Providers can create a Coach or Pacer account, edit its profile, and check moder
 - The public pages remain static HTML on GitHub Pages; the custom domain remains in `CNAME`.
 - Directory search fetches only Admin-approved profiles from the API.
 - Provider applications, profile edits and booking requests use the MZ Active Worker/D1 API. Marketplace sign-in is separate from the legacy GoDaddy coaching pages.
-- Booking requests are stored as pending manual Fawran payment. A successful save opens a pre-filled WhatsApp handoff to +97466297954; the website has no payment gateway, and a request remains unconfirmed until availability and payment are checked.
+- Booking requests are stored as pending manual Fawran payment. A successful save opens a pre-filled WhatsApp handoff to the configured management number; the website has no payment gateway, and a request remains unconfirmed until availability and payment are checked.
 - The separate Cloudflare Worker API and D1 database support provider accounts, Admin approval, approved-profile search, and manual-payment booking requests. The API is `https://mzactive-marketplace-api.mzactive5.workers.dev`.
-- Booking requests are stored as `pending_payment`. After a successful save, the site opens a pre-filled WhatsApp handoff to +97466297954 for manual Fawran coordination. There is no payment gateway; requests remain unconfirmed until availability and payment are checked.
+- Booking requests are stored as `pending_payment`. After a successful save, the site opens a pre-filled WhatsApp handoff to the configured management number for manual Fawran coordination. There is no payment gateway; requests remain unconfirmed until availability and payment are checked.
 - The D1 primary is in APAC with read replication disabled; it is not Qatar-local. Booking handoff details also pass to WhatsApp/Meta after a successful API save. The site privacy notice describes the handoff and retention periods.
 - The public directory, provider portal, Admin queue and booking form are connected to the API. Public profile search returns only Admin-approved profiles; the roster starts empty.
 - The Worker intake gate is enabled for release. Keep the D1 database limited to marketplace data and turn off `DATA_COLLECTION_ENABLED` if collection needs to pause.

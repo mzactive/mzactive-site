@@ -270,3 +270,15 @@ test('WhatsApp contact links use the correct registered number, a professional d
     restore();
   }
 });
+
+test('public contact config exposes only the management WhatsApp channel', async () => {
+  const { env, restore } = setup();
+  try {
+    const data = await call(env, 'public/contact-config');
+    assert.deepEqual(data, { contact: { whatsapp: '97451111111', whatsapp_configured: true } });
+    assert.equal('email' in data.contact, false);
+    assert.equal('configured' in data.contact, false);
+  } finally {
+    restore();
+  }
+});

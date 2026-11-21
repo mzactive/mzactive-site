@@ -201,6 +201,7 @@
     document.dispatchEvent(new CustomEvent('mzactive:coach-profile-rendered', { detail: { id: p.id } }));
     if (p.viewer?.owner) exposeOwnerTools(p);
     else if (p.viewer?.can_message) buildViewerActions(p);
+    q('.profile-layout')?.classList.toggle('public-layout', !(p.viewer?.owner));
   }
 
   function actionButton(label, className, id) {

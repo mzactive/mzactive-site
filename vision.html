@@ -219,7 +219,7 @@
           <button class="vision-button" type="submit" data-en="Prepare my message" data-ar="جهّز رسالتي">Prepare my message</button>
           <p class="vision-status" id="visionStatus" role="status" aria-live="polite" data-language-skip></p>
           <div class="vision-send-links" id="visionSendLinks" hidden>
-            <a id="visionWhatsApp" href="https://wa.me/97466297954" target="_blank" rel="noopener" data-en="Send on WhatsApp" data-ar="الإرسال عبر واتساب">Send on WhatsApp</a>
+            <a id="visionWhatsApp" href="#" data-management-whatsapp target="_blank" rel="noopener" data-en="Send on WhatsApp" data-ar="الإرسال عبر واتساب">Send on WhatsApp</a>
             <a id="visionEmail" href="mailto:mzactive@yahoo.com" data-en="Send by email" data-ar="الإرسال عبر البريد">Send by email</a>
           </div>
         </form>
@@ -236,6 +236,8 @@
         <button class="footer-app-link" type="button" data-mza-install-button data-mza-install-label="get" data-mza-install-link data-en="Get the MZA App" data-ar="احصل على تطبيق MZA" aria-label="Get the MZA App" data-en-aria-label="Get the MZA App" data-ar-aria-label="احصل على تطبيق MZA" hidden>Get the MZA App</button>
   </footer>
 
+  <script src="assets/js/api-base.js"></script>
+  <script src="assets/js/management-contact.js"></script>
   <script src="assets/js/site-language.js?v=20261120h" defer></script>
   <script>
   (() => {
@@ -270,7 +272,17 @@
         ? `استفسار من موقع MZ Active\n\nالاسم: ${get('name')}\nالبريد الإلكتروني: ${get('email')}\nالمؤسسة: ${get('organisation') || '—'}\nالموضوع: ${topic}\n\nالرسالة:\n${get('message')}`
         : `MZ Active inquiry\n\nName: ${get('name')}\nEmail: ${get('email')}\nOrganisation: ${get('organisation') || '—'}\nTopic: ${topic}\n\nMessage:\n${get('message')}`;
       const subject = lang === 'ar' ? `استفسار MZ Active: ${topic}` : `MZ Active inquiry: ${topic}`;
-      whatsapp.href = `https://wa.me/97466297954?text=${encodeURIComponent(body)}`;
+      const contact = window.MZActiveManagementContact;
+      const waHref = contact ? contact.link(contact.get().whatsapp, body) : '';
+      if (waHref) {
+        whatsapp.href = waHref;
+        whatsapp.removeAttribute('aria-disabled');
+        whatsapp.removeAttribute('tabindex');
+      } else {
+        whatsapp.removeAttribute('href');
+        whatsapp.setAttribute('aria-disabled', 'true');
+        whatsapp.tabIndex = -1;
+      }
       email.href = `mailto:mzactive@yahoo.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       status.textContent = lang === 'ar' ? 'الرسالة جاهزة. اختر واتساب أو البريد الإلكتروني للإرسال.' : 'Message ready. Choose WhatsApp or email to send it.';
       links.hidden = false;

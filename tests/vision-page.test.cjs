@@ -25,7 +25,12 @@ function contactFormHarness(lang) {
   const form = { addEventListener(type, handler) { this.handler = handler; }, reportValidity: () => true };
   const status = { textContent: '' };
   const links = { hidden: true, scrollIntoView() { this.scrolled = true; } };
-  const whatsapp = { href: 'https://wa.me/97466297954' };
+  const whatsapp = {
+    href: '',
+    tabIndex: 0,
+    removeAttribute(name) { if (name === 'href') this.href = ''; },
+    setAttribute(name, value) { this[name] = value; },
+  };
   const email = { href: 'mailto:mzactive@yahoo.com' };
   const description = { content: '' };
   const nodes = {
@@ -40,7 +45,13 @@ function contactFormHarness(lang) {
     querySelector: selector => selector === 'meta[name="description"]' ? description : null,
     addEventListener() {}
   };
-  const window = { MZActiveLanguage: { get: () => lang } };
+  const window = {
+    MZActiveLanguage: { get: () => lang },
+    MZActiveManagementContact: {
+      get: () => ({ whatsapp: '97400000000' }),
+      link: (number, message) => `https://wa.me/${number}?text=${encodeURIComponent(message)}`,
+    },
+  };
   class FormData {
     constructor() {
       this.values = new Map(Object.entries({
@@ -119,7 +130,9 @@ test('Get in Touch form prepares bilingual WhatsApp and email handoffs', () => {
   }
   assert.match(html, /id="visionContactForm" novalidate/);
   assert.match(html, /form\.reportValidity\(\)/);
-  assert.match(html, /https:\/\/wa\.me\/97466297954/);
+  assert.match(html, /assets\/js\/management-contact\.js/);
+  assert.match(html, /MZActiveManagementContact/);
+  assert.doesNotMatch(html, /https:\/\/wa\.me\/\d/);
   assert.match(html, /mailto:mzactive@yahoo\.com/);
 
   const en = contactFormHarness('en');

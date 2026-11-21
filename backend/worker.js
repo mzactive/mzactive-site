@@ -3718,6 +3718,10 @@ export default {
       return reply(request,env,{setup_available:!existing && Boolean(env.ADMIN_EMAILS && env.ADMIN_SETUP_KEY)});
     }
     if (request.method === "GET" && url.pathname === "/health") return reply(request, env, { ok: true, intake_enabled: env.DATA_COLLECTION_ENABLED === "true" });
+    if (request.method === "GET" && url.pathname === "/api/public/contact-config") {
+      const contact = managementContactConfig(env);
+      return reply(request, env, { contact: { whatsapp: contact.whatsapp, whatsapp_configured: contact.whatsapp_configured } });
+    }
     if (request.method === "POST" && url.pathname === "/api/assistant/chat") return assistantChat(request, env);
     if (request.method === "GET" && url.pathname === "/api/blog/posts") return publicBlogPosts(request, env);
     if (request.method === "GET" && url.pathname === "/api/providers") return publicProviders(url, request, env);

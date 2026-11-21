@@ -149,6 +149,9 @@ function defaultApiHandler(ctx, state) {
   const { method, path: urlPath } = ctx;
 
   if (urlPath === '/health') return json({ intake_enabled: true });
+  if (method === 'GET' && urlPath === '/api/public/contact-config') {
+    return json({ contact: { whatsapp: '97400000000', whatsapp_configured: true } });
+  }
   if (urlPath === '/api/auth/setup-status') return json({ setup_available: false });
   if (urlPath === '/api/auth/login') {
     return json({
@@ -447,7 +450,7 @@ function defaultApiHandler(ctx, state) {
     return json({ updated: true, status: 'accepted', workspace_active: true });
   }
   if (urlPath === '/api/bookings' && method === 'POST') {
-    return json({ request_id: 'E2E-REQUEST-1', provider_name: 'MZ Active', provider_whatsapp: '97466297954' });
+    return json({ request_id: 'E2E-REQUEST-1', provider_name: 'MZ Active', provider_whatsapp: '97400000000' });
   }
   return json({ error: 'e2e_unmocked_api', path: urlPath }, 501);
 }

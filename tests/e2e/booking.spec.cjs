@@ -31,7 +31,7 @@ test('booking form validates required fields and consent before saving', async (
   expect(saves[0].body.customer_name).toBe('E2E Customer');
   expect(saves[0].body.consent).toBe(true);
   expect(mock.whatsapp).toHaveLength(1);
-  expect(mock.whatsapp[0]).toContain('wa.me/97466297954');
+  expect(mock.whatsapp[0]).toContain('wa.me/97400000000');
   assertOfflineSafe(mock);
 });
 

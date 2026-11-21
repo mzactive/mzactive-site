@@ -9,8 +9,8 @@ test("normalizes valid email and rejects malformed or unbounded values", () => {
 });
 
 test("accepts Qatar local and international WhatsApp numbers", () => {
-  assert.equal(normalizeWhatsApp("+974 6629 7954"), "97466297954");
-  assert.equal(normalizeWhatsApp("66297954"), "97466297954");
+  assert.equal(normalizeWhatsApp("+974 0000 0000"), "97400000000");
+  assert.equal(normalizeWhatsApp("00000000"), "97400000000");
   assert.equal(normalizeWhatsApp("+1 (202) 555-0101"), "12025550101");
   assert.equal(normalizeWhatsApp("123"), null);
   assert.equal(normalizeWhatsApp(""), "");
@@ -271,12 +271,12 @@ test("profile edits accept optional details and normalize Qatar WhatsApp numbers
   }; } } };
   const response = await worker.fetch(new Request("https://api.example.test/api/me/profile", {
     method: "PUT", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify({ provider_type: "coach", display_name: "", city: "", bio: "", program_durations: [1], whatsapp_number: "66297954", whatsapp_public: true, social_links: ["javascript:alert(1)"] }),
+    body: JSON.stringify({ provider_type: "coach", display_name: "", city: "", bio: "", program_durations: [1], whatsapp_number: "00000000", whatsapp_public: true, social_links: ["javascript:alert(1)"] }),
   }), env);
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).warnings, ["social_links_skipped"]);
   assert.equal(saved[1], ""); // preserve the existing display name
-  assert.equal(saved[11], "97466297954");
+  assert.equal(saved[11], "97400000000");
   assert.equal(saved[12], 1);
   assert.equal(saved[13], "[]"); // unsafe links are skipped, not rendered
 });
