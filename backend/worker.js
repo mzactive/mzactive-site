@@ -1876,8 +1876,10 @@ function shapeAthleteRow(row) {
 }
 
 async function athleteCrmRows(env, suffix = "", params = []) {
-  const statement = env.DB.prepare(ATHLETE_CRM_SELECT + suffix);
-  if (params.length) statement.bind(...params);
+  // D1 bind() returns a new prepared statement; it does not mutate the original.
+  const statement = params.length
+    ? env.DB.prepare(ATHLETE_CRM_SELECT + suffix).bind(...params)
+    : env.DB.prepare(ATHLETE_CRM_SELECT + suffix);
   const result = await statement.all();
   return (result.results || []).map(shapeAthleteRow);
 }

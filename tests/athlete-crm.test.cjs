@@ -101,6 +101,13 @@ test('backend CRM derives status server-side and protects permission boundaries'
   assert.match(worker, /WHERE p\.status='approved' AND p\.provider_type='coach'/);
 });
 
+test('CRM detail queries use the statement returned by D1 bind()', () => {
+  // Production D1 bind() is immutable. Discarding its return value caused the
+  // athlete detail endpoint to fail with "Wrong number of parameter bindings".
+  assert.match(worker, /const statement = params\.length[\s\S]{0,240}?\.bind\(\.\.\.params\)/);
+  assert.doesNotMatch(worker, /if\s*\(params\.length\)\s*statement\.bind\(\.\.\.params\)/);
+});
+
 test('CRM helpers never claim a diagnosis and invitation emails carry a signed-out link', () => {
   assert.match(crm, /You decide\. Nothing is shared and no workspace opens until you accept/);
   assert.match(crm, /ATHLETE_INVITATION_URL = "https:\/\/mzactive\.com\/athlete-invitations\.html"/);

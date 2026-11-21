@@ -29,13 +29,15 @@ function makeEnv() {
     DB: {
       prepare(sql) {
         const stmt = db.prepare(sql);
-        let params = [];
-        return {
-          bind(...values) { params = values; return this; },
+        // Match production D1: bind() returns a NEW prepared statement and
+        // must never mutate the statement it was called on.
+        const statement = (params = []) => ({
+          bind(...values) { return statement(values); },
           first() { return stmt.get(...params); },
           all() { return { results: stmt.all(...params) }; },
           run() { return { meta: stmt.run(...params) }; },
-        };
+        });
+        return statement();
       },
       batch(statements) {
         db.exec('BEGIN');
