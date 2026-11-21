@@ -36,7 +36,7 @@ test('coach workspace Contact Management opens a prefilled WhatsApp draft', asyn
     overrides: {
       'POST /api/me/contacts': json({
         id: 'contact-e2e', status: 'drafted',
-        link: 'https://wa.me/97466296795?text=Hello%20MZ%20Active%20Management',
+        link: 'https://wa.me/97400000000?text=Hello%20MZ%20Active%20Management',
       }, 201),
     },
   });
@@ -58,7 +58,7 @@ test('coach workspace Contact Management opens a prefilled WhatsApp draft', asyn
 
   await expect(panel.locator('#coachContactStatus')).toContainText('Draft saved');
   const opened = await page.evaluate(() => window.__openedLinks);
-  expect(opened).toEqual(['https://wa.me/97466296795?text=Hello%20MZ%20Active%20Management']);
+  expect(opened).toEqual(['https://wa.me/97400000000?text=Hello%20MZ%20Active%20Management']);
   const call = mock.calls.find(c => c.method === 'POST' && c.path === '/api/me/contacts');
   expect(call.query.intent).toBe('prepare');
   expect(call.body.channel).toBe('whatsapp');
