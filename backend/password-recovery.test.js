@@ -147,6 +147,24 @@ for (const account of ACCOUNTS) {
   });
 }
 
+test('a new reset request supersedes earlier unused links', async () => {
+  const { db, env } = makeEnv();
+  const emails = [];
+  const restore = mockEmail(emails);
+  try {
+    await call(env, 'auth/register', 'POST', ACCOUNTS[4].body, null, 201);
+    await call(env, 'auth/forgot-password', 'POST', { email: ACCOUNTS[4].email });
+    const firstToken = resetTokenFrom(emails[0]);
+    await call(env, 'auth/forgot-password', 'POST', { email: ACCOUNTS[4].email });
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM password_reset_tokens WHERE used_at IS NULL').get().count, 1);
+    await call(env, 'auth/reset-password', 'POST', { token: firstToken, new_password: 'replacement-password-long' }, null, 400);
+    assert.deepEqual(await call(env, 'auth/reset-password', 'POST', { token: resetTokenFrom(emails[1]), new_password: 'replacement-password-long' }), { ok: true });
+  } finally {
+    restore();
+    db.close();
+  }
+});
+
 test('expired and malformed reset links are rejected and rate limits apply', async () => {
   const { db, env } = makeEnv();
   const emails = [];

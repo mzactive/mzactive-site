@@ -4,11 +4,13 @@
   const key = 'mzactive-provider-session';
   const base = window.MZACTIVE_API_BASE;
   const tabs = {overview:['Overview','نظرة عامة'],coaches:['Coaches','المدربون'],bookings:['Bookings','الحجوزات'],athletes:['Athletes & training','الرياضيون والتدريب'],community:['Community','المجتمع'],articles:['Articles','المقالات'],ai:['AI Brain','المساعد الذكي'],history:['Activity','سجل النشاط']};
+  const TAB_PERMISSIONS = {ai:'management.ai'};
   const labels = {operations:['Operations manager','مدير العمليات'],monitoring:['Website monitoring','مراقبة الموقع'],analytics:['Business analytics','تحليل الأعمال'],growth:['Growth and strategy','النمو والاستراتيجية'],marketing:['Marketing','التسويق'],community:['Community planning','تخطيط المجتمع'],support:['Customer support','دعم العملاء'],
     received:['Received','تم الاستلام'],reviewing:['Under review','قيد المراجعة'],accepted:['Confirmed','مؤكد'],cancelled:['Cancelled','ملغى'],declined:['Declined','مرفوض'],approved:['Approved','معتمد'],rejected:['Rejected','مرفوض'],pending:['Pending','قيد الانتظار'],published:['Published','منشور'],completed:['Completed','مكتمل'],failed:['Failed','فشل'],running:['Running','قيد التنفيذ'],run_completed:['AI analysis completed','اكتمل التحليل الذكي'],scheduled_snapshot_completed:['Data collected','تم جمع البيانات'],run_failed:['Analysis failed','فشل التحليل'],program_assigned:['Program assigned','تم ربط البرنامج'],run_started:['Analysis started','بدأ التحليل'],post:['Update','تحديث'],event:['Event','فعالية'],group_session:['Group session','جلسة جماعية'],challenge:['Challenge','تحدٍ'],hidden:['Hidden','مخفي'],owner:['Owner','المالك'],coach:['Sports Coach','مدرب رياضي'],pacer:['Champion Pacer','مرافق جري'],nutritionist:['Nutritionist','أخصائي تغذية رياضية'],physiotherapist:['Physiotherapist','أخصائي علاج طبيعي رياضي'],sports_massage_therapist:['Sports Massage Therapist','معالج تدليك رياضي'],certificate:['Certificate','شهادة'],license_number:['License number','رقم الترخيص'],license_issuer:['License issuer','جهة الترخيص'],issuer:['Issuer','الجهة المصدرة'],number:['Number','الرقم'],country:['Country','الدولة'],expiry:['Expiry','الانتهاء'],identity:['Identity and qualifications verified','تم التحقق من الهوية والمؤهلات'],license_required:['Professional license verified','تم التحقق من الترخيص المهني'],license_note:['License review note','ملاحظة مراجعة الترخيص'],previous_note:['Previous review note','ملاحظة المراجعة السابقة']};
   const name = code => labels[code]?t(...labels[code]):code;
   const metrics = {pending_provider_profiles:['Coach applications','طلبات المدربين'],open_booking_requests:['Open bookings','طلبات الحجز المفتوحة'],pending_coach_articles:['Articles for review','مقالات للمراجعة'],unlinked_programs:['Programs without athlete access','برامج غير مرتبطة بحساب'],approved_providers:['Approved providers','مقدمو الخدمة المعتمدون'],registered_athletes:['Athlete accounts','حسابات الرياضيين'],active_training_teams:['Training teams','فرق التدريب'],pending_community_posts:['Posts for review','منشورات للمراجعة'],pending_community_comments:['Comments on posts awaiting review','تعليقات على منشورات بانتظار المراجعة'],published_community_posts:['Published posts','منشورات منشورة'],weekly_challenges:['Weekly challenges','تحديات الأسبوع']};
-  let tab='overview', sequence=0;
+  const requestedTab = new URLSearchParams(location.search).get('tab');
+  let tab=tabs[requestedTab]?requestedTab:'overview', sequence=0, managementPermissions=[];
   const node=(tag,text,cls)=>{const el=document.createElement(tag);if(text!=null)el.textContent=text;if(cls)el.className=cls;return el};
   const parse=s=>{try{return JSON.parse(s)}catch{return null}};
   const date=s=>new Date(s).toLocaleString(lang.get()==='ar'?'ar-QA':'en-GB');
@@ -165,10 +167,12 @@
     const [h,ai]=await Promise.all([api('admin/history'),api('admin/agents')]);const events=[...h.events,...ai.activity].sort((a,b)=>b.created_at.localeCompare(a.created_at));
     group(root,t('Recent decisions and activity','آخر القرارات والأنشطة'),events.slice(0,100),(r,e)=>card(r,e.action?name(e.action):e.entity_type==='provider_profile'?t('Coach profile','ملف المدرب'):e.entity_type==='registration'?t('New registration','تسجيل جديد'):t('Booking','حجز'),[date(e.created_at),e.action?name(e.agent_type):name(e.from_status),e.to_status?name(e.to_status):''].filter(Boolean).join(' · ')));
   }
-  async function render(){const n=++sequence;staticLabels();$('nav').replaceChildren();for(const [id,v] of Object.entries(tabs)){const b=button(t(...v),()=>go(id));b.setAttribute('aria-current',id===tab);$('nav').append(b)}$('title').textContent=t(...tabs[tab]);$('view').textContent=t('Loading…','جارٍ التحميل…');const root=node('div');try{await paint(root);if(n===sequence)$('view').replaceChildren(root)}catch(err){if(n===sequence||$('workspace').hidden)notice(errorMessage(err));if(n===sequence)$('view').replaceChildren(button(t('Retry','إعادة المحاولة'),render))}}
+  async function render(){const n=++sequence;staticLabels();$('nav').replaceChildren();const available=Object.entries(tabs).filter(([id])=>!TAB_PERMISSIONS[id]||managementPermissions.includes(TAB_PERMISSIONS[id]));if(!available.some(([id])=>id===tab))tab='overview';for(const [id,v] of available){const b=button(t(...v),()=>go(id));b.setAttribute('aria-current',id===tab);$('nav').append(b)}history.replaceState(null,'',tab==='overview'?location.pathname:location.pathname+'?tab='+encodeURIComponent(tab));$('title').textContent=t(...tabs[tab]);$('view').textContent=t('Loading…','جارٍ التحميل…');const root=node('div');try{await paint(root);if(n===sequence)$('view').replaceChildren(root)}catch(err){if(n===sequence||$('workspace').hidden)notice(errorMessage(err));if(n===sequence)$('view').replaceChildren(button(t('Retry','إعادة المحاولة'),render))}}
   async function open(){
     try {
-      await api('admin/history');
+      const [,access] = await Promise.all([api('admin/history'),api('me/access')]);
+      managementPermissions = Array.isArray(access.management?.permissions) ? access.management.permissions : [];
+      window.MZActiveAccountMenu?.refresh();
     } catch (err) {
       if (['unauthorized','forbidden'].includes(err.message)) {
         lock();
@@ -185,7 +189,7 @@
     }
     notice('');
 $('login').hidden=true;$('bootstrap').hidden=true;$('workspace').hidden=false;$('out').hidden=false;await render()}
-  async function sign(form,setup){const f=form.elements;const d=await api(setup?'auth/register':'auth/login',{method:'POST',headers:setup?{'x-admin-setup-key':f.key.value}:{},body:{email:f.email.value,password:f.password.value,...(setup?{consent:true}:{})}});if(d.user?.role!=='admin')throw Error('forbidden');sessionStorage.setItem(key,d.token);form.reset();notice('');await open()}
+  async function sign(form,setup){const f=form.elements;const d=await api(setup?'auth/register':'auth/login',{method:'POST',headers:setup?{'x-admin-setup-key':f.key.value}:{},body:{email:f.email.value,password:f.password.value,...(setup?{consent:true}:{})}});if(setup&&d.user?.role!=='admin')throw Error('forbidden');const destination=window.MZActiveAuth.store(d);form.reset();notice('');if(destination!=='/admin.html'){location.assign(destination);return}await open()}
   for(const id of ['setup','login'])$(id).onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,b=form.querySelector('button[type=submit]');b.disabled=true;try{await sign(form,id==='setup')}catch(err){lock();notice(errorMessage(err))}finally{b.disabled=false}};
   // Emergency owner recovery only. The normal Forgot password? control is
   // wired by auth-ui.js and opens the shared email-based dialog instead.

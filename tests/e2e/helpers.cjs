@@ -73,9 +73,35 @@ function defaultApiHandler(ctx, state) {
   if (urlPath === '/health') return json({ intake_enabled: true });
   if (urlPath === '/api/auth/setup-status') return json({ setup_available: false });
   if (urlPath === '/api/auth/login') {
-    return json({ token: FAKE_TOKEN, user: { id: 'e2e-coach', role: 'provider' } });
+    return json({
+      token: FAKE_TOKEN,
+      user: { id: 'e2e-coach', role: 'provider' },
+      account_type: 'provider',
+      dashboard_path: '/dashboard.html',
+      management: { enabled: false, permissions: [] },
+    });
   }
   if (urlPath === '/api/auth/logout') return json({ ok: true });
+  if (urlPath === '/api/admin/history') return json({ events: [] });
+  if (urlPath === '/api/admin/agents') {
+    return json({
+      snapshot: {
+        pending_provider_profiles: 0, open_booking_requests: 0, pending_coach_articles: 0,
+        unlinked_programs: 0, approved_providers: 0, registered_athletes: 0,
+        active_training_teams: 0, pending_community_posts: 0, pending_community_comments: 0,
+        published_community_posts: 0, weekly_challenges: 0,
+      },
+      tasks: [], pending: [], activity: [], status: 'available',
+    });
+  }
+  if (urlPath === '/api/me/access') {
+    return json({
+      user: { id: 'e2e-coach', email: 'coach@example.invalid', role: 'provider' },
+      account_type: 'provider',
+      dashboard_path: '/dashboard.html',
+      management: { enabled: false, permissions: [] },
+    });
+  }
   if (urlPath === '/api/dashboard') return json(state.dashboard);
   if (urlPath === '/api/me/profile') return json({ profile: state.profile });
   if (urlPath.startsWith('/api/providers')) return json({ providers: state.providers });

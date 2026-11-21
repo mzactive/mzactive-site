@@ -75,7 +75,7 @@ test('every footer with the install hint loads one shared, versioned install mod
 });
 
 test('install assets join the offline-safe versioned shell', () => {
-  assert.match(sw, /mza-shell-v6/);
+  assert.match(sw, /mza-shell-v7/);
   assert.match(sw, /\/assets\/css\/pwa-install\.css\?v=20261120f/);
   assert.match(sw, /\/assets\/js\/pwa-install\.js\?v=20261120f/);
   assert.match(installCss, /#091d21/);

@@ -85,7 +85,11 @@ test('every footer includes the bilingual MZA app installation section', () => {
 });
 
 test('service worker cache refresh bypasses stale profile and language assets', () => {
-  assert.match(sw, /mza-shell-v5/);
+  assert.match(sw, /mza-shell-v7/);
   assert.match(sw, /\/assets\/js\/language-preference\.js\?v=20261120c/);
-  assert.match(sw, /\/assets\/css\/site-theme\.css\?v=20261120e/);
+  assert.match(sw, /\/assets\/css\/site-theme\.css\?v=20261120h/);
+  assert.match(sw, /\/assets\/css\/account-menu\.css\?v=20261120h/);
+  assert.match(sw, /\/assets\/js\/account-menu\.js\?v=20261120h/);
+  assert.match(sw, /\/assets\/js\/auth-session\.js\?v=20261120h/);
+  assert.match(sw, /\/assets\/js\/site-language\.js\?v=20261120h/);
 });

@@ -1,0 +1,82 @@
+.account-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  font-family: inherit;
+}
+
+.account-menu[hidden] { display: none !important; }
+
+.account-menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 7px 11px;
+  color: #f2b718 !important;
+  background: #103538 !important;
+  border: 1px solid #6c7f65 !important;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.account-menu-button:hover,
+.account-menu-button:focus-visible { border-color: #f2b718 !important; }
+.account-menu-button svg { width: 15px; height: 15px; flex: none; }
+
+.account-menu-list {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  width: max-content;
+  min-width: 214px;
+  padding: 7px;
+  margin: 0;
+  list-style: none;
+  color: #f0f5f3;
+  background: #0b2226;
+  border: 1px solid #2e6567;
+  border-radius: 12px;
+  box-shadow: 0 16px 34px rgb(0 0 0 / 30%);
+}
+.account-menu-list[hidden] { display: none !important; }
+
+.account-menu-list a,
+.account-menu-list button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  color: #e8f0ec !important;
+  background: transparent !important;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+.account-menu-list a:hover,
+.account-menu-list button:hover,
+.account-menu-list a:focus-visible,
+.account-menu-list button:focus-visible {
+  color: #f2b718 !important;
+  background: #103538 !important;
+}
+.account-menu-list a svg,
+.account-menu-list button svg { width: 14px; height: 14px; flex: none; color: #67b9ac; }
+.account-menu-list li + li { border-top: 1px solid #1c4548; }
+.account-menu-list [hidden] { display: none !important; }
+
+html[dir="rtl"] .account-menu-list { right: auto; left: 0; }
+
+@media (max-width: 640px) {
+  .account-menu-button { min-height: 34px; padding: 6px 9px; }
+  .account-menu-list { min-width: 196px; }
+}

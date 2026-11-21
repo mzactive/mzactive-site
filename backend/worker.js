@@ -12,6 +12,7 @@ const MAX_DAILY_ASSISTANT_REQUESTS = 60;
 const MAX_WORKSPACE_ATTACHMENT_BYTES = 1_000_000;
 const WORKSPACE_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain"]);
 const WORKSPACE_PROGRESS_METRICS = new Set(["distance_km", "duration_minutes", "sessions_completed", "average_pace", "planned_sessions", "completed_sessions", "note"]);
+const MANAGEMENT_PERMISSION_CODES = ["management.view", "management.coaches", "management.bookings", "management.community", "management.articles", "management.ai", "management.audit"];
 
 const PROFESSIONAL_CATEGORIES = {
   coach: { en: "Sports Coach", ar: "مدرب رياضي", sessions: ["training", "race"] },
@@ -412,7 +413,15 @@ async function issueSession(request, env, userId, email, role, status = 200) {
   await env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(Math.floor(Date.now()/1000)).run();
   await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)")
     .bind(await sha256(token), userId, Math.floor(Date.now()/1000)+SESSION_TTL_SECONDS, new Date().toISOString()).run();
-  return reply(request, env, { token, user: { id: userId, email, role }, expires_in: SESSION_TTL_SECONDS }, status);
+  const access = await managementAccess(env, { id: userId, email, role });
+  return reply(request, env, {
+    token,
+    user: { id: userId, email, role },
+    expires_in: SESSION_TTL_SECONDS,
+    account_type: access.account_type,
+    dashboard_path: access.dashboard_path,
+    management: access.management,
+  }, status);
 }
 
 async function login(request, env) {
@@ -476,9 +485,9 @@ function resetEmailHtml(link) {
   return `<div style="background:#091d21;color:#f0f5f3;font-family:Arial,sans-serif;padding:24px">
   <div style="max-width:560px;margin:0 auto;background:#103538;border:1px solid #2e6567;border-radius:14px;padding:24px">
     <p style="color:#f2b718;font-weight:700;margin:0 0 12px">MZ Active · password reset</p>
-    <p style="margin:0 0 10px">Reset your MZ Active password. This link expires in 15 minutes and can be used once. If you did not request it, ignore this email.</p>
+    <p style="margin:0 0 10px">Reset your MZ Active password. This link expires shortly (15 minutes, 5 minutes for administrators) and can be used once. If you did not request it, ignore this email.</p>
     <p style="margin:0 0 18px"><a href="${url}" style="background:#f2b718;color:#172a22;border-radius:999px;padding:10px 18px;text-decoration:none;font-weight:700">Reset password</a></p>
-    <p style="margin:0;color:#b8cbc6" dir="rtl" lang="ar">إعادة تعيين كلمة مرور MZ Active. تنتهي صلاحية هذا الرابط بعد ١٥ دقيقة ويمكن استخدامه مرة واحدة فقط. إذا لم تطلب ذلك، تجاهل هذه الرسالة.</p>
+    <p style="margin:0;color:#b8cbc6" dir="rtl" lang="ar">إعادة تعيين كلمة مرور MZ Active. تنتهي صلاحية هذا الرابط قريباً (١٥ دقيقة، و٥ دقائق للمسؤولين) ويمكن استخدامه مرة واحدة فقط. إذا لم تطلب ذلك، تجاهل هذه الرسالة.</p>
   </div></div>`;
 }
 
@@ -519,6 +528,8 @@ async function forgotPassword(request, env) {
   const tokenHash = await sha256(token);
   const expiresAt = now + (user.role === "admin" ? ADMIN_PASSWORD_RESET_TTL_SECONDS : PASSWORD_RESET_TTL_SECONDS);
   await env.DB.prepare("DELETE FROM password_reset_tokens WHERE expires_at<? OR used_at IS NOT NULL").bind(now).run();
+  // A new request supersedes any earlier unused link for the same identity.
+  await env.DB.prepare("DELETE FROM password_reset_tokens WHERE user_id=? AND used_at IS NULL").bind(user.id).run();
   await env.DB.prepare("INSERT INTO password_reset_tokens(id,user_id,token_hash,expires_at,used_at,created_at,email_provider_id) VALUES(?,?,?,?,NULL,?,NULL)")
     .bind(randomId(), user.id, tokenHash, expiresAt, new Date().toISOString()).run();
   try {
@@ -1201,6 +1212,51 @@ async function isMemberAccount(env, user) {
   return !profile;
 }
 
+async function hasManagementPermission(env, user, code) {
+  if (!user) return false;
+  if (user.role === "admin") return true;
+  const row = await env.DB.prepare("SELECT 1 AS allowed FROM user_management_permissions WHERE user_id=? AND permission_code=?")
+    .bind(user.id, code).first();
+  return Boolean(row?.allowed);
+}
+
+async function managementPermissionCodes(env, user) {
+  if (!user) return [];
+  if (user.role === "admin") return [...MANAGEMENT_PERMISSION_CODES];
+  const row = await env.DB.prepare("SELECT json_group_array(permission_code) AS codes FROM user_management_permissions WHERE user_id=?")
+    .bind(user.id).first();
+  let codes = [];
+  try { codes = JSON.parse(row?.codes || "[]"); } catch { /* fail closed on malformed data */ }
+  return Array.isArray(codes) ? codes.filter((code) => MANAGEMENT_PERMISSION_CODES.includes(code)) : [];
+}
+
+// The backend is the only source of account type and destination. No login
+// form or query parameter can choose a role or grant management access.
+async function managementAccess(env, user) {
+  const permissions = await managementPermissionCodes(env, user);
+  const manager = user.role === "admin" || permissions.includes("management.view");
+  let accountType = "member", dashboardPath = "/dashboard.html";
+  if (manager) {
+    accountType = user.role === "admin" ? "admin" : "manager";
+    dashboardPath = "/admin.html";
+  } else if (await isApprovedCoach(env, user)) {
+    accountType = "provider";
+    dashboardPath = "/providers.html";
+  } else if (user.role === "provider" && !await isMemberAccount(env, user)) {
+    accountType = "provider";
+    dashboardPath = "/providers.html";
+  }
+  return {
+    user: { id: user.id, email: user.email, role: user.role },
+    account_type: accountType,
+    dashboard_path: dashboardPath,
+    management: {
+      enabled: manager,
+      permissions: manager ? permissions : [],
+    },
+  };
+}
+
 async function dashboardOverview(request, env, user) {
   let teams, dashboardRole, coaches = [];
   if (user.role === "admin") {
@@ -1454,10 +1510,58 @@ async function dashboardApi(request, env, user) {
   return reply(request, env, { error: "not_found" }, 404);
 }
 
+function requiredManagementPermission(path) {
+  if (path.includes("/assistant") || path.includes("/agents")) return "management.ai";
+  if (path.includes("/auth-events")) return "management.audit";
+  if (path.includes("/community") || path.includes("/achievements")) return "management.community";
+  if (path.includes("/blog")) return "management.articles";
+  if (path.includes("/booking")) return "management.bookings";
+  if (path.includes("/provider") || path.includes("/athletes") || path.includes("/programs")) return "management.coaches";
+  return "management.view";
+}
+
 async function adminApplications(request, env, user) {
-  if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
   const requestUrl = new URL(request.url);
-  if (request.method === "POST" && requestUrl.pathname === "/api/admin/assistant") {
+  const path = requestUrl.pathname;
+
+  // Only the protected administrator role may change management grants. This
+  // endpoint is deliberately outside the general manager permission check.
+  if (path === "/api/admin/management/permissions" && request.method === "GET") {
+    if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+    const rows = await env.DB.prepare(`SELECT u.email,ump.permission_code,p.label_en,p.label_ar,ump.granted_at
+      FROM user_management_permissions ump JOIN users u ON u.id=ump.user_id
+      JOIN management_permissions p ON p.code=ump.permission_code
+      ORDER BY u.email,ump.permission_code`).all();
+    return reply(request, env, { grants: rows.results || [], available: MANAGEMENT_PERMISSION_CODES });
+  }
+  if (path === "/api/admin/management/permissions" && request.method === "PUT") {
+    if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+    const body = await readJson(request);
+    const email = emailValue(body?.email);
+    const codes = Array.isArray(body?.permissions)
+      ? [...new Set(body.permissions.filter((code) => MANAGEMENT_PERMISSION_CODES.includes(code)))]
+      : [];
+    const target = email
+      ? await env.DB.prepare("SELECT id,email,role FROM users WHERE email=?").bind(email).first()
+      : null;
+    if (!target || target.role === "admin") return reply(request, env, { error: "invalid_target" }, 400);
+    const now = new Date().toISOString();
+    const statements = [
+      env.DB.prepare("DELETE FROM user_management_permissions WHERE user_id=?").bind(target.id),
+      ...codes.map((code) => env.DB.prepare(`INSERT INTO user_management_permissions(user_id,permission_code,granted_by,granted_at)
+        VALUES(?,?,?,?) ON CONFLICT(user_id,permission_code) DO NOTHING`).bind(target.id, code, user.id, now)),
+      env.DB.prepare(`INSERT INTO owner_agent_activity(id,actor_user_id,agent_type,action,status,details_json,created_at)
+        VALUES(?,?,'owner','management_permissions_changed','completed',?,?)`)
+        .bind(randomId(), user.id, JSON.stringify({ email: target.email, permissions: codes }), now),
+    ];
+    await env.DB.batch(statements);
+    return reply(request, env, { ok: true, email: target.email, permissions: codes });
+  }
+
+  if (!await hasManagementPermission(env, user, "management.view")) return reply(request, env, { error: "forbidden" }, 403);
+  const needed = requiredManagementPermission(path);
+  if (needed !== "management.view" && !await hasManagementPermission(env, user, needed)) return reply(request, env, { error: "forbidden" }, 403);
+  if (request.method === "POST" && path === "/api/admin/assistant") {
     return ownerAssistant(request, env);
   }
   if (request.method === "GET" && requestUrl.pathname === "/api/admin/auth-events") {
@@ -2179,7 +2283,7 @@ async function handleCommunityApi(request, env, url) {
   if (path === "/api/admin/community" && method === "GET") {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    if (auth.user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+    if (!await hasManagementPermission(env, auth.user, "management.view") || !await hasManagementPermission(env, auth.user, requiredManagementPermission(path))) return reply(request, env, { error: "forbidden" }, 403);
     const [pendingPosts, recentPosts, pendingComments, achievements] = await Promise.all([
       env.DB.prepare(`${POST_SELECT} WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all(),
       env.DB.prepare(`${POST_SELECT} ORDER BY p.created_at DESC LIMIT 100`).all(),
@@ -2192,7 +2296,7 @@ async function handleCommunityApi(request, env, url) {
   if (match && method === "PATCH") {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    if (auth.user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+    if (!await hasManagementPermission(env, auth.user, "management.view") || !await hasManagementPermission(env, auth.user, requiredManagementPermission(path))) return reply(request, env, { error: "forbidden" }, 403);
     const body = await readJson(request), status = body?.status;
     if (!["pending", "published", "hidden"].includes(status)) return reply(request, env, { error: "invalid_moderation_status" }, 400);
     const now = new Date().toISOString();
@@ -2207,7 +2311,7 @@ async function handleCommunityApi(request, env, url) {
   if (match && method === "PATCH") {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    if (auth.user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+    if (!await hasManagementPermission(env, auth.user, "management.view") || !await hasManagementPermission(env, auth.user, requiredManagementPermission(path))) return reply(request, env, { error: "forbidden" }, 403);
     const body = await readJson(request), status = body?.status;
     if (!["published", "hidden"].includes(status)) return reply(request, env, { error: "invalid_moderation_status" }, 400);
     const result = await env.DB.prepare("UPDATE community_comments SET status=?,updated_at=? WHERE id=?").bind(status, new Date().toISOString(), match[1]).run();
@@ -2216,7 +2320,7 @@ async function handleCommunityApi(request, env, url) {
   if (path === "/api/admin/community/challenges" && ["GET", "POST"].includes(method)) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    if (auth.user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+    if (!await hasManagementPermission(env, auth.user, "management.view") || !await hasManagementPermission(env, auth.user, requiredManagementPermission(path))) return reply(request, env, { error: "forbidden" }, 403);
     if (method === "GET") {
       const rows = await env.DB.prepare(`${POST_SELECT} WHERE p.kind='challenge' ORDER BY p.created_at DESC LIMIT 50`).all();
       return reply(request, env, { challenges: await enrichPosts(env, rows.results, auth.user.id) });
@@ -2232,7 +2336,7 @@ async function handleCommunityApi(request, env, url) {
   if (path === "/api/admin/community/challenges/generate" && method === "POST") {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    if (auth.user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+    if (!await hasManagementPermission(env, auth.user, "management.view") || !await hasManagementPermission(env, auth.user, requiredManagementPermission(path))) return reply(request, env, { error: "forbidden" }, 403);
     if (!env.AI || typeof env.AI.run !== "function") return reply(request, env, { error: "assistant_unavailable" }, 503);
     if (!await rateLimit(request, env, "community-challenge", 5)) return reply(request, env, { error: "rate_limited" }, 429);
     if (!await reserveAssistantRequest(env, "community-challenge")) return reply(request, env, { error: "daily_limit_reached" }, 429);
@@ -2258,7 +2362,7 @@ async function handleCommunityApi(request, env, url) {
   if (path === "/api/admin/achievements" && method === "GET") {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    if (auth.user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+    if (!await hasManagementPermission(env, auth.user, "management.view") || !await hasManagementPermission(env, auth.user, requiredManagementPermission(path))) return reply(request, env, { error: "forbidden" }, 403);
     const rows = await env.DB.prepare(`SELECT a.id,a.title,a.details,a.awarded_year,a.status,p.display_name,u.email FROM provider_achievements a
       JOIN provider_profiles p ON p.id=a.provider_id JOIN users u ON u.id=p.user_id WHERE a.status='pending' ORDER BY a.created_at LIMIT 100`).all();
     return reply(request, env, { achievements: rows.results || [] });
@@ -2267,7 +2371,7 @@ async function handleCommunityApi(request, env, url) {
   if (match && method === "PATCH") {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    if (auth.user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+    if (!await hasManagementPermission(env, auth.user, "management.view") || !await hasManagementPermission(env, auth.user, requiredManagementPermission(path))) return reply(request, env, { error: "forbidden" }, 403);
     const body = await readJson(request), status = body?.status;
     if (!["published", "hidden"].includes(status)) return reply(request, env, { error: "invalid_moderation_status" }, 400);
     const result = await env.DB.prepare("UPDATE provider_achievements SET status=?,updated_at=? WHERE id=? AND status='pending'")
@@ -2281,7 +2385,7 @@ async function handleCommunityApi(request, env, url) {
   if (match && ["GET", "PUT"].includes(method)) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    if (auth.user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+    if (!await hasManagementPermission(env, auth.user, "management.view") || !await hasManagementPermission(env, auth.user, requiredManagementPermission(path))) return reply(request, env, { error: "forbidden" }, 403);
     if (method === "GET") {
       const row = await env.DB.prepare("SELECT bytes,content_type FROM provider_covers WHERE provider_id=?").bind(match[1]).first();
       return row ? binaryReply(request, env, row.bytes, row.content_type, "private, no-store")
@@ -2338,6 +2442,11 @@ export default {
         await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(token)).run();
       }
       return reply(request, env, { ok: true });
+    }
+    if (request.method === "GET" && url.pathname === "/api/me/access") {
+      const user = await currentUser(request, env);
+      if (!user) return reply(request, env, { error: "unauthorized" }, 401);
+      return reply(request, env, await managementAccess(env, user));
     }
     if ((request.method === "GET" || request.method === "PUT") && url.pathname === "/api/me/profile") {
       const user = await currentUser(request, env);

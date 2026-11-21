@@ -250,6 +250,27 @@ body:not(.home-page) .site-language-control .language-chevron {
 .footer-vision-link:focus-visible { text-decoration: underline; }
 html[dir="rtl"] .footer-vision-link { margin: 8px 0 0 12px; }
 
+/* Management Portal entry in every footer. */
+.management-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 12px 0 0;
+  color: #f2b718;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.management-footer-link:hover,
+.management-footer-link:focus-visible { text-decoration: underline; }
+.management-shield-icon {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  color: currentColor;
+}
+html[dir="rtl"] .management-footer-link { margin: 8px 0 0 12px; }
+
 /* MZA app installation hint in every footer. */
 .footer-install {
   grid-column: 1 / -1;

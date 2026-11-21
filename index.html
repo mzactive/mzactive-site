@@ -266,6 +266,27 @@ body:not(.home-page) .site-language-control .language-chevron {
 .footer-vision-link:focus-visible { text-decoration: underline; }
 html[dir="rtl"] .footer-vision-link { margin: 8px 0 0 12px; }
 
+/* Management Portal entry in every footer. */
+.management-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 12px 0 0;
+  color: #f2b718;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.management-footer-link:hover,
+.management-footer-link:focus-visible { text-decoration: underline; }
+.management-shield-icon {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  color: currentColor;
+}
+html[dir="rtl"] .management-footer-link { margin: 8px 0 0 12px; }
+
 /* MZA app installation hint in every footer. */
 .footer-install {
   grid-column: 1 / -1;
@@ -1374,6 +1395,7 @@ html[dir="rtl"] .footer-install { text-align: right; }
         <a href="mailto:mzactive@yahoo.com" data-en="Contact us" data-ar="اتصل بنا">Contact us</a>
         <a href="privacy.html" data-en="Privacy Policy" data-ar="سياسة الخصوصية">Privacy Policy</a>
         <a href="terms.html" data-en="Terms of Service" data-ar="شروط الخدمة">Terms of Service</a>
+        <a class="management-footer-link" href="https://mzactive.com/admin.html" rel="nofollow" aria-label="Management Portal" data-en-aria-label="Management Portal" data-ar-aria-label="بوابة الإدارة"><svg class="management-shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.75 5 5.5v5.35c0 4.15 2.75 8 7 9.4 4.25-1.4 7-5.25 7-9.4V5.5l-7-2.75Z"></path><path d="M12 7.6v8.8M8.6 12h6.8"></path></svg><span data-en="Management Portal" data-ar="بوابة الإدارة">Management Portal</span></a>
       </div>
       <div class="footer-column">
         <h2 data-en="Get in touch" data-ar="تواصل معنا">Get in touch</h2>
@@ -1408,7 +1430,7 @@ html[dir="rtl"] .footer-install { text-align: right; }
     </div>
   </dialog>
 
-  <script src="assets/js/site-language.js?v=20261120e" defer></script>
+  <script src="assets/js/site-language.js?v=20261120h" defer></script>
   <script src="assets/js/homepage.js?v=20261120c" defer></script>
   <script src="assets/js/whatsapp-chat.js" defer></script>
   <script src="assets/js/assistant-chat.js" defer></script>
