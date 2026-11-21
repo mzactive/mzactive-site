@@ -9,7 +9,7 @@ const SYNONYMS = {
   swim: "swimming", swimmer: "swimming",
   gym: "strength", weights: "strength", weightlifting: "strength",
   football: "football", soccer: "football",
-  padel: "padel", boxing: "boxing", walking: "walking", walk: "walking",
+  padel: "padel", boxing: "boxing", kickboxing: "kickboxing", walk: "walking", walking: "walking",
 };
 
 const GOAL_KEYWORDS = {

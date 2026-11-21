@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow">
   <meta name="description" content="MZ Active account settings and password management.">
   <title>Account Settings | MZ Active</title>
@@ -43,8 +43,8 @@
         <label data-en="Current password" data-ar="كلمة المرور الحالية">Current password
           <input name="current_password" type="password" autocomplete="current-password" required>
         </label>
-        <label data-en="New password (12+ characters)" data-ar="كلمة المرور الجديدة (١٢ حرفاً على الأقل)">New password (12+ characters)
-          <span class="auth-password-field"><input id="accountNewPassword" name="new_password" type="password" minlength="12" autocomplete="new-password" required><button class="auth-password-toggle" type="button" data-password-toggle="accountNewPassword" data-en="Show" data-ar="إظهار" aria-label="Show password">Show</button></span>
+        <label data-en="New password (8+ characters)" data-ar="كلمة المرور الجديدة (٨ أحرف على الأقل)">New password (8+ characters)
+          <span class="auth-password-field"><input id="accountNewPassword" name="new_password" type="password" minlength="8" autocomplete="new-password" required><button class="auth-password-toggle" type="button" data-password-toggle="accountNewPassword" data-en="Show" data-ar="إظهار" aria-label="Show password">Show</button></span>
         </label>
         <button type="submit" data-en="Save new password" data-ar="حفظ كلمة المرور الجديدة">Save new password</button>
       </form>
@@ -59,11 +59,11 @@
           <label data-en="Recovery key" data-ar="مفتاح الاستعادة">Recovery key
             <input name="key" type="password" autocomplete="off" required>
           </label>
-          <label data-en="New password (12+ characters)" data-ar="كلمة المرور الجديدة (١٢ حرفاً على الأقل)">New password (12+ characters)
+          <label data-en="New password (8+ characters)" data-ar="كلمة المرور الجديدة (٨ أحرف على الأقل)">New password (8+ characters)
             <span class="auth-password-field"><input id="recoverPassword" name="new_password" type="password" minlength="12" autocomplete="new-password" required><button class="auth-password-toggle" type="button" data-password-toggle="recoverPassword" data-en="Show" data-ar="إظهار" aria-label="Show password">Show</button></span>
           </label>
           <label data-en="Confirm new password" data-ar="تأكيد كلمة المرور الجديدة">Confirm new password
-            <input name="confirm_password" type="password" minlength="12" autocomplete="new-password" required>
+            <input name="confirm_password" type="password" minlength="8" autocomplete="new-password" required>
           </label>
           <button type="submit" data-en="Reset password" data-ar="إعادة تعيين كلمة المرور">Reset password</button>
         </form>
@@ -136,7 +136,7 @@
       } catch (error) {
         $('accountStatus').textContent = error.message === 'current_password_incorrect'
           ? t('Your current password is incorrect.', 'كلمة المرور الحالية غير صحيحة.')
-          : error.message === 'invalid_password' ? t('Use a new password of at least 12 characters.', 'استخدم كلمة مرور جديدة من ١٢ حرفاً على الأقل.') : t('Could not update your password. Please try again.', 'تعذر تحديث كلمة المرور. يرجى المحاولة مجدداً.');
+          : error.message === 'weak_password' ? t('That password is too common. Choose a longer phrase or a different one.', 'كلمة المرور هذه شائعة جداً. اختر عبارة أطول أو كلمة مختلفة.') : error.message === 'invalid_password' ? t('Use a new password of at least 8 characters.', 'استخدم كلمة مرور جديدة من ٨ أحرف على الأقل.') : t('Could not update your password. Please try again.', 'تعذر تحديث كلمة المرور. يرجى المحاولة مجدداً.');
       } finally { button.disabled = false; }
     });
     $('accountSignOut').addEventListener('click', async () => {
@@ -184,5 +184,5 @@
     start();
   })();
   </script>
-</body>
+<script src="assets/js/password-policy.js?v=20261122a" defer></script></body>
 </html>

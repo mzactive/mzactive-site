@@ -87,7 +87,7 @@ test('public footers include the compact bilingual MZA app link; the portal does
 });
 
 test('service worker cache refresh bypasses stale profile and language assets', () => {
-  assert.match(sw, /mza-shell-v8/);
+  assert.match(sw, /mza-shell-v9/);
   assert.match(sw, /\/assets\/js\/language-preference\.js\?v=20261120c/);
   assert.match(sw, /\/assets\/css\/site-theme\.css\?v=20261120h/);
   assert.match(sw, /\/assets\/css\/account-menu\.css\?v=20261120h/);

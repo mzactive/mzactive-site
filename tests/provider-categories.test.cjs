@@ -25,7 +25,9 @@ test('directory and homepage render category labels and verified credentials saf
   for (const type of ['coach', 'pacer', 'nutritionist', 'physiotherapist', 'sports_massage_therapist']) {
     assert.match(directory, new RegExp(`<option value="${type}"`), type);
   }
-  assert.match(directory, /typeSearch\.addEventListener\('change',loadProviders\)/);
+  assert.match(directory, /id="searchForm"/);
+  assert.match(directory, /id="searchButton"/);
+  assert.doesNotMatch(directory, /typeSearch\.addEventListener\('change',loadProviders\)/);
   assert.match(directory, /api\/providers\$\{query\}/);
   assert.match(directory, /professional_category/);
   assert.match(directory, /license_verified/);

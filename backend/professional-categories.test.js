@@ -131,6 +131,58 @@ test('professional categories persist, verify licenses, filter public search and
   }, null, 400);
 });
 
+test('switching to a regulated category forces re-review and removes public booking access', async () => {
+  const { db, call } = setup();
+  const signup = { password, consent: true };
+  const admin = (await call('auth/register', 'POST', { ...signup, email: 'admin@example.test' }, null, 201)).token;
+  const token = (await call('auth/register', 'POST', { ...signup, email: 'switch@example.test', provider_type: 'coach' }, null, 201)).token;
+  const id = (await call('me/profile', 'GET', undefined, token)).profile.id;
+
+  await call('me/profile', 'PUT', profileFor('coach'), token);
+  const pending = (await call('admin/applications', 'GET', undefined, admin)).providers.find((item) => item.id === id);
+  await call('admin/providers/' + id, 'PATCH', { status: 'approved', verified: true, review_version: pending.updated_at }, admin);
+  assert.equal(db.prepare('SELECT status FROM provider_profiles WHERE id=?').get(id).status, 'approved');
+
+  // Ordinary edits must not remove an approved coach from the directory.
+  await call('me/profile', 'PUT', { ...profileFor('coach'), bio: 'Updated bio' }, token);
+  assert.equal(db.prepare('SELECT status FROM provider_profiles WHERE id=?').get(id).status, 'approved');
+
+  // A category switch without fresh credentials must return to human review.
+  await call('me/profile', 'PUT', profileFor('physiotherapist'), token);
+  const switched = db.prepare('SELECT status,provider_type,license_status FROM provider_profiles WHERE id=?').get(id);
+  assert.equal(switched.status, 'pending');
+  assert.equal(switched.provider_type, 'physiotherapist');
+  assert.equal(switched.license_status, 'pending');
+  assert.equal((await call('providers?type=physiotherapist')).providers.length, 0);
+  await call('bookings', 'POST', {
+    provider_id: id, customer_name: 'Test athlete', customer_phone: '55555555',
+    city: 'Doha', session_type: 'therapy', service_name: 'Initial consultation',
+    goal_summary: 'Recovery session', consent: true,
+  }, null, 404);
+});
+
+test('expired professional licences cannot be approved, listed or booked', async () => {
+  const { db, call } = setup();
+  const signup = { password, consent: true };
+  const admin = (await call('auth/register', 'POST', { ...signup, email: 'admin@example.test' }, null, 201)).token;
+  const token = (await call('auth/register', 'POST', { ...signup, email: 'expired@example.test', provider_type: 'physiotherapist' }, null, 201)).token;
+  const id = (await call('me/profile', 'GET', undefined, token)).profile.id;
+  await call('me/profile', 'PUT', profileFor('physiotherapist', { license_expires_on: '2020-01-01' }), token);
+  const pending = (await call('admin/applications', 'GET', undefined, admin)).providers.find((item) => item.id === id);
+  await call('admin/providers/' + id, 'PATCH', {
+    status: 'approved', license_verified: true, review_version: pending.updated_at,
+  }, admin, 422);
+
+  // A legacy approved-but-expired row stays out of discovery and bookings.
+  db.prepare("UPDATE provider_profiles SET status='approved', license_status='verified' WHERE id=?").run(id);
+  assert.equal((await call('providers?type=physiotherapist')).providers.length, 0);
+  await call('bookings', 'POST', {
+    provider_id: id, customer_name: 'Test athlete', customer_phone: '55555555',
+    city: 'Doha', session_type: 'therapy', service_name: 'Initial consultation',
+    goal_summary: 'Recovery session', consent: true,
+  }, null, 404);
+});
+
 test('migrations preserve provider references and reject unknown professional types', async () => {
   const { db } = setup();
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);

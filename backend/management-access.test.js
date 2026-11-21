@@ -112,12 +112,37 @@ test('management grants are explicit, scoped and cannot be self-assigned', async
     assert.equal(manager.management.enabled, true);
     assert.deepEqual(manager.management.permissions, ['management.view']);
 
-    assert.equal((await call(env, 'admin/applications', 'GET', undefined, manager.token)).providers !== undefined, true);
+    const queue = await call(env, 'admin/applications', 'GET', undefined, manager.token);
+    assert.equal(queue.providers !== undefined, true);
     await call(env, 'admin/auth-events', 'GET', undefined, manager.token, 403);
     await call(env, 'admin/community', 'GET', undefined, manager.token, 403);
     await call(env, 'admin/management/permissions', 'PUT', {
       email: 'member@example.test', permissions: ['management.view'],
     }, manager.token, 403);
+
+    // Credential documents, contact details and licence numbers stay hidden from
+    // delegated managers. Full administrators retain the reviewable source data.
+    const profileId = db.prepare("SELECT id FROM provider_profiles WHERE user_id=(SELECT id FROM users WHERE email='coach@example.test')").get().id;
+    db.prepare(`UPDATE provider_profiles SET display_name='Private Coach',provider_type='physiotherapist',license_number='LIC-PRIVATE-42',license_issuer='Private Board',certificate_number='CERT-PRIVATE-42',whatsapp_number='+97400000000',social_links_json='["https://private.example.invalid"]' WHERE id=?`).run(profileId);
+    const redactedQueue = await call(env, 'admin/applications', 'GET', undefined, manager.token);
+    const redacted = redactedQueue.providers.find((row) => row.id === profileId);
+    assert.equal(redacted.credentials_restricted, true);
+    for (const field of ['email', 'qualifications', 'certificate_name', 'certificate_issuer', 'certificate_number', 'license_number', 'license_issuer', 'license_country', 'license_expires_on', 'license_review_note', 'whatsapp_number', 'whatsapp_public', 'social_links_json', 'cv_file_name', 'cv_byte_size', 'cv_updated_at']) {
+      assert.equal(field in redacted, false, 'manager must not receive ' + field);
+    }
+    const fullQueue = await call(env, 'admin/applications', 'GET', undefined, created.admin.token);
+    const full = fullQueue.providers.find((row) => row.id === profileId);
+    assert.equal(full.license_number, 'LIC-PRIVATE-42');
+    assert.equal(full.email, 'coach@example.test');
+
+    await call(env, 'admin/management/permissions', 'PUT', {
+      email: 'coach@example.test', permissions: ['management.view', 'management.coaches'],
+    }, created.admin.token);
+    const coachManager = await call(env, 'auth/login', 'POST', { email: 'coach@example.test', password });
+    await call(env, 'admin/providers/' + profileId + '/cv', 'GET', undefined, coachManager.token, 403);
+    await call(env, 'admin/providers/' + profileId, 'PATCH', {
+      status: 'approved', license_verified: true,
+    }, coachManager.token, 403);
 
     await call(env, 'admin/management/permissions', 'PUT', {
       email: 'coach@example.test', permissions: ['management.view', 'management.audit', 'management.community'],

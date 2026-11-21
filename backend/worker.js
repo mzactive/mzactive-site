@@ -14,6 +14,9 @@ const WELCOME_MAX_ATTEMPTS = 5;
 const PASSWORD_ITERATIONS = 100_000;
 const MAX_BODY_BYTES = 16_384;
 const MAX_PROFILE_PHOTO_BYTES = 1_000_000;
+const MAX_CV_BYTES = 5_000_000;
+const CV_PDF_TYPE = "application/pdf";
+const CV_DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const MAX_DAILY_ASSISTANT_REQUESTS = 60;
 const MAX_WORKSPACE_ATTACHMENT_BYTES = 1_000_000;
 const WORKSPACE_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain"]);
@@ -88,6 +91,25 @@ function reply(request, env, body, status = 200) {
 }
 
 const text = (value, max) => typeof value === "string" && value.trim().length <= max ? value.trim() : "";
+const MAX_PASSWORD_LENGTH = 256;
+const COMMON_PASSWORDS = new Set([
+  "password", "password1", "password123", "passw0rd", "12345678", "123456789", "1234567890",
+  "87654321", "987654321", "qwerty", "qwerty123", "qwertyuiop", "asdfghjkl", "zxcvbnm",
+  "letmein", "welcome", "welcome1", "admin", "admin123", "administrator", "iloveyou",
+  "trustno1", "monkey", "dragon", "sunshine", "princess", "football", "baseball", "master",
+  "login", "mzactive", "mzactive1", "abc12345", "11111111", "00000000", "1q2w3e4r",
+]);
+// Returns null when acceptable, "length" for a length violation and "common"
+// for a known-weak choice. Admin accounts keep their stricter 12-character
+// baseline; public coach and member accounts need only eight characters.
+function passwordIssue(value, admin = false) {
+  if (typeof value !== "string" || value.length < (admin ? 12 : 8) || value.length > MAX_PASSWORD_LENGTH) return "length";
+  const compact = value.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (COMMON_PASSWORDS.has(compact)) return "common";
+  if (compact.length >= 8 && /^(.)\1+$/.test(compact)) return "common";
+  if (/^(?:\d+|0123456789|1234567890|9876543210|abcdefghijklmnopqrstuvwxyz|zyxwvutsrqponmlkjihgfedcba|qwertyuiop|asdfghjkl|zxcvbnm)$/.test(compact)) return "common";
+  return null;
+}
 const emailValue = (value) => {
   const email = text(value, 254).toLowerCase();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
@@ -154,8 +176,18 @@ async function currentUser(request, env) {
   const match = /^Bearer ([\w-]{30,80})$/.exec(request.headers.get("Authorization") || "");
   if (!match) return null;
   const tokenHash = await sha256(match[1]);
-  return env.DB.prepare(`SELECT u.id, u.email, u.role FROM sessions s JOIN users u ON u.id=s.user_id
-    WHERE s.token_hash=? AND s.expires_at>? AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id AND p.status='rejected' AND p.review_note='Removed by owner')`).bind(tokenHash, Math.floor(Date.now() / 1000)).first();
+  return env.DB.prepare(`SELECT u.id, u.email, u.role, u.account_status FROM sessions s JOIN users u ON u.id=s.user_id
+    WHERE s.token_hash=? AND s.expires_at>? AND (u.account_status IS NULL OR u.account_status='active')
+    AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id AND p.status='rejected' AND p.review_note='Removed by owner')`).bind(tokenHash, Math.floor(Date.now() / 1000)).first();
+}
+
+function accountActive(accountStatus) {
+  return !accountStatus || accountStatus === "active";
+}
+
+async function recordAccountEvent(env, actorId, subjectId, action, detail) {
+  await env.DB.prepare("INSERT INTO account_events(id,actor_user_id,subject_user_id,action,detail,created_at) VALUES(?,?,?,?,?,?)")
+    .bind(randomId(), actorId, subjectId || null, action, detail ? JSON.stringify(detail) : null, new Date().toISOString()).run();
 }
 
 async function collectionEnabled(env) {
@@ -369,7 +401,7 @@ async function register(request, env) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
   if (!await rateLimit(request, env, "register", 5)) return reply(request, env, { error: "rate_limited" }, 429);
   const body = await readJson(request);
-  const email = emailValue(body?.email), password = text(body?.password, 128);
+  const email = emailValue(body?.email), password = text(body?.password, MAX_PASSWORD_LENGTH);
   const isMember = body?.account_type === "member";
   const type = professionalType(body?.provider_type);
   const displayName = text(body?.display_name, 100) || "Coach profile", city = text(body?.city, 80), bio = text(body?.bio, 4000) || "Profile awaiting completion by the provider.";
@@ -378,9 +410,11 @@ async function register(request, env) {
   const socialLinks = cleanSocialLinks(body?.social_links) || [];
   const adminEmails = (env.ADMIN_EMAILS || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   const isAdminEmail = adminEmails.includes(email);
-  if (!body || !email || password.length < 12 || body.consent !== true || (!isAdminEmail && !type && !isMember)) {
+  if (!body || !email || body.consent !== true || (!isAdminEmail && !type && !isMember)) {
     return reply(request, env, { error: "invalid_registration" }, 400);
   }
+  const passwordProblem = passwordIssue(password, isAdminEmail);
+  if (passwordProblem) return reply(request, env, { error: passwordProblem === "common" ? "weak_password" : "invalid_registration" }, 400);
   if (request.headers.has("x-admin-setup-key") && !isAdminEmail) return reply(request,env,{error:"admin_setup_unavailable"},403);
   if (isAdminEmail && await env.DB.prepare("SELECT id FROM users WHERE role='admin' LIMIT 1").first()) return reply(request,env,{error:"admin_already_exists"},409);
   if (isAdminEmail && (!env.ADMIN_SETUP_KEY || !(await safeEqual(request.headers.get("x-admin-setup-key") || "", env.ADMIN_SETUP_KEY)))) {
@@ -451,15 +485,16 @@ async function issueSession(request, env, userId, email, role, status = 200) {
 }
 
 async function login(request, env) {
-  const body = await readJson(request), email = emailValue(body?.email), password = text(body?.password, 128);
+  const body = await readJson(request), email = emailValue(body?.email), password = text(body?.password, MAX_PASSWORD_LENGTH);
   if (!body || !email || !password) return reply(request, env, { error: "invalid_credentials" }, 400);
   if (!await rateLimit(request, env, "login", 12) || !await rateLimit(request, env, `login:${email}`, 8)) return reply(request, env, { error: "rate_limited" }, 429);
-  const user = await env.DB.prepare("SELECT id,email,password_hash,role FROM users WHERE email=?").bind(email).first();
+  const user = await env.DB.prepare("SELECT id,email,password_hash,role,account_status FROM users WHERE email=?").bind(email).first();
   // Accept both the trimmed and the verbatim value so a password containing
   // leading/trailing spaces can still sign in after the original setup.
-  const rawPassword = typeof body.password === "string" && body.password.length <= 128 ? body.password : password;
+  const rawPassword = typeof body.password === "string" && body.password.length <= MAX_PASSWORD_LENGTH ? body.password : password;
   const matches = user && (await verifyPassword(password, user.password_hash) || (rawPassword !== password && await verifyPassword(rawPassword, user.password_hash)));
   if (!user || !matches) return reply(request, env, { error: "invalid_credentials" }, 401);
+  if (!accountActive(user.account_status)) return reply(request, env, { error: "account_unavailable" }, 403);
   if (user.role === "provider" && await env.DB.prepare("SELECT 1 AS removed FROM provider_profiles WHERE user_id=? AND status='rejected' AND review_note='Removed by owner'").bind(user.id).first()) return reply(request,env,{error:"provider_removed_by_owner"},403);
   await linkBookingsToUser(env, user);
   return issueSession(request, env, user.id, user.email, user.role);
@@ -473,9 +508,9 @@ async function recoverAdminPassword(request, env) {
   const body = await readJson(request), email = emailValue(body?.email);
   if (!await rateLimit(request, env, "recovery", 5) || (email && !await rateLimit(request, env, `recovery:${email}`, 3))) return reply(request, env, { error: "rate_limited" }, 429);
   const key = typeof body?.key === "string" && body.key.length <= 256 ? body.key : "";
-  const newPassword = text(body?.new_password, 128);
+  const newPassword = text(body?.new_password, MAX_PASSWORD_LENGTH);
   const admin = email ? await env.DB.prepare("SELECT id,email,role FROM users WHERE email=? AND role='admin'").bind(email).first() : null;
-  if (!admin || newPassword.length < 12 || !await safeEqual(key, env.ADMIN_RECOVERY_KEY)) return reply(request, env, { error: "invalid_recovery" }, 400);
+  if (!admin || passwordIssue(newPassword, true) || !await safeEqual(key, env.ADMIN_RECOVERY_KEY)) return reply(request, env, { error: "invalid_recovery" }, 400);
   await env.DB.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(await hashPassword(newPassword), admin.id).run();
   await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(admin.id).run();
   await recordAuthEvent(env, admin.id, "admin_emergency_reset", "offline owner key");
@@ -486,8 +521,9 @@ async function changePassword(request, env) {
   const user = await currentUser(request, env);
   if (!user) return reply(request, env, { error: "unauthorized" }, 401);
   if (!await rateLimit(request, env, "change-password", 5)) return reply(request, env, { error: "rate_limited" }, 429);
-  const body = await readJson(request), current = text(body?.current_password, 128), next = text(body?.new_password, 128);
-  if (!current || next.length < 12) return reply(request, env, { error: "invalid_password" }, 400);
+  const body = await readJson(request), current = text(body?.current_password, MAX_PASSWORD_LENGTH), next = text(body?.new_password, MAX_PASSWORD_LENGTH);
+  const nextIssue = passwordIssue(next, user.role === "admin");
+  if (!current || nextIssue) return reply(request, env, { error: nextIssue === "common" ? "weak_password" : "invalid_password" }, 400);
   const stored = await env.DB.prepare("SELECT password_hash FROM users WHERE id=?").bind(user.id).first();
   if (!stored || !await verifyPassword(current, stored.password_hash)) return reply(request, env, { error: "current_password_incorrect" }, 400);
   await env.DB.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(await hashPassword(next), user.id).run();
@@ -671,7 +707,6 @@ function profileCompletion(row = {}) {
   if (!String(row.display_name || "").trim()) required.push("display_name");
   if (!emailValue(row.email || "")) required.push("email");
   if (licensed) {
-    if (!String(row.qualifications || "").trim()) required.push("qualifications");
     if (!services.length) required.push("services");
     if (!String(row.license_number || "").trim()) required.push("license_number");
     if (!String(row.license_issuer || "").trim()) required.push("license_issuer");
@@ -686,11 +721,13 @@ function profileCompletion(row = {}) {
   if (!Number(row.experience_years || 0)) recommended.push("experience");
   if (!languages.length) recommended.push("languages");
   if (!licensed && !services.length) recommended.push("services");
-  if (!licensed && !String(row.qualifications || "").trim()) recommended.push("qualifications");
+  // Qualifications and the private Sports CV are optional. For licensed
+  // categories they are still checked separately during admin approval.
+  if (!String(row.qualifications || "").trim()) recommended.push("qualifications");
   if (!normalizeWhatsApp(row.whatsapp_number)) recommended.push("whatsapp_number");
   if (!socialLinks.length) recommended.push("social_links");
-  const requiredTotal = 2 + (licensed ? 4 : 2);
-  const recommendedTotal = licensed ? 7 : 9;
+  const requiredTotal = 2 + (licensed ? 3 : 2);
+  const recommendedTotal = licensed ? 8 : 9;
   const requiredDone = requiredTotal - required.length;
   const recommendedDone = recommendedTotal - recommended.length;
   return {
@@ -930,8 +967,10 @@ async function forgotPassword(request, env) {
     return reply(request, env, { error: "rate_limited" }, 429);
   }
   const generic = { ok: true, message: "If an account exists for this email, a reset link has been sent. Check your inbox." };
-  const user = await env.DB.prepare("SELECT id,email,role FROM users WHERE email=?").bind(email).first();
-  if (!user) return reply(request, env, generic);
+  const user = await env.DB.prepare("SELECT id,email,role,account_status FROM users WHERE email=?").bind(email).first();
+  // Suspended and deleted accounts get the same generic response so the
+  // endpoint cannot be used to enumerate their existence.
+  if (!user || !accountActive(user.account_status)) return reply(request, env, generic);
   const now = Math.floor(Date.now() / 1000);
   const token = b64(crypto.getRandomValues(new Uint8Array(32)));
   const tokenHash = await sha256(token);
@@ -955,8 +994,8 @@ async function forgotPassword(request, env) {
 async function resetPassword(request, env) {
   if (!emailDeliveryConfigured(env)) return reply(request, env, { error: "recovery_unavailable" }, 503);
   const body = await readJson(request);
-  const token = text(body?.token, 200), newPassword = text(body?.new_password, 128);
-  if (!token || newPassword.length < 12) return reply(request, env, { error: "invalid_password" }, 400);
+  const token = text(body?.token, 200), newPassword = text(body?.new_password, MAX_PASSWORD_LENGTH);
+  if (!token || !newPassword) return reply(request, env, { error: "invalid_password" }, 400);
   const tokenHash = await sha256(token);
   if (!await rateLimit(request, env, "reset-password", 8) ||
       !await rateLimitScoped(env, `reset:${tokenHash}`, 5, 60)) {
@@ -965,8 +1004,10 @@ async function resetPassword(request, env) {
   const row = await env.DB.prepare("SELECT id,user_id FROM password_reset_tokens WHERE token_hash=? AND used_at IS NULL AND expires_at>?")
     .bind(tokenHash, Math.floor(Date.now() / 1000)).first();
   if (!row) return reply(request, env, { error: "invalid_token" }, 400);
-  const user = await env.DB.prepare("SELECT id,email,role FROM users WHERE id=?").bind(row.user_id).first();
-  if (!user) return reply(request, env, { error: "invalid_token" }, 400);
+  const user = await env.DB.prepare("SELECT id,email,role,account_status FROM users WHERE id=?").bind(row.user_id).first();
+  if (!user || !accountActive(user.account_status)) return reply(request, env, { error: "invalid_token" }, 400);
+  const resetIssue = passwordIssue(newPassword, user.role === "admin");
+  if (resetIssue) return reply(request, env, { error: resetIssue === "common" ? "weak_password" : "invalid_password" }, 400);
   const now = new Date().toISOString();
   const passwordHash = await hashPassword(newPassword);
   await env.DB.batch([
@@ -985,7 +1026,10 @@ async function publicProviders(url, request, env, id = null) {
   const query = text(url.searchParams.get("q") || "",80);
   const viewer = await currentUser(request, env);
   const rows = await env.DB.prepare(`SELECT id,user_id,verified,qualifications,services_json,coaching_mode,certificate_name,certificate_issuer,license_number,license_issuer,license_expires_on,license_status,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=provider_profiles.id) AS gallery_slots,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json
-    FROM provider_profiles WHERE status='approved' AND (? IS NULL OR id=?) AND (?='' OR provider_type=?) AND (?='' OR city LIKE ?)
+    FROM provider_profiles WHERE status='approved'
+    AND NOT EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND (u.account_status IS NULL OR u.account_status<>'active'))
+    AND (provider_type NOT IN ('nutritionist','physiotherapist','sports_massage_therapist') OR (license_status='verified' AND (license_expires_on IS NULL OR license_expires_on>=date('now'))))
+    AND (? IS NULL OR id=?) AND (?='' OR provider_type=?) AND (?='' OR city LIKE ?)
     AND (?='' OR display_name LIKE ? OR bio LIKE ? OR specialties_json LIKE ? OR qualifications LIKE ? OR services_json LIKE ? OR certificate_name LIKE ?) ORDER BY display_name LIMIT 50`)
     .bind(id,id,type,type,city,`%${city}%`,query,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`).all();
   const viewerKeyPromise = id && viewer?.id ? viewerKey(request, env, viewer) : Promise.resolve("");
@@ -1085,7 +1129,7 @@ function cleanGarminPublicUrl(value) {
 function safeParse(value) { try { return JSON.parse(value); } catch { return []; } }
 
 const COMMUNITY_KINDS = ["post", "event", "group_session", "challenge"];
-const SPORTS = ["running", "walking", "fitness", "strength", "cycling", "swimming", "padel", "triathlon", "hyrox", "boxing", "football", "other"];
+const SPORTS = ["running", "walking", "fitness", "strength", "cycling", "swimming", "padel", "triathlon", "hyrox", "boxing", "kickboxing", "football", "other"];
 
 async function viewerKey(request, env, user) {
   if (user?.id) return `user:${user.id}`;
@@ -1468,14 +1512,33 @@ function profilePhotoType(bytes) {
   return "";
 }
 
-function binaryReply(request, env, bytes, contentType, cacheControl) {
+// Only real PDF and DOCX containers are accepted. DOCX is a ZIP archive, so the
+// central directory is checked for Word parts rather than trusting the declared
+// MIME type or file extension.
+function cvFileType(bytes) {
+  const view = new Uint8Array(bytes);
+  if (view.length >= 5 && view[0] === 0x25 && view[1] === 0x50 && view[2] === 0x44 && view[3] === 0x46 && view[4] === 0x2d) return CV_PDF_TYPE;
+  if (view.length >= 4 && view[0] === 0x50 && view[1] === 0x4b && view[2] === 0x03 && view[3] === 0x04) {
+    const tailStart = Math.max(0, view.length - 65536);
+    const tail = new TextDecoder("latin1").decode(view.subarray(tailStart));
+    if (tail.includes("word/") && tail.includes("[Content_Types].xml")) return CV_DOCX_TYPE;
+  }
+  return "";
+}
+
+function safeCvFileName(value) {
+  const name = text(value, 160).split(/[\\/]/).pop().replace(/[^\w.\- ]/g, "").trim();
+  return name.slice(0, 120) || "sports-cv";
+}
+
+function binaryReply(request, env, bytes, contentType, cacheControl, disposition = "inline") {
   const headers = corsHeaders(request, env);
   if (!headers) return json({ error: "origin_not_allowed" }, 403);
   headers.set("content-type", contentType);
   headers.set("cache-control", cacheControl);
   headers.set("vary", `${headers.get("vary") || "Origin"}, Authorization`);
   headers.set("x-content-type-options", "nosniff");
-  headers.set("content-disposition", "inline");
+  headers.set("content-disposition", disposition);
   // D1 can materialize BLOB columns as plain number arrays in real runtimes.
   // Response does not accept those as a body, so normalize every binary result.
   const body = Array.isArray(bytes) ? Uint8Array.from(bytes)
@@ -1498,6 +1561,38 @@ async function uploadProfilePhoto(request, env, user) {
   await env.DB.prepare("UPDATE provider_profiles SET profile_photo_bytes=?,profile_photo_content_type=?,profile_photo_updated_at=?,status='pending',review_note=NULL,updated_at=? WHERE user_id=?")
     .bind(bytes, contentType, now, now, user.id).run();
   return reply(request, env, { status: "pending_review", photo_uploaded: true, updated_at: now });
+}
+
+async function ownerCv(request, env, user, method) {
+  if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
+  const profile = await env.DB.prepare("SELECT id,status,review_note,cv_bytes,cv_content_type,cv_file_name,cv_byte_size,cv_updated_at FROM provider_profiles WHERE user_id=?").bind(user.id).first();
+  if (!profile) return reply(request, env, { error: "profile_not_found" }, 404);
+  if (profile.status === "rejected" && profile.review_note === "Removed by owner") return reply(request, env, { error: "provider_removed_by_owner" }, 403);
+  if (method === "GET") {
+    if (!profile.cv_bytes || !profile.cv_content_type) return reply(request, env, { error: "cv_not_found" }, 404);
+    const disposition = `attachment; filename="${safeCvFileName(profile.cv_file_name)}"`;
+    return binaryReply(request, env, profile.cv_bytes, profile.cv_content_type, "private, no-store", disposition);
+  }
+  if (method === "DELETE") {
+    const now = new Date().toISOString();
+    await env.DB.prepare("UPDATE provider_profiles SET cv_bytes=NULL,cv_content_type=NULL,cv_file_name=NULL,cv_byte_size=NULL,cv_updated_at=NULL,updated_at=? WHERE user_id=?").bind(now, user.id).run();
+    return reply(request, env, { cv_removed: true });
+  }
+  const length = Number(request.headers.get("content-length") || 0);
+  if (length > MAX_CV_BYTES) return reply(request, env, { error: "cv_too_large" }, 413);
+  const bytes = await request.arrayBuffer();
+  if (!bytes.byteLength || bytes.byteLength > MAX_CV_BYTES) return reply(request, env, { error: "cv_too_large" }, 413);
+  const detected = cvFileType(bytes);
+  if (!detected) return reply(request, env, { error: "invalid_cv" }, 400);
+  const declared = (request.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (declared && declared !== detected) return reply(request, env, { error: "invalid_cv" }, 400);
+  const now = new Date().toISOString();
+  const fileName = safeCvFileName(request.headers.get("x-file-name") || "sports-cv");
+  await env.DB.prepare("UPDATE provider_profiles SET cv_bytes=?,cv_content_type=?,cv_file_name=?,cv_byte_size=?,cv_updated_at=?,updated_at=? WHERE user_id=?")
+    .bind(bytes, detected, fileName, bytes.byteLength, now, now, user.id).run();
+  // A CV is private review material. Uploading one never unpublishes an
+  // approved profile and never adds a second public application.
+  return reply(request, env, { cv_uploaded: true, file_name: fileName, byte_size: bytes.byteLength, updated_at: now });
 }
 
 async function publicProfilePhoto(id, request, env) {
@@ -1536,10 +1631,16 @@ async function manageGallery(slot, request, env) {
 async function saveProfile(request, env, user) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
   const existing = await env.DB.prepare(`SELECT status,review_note,program_durations_json,provider_type,qualifications,services_json,
-    certificate_name,certificate_issuer,certificate_number,license_number,license_issuer,license_country,license_expires_on
+    certificate_name,certificate_issuer,certificate_number,license_number,license_issuer,license_country,license_expires_on,license_status,
+    submission_state,submitted_at
     FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
   if (existing?.status === "rejected" && existing.review_note === "Removed by owner") return reply(request, env, { error: "provider_removed_by_owner" }, 403);
   const body = await readJson(request);
+  // "draft" keeps the profile out of the review queue; every other value is a
+  // submission, which preserves the historical single-button save behaviour.
+  const savingDraft = body?.action === "draft";
+  const submissionState = savingDraft ? "draft" : "submitted";
+  const submittedAt = savingDraft ? (existing?.submitted_at || null) : (existing?.submitted_at || new Date().toISOString());
   const type = professionalType(body?.provider_type);
   const submittedProgramDurations = body && Object.prototype.hasOwnProperty.call(body, "program_durations")
     ? cleanProgramDurations(body.program_durations)
@@ -1571,11 +1672,15 @@ async function saveProfile(request, env, user) {
   if (whatsappInput && (!whatsapp || !whatsappPublic)) warnings.push("whatsapp_not_saved");
   if (socialLinks === null) warnings.push("social_links_skipped");
   if (LICENSED_PROVIDER_TYPES.includes(type) && credentialsSubmitted && (!credentials.license_number || !credentials.license_issuer)) warnings.push("license_details_incomplete");
-  // An approved coach may complete or update ordinary profile details without
-  // losing dashboard access. Only changed credentials go back for re-review.
-  const nextStatus = existing?.status === "approved" && !credentialsChanged ? "approved" : "pending";
+  // A category change, credential change, or edit to a licensed profile that is
+  // not verified must always return to human review. Verification for one
+  // category must never authorise a different category or an expired licence.
+  const typeChanged = Boolean(existing && existing.provider_type && existing.provider_type !== type);
+  const licensedNeedsReview = LICENSED_PROVIDER_TYPES.includes(type) && existing?.license_status !== "verified";
+  const reReview = Boolean(existing && (credentialsChanged || typeChanged || licensedNeedsReview));
+  const nextStatus = existing?.status === "approved" && !reReview ? "approved" : "pending";
   const now = new Date().toISOString();
-  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=CASE WHEN ?='' THEN display_name ELSE ? END,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,program_durations_json=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,public_fields_json=?,qualifications=COALESCE(?,qualifications),services_json=COALESCE(?,services_json),coaching_mode=COALESCE(?,coaching_mode),certificate_name=CASE WHEN ?=1 THEN ? ELSE certificate_name END,certificate_issuer=CASE WHEN ?=1 THEN ? ELSE certificate_issuer END,certificate_number=CASE WHEN ?=1 THEN ? ELSE certificate_number END,license_number=CASE WHEN ?=1 THEN ? ELSE license_number END,license_issuer=CASE WHEN ?=1 THEN ? ELSE license_issuer END,license_country=CASE WHEN ?=1 THEN ? ELSE license_country END,license_expires_on=CASE WHEN ?=1 THEN ? ELSE license_expires_on END,license_status=CASE WHEN ?=1 THEN 'pending' ELSE license_status END,license_review_note=CASE WHEN ?=1 THEN '' ELSE license_review_note END,status=?,review_note=NULL,updated_at=? WHERE user_id=?`)
+  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=CASE WHEN ?='' THEN display_name ELSE ? END,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,program_durations_json=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,public_fields_json=?,qualifications=COALESCE(?,qualifications),services_json=COALESCE(?,services_json),coaching_mode=COALESCE(?,coaching_mode),certificate_name=CASE WHEN ?=1 THEN ? ELSE certificate_name END,certificate_issuer=CASE WHEN ?=1 THEN ? ELSE certificate_issuer END,certificate_number=CASE WHEN ?=1 THEN ? ELSE certificate_number END,license_number=CASE WHEN ?=1 THEN ? ELSE license_number END,license_issuer=CASE WHEN ?=1 THEN ? ELSE license_issuer END,license_country=CASE WHEN ?=1 THEN ? ELSE license_country END,license_expires_on=CASE WHEN ?=1 THEN ? ELSE license_expires_on END,license_status=CASE WHEN ?=1 THEN 'pending' ELSE license_status END,license_review_note=CASE WHEN ?=1 THEN '' ELSE license_review_note END,submission_state=?,submitted_at=?,status=?,review_note=NULL,updated_at=? WHERE user_id=?`)
     .bind(type,name,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),JSON.stringify(programDurations),canPublishWhatsApp?whatsapp:null,canPublishWhatsApp?1:0,JSON.stringify(socialLinks||[]),JSON.stringify(publicFields),
       qualifications,services === null ? null : JSON.stringify(services),body.coaching_mode === undefined ? null : body.coaching_mode,
       Number(credentialsSubmitted),credentials.certificate_name,
@@ -1585,8 +1690,8 @@ async function saveProfile(request, env, user) {
       Number(credentialsSubmitted),credentials.license_issuer,
       Number(credentialsSubmitted),credentials.license_country,
       Number(credentialsSubmitted),credentials.license_expires_on || null,
-      Number(credentialsChanged),Number(credentialsChanged),nextStatus,now,user.id).run();
-  return reply(request, env, { status: nextStatus === "approved" ? "approved" : "pending_review", warnings, profile_updated: nextStatus === "approved" });
+      Number(reReview),Number(reReview),submissionState,submittedAt,nextStatus,now,user.id).run();
+  return reply(request, env, { status: nextStatus === "approved" ? "approved" : "pending_review", submission_state: submissionState, submitted_at: submittedAt, warnings, profile_updated: nextStatus === "approved" });
 }
 
 async function createBooking(request, env) {
@@ -1599,7 +1704,7 @@ async function createBooking(request, env) {
   if (!body || !/^\+?[\d\s()-]{7,40}$/.test(phone) || !name || !city || !goal || !sessionType || body.consent !== true) return reply(request, env, { error: "invalid_booking_request" }, 400);
   let providerId = text(body.provider_id,36) || null, programDuration = Number(body.program_duration_months) || null;
   if (providerId) {
-    const provider = await env.DB.prepare("SELECT id,display_name,provider_type,services_json,public_fields_json,program_durations_json,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS public_whatsapp FROM provider_profiles WHERE id=? AND status='approved'").bind(providerId).first();
+    const provider = await env.DB.prepare("SELECT id,display_name,provider_type,services_json,public_fields_json,program_durations_json,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS public_whatsapp FROM provider_profiles WHERE id=? AND status='approved' AND NOT EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND (u.account_status IS NULL OR u.account_status<>'active')) AND (provider_type NOT IN ('nutritionist','physiotherapist','sports_massage_therapist') OR (license_status='verified' AND (license_expires_on IS NULL OR license_expires_on>=date('now'))))").bind(providerId).first();
     if (!provider) return reply(request, env, { error: "provider_unavailable" }, 404);
     const visibility = cleanPublicFields(safeParse(provider.public_fields_json));
     const offeredServices = cleanList(safeParse(provider.services_json),12,120);
@@ -1883,6 +1988,7 @@ async function managementAccess(env, user) {
   return {
     user: { id: user.id, email: user.email, role: user.role },
     account_type: accountType,
+    account_status: user.account_status || "active",
     dashboard_path: dashboardPath,
     management: {
       enabled: manager,
@@ -2538,8 +2644,25 @@ function requiredManagementPermission(path) {
   if (path.includes("/blog")) return "management.articles";
   if (path.includes("/booking")) return "management.bookings";
   if (path.includes("/messages")) return "management.coaches";
-  if (path.includes("/provider") || path.includes("/athletes") || path.includes("/programs")) return "management.coaches";
+  if (path.includes("/accounts") || path.includes("/provider") || path.includes("/athletes") || path.includes("/programs")) return "management.coaches";
   return "management.view";
+}
+
+// Delegated managers may see workflow status, but credential documents and the
+// identity details needed to verify them stay with the full administrator role
+// until access is explicitly granted by policy.
+const RESTRICTED_APPLICATION_FIELDS = [
+  "email", "qualifications", "certificate_name", "certificate_issuer", "certificate_number",
+  "license_number", "license_issuer", "license_country", "license_expires_on",
+  "license_review_note", "whatsapp_number", "whatsapp_public", "social_links_json",
+  "cv_file_name", "cv_byte_size", "cv_updated_at",
+];
+
+function applicationForViewer(row, user) {
+  if (user.role === "admin") return row;
+  const visible = { ...row, credentials_restricted: true };
+  for (const field of RESTRICTED_APPLICATION_FIELDS) delete visible[field];
+  return visible;
 }
 
 async function adminApplications(request, env, user) {
@@ -2583,6 +2706,107 @@ async function adminApplications(request, env, user) {
   if (!await hasManagementPermission(env, user, "management.view")) return reply(request, env, { error: "forbidden" }, 403);
   const needed = requiredManagementPermission(path);
   if (needed !== "management.view" && !await hasManagementPermission(env, user, needed)) return reply(request, env, { error: "forbidden" }, 403);
+
+  // Account management is deliberately separated from the public athlete
+  // profile. Viewing needs management.view; every state change needs a full
+  // administrator session so a scoped manager cannot escalate roles.
+  const accountFields = `u.id,u.email,u.role,u.account_status,u.status_reason,u.deleted_at,u.created_at,
+    p.id AS profile_id,p.status AS profile_status,p.submission_state,p.display_name,p.provider_type,
+    (SELECT COUNT(*) FROM booking_requests b WHERE b.customer_user_id=u.id OR b.provider_id=p.id) AS booking_count,
+    (SELECT COUNT(*) FROM athlete_programs_v2 ap WHERE ap.athlete_user_id=u.id OR ap.coach_user_id=u.id) AS program_count`;
+  const withMismatch = row => ({ ...row, role_mismatch: row.role === "provider" && !row.profile_id && (row.booking_count > 0 || row.program_count > 0) });
+  if (request.method === "GET" && path === "/api/admin/accounts") {
+    const filter = requestUrl.searchParams.get("filter") || "all";
+    const q = text(requestUrl.searchParams.get("q") || "", 80).toLowerCase();
+    const rows = await env.DB.prepare(`SELECT ${accountFields} FROM users u LEFT JOIN provider_profiles p ON p.user_id=u.id ORDER BY u.created_at DESC LIMIT 200`).all();
+    const all = (rows.results || []).map(withMismatch);
+    const counts = {
+      all: all.length,
+      members: all.filter(a => !a.profile_id).length,
+      coaches: all.filter(a => Boolean(a.profile_id)).length,
+      suspended: all.filter(a => a.account_status === "suspended").length,
+      deleted: all.filter(a => a.account_status === "deleted").length,
+      mismatch: all.filter(a => a.role_mismatch).length,
+    };
+    const matchesFilter = a => {
+      if (filter === "members") return !a.profile_id;
+      if (filter === "coaches") return Boolean(a.profile_id);
+      if (filter === "suspended") return a.account_status === "suspended";
+      if (filter === "deleted") return a.account_status === "deleted";
+      if (filter === "mismatch") return a.role_mismatch;
+      return true;
+    };
+    const accounts = all.filter(a => !q || a.email.toLowerCase().includes(q) || (a.display_name || "").toLowerCase().includes(q))
+      .filter(matchesFilter);
+    return reply(request, env, { accounts, counts });
+  }
+  const accountMatch = /^\/api\/admin\/accounts\/([\w-]{36})(?:\/(coach-application|suspend|reactivate|delete))?$/.exec(path);
+  if (accountMatch && request.method === "GET" && !accountMatch[2]) {
+    const row = await env.DB.prepare(`SELECT ${accountFields} FROM users u LEFT JOIN provider_profiles p ON p.user_id=u.id WHERE u.id=?`).bind(accountMatch[1]).first();
+    if (!row) return reply(request, env, { error: "account_not_found" }, 404);
+    const events = await env.DB.prepare("SELECT id,actor_user_id,action,detail,created_at FROM account_events WHERE subject_user_id=? ORDER BY created_at DESC LIMIT 50").bind(row.id).all();
+    return reply(request, env, { account: withMismatch(row), events: events.results || [] });
+  }
+  if (accountMatch && request.method === "POST" && accountMatch[2]) {
+    if (user.role !== "admin") return reply(request, env, { error: "admin_required" }, 403);
+    const target = await env.DB.prepare("SELECT id,email,role,account_status FROM users WHERE id=?").bind(accountMatch[1]).first();
+    if (!target) return reply(request, env, { error: "account_not_found" }, 404);
+    const action = accountMatch[2], body = await readJson(request), now = new Date().toISOString();
+
+    if (action === "coach-application") {
+      if (target.role !== "provider" || !accountActive(target.account_status)) return reply(request, env, { error: "account_not_eligible" }, 409);
+      if (await env.DB.prepare("SELECT id FROM provider_profiles WHERE user_id=?").bind(target.id).first()) return reply(request, env, { error: "coach_application_exists" }, 409);
+      const type = professionalType(body?.provider_type || "coach");
+      if (!type) return reply(request, env, { error: "invalid_profile_type" }, 400);
+      const profileId = randomId();
+      // A draft forces onboarding and an explicit submission; no coach
+      // permission or public profile is granted by the conversion itself.
+      await env.DB.prepare(`INSERT INTO provider_profiles(id,user_id,provider_type,display_name,country,city,bio,status,submission_state,updated_at,created_at)
+        VALUES(?,?,?,?,?,?,?,'pending','draft',?,?)`)
+        .bind(profileId, target.id, type, text(body?.display_name, 100) || "Coach profile awaiting completion",
+          text(body?.country, 80) || "Qatar", text(body?.city, 80) || "", "Profile awaiting completion by the provider.", now, now).run();
+      await recordAccountEvent(env, user.id, target.id, "coach_application_opened", { provider_type: type });
+      return reply(request, env, { ok: true, profile_id: profileId, submission_state: "draft" });
+    }
+    if (action === "suspend") {
+      if (target.role === "admin" || target.id === user.id) return reply(request, env, { error: "account_protected" }, 409);
+      if (!accountActive(target.account_status)) return reply(request, env, { error: "account_not_active" }, 409);
+      const reason = text(body?.reason, 300) || "Suspended by administrator";
+      await env.DB.batch([
+        env.DB.prepare("UPDATE users SET account_status='suspended',status_reason=? WHERE id=?").bind(reason, target.id),
+        env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id),
+      ]);
+      await recordAccountEvent(env, user.id, target.id, "account_suspended", { reason });
+      return reply(request, env, { ok: true, account_status: "suspended" });
+    }
+    if (action === "reactivate") {
+      if (target.account_status !== "suspended") return reply(request, env, { error: "account_not_suspended" }, 409);
+      await env.DB.batch([
+        env.DB.prepare("UPDATE users SET account_status='active',status_reason=NULL WHERE id=?").bind(target.id),
+        env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id),
+      ]);
+      await recordAccountEvent(env, user.id, target.id, "account_reactivated", {});
+      return reply(request, env, { ok: true, account_status: "active" });
+    }
+    if (action === "delete") {
+      if (target.role === "admin" || target.id === user.id) return reply(request, env, { error: "account_protected" }, 409);
+      if (target.account_status === "deleted") return reply(request, env, { error: "account_already_deleted" }, 409);
+      const confirmedEmail = emailValue(body?.confirm_email), phrase = text(body?.confirm_phrase, 40);
+      if (confirmedEmail !== target.email.toLowerCase() || phrase !== "DELETE") return reply(request, env, { error: "confirmation_required" }, 400);
+      const profile = await env.DB.prepare("SELECT id FROM provider_profiles WHERE user_id=?").bind(target.id).first();
+      const statements = [
+        env.DB.prepare("UPDATE users SET account_status='deleted',status_reason=NULL,deleted_at=?,anonymized_at=?,email=?,password_hash=? WHERE id=?")
+          .bind(now, now, `deleted+${target.id}@invalid`, await hashPassword("deleted-" + randomId()), target.id),
+        env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id),
+        env.DB.prepare("DELETE FROM password_reset_tokens WHERE user_id=?").bind(target.id),
+      ];
+      if (profile) statements.push(env.DB.prepare(`UPDATE provider_profiles SET display_name='Deleted account',country='',city='',specialties_json='[]',languages_json='[]',bio='',qualifications='',services_json='[]',coaching_mode='',whatsapp_number=NULL,whatsapp_public=0,social_links_json='[]',public_fields_json='[]',certificate_name='',certificate_issuer='',certificate_number='',license_number='',license_issuer='',license_country='',license_expires_on=NULL,license_status='not_submitted',license_review_note='',status='rejected',review_note='Removed by owner',profile_photo_url='',profile_photo_bytes=NULL,profile_photo_content_type=NULL,profile_photo_updated_at=NULL,cv_bytes=NULL,cv_content_type=NULL,cv_file_name=NULL,cv_byte_size=NULL,cv_updated_at=NULL,verified=0,updated_at=? WHERE id=?`).bind(now, profile.id));
+      await env.DB.batch(statements);
+      await recordAccountEvent(env, user.id, target.id, "account_deleted", { profile_anonymized: Boolean(profile), bookings_preserved: true });
+      return reply(request, env, { ok: true, anonymized: true, bookings_preserved: true });
+    }
+    return reply(request, env, { error: "unknown_account_action" }, 400);
+  }
 
   if (request.method === "GET" && path === "/api/admin/contact-config") {
     return reply(request, env, { contact: managementContactConfig(env), email_delivery: emailDeliveryConfigured(env) });
@@ -2846,6 +3070,14 @@ async function adminApplications(request, env, user) {
   }
   const gallery = /^\/api\/admin\/providers\/([\w-]{36})\/gallery\/([1-3])$/.exec(requestUrl.pathname);
   if (gallery && request.method === "GET") return galleryImage(gallery[1], Number(gallery[2]), request, env, false);
+  const cvMatch = /^\/api\/admin\/providers\/([\w-]{36})\/cv$/.exec(requestUrl.pathname);
+  if (cvMatch && request.method === "GET") {
+    if (user.role !== "admin") return reply(request, env, { error: "admin_required" }, 403);
+    const cv = await env.DB.prepare("SELECT cv_bytes,cv_content_type,cv_file_name,cv_byte_size,cv_updated_at FROM provider_profiles WHERE id=?").bind(cvMatch[1]).first();
+    if (!cv?.cv_bytes || !cv.cv_content_type) return reply(request, env, { error: "cv_not_found" }, 404);
+    const disposition = `attachment; filename="${safeCvFileName(cv.cv_file_name)}"`;
+    return binaryReply(request, env, cv.cv_bytes, cv.cv_content_type, "private, no-store", disposition);
+  }
   const photoMatch = /^\/api\/admin\/providers\/([\w-]{36})\/photo$/.exec(new URL(request.url).pathname);
   if (photoMatch && request.method === "GET") {
     const photo = await env.DB.prepare("SELECT profile_photo_bytes,profile_photo_content_type FROM provider_profiles WHERE id=?")
@@ -2871,27 +3103,41 @@ async function adminApplications(request, env, user) {
     const welcomeFields = `w.status AS welcome_email_status,w.attempts AS welcome_attempts,w.error AS welcome_error`;
     const welcomeJoin = `LEFT JOIN coach_welcome_emails w ON w.id=(SELECT id FROM coach_welcome_emails WHERE profile_id=p.id ORDER BY created_at DESC LIMIT 1)`;
     const completeness = `CASE WHEN p.provider_type='coach' THEN (p.specialties_json NOT IN ('[]','') AND p.bio NOT IN ('','Profile awaiting completion by the provider.'))
-      WHEN p.provider_type IN ('nutritionist','physiotherapist','sports_massage_therapist') THEN (p.qualifications<>'' AND p.services_json NOT IN ('[]','') AND p.license_number<>'' AND p.license_issuer<>'')
+      WHEN p.provider_type IN ('nutritionist','physiotherapist','sports_massage_therapist') THEN (p.services_json NOT IN ('[]','') AND p.license_number<>'' AND p.license_issuer<>'')
       ELSE (p.bio NOT IN ('','Profile awaiting completion by the provider.')) END AS profile_complete`;
-    const providers = await env.DB.prepare(`SELECT p.id,p.qualifications,p.services_json,p.coaching_mode,p.certificate_name,p.certificate_issuer,p.certificate_number,p.license_number,p.license_issuer,p.license_country,p.license_expires_on,p.license_status,p.license_review_note,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=p.id) AS gallery_slots,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.whatsapp_number,p.whatsapp_public,p.social_links_json,p.status,p.review_note,p.updated_at,u.email,${completeness},${welcomeFields}
-      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all();
-    const approvedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
+    const providers = await env.DB.prepare(`SELECT p.id,p.user_id,p.qualifications,p.services_json,p.coaching_mode,p.certificate_name,p.certificate_issuer,p.certificate_number,p.license_number,p.license_issuer,p.license_country,p.license_expires_on,p.license_status,p.license_review_note,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=p.id) AS gallery_slots,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.whatsapp_number,p.whatsapp_public,p.social_links_json,p.status,p.review_note,p.submission_state,p.submitted_at,CASE WHEN p.cv_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_cv,p.cv_file_name,p.cv_byte_size,p.cv_updated_at,p.updated_at,u.email,${completeness},${welcomeFields}
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='pending' AND COALESCE(p.submission_state,'submitted')<>'draft' ORDER BY p.created_at LIMIT 100`).all();
+    const draftProviders = await env.DB.prepare(`SELECT p.id,p.user_id,p.provider_type,p.display_name,p.country,p.city,p.submission_state,p.submitted_at,p.updated_at,u.email,${completeness}
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='pending' AND p.submission_state='draft' ORDER BY p.created_at LIMIT 100`).all();
+    const approvedProviders = await env.DB.prepare(`SELECT p.id,p.user_id,p.provider_type,p.display_name,p.country,p.city,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
       FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='approved' ORDER BY p.updated_at DESC LIMIT 100`).all();
-    const rejectedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.review_note,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
+    const rejectedProviders = await env.DB.prepare(`SELECT p.id,p.user_id,p.provider_type,p.display_name,p.country,p.city,p.review_note,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
       FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='rejected' AND (p.review_note IS NULL OR p.review_note<>'Removed by owner') ORDER BY p.updated_at DESC LIMIT 100`).all();
-    const suspendedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.review_note,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
+    const suspendedProviders = await env.DB.prepare(`SELECT p.id,p.user_id,p.provider_type,p.display_name,p.country,p.city,p.review_note,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
       FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='rejected' AND p.review_note='Removed by owner' ORDER BY p.updated_at DESC LIMIT 100`).all();
     const bookings = await env.DB.prepare(`SELECT id,provider_id,(SELECT display_name FROM provider_profiles WHERE id=booking_requests.provider_id) AS coach_name,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,service_name,distance,target_pace,program_duration_months,created_at
       FROM booking_requests ORDER BY CASE WHEN status IN ('received','reviewing') THEN 0 ELSE 1 END, created_at DESC LIMIT 100`).all();
-    return reply(request, env, { providers: providers.results || [], approved_providers: approvedProviders.results || [], rejected_providers: rejectedProviders.results || [], suspended_providers: suspendedProviders.results || [], bookings: bookings.results || [] });
+    return reply(request, env, {
+      providers: (providers.results || []).map((row) => applicationForViewer(row, user)),
+      draft_providers: (draftProviders.results || []).map((row) => applicationForViewer(row, user)),
+      approved_providers: (approvedProviders.results || []).map((row) => applicationForViewer(row, user)),
+      rejected_providers: (rejectedProviders.results || []).map((row) => applicationForViewer(row, user)),
+      suspended_providers: (suspendedProviders.results || []).map((row) => applicationForViewer(row, user)),
+      bookings: bookings.results || [],
+    });
   }
   const match = /^\/api\/admin\/providers\/([\w-]{36})$/.exec(new URL(request.url).pathname);
   if (match && request.method === "PATCH") {
     const body = await readJson(request), status = body?.status;
     if (!body || !["approved","rejected","suspended"].includes(status)) return reply(request, env, { error: "invalid_review_status" }, 400);
-    const previous = await env.DB.prepare(`SELECT status,provider_type,display_name,review_note,bio,specialties_json,languages_json,qualifications,services_json,license_number,license_issuer,license_status,license_review_note,user_id
+    const previous = await env.DB.prepare(`SELECT status,provider_type,display_name,review_note,bio,specialties_json,languages_json,qualifications,services_json,license_number,license_issuer,license_expires_on,license_status,license_review_note,submission_state,user_id,(SELECT account_status FROM users WHERE id=user_id) AS account_status
       FROM provider_profiles WHERE id=?`).bind(match[1]).first();
     if (!previous) return reply(request, env, { updated: false }, 404);
+    if (status === "approved" && LICENSED_PROVIDER_TYPES.includes(previous.provider_type) && user.role !== "admin") {
+      return reply(request, env, { error: "admin_required" }, 403);
+    }
+    if (status === "approved" && !accountActive(previous.account_status)) return reply(request, env, { error: "account_not_active" }, 409);
+    if (status === "approved" && previous.submission_state === "draft") return reply(request, env, { error: "profile_not_submitted" }, 409);
     const fromStatus = previous.status;
     const ownerRemoved = fromStatus === "rejected" && previous.review_note === "Removed by owner";
     const isSameDecision = (row) => status === "approved" ? row?.status === "approved"
@@ -2914,6 +3160,9 @@ async function adminApplications(request, env, user) {
       !previous.qualifications?.trim() || !cleanList(safeParse(previous.services_json),12,120).length
       || !previous.license_number?.trim() || !previous.license_issuer?.trim() || body.license_verified !== true
     )) return reply(request, env, { error: "professional_license_incomplete" }, 422);
+    if (status === "approved" && licensed && previous.license_expires_on && previous.license_expires_on < new Date().toISOString().slice(0,10)) {
+      return reply(request, env, { error: "professional_license_expired" }, 422);
+    }
     const storedStatus = status === "suspended" ? "rejected" : status;
     const note = status === "suspended" ? "Removed by owner" : status === "approved" ? null : text(body.note,500)||null;
     const verified = status === "approved" && (
@@ -3791,13 +4040,18 @@ export default {
       if (!user) return reply(request, env, { error: "unauthorized" }, 401);
       if (user.role === "admin") return reply(request, env, { user: { email:user.email, role:user.role } });
       if (request.method === "PUT") return saveProfile(request, env, user);
-      const profile = await env.DB.prepare(`SELECT id,verified,qualifications,services_json,coaching_mode,certificate_name,certificate_issuer,certificate_number,license_number,license_issuer,license_country,license_expires_on,license_status,license_review_note,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=provider_profiles.id) AS gallery_slots,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json,status,review_note,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
+      const profile = await env.DB.prepare(`SELECT id,verified,qualifications,services_json,coaching_mode,certificate_name,certificate_issuer,certificate_number,license_number,license_issuer,license_country,license_expires_on,license_status,license_review_note,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=provider_profiles.id) AS gallery_slots,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json,status,review_note,submission_state,submitted_at,CASE WHEN cv_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_cv,cv_file_name,cv_byte_size,cv_updated_at,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
       return reply(request, env, { profile: profile ? { ...profile, professional_category:{ en:professionalLabel(profile.provider_type,"en"), ar:professionalLabel(profile.provider_type,"ar") }, services:safeParse(profile.services_json), gallery_slots:safeParse(profile.gallery_slots), specialties:safeParse(profile.specialties_json), languages:safeParse(profile.languages_json), program_durations:safeParse(profile.program_durations_json), social_links:safeParse(profile.social_links_json), public_fields:cleanPublicFields(safeParse(profile.public_fields_json)) } : null });
     }
     if (request.method === "PUT" && url.pathname === "/api/me/profile/photo") {
       const user = await currentUser(request, env);
       if (!user || user.role !== "provider") return reply(request, env, { error: "unauthorized" }, 401);
       return uploadProfilePhoto(request, env, user);
+    }
+    if (["GET", "PUT", "DELETE"].includes(request.method) && url.pathname === "/api/me/profile/cv") {
+      const user = await currentUser(request, env);
+      if (!user || user.role !== "provider") return reply(request, env, { error: "unauthorized" }, 401);
+      return ownerCv(request, env, user, request.method);
     }
     if (request.method === "POST" && url.pathname === "/api/bookings") return createBooking(request, env);
     if (url.pathname.startsWith("/api/admin/")) {

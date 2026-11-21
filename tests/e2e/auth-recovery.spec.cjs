@@ -147,7 +147,7 @@ test('reset page validates mismatched passwords and never uses a key field', asy
   await expect(page.getByText('Recovery key', { exact: false })).toHaveCount(0);
 
   const password = page.locator('#resetPasswordInput');
-  await expect(password).toHaveAttribute('minlength', '12');
+  await expect(password).toHaveAttribute('minlength', '8');
   await page.locator('[data-password-toggle=resetPasswordInput]').click();
   await expect(password).toHaveAttribute('type', 'text');
   await page.locator('[data-password-toggle=resetPasswordInput]').click();

@@ -159,7 +159,7 @@ test('the Management Portal has no installation promotion or install script', ()
 });
 
 test('install assets join the offline-safe versioned shell', () => {
-  assert.match(sw, /mza-shell-v8/);
+  assert.match(sw, /mza-shell-v9/);
   assert.match(sw, /\/assets\/css\/pwa-install-v2\.css\?v=20261122a/);
   assert.match(sw, /\/assets\/js\/pwa-install-v2\.js\?v=20261122a/);
   assert.match(installCss, /#091d21/);

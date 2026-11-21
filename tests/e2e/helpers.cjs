@@ -179,6 +179,31 @@ function defaultApiHandler(ctx, state) {
   if (urlPath === '/api/admin/applications') {
     return json({ providers: [], approved_providers: [], rejected_providers: [], suspended_providers: [], bookings: [] });
   }
+  if (urlPath === '/api/admin/accounts' && method === 'GET') {
+    return json({ accounts: [], total: 0 });
+  }
+  if (/^\/api\/admin\/accounts\/[^/]+$/.test(urlPath) && method === 'GET') {
+    const id = urlPath.split('/').pop(), coach = id.startsWith('coach');
+    return json({
+      account: {
+        id, email: coach ? 'coach-e2e@example.invalid' : 'athlete-e2e@example.invalid',
+        role: 'provider', account_status: 'active',
+        profile_id: coach ? 'profile-e2e' : null,
+        profile_status: coach ? 'approved' : null,
+        submission_state: coach ? 'submitted' : null,
+        display_name: coach ? 'E2E Coach' : 'E2E Athlete',
+        booking_count: 2, program_count: 1, role_mismatch: !coach,
+      },
+      events: [],
+    });
+  }
+  if (/^\/api\/admin\/accounts\/[^/]+\/(coach-application|suspend|reactivate|delete)$/.test(urlPath) && method === 'POST') {
+    const action = urlPath.split('/').pop();
+    return json({
+      ok: true, account_status: action === 'suspend' ? 'suspended' : 'active',
+      anonymized: action === 'delete', bookings_preserved: action === 'delete',
+    });
+  }
   if (urlPath === '/api/admin/agents') {
     return json({
       snapshot: {

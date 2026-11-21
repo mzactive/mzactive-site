@@ -223,8 +223,8 @@ test('an athlete deep link opens a verified detail drawer with actions and safe 
   await expect(drawer).toContainText('Improve my race pace');
   await expect(drawer).toContainText('Weekday evenings');
   await expect(drawer).toContainText('Only verified profile fields are shown.');
-  await expect(drawer.locator('.crm-field').filter({ hasText: 'Email' })).toContainText('layla@example.invalid');
-  await expect(drawer.locator('.crm-action')).toHaveCount(7);
+  await expect(drawer.locator('#crmProfileSection .crm-field').filter({ hasText: 'Email' })).toContainText('layla@example.invalid');
+  await expect(drawer.locator('.crm-actions .crm-action')).toHaveCount(7);
 
   const emptyDrawer = page.locator('#athleteDetailDialog');
   await emptyDrawer.locator('.crm-close').click();

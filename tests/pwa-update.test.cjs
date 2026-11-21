@@ -9,13 +9,13 @@ const sw = read('sw.js');
 const register = read('assets/js/pwa-register.js');
 const css = read('assets/css/site-theme.css');
 
-test('the active service worker shell cache is bumped to v8', () => {
-  assert.match(sw, /const CACHE = ['"]mza-shell-v8['"]/);
-  assert.doesNotMatch(sw, /const CACHE = ['"]mza-shell-v7['"]/);
+test('the active service worker shell cache is bumped to v9', () => {
+  assert.match(sw, /const CACHE = ['"]mza-shell-v9['"]/);
+  assert.doesNotMatch(sw, /const CACHE = ['"]mza-shell-v8['"]/);
   assert.match(sw, /key\.startsWith\(['"]mza-shell-['"]\) && key !== CACHE/);
   assert.match(sw, /caches\.delete\(key\)/);
   // The previous name only survives as migration documentation.
-  const legacy = sw.split('\n').filter(line => line.includes('mza-shell-v7'));
+  const legacy = sw.split('\n').filter(line => line.includes('mza-shell-v8'));
   assert.equal(legacy.length, 1);
   assert.match(legacy[0], /^\/\//);
   new Function(sw);

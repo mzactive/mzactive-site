@@ -112,6 +112,26 @@ test('coach security, contact states, completeness and Momo drafts are enforced 
     assert.equal(ownCompleteness.complete, true);
     assert.equal(ownCompleteness.percent, 100);
 
+    // Optional qualifications and the private CV never lower public-profile
+    // completeness, even for a licensed category. License review stays separate.
+    const specialist = (await call(env, 'auth/register', 'POST', {
+      ...signup, email: 'specialist@example.test', provider_type: 'nutritionist',
+    }, null, 201)).token;
+    const specialistId = (await call(env, 'me/profile', 'GET', undefined, specialist)).profile.id;
+    await call(env, 'me/profile', 'PUT', {
+      provider_type: 'nutritionist', display_name: 'Noor Specialist', city: 'Doha', country: 'Qatar',
+      services: ['Nutrition consultation'], license_number: 'LIC-222', license_issuer: 'Test board',
+      bio: 'Public biography', specialties: ['Sport nutrition'], program_durations: [1],
+    }, specialist);
+    const specialistCompletion = (await call(env, 'me/completeness', 'GET', undefined, specialist)).completeness;
+    assert.equal(specialistCompletion.percent, 100);
+    assert.equal(specialistCompletion.complete, true);
+    assert.ok(!specialistCompletion.required.includes('qualifications'));
+    assert.ok(specialistCompletion.recommended.includes('qualifications'));
+    const specialistApplication = (await call(env, 'admin/applications', 'GET', undefined, admin))
+      .providers.find(p => p.id === specialistId);
+    assert.equal(Number(specialistApplication.profile_complete), 1);
+
     // Contact configuration comes only from Worker bindings, never from HTML.
     const coachConfig = (await call(env, 'me/contact-config', 'GET', undefined, coach)).contact;
     assert.equal(coachConfig.email, 'management@example.test');
@@ -196,6 +216,10 @@ test('coach security, contact states, completeness and Momo drafts are enforced 
     assert.equal(incomplete.complete, false);
     assert.ok(incomplete.required.includes('bio'));
     assert.ok(incomplete.required.includes('specialties'));
+    const ownIncomplete = (await call(env, 'me/completeness', 'GET', undefined, coach)).completeness;
+    for (const key of ['percent', 'complete', 'required', 'recommended', 'score']) {
+      assert.deepEqual(ownIncomplete[key], incomplete[key], 'admin/coach completion mismatch: ' + key);
+    }
   } finally {
     restore();
   }

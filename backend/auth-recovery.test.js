@@ -60,6 +60,37 @@ test('login reports invalid credentials without revealing whether the email exis
   db.close();
 });
 
+test('public registration accepts simple 8-character and long passphrases but rejects weak choices', async () => {
+  const { db, env } = makeEnv();
+  const short = await call(env, 'auth/register', 'POST', { email: 'short@example.test', password: 'abc1234', consent: true, provider_type: 'coach' }, null, 400);
+  assert.deepEqual(short, { error: 'invalid_registration' });
+  const common = await call(env, 'auth/register', 'POST', { email: 'common@example.test', password: 'qwerty123', consent: true, account_type: 'member' }, null, 400);
+  assert.deepEqual(common, { error: 'weak_password' });
+  const simple = 'runner42';
+  await call(env, 'auth/register', 'POST', { email: 'coach@example.test', password: simple, consent: true, provider_type: 'coach' }, null, 201);
+  const long = ('MzActive42-'.repeat(7)).slice(0, 64);
+  assert.equal(long.length, 64);
+  await call(env, 'auth/register', 'POST', { email: 'member@example.test', password: long, consent: true, account_type: 'member' }, null, 201);
+  await call(env, 'auth/login', 'POST', { email: 'coach@example.test', password: simple });
+  await call(env, 'auth/login', 'POST', { email: 'member@example.test', password: long });
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM users').get().count, 2);
+  db.close();
+});
+
+test('admin authentication keeps its stricter baseline while public password changes are simpler', async () => {
+  const { db, env } = makeEnv();
+  await call(env, 'auth/register', 'POST', { email: env.ADMIN_EMAILS, password: 'owner-password-long', consent: true }, null, 201);
+  const adminToken = (await call(env, 'auth/login', 'POST', { email: env.ADMIN_EMAILS, password: 'owner-password-long' })).token;
+  assert.deepEqual(await call(env, 'auth/change-password', 'POST', { current_password: 'owner-password-long', new_password: 'runner42' }, adminToken, 400), { error: 'invalid_password' });
+  assert.deepEqual(await call(env, 'auth/change-password', 'POST', { current_password: 'owner-password-long', new_password: 'qwerty1234' }, adminToken, 400), { error: 'invalid_password' });
+
+  await call(env, 'auth/register', 'POST', { email: 'coach@example.test', password: 'coach-password-long', consent: true, provider_type: 'coach' }, null, 201);
+  const coachToken = (await call(env, 'auth/login', 'POST', { email: 'coach@example.test', password: 'coach-password-long' })).token;
+  assert.deepEqual(await call(env, 'auth/change-password', 'POST', { current_password: 'coach-password-long', new_password: 'runner42' }, coachToken), { ok: true });
+  await call(env, 'auth/login', 'POST', { email: 'coach@example.test', password: 'runner42' });
+  db.close();
+});
+
 test('admin recovery needs a configured secret and rejects wrong keys without changing the password', async () => {
   const password = 'owner-password-long';
   const missing = makeEnv();

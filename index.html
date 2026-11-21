@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#091D21">
-  <meta name="description" content="Find approved sports coaches for running, fitness, swimming, cycling, triathlon, HYROX, CrossFit and padel. Train online or in person with MZ Active.">
+  <meta name="description" content="Find approved sports coaches for running, fitness, swimming, cycling, triathlon, HYROX, CrossFit, padel, boxing and kickboxing. Train online or in person with MZ Active.">
   <title>Find Your Coach | MZ Active</title>
   <link rel="canonical" href="https://mzactive.com/">
   <meta property="og:type" content="website">
@@ -1143,7 +1143,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .footer-install p { margin: 0; color: #b6ccc6; font-size: 9px; line-height: 1.5; }
 .footer-install-badge { display: inline-grid; place-items: center; min-width: 42px; min-height: 28px; border: 1px solid #f2b718; border-radius: 9px; color: #f2b718; font-size: 10px; font-weight: 900; letter-spacing: .08em; }
 html[dir="rtl"] .footer-install { text-align: right; }
-  </style>
+/* Compact, thumb-friendly header without changing the approved identity. */
+@media (max-width:720px){
+  .header-inner{min-height:56px}
+  .menu-toggle{width:44px;height:44px}
+  .lang-toggle{min-height:44px}
+  .main-nav > a, .nav-resources > summary{min-height:44px;display:flex;align-items:center}
+  .mobile-nav-actions a{min-height:44px;font-size:12px}
+}
+@media (max-width:520px){
+  .brand img{width:96px}
+  .lang-toggle{min-height:44px;padding:6px 9px}
+  .hero-actions .button, .button-search{min-height:44px}
+  .search-field{min-height:44px}
+}
+</style>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"MZ Active","url":"https://mzactive.com/","logo":"https://mzactive.com/assets/brand/mzactive-logo.webp"}</script>
 <link rel="preload" as="image" href="assets/images/responsive/mzactive-runners-640w.webp" type="image/webp" fetchpriority="high" media="(max-width: 520px)">
   <link rel="preload" as="image" href="assets/images/responsive/mzactive-runners-960w.webp" type="image/webp" fetchpriority="high" media="(min-width: 521px)">
@@ -1228,6 +1242,8 @@ html[dir="rtl"] .footer-install { text-align: right; }
               <option value="hyrox">HYROX</option>
               <option value="crossfit">CrossFit</option>
               <option value="padel" data-en="Padel" data-ar="البادل">Padel</option>
+              <option value="boxing" data-en="Boxing" data-ar="الملاكمة">Boxing</option>
+              <option value="kickboxing" data-en="Kickboxing" data-ar="الكيك بوكسينغ">Kickboxing</option>
             </select>
             </span>
           </label>
@@ -1267,6 +1283,8 @@ html[dir="rtl"] .footer-install { text-align: right; }
           <a href="coaches.html?sport=hyrox"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 29h24M12 29V18m16 11V18M8 18h24l-3-7H11l-3 7Zm7 0v-7m10 7v-7"></path><path d="m13 34 3-5m11 5-3-5"></path></svg><span>HYROX</span></a>
           <a href="coaches.html?sport=crossfit"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M5 17v6m4-10v14m4-8h14m4-6v14m4-10v6"></path><circle cx="5" cy="20" r="2"></circle><circle cx="35" cy="20" r="2"></circle></svg><span>CrossFit</span></a>
           <a href="coaches.html?sport=padel"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 6c7-3 15 1 17 8s-2 14-9 16-14-1-16-8 1-13 8-16Z"></path><path d="m18 29 7 8M13 11l10 14m-12-6 13-9m-15 2 12 16m-8-19 10 14"></path></svg><span data-en="Padel" data-ar="البادل">Padel</span></a>
+          <a href="coaches.html?sport=boxing"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14c0-4 3-7 7-7h8c4 0 7 3 7 7v8c0 4-3 7-7 7h-8c-4 0-7-3-7-7v-8Z"></path><path d="M16 7V5c0-2 2-3 4-3s4 1 4 3v2M9 18H5c-2 0-3 2-3 4s1 4 3 4h4m22-8h4c2 0 3 2 3 4s-1 4-3 4h-4"></path></svg><span data-en="Boxing" data-ar="الملاكمة">Boxing</span></a>
+          <a href="coaches.html?sport=kickboxing"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13c0-3 3-6 6-6h12c3 0 6 3 6 6v9c0 4-3 7-7 7H15c-4 0-7-3-7-7v-9Z"></path><path d="M14 7V4m12 3V4M4 22l4-3m28 3-4-3M13 29l-2 5m16-5 2 5"></path></svg><span data-en="Kickboxing" data-ar="الكيك بوكسينغ">Kickboxing</span></a>
         </div>
       </div>
     </section>
@@ -1319,6 +1337,8 @@ html[dir="rtl"] .footer-install { text-align: right; }
           <a class="sport-card" href="coaches.html?sport=hyrox"><span class="sport-card-art sport-card-art-hyrox"><picture class="responsive-photo" style="display:contents"><source data-responsive-webp type="image/webp" srcset="assets/images/responsive/sports/hyrox-320w.webp 320w, assets/images/responsive/sports/hyrox-480w.webp 480w, assets/images/responsive/sports/hyrox-640w.webp 640w, assets/images/responsive/sports/hyrox-768w.webp 768w, assets/images/responsive/sports/hyrox-960w.webp 960w" sizes="(max-width: 720px) 24vw, 12vw"><img src="assets/images/sports/hyrox.webp?v=20261118" alt="" loading="lazy" decoding="async" fetchpriority="low" width="1000" height="666"></picture></span><span class="sport-card-label">HYROX</span></a>
           <a class="sport-card" href="coaches.html?sport=crossfit"><span class="sport-card-art sport-card-art-crossfit"><picture class="responsive-photo" style="display:contents"><source data-responsive-webp type="image/webp" srcset="assets/images/responsive/sports/crossfit-320w.webp 320w, assets/images/responsive/sports/crossfit-480w.webp 480w, assets/images/responsive/sports/crossfit-640w.webp 640w, assets/images/responsive/sports/crossfit-768w.webp 768w, assets/images/responsive/sports/crossfit-960w.webp 960w" sizes="(max-width: 720px) 24vw, 12vw"><img src="assets/images/sports/crossfit.webp?v=20261118" alt="" loading="lazy" decoding="async" fetchpriority="low" width="1000" height="563"></picture></span><span class="sport-card-label">CrossFit</span></a>
           <a class="sport-card" href="coaches.html?sport=padel"><span class="sport-card-art"><picture class="responsive-photo" style="display:contents"><source data-responsive-webp type="image/webp" srcset="assets/images/responsive/approved/padel-group-320w.webp 320w, assets/images/responsive/approved/padel-group-480w.webp 480w, assets/images/responsive/approved/padel-group-640w.webp 640w, assets/images/responsive/approved/padel-group-768w.webp 768w, assets/images/responsive/approved/padel-group-960w.webp 960w, assets/images/responsive/approved/padel-group-1280w.webp 1280w" sizes="(max-width: 720px) 24vw, 12vw"><img src="assets/images/approved/padel-group.jpg?v=20261118" alt="" loading="lazy" decoding="async" fetchpriority="low" width="1365" height="768"></picture></span><span class="sport-card-label" data-en="Padel" data-ar="البادل">Padel</span></a>
+          <a class="sport-card" href="coaches.html?sport=boxing"><span class="sport-card-art"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:52%;height:52%"><path d="M9 14c0-4 3-7 7-7h8c4 0 7 3 7 7v8c0 4-3 7-7 7h-8c-4 0-7-3-7-7v-8Z"></path><path d="M16 7V5c0-2 2-3 4-3s4 1 4 3v2M9 18H5c-2 0-3 2-3 4s1 4 3 4h4m22-8h4c2 0 3 2 3 4s-1 4-3 4h-4"></path></svg></span><span class="sport-card-label" data-en="Boxing" data-ar="الملاكمة">Boxing</span></a>
+          <a class="sport-card" href="coaches.html?sport=kickboxing"><span class="sport-card-art"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:52%;height:52%"><path d="M8 13c0-3 3-6 6-6h12c3 0 6 3 6 6v9c0 4-3 7-7 7H15c-4 0-7-3-7-7v-9Z"></path><path d="M14 7V4m12 3V4M4 22l4-3m28 3-4-3M13 29l-2 5m16-5 2 5"></path></svg></span><span class="sport-card-label" data-en="Kickboxing" data-ar="الكيك بوكسينغ">Kickboxing</span></a>
         </div>
       </div>
     </section>
@@ -1432,6 +1452,6 @@ html[dir="rtl"] .footer-install { text-align: right; }
   <script src="assets/js/site-language.js?v=20261120h" defer></script>
   <script src="assets/js/homepage.js?v=20261120c" defer></script>
   <script src="assets/js/management-contact.js"></script><script src="assets/js/whatsapp-chat.js" defer></script>
-  <script src="assets/js/assistant-chat-v2.js" defer></script>
+  <script src="assets/js/assistant-chat-v2.js?v=20261122a" defer></script>
 <script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script></body>
 </html>

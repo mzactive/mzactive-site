@@ -22,14 +22,14 @@ const VERSION = '?v=20261120f';
 
 test('reset-password.html is mobile-first, bilingual and PWA-ready', () => {
   assert.ok(fs.existsSync(path.join(root, 'reset-password.html')));
-  assert.match(resetHtml, /name="viewport" content="width=device-width,initial-scale=1"/);
+  assert.match(resetHtml, /name="viewport" content="width=device-width,initial-scale=1(?:,viewport-fit=cover)?"/);
   assert.match(resetHtml, /rel="manifest" href="\/manifest\.json"/);
   assert.match(resetHtml, /apple-touch-icon/);
   assert.match(resetHtml, /pwa-register\.js/);
   assert.match(resetHtml, /assets\/brand\/mzactive-logo\.webp/);
   assert.match(resetHtml, /class="lang-toggle" id="lang"/);
   assert.ok(resetHtml.includes(`auth.css${VERSION}`));
-  assert.match(resetHtml, /reset-password\.js\?v=20261120(?:f|g)/);
+  assert.match(resetHtml, /reset-password\.js\?v=2026112[0-9][a-z]/);
   assert.match(authCss, /#091d21/);
   assert.match(authCss, /#f2b718/);
   assert.match(authCss, /max-width: 640px/);
@@ -41,7 +41,7 @@ test('reset page keeps the normal password-only flow with token handling and tog
   assert.match(resetHtml, /Password updated\. Sign in again\./);
   assert.match(resetHtml, /تم تحديث كلمة المرور\. سجّل الدخول مجدداً\./);
   assert.match(resetHtml, /data-en="Back to sign in" data-ar="العودة إلى تسجيل الدخول"/);
-  assert.equal((resetHtml.match(/minlength="12"/g) || []).length, 2);
+  assert.equal((resetHtml.match(/minlength="8"/g) || []).length, 2);
   assert.match(resetHtml, /data-password-toggle="resetPasswordInput"/);
   assert.match(resetHtml, /data-password-toggle="resetConfirmInput"/);
   assert.match(resetJs, /URLSearchParams\(location\.search\)\.get\('token'\)/);

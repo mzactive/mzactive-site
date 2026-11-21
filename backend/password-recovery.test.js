@@ -175,7 +175,7 @@ test('expired and malformed reset links are rejected and rate limits apply', asy
     db.prepare('UPDATE password_reset_tokens SET expires_at=?').run(Math.floor(Date.now() / 1000) - 1);
     const rawToken = resetTokenFrom(emails[0]);
     assert.deepEqual(await call(env, 'auth/reset-password', 'POST', { token: rawToken, new_password: 'replacement-password-long' }, null, 400), { error: 'invalid_token' });
-    assert.deepEqual(await call(env, 'auth/reset-password', 'POST', { token: 'bad', new_password: 'short' }, null, 400), { error: 'invalid_password' });
+    assert.deepEqual(await call(env, 'auth/reset-password', 'POST', { token: 'bad', new_password: 'runner42' }, null, 400), { error: 'invalid_token' });
     await call(env, 'auth/forgot-password', 'POST', { email: 'a@example.test' });
     await call(env, 'auth/forgot-password', 'POST', { email: 'b@example.test' });
     await call(env, 'auth/forgot-password', 'POST', { email: 'c@example.test' });

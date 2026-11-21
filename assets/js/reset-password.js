@@ -6,8 +6,8 @@
   const COPY = {
     title: ['Choose a new password', 'اختر كلمة مرور جديدة'],
     intro: [
-      'Use at least 12 characters. After a successful reset you will need to sign in again.',
-      'استخدم ١٢ حرفاً على الأقل. بعد نجاح إعادة التعيين سيتعين عليك تسجيل الدخول مجدداً.'
+      'Use at least 8 characters. A longer phrase is stronger. After a successful reset you will need to sign in again.',
+      'استخدم ٨ أحرف على الأقل. العبارة الأطول أقوى. بعد نجاح إعادة التعيين سيتعين عليك تسجيل الدخول مجدداً.'
     ],
     password: ['New password', 'كلمة المرور الجديدة'],
     confirm: ['Confirm new password', 'تأكيد كلمة المرور الجديدة'],
@@ -19,13 +19,14 @@
       'This reset link is missing a token. Open the link from your email or request a new one from the sign-in page.',
       'رابط إعادة التعيين هذا لا يتضمن رمزاً. افتح الرابط من بريدك أو اطلب رابطاً جديداً من صفحة الدخول.'
     ],
-    password_short: ['Use at least 12 characters.', 'استخدم ١٢ حرفاً على الأقل.'],
+    password_short: ['Use at least 8 characters.', 'استخدم ٨ أحرف على الأقل.'],
+    weak_password: ['That password is too common. Choose a longer phrase or a different one.', 'كلمة المرور هذه شائعة جداً. اختر عبارة أطول أو كلمة مختلفة.'],
     password_match: ['The new passwords do not match.', 'كلمتا المرور الجديدتان غير متطابقتين.'],
     invalid_token: [
       'This reset link is invalid or has expired. Request a new one from the sign-in page.',
       'هذا الرابط غير صالح أو منتهٍ. اطلب رابطاً جديداً من صفحة الدخول.'
     ],
-    invalid_password: ['Use a new password of at least 12 characters.', 'استخدم كلمة مرور جديدة من ١٢ حرفاً على الأقل.'],
+    invalid_password: ['Use a new password of at least 8 characters.', 'استخدم كلمة مرور جديدة من ٨ أحرف على الأقل.'],
     rate_limited: ['Too many attempts. Wait a minute and try again.', 'محاولات كثيرة. انتظر دقيقة ثم حاول مجدداً.'],
     recovery_unavailable: [
       'Password recovery is not configured. Contact the account owner.',
@@ -123,7 +124,7 @@
     }
     const password = $('resetPasswordInput').value;
     const confirmation = $('resetConfirmInput').value;
-    if (password.length < 12) {
+    if (password.length < 8) {
       setStatus(COPY.password_short, 'error');
       $('resetPasswordInput').focus();
       return;
@@ -155,6 +156,7 @@
       const errors = {
         invalid_token: COPY.invalid_token,
         invalid_password: COPY.invalid_password,
+        weak_password: COPY.weak_password,
         rate_limited: COPY.rate_limited,
         recovery_unavailable: COPY.recovery_unavailable
       };

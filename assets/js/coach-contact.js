@@ -25,22 +25,6 @@
     return String(value || '').replaceAll('_', ' ');
   }
 
-  async function loadCompleteness() {
-    const target = $('profileCompleteness');
-    if (!target) return;
-    try {
-      const data = await api('/api/me/completeness');
-      const c = data.completeness;
-      if (!c) { target.textContent = t('No coach profile found yet.','لم يتم إنشاء ملف مدرب بعد.'); return; }
-      const missing = [...(c.required || []), ...(c.recommended || [])].slice(0, 6);
-      target.textContent = t('Profile completeness: ', 'اكتمال الملف: ') + c.percent + '%' +
-        (c.complete ? '' : ' · ' + t('Missing: ', 'ناقص: ') + missing.join(', '));
-      target.dataset.complete = String(c.complete);
-    } catch {
-      target.textContent = t('Profile completeness is unavailable.','اكتمال الملف غير متاح.');
-    }
-  }
-
   async function loadConfig() {
     const setup = $('coachContactSetup');
     if (!setup) return;
@@ -99,9 +83,9 @@
       const access = await api('/api/me/access');
       if (access.account_type !== 'provider') return;
     } catch { return; }
-    await Promise.all([loadCompleteness(), loadConfig(), loadHistory()]);
+    await Promise.all([loadConfig(), loadHistory()]);
     $('coachContactEmail')?.addEventListener('click', () => prepare('email'));
     $('coachContactWhatsapp')?.addEventListener('click', () => prepare('whatsapp'));
-    document.addEventListener('mzactive:language-change', () => { loadConfig(); loadCompleteness(); });
+    document.addEventListener('mzactive:language-change', loadConfig);
   });
 })();

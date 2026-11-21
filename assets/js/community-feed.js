@@ -4,7 +4,7 @@
   const key = 'mzactive-provider-session';
   const language = window.MZActiveLanguage;
   const t = (en, ar) => language.get() === 'ar' ? ar : en;
-  const sports = ['running', 'walking', 'cycling', 'swimming', 'strength', 'boxing', 'padel', 'football', 'other'];
+  const sports = ['running', 'walking', 'cycling', 'swimming', 'strength', 'boxing', 'kickboxing', 'padel', 'football', 'other'];
   let token = '';
   let posts = [];
   let currentUserId = '';

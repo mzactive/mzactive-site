@@ -1,0 +1,19 @@
+.profile-completion{margin:14px 0;padding:16px;border:1px solid #6d561d;border-radius:16px;background:linear-gradient(140deg,#1b1a10,#101a19 65%);color:var(--text,#f0f5f3)}
+.profile-completion-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.profile-completion h3{margin:0;font-size:1rem;color:var(--gold,#f2b718)}
+.profile-completion-percent{font-size:1.55rem;font-weight:900;color:var(--gold,#f2b718);line-height:1}
+.profile-completion-track{height:10px;margin:12px 0 8px;border-radius:999px;background:#2d2a1c;overflow:hidden}
+.profile-completion-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#b98210,#f2b718 55%,#ffd76a);transition:width .35s ease}
+.profile-completion-note{margin:6px 0;color:var(--muted,#b8cbc6);font-size:.78rem}
+.profile-completion-list{list-style:none;display:grid;gap:7px;margin:10px 0 0;padding:0}
+.profile-completion-list li{margin:0}
+.profile-completion-list a{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:8px 12px;border:1px solid #4c5f56;border-radius:12px;background:#0e1614;color:var(--text,#f0f5f3);font-size:.84rem;font-weight:700;text-decoration:none}
+.profile-completion-list a:hover,.profile-completion-list a:focus{outline:2px solid var(--gold,#f2b718);outline-offset:2px}
+.profile-completion-list a span:last-child{color:var(--gold,#f2b718);font-size:.75rem;white-space:nowrap}
+.profile-completion-kicker{font-size:.72rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--gold,#f2b718)}
+.profile-completion-done{padding:10px 12px;border:1px solid #4d7445;border-radius:12px;background:#142016;color:#c8ecb5;font-weight:700}
+.profile-completion[hidden]{display:none}
+.completion-target-flash{outline:3px solid var(--gold,#f2b718)!important;outline-offset:3px;background:#1f2418!important}
+html[dir=rtl] .profile-completion-track{direction:rtl}
+html[dir=rtl] .profile-completion-list a{text-align:right}
+@media(max-width:620px){.profile-completion{padding:13px}.profile-completion-percent{font-size:1.35rem}.profile-completion-list a{font-size:.8rem}}

@@ -12,7 +12,10 @@ const profileJs = read('assets/js/coach-profile.js');
 const worker = read('backend/worker.js');
 const adminJs = read('assets/js/admin.js');
 const dashboard = read('dashboard.html');
+const providers = read('providers.html');
 const contactJs = read('assets/js/coach-contact.js');
+const completionJs = read('assets/js/profile-completion.js');
+const completionCss = read('assets/css/profile-completion.css');
 const migration = read('backend/migrations/0023_coach_communications.sql');
 const communityGroups = read('backend/community-groups.js');
 
@@ -56,8 +59,11 @@ test('completeness is calculated from stored fields and separated from approval'
   assert.match(worker, /required,\s*recommended,\s*score/);
   assert.match(worker, /\/api\/me\/completeness/);
   assert.match(worker, /coachContactMatch = \/\^\\\/api\\\/admin\\\/coaches/);
-  assert.match(dashboard, /id="profileCompleteness"/);
-  assert.match(contactJs, /\/api\/me\/completeness/);
+  assert.match(dashboard, /id="profileCompleteness"[^>]*data-profile-completion/);
+  assert.match(providers, /id="providerCompletion"[^>]*data-profile-completion/);
+  assert.match(completionJs, /\/api\/me\/completeness/);
+  assert.match(completionJs, /data-completion-field/);
+  assert.match(completionCss, /profile-completion-fill/);
 });
 
 test('management and coach contact flows use configured details and explicit states', () => {

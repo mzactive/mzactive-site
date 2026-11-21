@@ -1,6 +1,6 @@
 // MZA app shell. Private pages, API traffic and cross-origin requests stay network-only.
-// Cache name bumped from mza-shell-v7 to mza-shell-v8; older shell caches are retired on activate.
-const CACHE = 'mza-shell-v8';
+// Cache name bumped from mza-shell-v8 to mza-shell-v9; older shell caches are retired on activate.
+const CACHE = 'mza-shell-v9';
 const SHELL = [
   '/offline.html',
   '/manifest.json',
@@ -18,6 +18,8 @@ const SHELL = [
   '/assets/js/language-preference.js?v=20261120c',
   '/assets/js/site-language.js?v=20261120h',
   '/assets/js/api-base.js',
+  '/assets/css/profile-completion.css?v=20261122c',
+  '/assets/js/profile-completion.js?v=20261122c',
 ];
 
 self.addEventListener('install', event => {
