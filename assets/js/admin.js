@@ -5,6 +5,18 @@
   const base = window.MZACTIVE_API_BASE;
   const tabs = {overview:['Overview','نظرة عامة'],coaches:['Coaches','المدربون'],bookings:['Bookings','الحجوزات'],messages:['Messages','الرسائل'],athletes:['Athletes & training','الرياضيون والتدريب'],community:['Community','المجتمع'],articles:['Articles','المقالات'],ai:['AI Brain','المساعد الذكي'],history:['Activity','سجل النشاط']};
   const TAB_PERMISSIONS = {coaches:'management.coaches',bookings:'management.bookings',messages:'management.coaches',athletes:'management.coaches',community:'management.community',articles:'management.articles',ai:'management.ai'};
+  const tabIcons = {overview:'◈',coaches:'◎',bookings:'▣',messages:'✉',athletes:'♙',community:'◍',articles:'▤',ai:'✦',history:'↺'};
+  const tabSubtitles = {
+    overview:['Live records and decisions across your permitted areas.','سجلات وقرارات مباشرة ضمن صلاحياتك.'],
+    coaches:['Review applications and verified professional credentials.','مراجعة الطلبات وبيانات الاعتماد الموثقة.'],
+    bookings:['Triage requests and confirm approved sessions.','فرز الطلبات وتأكيد الجلسات المعتمدة.'],
+    messages:['Conversation metadata only; private message bodies stay protected.','بيانات المحادثات فقط؛ تبقى نصوص الرسائل الخاصة محمية.'],
+    athletes:['Searchable athlete CRM with consent-based coaching actions.','دليل رياضي قابل للبحث مع إجراءات تدريب قائمة على الموافقة.'],
+    community:['Moderate posts, comments, achievements and challenges.','مراجعة المنشورات والتعليقات والإنجازات والتحديات.'],
+    articles:['Publish or return coach-written articles.','نشر مقالات المدربين أو إعادتها للتعديل.'],
+    ai:['Review assistive drafts before any decision takes effect.','راجع المسودات المساعدة قبل تنفيذ أي قرار.'],
+    history:['A chronological record of management decisions.','سجل زمني لقرارات الإدارة.'],
+  };
   const labels = {operations:['Operations manager','مدير العمليات'],monitoring:['Website monitoring','مراقبة الموقع'],analytics:['Business analytics','تحليل الأعمال'],growth:['Growth and strategy','النمو والاستراتيجية'],marketing:['Marketing','التسويق'],community:['Community planning','تخطيط المجتمع'],support:['Customer support','دعم العملاء'],
     received:['Received','تم الاستلام'],reviewing:['Under review','قيد المراجعة'],accepted:['Confirmed','مؤكد'],cancelled:['Cancelled','ملغى'],declined:['Declined','مرفوض'],approved:['Approved','معتمد'],rejected:['Rejected','مرفوض'],pending:['Pending','قيد الانتظار'],published:['Published','منشور'],completed:['Completed','مكتمل'],failed:['Failed','فشل'],running:['Running','قيد التنفيذ'],run_completed:['AI analysis completed','اكتمل التحليل الذكي'],scheduled_snapshot_completed:['Data collected','تم جمع البيانات'],run_failed:['Analysis failed','فشل التحليل'],program_assigned:['Program assigned','تم ربط البرنامج'],run_started:['Analysis started','بدأ التحليل'],post:['Update','تحديث'],event:['Event','فعالية'],group_session:['Group session','جلسة جماعية'],challenge:['Challenge','تحدٍ'],hidden:['Hidden','مخفي'],owner:['Owner','المالك'],coach:['Sports Coach','مدرب رياضي'],pacer:['Champion Pacer','مرافق جري'],nutritionist:['Nutritionist','أخصائي تغذية رياضية'],physiotherapist:['Physiotherapist','أخصائي علاج طبيعي رياضي'],sports_massage_therapist:['Sports Massage Therapist','معالج تدليك رياضي'],certificate:['Certificate','شهادة'],license_number:['License number','رقم الترخيص'],license_issuer:['License issuer','جهة الترخيص'],issuer:['Issuer','الجهة المصدرة'],number:['Number','الرقم'],country:['Country','الدولة'],expiry:['Expiry','الانتهاء'],identity:['Identity and qualifications verified','تم التحقق من الهوية والمؤهلات'],license_required:['Professional license verified','تم التحقق من الترخيص المهني'],license_note:['License review note','ملاحظة مراجعة الترخيص'],previous_note:['Previous review note','ملاحظة المراجعة السابقة'],assigned:['Assigned','معين'],unassigned:['Unassigned','غير معين'],invitation_pending:['Invitation pending','دعوة معلقة'],onboarding_incomplete:['Onboarding incomplete','الملف غير مكتمل'],email_failed:['Invitation email failed','فشل إرسال الدعوة'],email_sent:['Invitation email sent','تم إرسال الدعوة'],sent:['Sent','تم الإرسال'],coach_invited:['Coach invited','تمت دعوة مدرب'],profile_invited:['Profile invitation sent','تم إرسال دعوة الملف'],coach_reassigned:['Coach reassignment requested','تم طلب تغيير المدرب'],coach_revoked:['Coach revoked','تم إلغاء المدرب'],coach_invite_accepted:['Coach invitation accepted','تم قبول دعوة المدرب'],coach_invite_declined:['Coach invitation declined','تم رفض دعوة المدرب'],profile_invite_accepted:['Profile invitation accepted','تم قبول دعوة الملف'],invitation_resent:['Invitation resent','تمت إعادة إرسال الدعوة'],not_provided:['Not provided','غير متوفر'],view_profile:['View profile','عرض الملف'],recommend_coach:['Recommend coach','اقتراح مدرب'],invite_profile:['Invite to complete profile','دعوة لإكمال الملف'],view_programs:['View programs','عرض البرامج'],view_bookings:['View bookings','عرض الحجوزات'],revoke_coach:['Revoke coach','إلغاء المدرب'],reassign_coach:['Reassign coach','تغيير المدرب'],send_invitation:['Send invitation','إرسال الدعوة'],resend_invitation:['Resend invitation','إعادة إرسال الدعوة'],why_recommended:['Why this recommendation','سبب هذا الاقتراح'],no_recommendations:['No approved coaches match the verified profile details yet.','لا يوجد مدربون معتمدون يتطابقون مع بيانات الملف الموثقة بعد.'],no_programs:['No training programs have been assigned.','لم تُربط أي برامج تدريبية.'],no_bookings:['No booking requests are linked to this account.','لا توجد طلبات حجز مرتبطة بهذا الحساب.'],no_invitations:['No invitations have been sent yet.','لم تُرسل أي دعوات بعد.'],no_audit:['No consent or assignment changes have been recorded.','لم تُسجل أي تغييرات في الموافقة أو التعيين.'],athlete_directory:['Athlete directory','دليل الرياضيين'],search_athletes:['Search athletes (name, email, sport…)','ابحث عن الرياضيين (الاسم، البريد، الرياضة…)'],all_athletes:['All athletes','جميع الرياضيين'],active:['Active','نشط'],inactive:['Inactive','غير نشط'],assigned_coaches:['Assigned coach','المدرب المعين'],last_activity:['Last activity','آخر نشاط'],sports:['Sports','الرياضات'],goals:['Goals','الأهداف'],city:['City','المدينة'],language:['Preferred language','اللغة المفضلة'],availability:['Availability','الأوقات المناسبة'],experience:['Experience level','مستوى الخبرة'],age_range:['Age range','الفئة العمرية'],gender:['Gender','الجنس'],programs_count:['Programs','البرامج'],bookings_count:['Bookings','الحجوزات'],invitation_status:['Invitation status','حالة الدعوة'],invitation_email:['Invitation email','بريد الدعوة'],refresh:['Refresh','تحديث'],clear_filters:['Clear filters','مسح عوامل التصفية'],select_coach:['Select an approved coach','اختر مدرباً معتمداً'],approve_and_invite:['Review and send invitation','راجع وأرسل الدعوة'],consent_notice:['The athlete decides. No workspace opens and nothing is shared until they accept.','الرياضي هو من يقرر. لا تُفتح مساحة ولا تتم مشاركة أي بيانات قبل قبوله.'],ai_disclaimer:['Assistive suggestions from verified profile fields only. No medical advice, diagnosis or licensed-coach claim.','اقتراحات مساعدة من حقول الملف الموثقة فقط. لا تشخيص طبي أو ادعاء بأن المدرب مرخص.'],ai_recommendations:['AI recommendations','توصيات الذكاء الاصطناعي'],next_steps:['Safe next steps','الخطوات التالية الآمنة'],outreach_draft:['Outreach draft (requires approval)','مسودة تواصل (تتطلب الموافقة)'],audit_history:['Consent and assignment history','سجل الموافقة والتعيين'],coach_workspaces:['Coach workspaces','مساحات المدربين'],messages:['Messages','الرسائل'],recommendation_score:['Match score','درجة التطابق'],viewing_profile:['Showing verified athlete profile.','عرض الملف الرياضي الموثق.'],opening_programs:['Opening assigned programs…','فتح البرامج المخصصة…'],opening_bookings:['Opening linked bookings…','فتح الحجوزات المرتبطة…'],programs_ready:['Programs section ready.','قسم البرامج جاهز.'],bookings_ready:['Bookings section ready.','قسم الحجوزات جاهز.']};
   const name = code => labels[code]?t(...labels[code]):code;
@@ -21,13 +33,14 @@
   let applications=null, coachFilter='pending', coachVisible=12, refreshing=false;
   let dashboard=null, notificationRefreshing=false, notificationPoll=null;
   let athleteDirectory=null, athleteFilter='all', athleteSort='recent', athleteTimer=null, athleteDialog=null, openedAthleteRecord='';
+  let agentsOverview=null, coachQuery='';
   const inFlight=new Set();
   let recordId = new URLSearchParams(location.search).get('record') || '';
   const node=(tag,text,cls)=>{const el=document.createElement(tag);if(text!=null)el.textContent=text;if(cls)el.className=cls;return el};
   const parse=s=>{try{return JSON.parse(s)}catch{return null}};
   const date=s=>new Date(s).toLocaleString(lang.get()==='ar'?'ar-QA':'en-GB');
   const notice=(s,kind='')=>{$('notice').textContent=s;$('notice').dataset.kind=kind};
-  function lock(){sequence++;if(notificationPoll){clearInterval(notificationPoll);notificationPoll=null}dashboard=null;sessionStorage.removeItem(key);$('workspace').hidden=true;$('out').hidden=true;$('notificationPanel').hidden=true;$('notificationBadge').hidden=true;$('view').replaceChildren();$('login').hidden=false}
+  function lock(){sequence++;if(notificationPoll){clearInterval(notificationPoll);notificationPoll=null}dashboard=null;agentsOverview=null;sessionStorage.removeItem(key);$('workspace').hidden=true;document.body.classList.remove('portal-active');$('out').hidden=true;$('notificationPanel').hidden=true;$('notificationBadge').hidden=true;document.body.classList.remove('notification-open');document.body.style.removeProperty('--notification-push');$('view').replaceChildren();$('login').hidden=false}
   async function api(path,{method='GET',body,headers={}}={}){
     const token=sessionStorage.getItem(key);
     if(token)headers.authorization='Bearer '+token;
@@ -61,9 +74,57 @@
     return c;
   }
   function group(root,title,items,paint){root.append(node('h3',title));if(!items.length){root.append(node('p',t('No records.','لا توجد سجلات.')));return}for(const item of items)paint(root,item)}
-  async function save(path,body,method='PATCH'){const result=await api(path,{method,body});notice(t('Saved.','تم الحفظ.'),'success');if(tab==='coaches')refreshApplications();refreshNotifications();await render();return result}
-  function go(next,keepRecord=false){if(athleteDialog?.open)athleteDialog.close();tab=next;if(!keepRecord)recordId='';notice('');if(next==='coaches')applications=null;return render()}
-  function staticLabels(){for(const e of document.querySelectorAll('[data-en]'))e.textContent=e.dataset[lang.get()];for(const e of document.querySelectorAll('[data-en-aria-label]'))e.setAttribute('aria-label',e.dataset[lang.get()==='ar'?'arAriaLabel':'enAriaLabel']);$('language').textContent=t('العربية','English');syncToggles()}
+  async function save(path,body,method='PATCH'){const result=await api(path,{method,body});notice(t('Saved.','تم الحفظ.'),'success');if(tab==='coaches')refreshApplications();refreshNotifications();if(path.startsWith('admin/agents'))agentsOverview=null;await render();return result}
+  function go(next,keepRecord=false){if(athleteDialog?.open)athleteDialog.close();tab=next;if(!keepRecord)recordId='';notice('');if(next==='coaches')applications=null;closeMobileNav();return render()}
+  const canAi=()=>managementIsAdmin||managementPermissions.includes('management.ai');
+  async function loadAiOverview(){if(!canAi())return null;if(!agentsOverview)agentsOverview=await api('admin/agents');return agentsOverview}
+  function syncShellLabels(){
+    const shell=document.querySelector('.portal-shell');if(!shell)return;
+    const collapsed=shell.classList.contains('sidebar-collapsed');
+    $('sidebarToggle').setAttribute('aria-label',t(...(collapsed?['Expand sidebar','توسيع الشريط الجانبي']:['Collapse sidebar','طي الشريط الجانبي'])));
+    $('mobileNavToggle').setAttribute('aria-label',t(...(shell.classList.contains('mobile-open')?['Close navigation','إغلاق التنقل']:['Open navigation','فتح التنقل'])));
+  }
+  function closeMobileNav(){
+    const shell=document.querySelector('.portal-shell');if(!shell)return;
+    shell.classList.remove('mobile-open');$('sidebarScrim').hidden=true;
+    $('mobileNavToggle').setAttribute('aria-expanded','false');syncShellLabels();
+  }
+  function openTarget(href){
+    const params=new URLSearchParams(String(href||'').split('?')[1]||'');
+    const requested=params.get('tab'),target=tabs[requested]?requested:'overview';
+    if(athleteDialog?.open)athleteDialog.close();
+    tab=target;recordId=params.get('record')||'';notice('');
+    if(target==='coaches')applications=null;
+    closeMobileNav();return render();
+  }
+  function bindPortalShell(){
+    const shell=document.querySelector('.portal-shell');if(!shell||shell.dataset.bound)return;
+    shell.dataset.bound='1';
+    const setCollapsed=(collapsed,persist=true)=>{
+      shell.classList.toggle('sidebar-collapsed',collapsed);
+      const toggle=$('sidebarToggle');
+      toggle.setAttribute('aria-expanded',String(!collapsed));syncShellLabels();
+      if(persist)try{localStorage.setItem('mzactive-portal-sidebar-collapsed',collapsed?'1':'0')}catch{}
+    };
+    let collapsed=false;try{collapsed=localStorage.getItem('mzactive-portal-sidebar-collapsed')==='1'}catch{}
+    setCollapsed(collapsed,false);
+    $('sidebarToggle').onclick=()=>setCollapsed(!shell.classList.contains('sidebar-collapsed'));
+    $('mobileNavToggle').onclick=()=>{
+      if(!$('notificationPanel').hidden)setNotificationPanel(false);
+      const open=!shell.classList.contains('mobile-open');
+      shell.classList.toggle('mobile-open',open);$('sidebarScrim').hidden=!open;
+      $('mobileNavToggle').setAttribute('aria-expanded',String(open));syncShellLabels();
+      if(open)$('sidebar').querySelector('[data-nav-tab][aria-current=true]')?.focus();
+    };
+    $('sidebarScrim').onclick=closeMobileNav;
+    $('settingsNav').onclick=()=>{
+      closeMobileNav();const panel=$('changePasswordPanel');panel.open=true;
+      panel.scrollIntoView({block:'center',behavior:'smooth'});panel.querySelector('input')?.focus();
+    };
+    window.addEventListener('resize',()=>{if(window.innerWidth>980)closeMobileNav()});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape'&&shell.classList.contains('mobile-open'))closeMobileNav()});
+  }
+  function staticLabels(){for(const e of document.querySelectorAll('[data-en]'))e.textContent=e.dataset[lang.get()];for(const e of document.querySelectorAll('[data-en-aria-label]'))e.setAttribute('aria-label',e.dataset[lang.get()==='ar'?'arAriaLabel':'enAriaLabel']);document.querySelector('.portal-shell')?.classList.toggle('sidebar-rtl',lang.get()==='ar');$('language').textContent=t('العربية','English');syncToggles();syncShellLabels()}
   function syncToggles(){for(const b of document.querySelectorAll('[data-password-toggle]')){const input=$(b.dataset.passwordToggle);if(!input)continue;b.textContent=t(input.type==='text'?'Hide':'Show',input.type==='text'?'إخفاء':'إظهار');b.setAttribute('aria-label',b.textContent)}}
   function bindToggles(){for(const b of document.querySelectorAll('[data-password-toggle]')){if(b.dataset.bound)continue;b.dataset.bound='1';b.onclick=()=>{const input=$(b.dataset.passwordToggle);if(!input)return;input.type=input.type==='password'?'text':'password';syncToggles()}}}
   function avatar(name){
@@ -147,7 +208,7 @@
       dashboard=await api('admin/dashboard');
       paintNotificationBadges();paintNotificationCenter();
       if(!$('notificationPanel').hidden)positionNotificationPanel();
-      if(tab==='overview')renderDashboard(dashboard);
+      if(tab==='overview'&&agentsOverview)renderDashboard(dashboard,null,agentsOverview);
     }catch{}finally{notificationRefreshing=false}
   }
   function paintNotificationBadges(){
@@ -196,8 +257,8 @@
     section(t('Needs Action','يحتاج إجراءً'),urgent);
     section(t('AI Recommendations','توصيات الذكاء الاصطناعي'),recommendations);
   }
-  function paintActivity(root,events){
-    root.append(node('h3',t('Recent activity','النشاط الأخير')));
+  function paintActivity(root,events,heading=true){
+    if(heading)root.append(node('h3',t('Recent activity','النشاط الأخير')));
     if(!events?.length){root.append(node('p',t('No recent activity.','لا يوجد نشاط حديث.')));return}
     const list=node('div',null,'activity-list');
     for(const event of events.slice(0,8)){
@@ -227,7 +288,7 @@
     panel.hidden=!open;
     document.body.classList.toggle('notification-open',open);
     $('notificationsOpen').setAttribute('aria-expanded',String(open));
-    if(open){paintNotificationCenter();positionNotificationPanel();$('notificationsClose').focus()}
+    if(open){closeMobileNav();paintNotificationCenter();positionNotificationPanel();$('notificationsClose').focus()}
     else if(wasOpen)document.body.style.removeProperty('--notification-push');
   }
   function startNotificationPolling(){
@@ -355,10 +416,24 @@
     if(!applications){root.append(node('p',t('Loading applications…','جارٍ تحميل الطلبات…')));return}
     const all={pending:(applications.providers||[]).filter(p=>p.profile_complete),incomplete:(applications.providers||[]).filter(p=>!p.profile_complete),approved:applications.approved_providers||[],rejected:[...(applications.rejected_providers||[]),...(applications.suspended_providers||[])]};
     coachFilters(root,{pending:all.pending.length,incomplete:all.incomplete.length,approved:all.approved.length,rejected:all.rejected.length});
+    const search=node('input',null,'coach-search');search.type='search';search.maxLength=80;
+    search.placeholder=t('Search coaches by name, email or city','ابحث عن المدربين بالاسم أو البريد أو المدينة');
+    search.setAttribute('aria-label',search.placeholder);search.value=coachQuery;root.append(search);
     const rows=all[coachFilter]||all.pending;
-    if(!rows.length){root.append(node('p',t('No records.','لا توجد سجلات.')));return}
+    const empty=node('p',t('No records.','لا توجد سجلات.'));
+    if(!rows.length){root.append(empty);return}
     const list=node('div',null,'coach-list');root.append(list);
     for(const p of rows.slice(0,coachVisible))coachCard(list,p,coachFilter==='incomplete'?'pending':coachFilter==='rejected'&&p.review_note==='Removed by owner'?'removed':coachFilter);
+    const filtered=node('p',t('No coaches match this search.','لا يوجد مدربون يطابقون هذا البحث.'),'coach-search-empty');filtered.hidden=true;root.append(filtered);
+    search.oninput=()=>{
+      coachQuery=search.value.trim().toLowerCase();let visible=0;
+      for(const c of list.querySelectorAll('.coach-card')){
+        const match=!coachQuery||c.textContent.toLowerCase().includes(coachQuery);
+        c.hidden=!match;if(match)visible++;
+      }
+      filtered.hidden=visible>0;empty.hidden=true;
+    };
+    if(coachQuery)search.oninput();
     if(rows.length>coachVisible)root.append(button(t('Show more','عرض المزيد')+' ('+(rows.length-coachVisible)+')',()=>{coachVisible+=12;render()}));
   }
   function booking(root,b){const c=card(root,b.customer_name,[name(b.status),b.coach_name,b.city,b.preferred_date,b.customer_phone,b.customer_email,b.session_type,b.service_name,b.distance,b.target_pace,b.program_duration_months?b.program_duration_months+' '+t('months','أشهر'):'',b.goal_summary].filter(Boolean).join(' · '),b.id);const actions={reviewing:['Review','بدء المراجعة'],accepted:['Confirm booking','تأكيد الحجز'],declined:['Decline','رفض'],cancelled:['Cancel booking','إلغاء الحجز']};for(const status of ({received:['reviewing','accepted','declined','cancelled'],reviewing:['accepted','declined','cancelled'],accepted:['cancelled']}[b.status]||[])){c.append(button(t(...actions[status]),()=>{if(status!=='reviewing'&&!confirm(t(...actions[status])+'؟'))return;return save('admin/bookings/'+b.id,{status})}))}  const rawPhone=String(b.customer_phone||'').replace(/[\s().-]/g,'');
@@ -421,29 +496,91 @@
     });
   }
   const dashboardCardsFor = [
-    ['bookings',['Pending bookings','حجوزات بانتظار الرد']],
+    ['bookings',['Open bookings','حجوزات مفتوحة']],
     ['coaches',['Coach applications','طلبات المدربين']],
     ['messages',['Unread messages','رسائل غير مقروءة']],
     ['community',['Community moderation','إشراف المجتمع']],
     ['articles',['Articles for review','مقالات للمراجعة']],
     ['ai',['AI recommendations','توصيات الذكاء الاصطناعي']],
   ];
-  function dashboardCard(grid,category,label,count){
-    const c=node('article',null,'dashboard-card'+(count>0?' needs-attention':''));
-    c.append(node('span',t(...label),'dashboard-card-label'),node('strong',count,'metric'));
-    c.append(button(t('Review','مراجعة'),()=>go(category)));
-    grid.append(c);
+  function dashboardCard(grid,category,label,count,sublabel,target){
+    const c=node('article',null,'dashboard-card'+(Number(count)>0?' needs-attention':''));
+    c.dataset.overviewCard=category;
+    c.append(node('span',t(...label),'dashboard-card-label'),node('strong',Number(count||0),'metric'));
+    if(sublabel)c.append(node('small',t(...sublabel),'dashboard-card-sub'));
+    const action=button(t('Review','مراجعة'),()=>{
+      if(target==='actions'){
+        const panel=$('actionCenter');if(!panel)return;
+        panel.setAttribute('tabindex','-1');panel.scrollIntoView({block:'center',behavior:'smooth'});panel.focus({preventScroll:true});return;
+      }
+      return go(target||category);
+    });
+    action.dataset.overviewAction=category;c.append(action);grid.append(c);
   }
-  function renderDashboard(data,container){
-    const root=container||node('div');
-    root.replaceChildren();
-    const grid=node('div',null,'dashboard-grid');root.append(grid);
-    const allowed=data?.counts?Object.keys(data.counts):[];
-    const ordered=dashboardCardsFor.filter(([category])=>allowed.includes(category)).sort((a,b)=>(Number(data?.counts?.[b[0]]||0)-Number(data?.counts?.[a[0]]||0)));
-    for(const [category,label] of ordered)dashboardCard(grid,category,label,Number(data?.counts?.[category]||0));
-    const attention=ordered.find(([category])=>Number(data?.counts?.[category]||0)>0);
-    if(attention)root.append(node('p',t('Start with ','ابدأ بـ ')+t(...attention[1]),'dashboard-hint'));
-    paintActivity(root,data?.activity);
+  function actionCenter(root,items){
+    const panel=node('section',null,'command-panel');panel.id='actionCenter';
+    const head=node('div',null,'panel-head');head.append(node('h3',t('Action Center','مركز الإجراءات')));
+    head.append(button(t('All notifications','كل الإشعارات'),()=>setNotificationPanel(true)));
+    panel.append(head);
+    const list=node('div',null,'action-list');
+    const rows=(items||[]).filter(item=>item.category!=='ai').slice(0,6);
+    if(!rows.length)list.append(node('p',t('Nothing needs your attention.','لا شيء يتطلب انتباهك.'),'empty-state'));
+    for(const item of rows){
+      const row=node('article',null,'action-row'),body=node('div');
+      body.append(node('strong',item.name||notificationName(item.event_type)));
+      body.append(node('p',[notificationName(item.event_type),name(item.status),item.created_at?date(item.created_at):''].filter(Boolean).join(' · ')));
+      const open=button(t('Open','فتح'),()=>openTarget(item.href));open.dataset.actionRecord=item.entity_id;
+      row.append(body,open);list.append(row);
+    }
+    panel.append(list);root.append(panel);
+  }
+  function aiOverview(root,agents){
+    const panel=node('section',null,'command-panel');
+    const head=node('div',null,'panel-head');head.append(node('h3',t('AI Brain','المساعد الذكي')));
+    head.append(button(t('Open AI Brain','فتح المساعد الذكي'),()=>go('ai')));panel.append(head);
+    panel.append(node('p',t(...labels.ai_disclaimer),'crm-note'));
+    const list=node('div',null,'ai-list');
+    const pending=(agents?.pending||[]).filter(task=>task.approval_status==='pending').slice(0,3);
+    if(!pending.length)list.append(node('p',t('No AI recommendation is awaiting approval.','لا توجد توصية ذكاء اصطناعي بانتظار الموافقة.'),'empty-state'));
+    for(const task of pending){
+      const output=parse(task.output_json)||{},row=node('article',null,'action-row'),body=node('div');
+      body.append(node('strong',task.title||agentName(task)));
+      body.append(node('p',String(output.answer||'').slice(0,420)));
+      const review=button(t('Review','مراجعة'),()=>openTarget('/admin.html?tab=ai&record='+encodeURIComponent(task.id)));
+      review.dataset.aiRecord=task.id;row.append(body,review);list.append(row);
+    }
+    panel.append(list);root.append(panel);
+  }
+  function businessSnapshot(root,snapshot){
+    const panel=node('section',null,'command-panel');
+    const head=node('div',null,'panel-head');head.append(node('h3',t('Business snapshot','لمحة عن العمل')));panel.append(head);
+    const rows=[['open_booking_requests',['Open requests','طلبات مفتوحة']],['approved_providers',['Approved professionals','مختصون معتمدون']],['published_community_posts',['Published posts','منشورات منشورة']],['weekly_challenges',['Weekly challenges','تحديات الأسبوع']],['active_training_teams',['Training teams','فرق التدريب']]];
+    const list=node('div',null,'ai-list');
+    for(const [field,label] of rows){const row=node('article',null,'action-row');row.append(node('span',t(...label)),node('strong',Number(snapshot?.[field]||0)));list.append(row)}
+    panel.append(list);root.append(panel);
+  }
+  function renderDashboard(data,container,agents){
+    const root=container||node('div');root.replaceChildren();
+    const counts=data?.counts||{},snapshot=agents?.snapshot||null,hasSnapshot=!!snapshot&&Object.keys(snapshot).length>0;
+    const intro=node('div',null,'overview-intro'),heading=node('div');
+    heading.append(node('h3',t('Command overview','نظرة عامة تنفيذية')),node('p',t('Every figure below comes from live records and your current permissions.','كل رقم أدناه من سجلات مباشرة ووفق صلاحياتك الحالية.')));
+    intro.append(heading);root.append(intro);
+    const grid=node('div',null,'command-grid dashboard-grid');
+    if(hasSnapshot)dashboardCard(grid,'athletes',['Athlete accounts','حسابات الرياضيين'],snapshot.registered_athletes,['Verified directory','دليل موثق'],'athletes');
+    if(hasSnapshot)dashboardCard(grid,'coaches',['Coach applications','طلبات المدربين'],Number(counts.coaches!=null?counts.coaches:(snapshot.pending_provider_profiles||0)),[t('Approved professionals: ','المختصون المعتمدون: ')+Number(snapshot.approved_providers||0),t('Approved professionals: ','المختصون المعتمدون: ')+Number(snapshot.approved_providers||0)],'coaches');
+    dashboardCard(grid,'bookings',['Open bookings','حجوزات مفتوحة'],Number(counts.bookings!=null?counts.bookings:(snapshot?.open_booking_requests||0)),['Requests awaiting triage','طلبات بانتظار الفرز'],'bookings');
+    if(hasSnapshot)dashboardCard(grid,'programs',['Programs without access','برامج بلا وصول'],snapshot.unlinked_programs,['Need an athlete account','تحتاج حساب رياضي'],'athletes');
+    dashboardCard(grid,'actions',['Needs action','يحتاج إجراءً'],data?.total,['Across permitted areas','ضمن الصلاحيات المسموحة'],'actions');
+    if(canAi())dashboardCard(grid,'ai',['AI recommendations','توصيات الذكاء الاصطناعي'],counts.ai,['Awaiting your decision','بانتظار قرارك'],'ai');
+    root.append(grid);
+    const layout=node('div',null,'overview-grid'),stack=node('div',null,'overview-stack'),side=node('div',null,'overview-stack');
+    actionCenter(stack,data?.notifications);
+    const activity=node('section',null,'command-panel'),activityHead=node('div',null,'panel-head');
+    activityHead.append(node('h3',t('Recent activity','النشاط الأخير')),button(t('Full history','السجل الكامل'),()=>go('history')));
+    activity.append(activityHead);paintActivity(activity,data?.activity,false);stack.append(activity);
+    if(canAi())aiOverview(side,agents);
+    if(hasSnapshot)businessSnapshot(side,snapshot);
+    layout.append(stack,side);root.append(layout);
     if(!container)$('view').replaceChildren(root);
     focusRecord();
   }
@@ -697,14 +834,15 @@
   async function paint(root){
     if(tab==='overview'){
       const data=dashboard||await api('admin/dashboard');dashboard=data;
-      renderDashboard(data,root);paintNotificationBadges();paintNotificationCenter();return;
+      const agents=await loadAiOverview();
+      renderDashboard(data,root,agents);paintNotificationBadges();paintNotificationCenter();return;
     }
     if(tab==='ai'){
       const data=await api('admin/agents'),tasks=data.tasks;
       root.append(node('p',t('An agent analyzes current business data every hour. Six specialist agents take turns; all seven modes are available for manual analysis. Drafts require your decision.','يحلل وكيل بيانات المنصة كل ساعة، ويتناوب ستة وكلاء متخصصون. تتوفر الأوضاع السبعة للتحليل اليدوي، وتتطلب المسودات قرارك.')));
       const select=node('select'),prompt=node('textarea');prompt.maxLength=1600;
       for(const code of ['operations','monitoring','analytics','marketing','growth','community','support']){const o=node('option',name(code));o.value=code;select.append(o)}
-      const l=node('label',t('Agent','الوكيل')),q=node('label',t('Question or objective','السؤال أو الهدف'));l.append(select);q.append(prompt);root.append(l,q,button(t('Run analysis','تنفيذ التحليل'),async()=>{if(!prompt.value.trim()){prompt.focus();return}try{await api('admin/assistant',{method:'POST',body:{task:select.value,prompt:prompt.value.trim()}});notice(t('Draft saved for review.','حُفظت المسودة للمراجعة.'))}finally{await render()}}));
+      const l=node('label',t('Agent','الوكيل')),q=node('label',t('Question or objective','السؤال أو الهدف'));l.append(select);q.append(prompt);root.append(l,q,button(t('Run analysis','تنفيذ التحليل'),async()=>{if(!prompt.value.trim()){prompt.focus();return}try{await api('admin/assistant',{method:'POST',body:{task:select.value,prompt:prompt.value.trim()}});agentsOverview=null;notice(t('Draft saved for review.','حُفظت المسودة للمراجعة.'))}finally{await render()}}));
       group(root,t('Recent runs','آخر عمليات التنفيذ'),tasks.slice(0,30),taskCard);return;
     }
     if(tab==='bookings'){const d=await api('admin/applications');group(root,t('Recent and open requests','الطلبات المفتوحة والأخيرة'),d.bookings,booking);return}
@@ -725,7 +863,7 @@
     const [h,ai]=await Promise.all([api('admin/history'),api('admin/agents')]);const events=[...h.events,...ai.activity].sort((a,b)=>b.created_at.localeCompare(a.created_at));
     group(root,t('Recent decisions and activity','آخر القرارات والأنشطة'),events.slice(0,100),(r,e)=>card(r,e.action?name(e.action):e.entity_type==='provider_profile'?t('Coach profile','ملف المدرب'):e.entity_type==='registration'?t('New registration','تسجيل جديد'):t('Booking','حجز'),[date(e.created_at),e.action?name(e.agent_type):name(e.from_status),e.to_status?name(e.to_status):''].filter(Boolean).join(' · ')));
   }
-  async function render(){const n=++sequence;staticLabels();$('nav').replaceChildren();const available=Object.entries(tabs).filter(([id])=>managementIsAdmin||!TAB_PERMISSIONS[id]||managementPermissions.includes(TAB_PERMISSIONS[id]));if(!available.some(([id])=>id===tab))tab='overview';for(const [id,v] of available){const b=button(t(...v),()=>go(id));b.dataset.navTab=id;b.setAttribute('aria-current',id===tab);$('nav').append(b)}paintNotificationBadges();const params=new URLSearchParams();if(tab!=='overview')params.set('tab',tab);if(recordId)params.set('record',recordId);history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:''));$('title').textContent=t(...tabs[tab]);$('view').textContent=t('Loading…','جارٍ التحميل…');const root=node('div');try{await paint(root);if(n===sequence){$('view').replaceChildren(root);focusRecord()}}catch(err){if(n===sequence||$('workspace').hidden)notice(errorMessage(err));if(n===sequence)$('view').replaceChildren(retryButton(t('Retry','إعادة المحاولة'),render))}}
+  async function render(){const n=++sequence;staticLabels();$('nav').replaceChildren();const available=Object.entries(tabs).filter(([id])=>managementIsAdmin||!TAB_PERMISSIONS[id]||managementPermissions.includes(TAB_PERMISSIONS[id]));if(!available.some(([id])=>id===tab))tab='overview';for(const [id,v] of available){const b=node('button');b.type='button';b.dataset.navTab=id;b.title=t(...v);b.setAttribute('aria-label',t(...v));b.setAttribute('aria-current',id===tab);b.append(node('span',tabIcons[id]||'•','nav-icon'),node('span',t(...v),'nav-label'));b.onclick=()=>{closeMobileNav();return go(id)};$('nav').append(b)}paintNotificationBadges();const params=new URLSearchParams();if(tab!=='overview')params.set('tab',tab);if(recordId)params.set('record',recordId);history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:''));$('title').textContent=t(...tabs[tab]);$('portalSubtitle').textContent=t(...(tabSubtitles[tab]||tabSubtitles.overview));$('view').textContent=t('Loading…','جارٍ التحميل…');const root=node('div');try{await paint(root);if(n===sequence){$('view').replaceChildren(root);focusRecord()}}catch(err){if(n===sequence||$('workspace').hidden)notice(errorMessage(err));if(n===sequence)$('view').replaceChildren(retryButton(t('Retry','إعادة المحاولة'),render))}}
   async function open(){
     try {
       const [,access,overview] = await Promise.all([api('admin/history'),api('me/access'),api('admin/dashboard')]);
@@ -744,13 +882,13 @@
       notice(errorMessage(err));
       $('login').hidden=true;
       $('bootstrap').hidden=true;
-      $('workspace').hidden=false;
+      $('workspace').hidden=false;document.body.classList.add('portal-active');bindPortalShell();
       $('out').hidden=false;
       $('view').replaceChildren(retryButton(t('Retry','إعادة المحاولة'),open));
       return;
     }
     notice('');
-$('login').hidden=true;$('bootstrap').hidden=true;$('workspace').hidden=false;$('out').hidden=false;await render();paintNotificationBadges();paintNotificationCenter();startNotificationPolling()}
+$('login').hidden=true;$('bootstrap').hidden=true;$('workspace').hidden=false;document.body.classList.add('portal-active');bindPortalShell();$('out').hidden=false;await render();paintNotificationBadges();paintNotificationCenter();startNotificationPolling()}
   async function sign(form,setup){const f=form.elements;const d=await api(setup?'auth/register':'auth/login',{method:'POST',headers:setup?{'x-admin-setup-key':f.key.value}:{},body:{email:f.email.value,password:f.password.value,...(setup?{consent:true}:{})}});if(setup&&d.user?.role!=='admin')throw Error('forbidden');const destination=window.MZActiveAuth.store(d);form.reset();notice('');if(destination!=='/admin.html'){location.assign(destination);return}await open()}
   for(const id of ['setup','login'])$(id).onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,b=form.querySelector('button[type=submit]');b.disabled=true;try{await sign(form,id==='setup')}catch(err){lock();notice(errorMessage(err))}finally{b.disabled=false}};
   // Normal email recovery is wired by auth-ui.js. The offline owner key now
@@ -759,7 +897,7 @@ $('login').hidden=true;$('bootstrap').hidden=true;$('workspace').hidden=false;$(
   $('changePassword').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('button[type=submit]');b.disabled=true;try{await api('auth/change-password',{method:'POST',body:{current_password:f.elements.current_password.value,new_password:f.elements.new_password.value}});f.reset();notice(t('Password changed. Other sessions were signed out.','تم تغيير كلمة المرور. تم تسجيل خروج الجلسات الأخرى.'));refreshNotifications()}catch(err){notice(errorMessage(err))}finally{b.disabled=false}};
   $('out').onclick=async()=>{try{await api('auth/logout',{method:'POST',body:{}})}finally{lock();notice('')}};
   $('language').onclick=()=>lang.set(t('ar','en'),{manual:true});
-  document.addEventListener('mzactive:language-change',()=>{staticLabels();if(!$('workspace').hidden)render()});bindToggles();staticLabels();
+  document.addEventListener('mzactive:language-change',()=>{staticLabels();if(!$('workspace').hidden)render()});bindToggles();bindPortalShell();staticLabels();
   if(sessionStorage.getItem(key))open();
   api('auth/setup-status').then(d=>{$('bootstrap').hidden=!d.setup_available||!$('workspace').hidden}).catch(()=>{});
 })();

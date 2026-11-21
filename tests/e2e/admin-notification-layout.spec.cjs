@@ -72,8 +72,24 @@ test('notification panel is anchored, scrollable, grouped and dismissible on eve
   }
 
   // The open panel reserves its own space, so navigation and controls stay clear.
-  const nav = await page.locator('#nav').boundingBox();
-  expect(nav.y).toBeGreaterThanOrEqual(box.y + box.height - 2);
+  // On small screens navigation is a drawer behind the bell-height toggle.
+  if (view.width > 760) {
+    const nav = await page.locator('#nav').boundingBox();
+    expect(nav.y).toBeGreaterThanOrEqual(box.y + box.height - 2);
+  } else {
+    const toggle = await page.locator('#mobileNavToggle').boundingBox();
+    expect(toggle.y + toggle.height).toBeLessThanOrEqual(box.y + 1);
+    await page.locator('#mobileNavToggle').click();
+    await expect(panel).toBeHidden();
+    await expect.poll(async () => (await page.locator('#nav').boundingBox())?.x ?? -999).toBeGreaterThanOrEqual(-1);
+    const navBox = await page.locator('#nav').boundingBox();
+    expect(navBox.y).toBeGreaterThanOrEqual(-1);
+    await expect(page.locator('#nav [data-nav-tab=bookings]')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect.poll(async () => (await page.locator('#nav').boundingBox())?.x ?? 0).toBeLessThan(-1);
+    await page.locator('#notificationsOpen').click();
+    await expect(panel).toBeVisible();
+  }
 
   const list = page.locator('#notificationList');
   const scroll = await list.evaluate(element => ({

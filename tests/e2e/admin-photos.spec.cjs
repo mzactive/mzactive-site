@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, expect } = require('./pw.cjs');
-const { assertOfflineSafe, installApiMock, json, seedSession } = require('./helpers.cjs');
+const { assertOfflineSafe, clickAdminTab, installApiMock, json, seedSession } = require('./helpers.cjs');
 
 const PROFILE_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const adminAccess = json({
@@ -34,7 +34,7 @@ function applications(overrides = {}) {
 
 async function openCoachDetails(page) {
   await expect(page.locator('#workspace')).toBeVisible();
-  await page.locator('#nav [data-nav-tab=coaches]').click();
+  await clickAdminTab(page, 'coaches');
   const card = page.locator(`.coach-card[data-record-id="${PROFILE_ID}"]`);
   await expect(card).toBeVisible();
   await card.locator('summary').click();

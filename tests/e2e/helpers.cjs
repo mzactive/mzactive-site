@@ -326,8 +326,15 @@ async function fillBookingForm(page, overrides = {}) {
   for (const [id, value] of Object.entries(values)) await page.locator(`#${id}`).fill(value);
 }
 
+async function clickAdminTab(page, tab) {
+  const viewport = page.viewportSize();
+  if (viewport && viewport.width <= 980) await page.locator('#mobileNavToggle').click();
+  await page.locator(`#nav [data-nav-tab=${tab}]`).click();
+}
+
 module.exports = {
   API_ORIGIN,
+  clickAdminTab,
   BASE_URL,
   FAKE_TOKEN,
   SESSION_KEY,

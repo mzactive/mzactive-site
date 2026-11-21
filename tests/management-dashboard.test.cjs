@@ -43,17 +43,43 @@ test('the admin client refreshes real counters, badges, read state and record li
   assert.match(js, /event\.composedPath\(\)/);
 });
 
-test('the overview prioritizes actionable cards and a chronological activity feed', () => {
-  assert.match(js, /dashboardCardsFor/);
-  for (const label of ['Pending bookings', 'Coach applications', 'Unread messages', 'Community moderation', 'Articles for review', 'AI recommendations']) {
-    assert.ok(js.includes(label), label);
+test('the portal uses a collapsible sidebar and a live command overview', () => {
+  for (const id of ['sidebar', 'sidebarToggle', 'sidebarScrim', 'mobileNavToggle', 'settingsNav', 'portalSubtitle']) {
+    assert.match(html, new RegExp(`id="${id}"`), id);
   }
-  assert.match(js, /ordered=dashboardCardsFor\.filter[\s\S]{0,200}\.sort/);
-  assert.match(js, /paintActivity\(root,data\?\.activity\)/);
+  assert.match(html, /class="portal-shell"/);
+  assert.match(html, /assets\/brand\/mzactive-logo-gold\.png/);
+  assert.match(css, /\.portal-shell\{display:grid/);
+  assert.match(css, /\.portal-shell\.sidebar-collapsed/);
+  assert.match(css, /@media\(max-width:980px\)/);
+  assert.match(css, /html\[dir="rtl"\] \.portal-sidebar/);
+  assert.match(js, /function bindPortalShell\(\)/);
+  assert.match(js, /localStorage\.setItem\('mzactive-portal-sidebar-collapsed'/);
+  assert.match(js, /mobileNavToggle/);
+  assert.match(js, /tabIcons/);
+  assert.match(js, /closeMobileNav\(\)/);
+
+  assert.match(js, /dashboardCardsFor/);
+  assert.match(js, /command-grid dashboard-grid/);
+  assert.match(js, /actionCenter/);
+  assert.match(js, /aiOverview/);
+  assert.match(js, /businessSnapshot/);
+  assert.match(js, /agents\?\.pending/);
+  assert.match(js, /snapshot\.registered_athletes/);
+  assert.match(js, /snapshot\.approved_providers/);
+  assert.match(js, /snapshot\.unlinked_programs/);
+  assert.match(js, /data\?\.total/);
+  assert.match(js, /api\('admin\/agents'\)/);
+  assert.match(js, /const canAi=/);
+  assert.match(js, /if\(canAi\(\)\)dashboardCard/);
+  assert.match(js, /if\(canAi\(\)\)aiOverview/);
+  assert.match(js, /paintActivity\(activity,data\?\.activity,false\)/);
   assert.match(js, /events\.slice\(0,8\)/);
+  assert.match(js, /coach-search/);
   assert.match(css, /\.dashboard-grid\{/);
   assert.match(css, /\.dashboard-card\.needs-attention/);
   assert.match(css, /\.activity-list\{/);
+  assert.match(css, /\.command-panel\{/);
 });
 
 test('notification and dashboard styles are responsive and RTL-aware', () => {

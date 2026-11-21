@@ -1,7 +1,7 @@
 'use strict';
 
 const { test, expect } = require('./pw.cjs');
-const { assertOfflineSafe, installApiMock, json, seedSession } = require('./helpers.cjs');
+const { assertOfflineSafe, clickAdminTab, installApiMock, json, seedSession } = require('./helpers.cjs');
 
 const COACH_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const adminAccess = json({
@@ -47,7 +47,7 @@ test('approval is authorized, shows feedback and updates status without changing
   });
   await seedSession(page, { storage: 'session' });
   await page.goto('/admin.html');
-  await page.locator('#nav [data-nav-tab=coaches]').click();
+  await clickAdminTab(page, 'coaches');
 
   const card = page.locator(`.coach-card[data-record-id="${COACH_ID}"]`);
   await expect(card).toBeVisible();
