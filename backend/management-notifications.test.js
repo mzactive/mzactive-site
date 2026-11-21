@@ -187,3 +187,19 @@ test('notification visibility and read receipts respect management roles and sta
     assert.deepEqual(allRead.counts, { bookings: 1, coaches: 1, messages: 1, community: 3, articles: 1, ai: 1 });
   } finally { db.close(); }
 });
+
+test('dashboard queries stay within the D1 five-term compound SELECT limit', async () => {
+  const { db, env } = makeEnv();
+  try {
+    const users = await accounts(env); seed(db, users);
+    const statements = [], prepare = env.DB.prepare.bind(env.DB);
+    env.DB.prepare = (sql) => { statements.push(sql); return prepare(sql); };
+    await call(env, 'admin/dashboard', 'GET', undefined, users.admin.token);
+    const dashboardStatements = statements.filter((sql) => sql.includes('booking_requests') || sql.includes('coach_blog_posts'));
+    assert.ok(dashboardStatements.some((sql) => sql.includes('AS bookings') && sql.includes('AS ai')));
+    assert.ok(dashboardStatements.every((sql) => (sql.match(/UNION ALL/g) || []).length < 5));
+    // Six read-receipt placeholders must still bind to the same manager.
+    const unread = dashboardStatements.find((sql) => sql.includes('management_notification_reads') && sql.includes('AS ai'));
+    assert.equal((unread.match(/user_id=\?/g) || []).length, 6);
+  } finally { db.close(); }
+});

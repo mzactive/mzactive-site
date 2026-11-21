@@ -1353,50 +1353,49 @@ function allowedManagementCategories(user, permissions) {
 // A resolved booking/application/message simply stops appearing; read receipts
 // live in a separate per-manager table and never mutate the underlying record.
 async function managementNotificationCounts(env, categories) {
-  const rows = await env.DB.prepare(`SELECT 'bookings' AS category, COUNT(*) AS count FROM booking_requests WHERE status IN ('received','reviewing')
-    UNION ALL SELECT 'coaches', COUNT(*) FROM provider_profiles WHERE status='pending'
-    UNION ALL SELECT 'messages', COUNT(*) FROM coach_messages m JOIN coach_connections c ON c.id=m.connection_id
-      WHERE m.read_at IS NULL AND c.workspace_status IN ('pending','active')
-    UNION ALL SELECT 'community',
-      (SELECT COUNT(*) FROM community_posts WHERE status='pending') +
+  // D1 caps compound SELECTs at five terms; this dashboard has six categories,
+  // so use one row of scalar subqueries instead of six UNION ALL branches.
+  const row = await env.DB.prepare(`SELECT
+    (SELECT COUNT(*) FROM booking_requests WHERE status IN ('received','reviewing')) AS bookings,
+    (SELECT COUNT(*) FROM provider_profiles WHERE status='pending') AS coaches,
+    (SELECT COUNT(*) FROM coach_messages m JOIN coach_connections c ON c.id=m.connection_id
+      WHERE m.read_at IS NULL AND c.workspace_status IN ('pending','active')) AS messages,
+    (SELECT COUNT(*) FROM community_posts WHERE status='pending') +
       (SELECT COUNT(*) FROM community_comments c JOIN community_posts p ON p.id=c.post_id WHERE c.status='hidden' OR p.status='pending') +
-      (SELECT COUNT(*) FROM provider_achievements WHERE status='pending')
-    UNION ALL SELECT 'articles', COUNT(*) FROM coach_blog_posts WHERE status='pending'
-    UNION ALL SELECT 'ai', COUNT(*) FROM owner_agent_tasks WHERE status='completed' AND approval_status='pending'
-      AND json_valid(output_json) AND json_extract(output_json,'$.answer') IS NOT NULL`).all();
-  const counts = Object.fromEntries(categories.map((category) => [category, 0]));
-  for (const row of rows.results || []) if (Object.hasOwn(counts, row.category)) counts[row.category] = Number(row.count || 0);
-  return counts;
+      (SELECT COUNT(*) FROM provider_achievements WHERE status='pending') AS community,
+    (SELECT COUNT(*) FROM coach_blog_posts WHERE status='pending') AS articles,
+    (SELECT COUNT(*) FROM owner_agent_tasks WHERE status='completed' AND approval_status='pending'
+      AND json_valid(output_json) AND json_extract(output_json,'$.answer') IS NOT NULL) AS ai`).first();
+  return Object.fromEntries(categories.map((category) => [category, Number(row?.[category] || 0)]));
 }
 
 // The bell shows the true actionable total, even when the panel is bounded to
 // the most recent 50 items. A read receipt only counts while its record is
 // still actionable, so resolving a record removes it from both numbers.
 async function managementUnreadCounts(env, user, categories) {
-  const rows = await env.DB.prepare(`SELECT 'bookings' AS category, COUNT(*) AS count FROM booking_requests b
-      WHERE b.status IN ('received','reviewing')
-        AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='bookings' AND r.entity_id=b.id)
-    UNION ALL SELECT 'coaches', COUNT(*) FROM provider_profiles p WHERE p.status='pending'
-        AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='coaches' AND r.entity_id=p.id)
-    UNION ALL SELECT 'messages', COUNT(*) FROM coach_messages m JOIN coach_connections c ON c.id=m.connection_id
+  // Same D1 five-term limit as above, with the per-manager read receipts kept
+  // strictly separate from the underlying record state.
+  const row = await env.DB.prepare(`SELECT
+    (SELECT COUNT(*) FROM booking_requests b WHERE b.status IN ('received','reviewing')
+      AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='bookings' AND r.entity_id=b.id)) AS bookings,
+    (SELECT COUNT(*) FROM provider_profiles p WHERE p.status='pending'
+      AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='coaches' AND r.entity_id=p.id)) AS coaches,
+    (SELECT COUNT(*) FROM coach_messages m JOIN coach_connections c ON c.id=m.connection_id
       WHERE m.read_at IS NULL AND c.workspace_status IN ('pending','active')
-        AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='messages' AND r.entity_id=m.id)
-    UNION ALL SELECT 'community', COUNT(*) FROM (
+        AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='messages' AND r.entity_id=m.id)) AS messages,
+    (SELECT COUNT(*) FROM (
       SELECT p.id FROM community_posts p WHERE p.status='pending'
       UNION ALL SELECT c.id FROM community_comments c JOIN community_posts p ON p.id=c.post_id WHERE c.status='hidden' OR p.status='pending'
       UNION ALL SELECT a.id FROM provider_achievements a WHERE a.status='pending'
       ) AS community_rows
-      WHERE NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='community' AND r.entity_id=community_rows.id)
-    UNION ALL SELECT 'articles', COUNT(*) FROM coach_blog_posts b WHERE b.status='pending'
-        AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='articles' AND r.entity_id=b.id)
-    UNION ALL SELECT 'ai', COUNT(*) FROM owner_agent_tasks t
-      WHERE t.status='completed' AND t.approval_status='pending' AND json_valid(t.output_json)
-        AND json_extract(t.output_json,'$.answer') IS NOT NULL
-        AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='ai' AND r.entity_id=t.id)`)
-    .bind(user.id, user.id, user.id, user.id, user.id, user.id).all();
-  const counts = Object.fromEntries(categories.map((category) => [category, 0]));
-  for (const row of rows.results || []) if (Object.hasOwn(counts, row.category)) counts[row.category] = Number(row.count || 0);
-  return counts;
+      WHERE NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='community' AND r.entity_id=community_rows.id)) AS community,
+    (SELECT COUNT(*) FROM coach_blog_posts b WHERE b.status='pending'
+      AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='articles' AND r.entity_id=b.id)) AS articles,
+    (SELECT COUNT(*) FROM owner_agent_tasks t WHERE t.status='completed' AND t.approval_status='pending' AND json_valid(t.output_json)
+      AND json_extract(t.output_json,'$.answer') IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='ai' AND r.entity_id=t.id)) AS ai`)
+    .bind(user.id, user.id, user.id, user.id, user.id, user.id).first();
+  return Object.fromEntries(categories.map((category) => [category, Number(row?.[category] || 0)]));
 }
 
 async function managementNotificationItems(env, categories, limit = 50) {

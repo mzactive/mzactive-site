@@ -44,10 +44,18 @@ test('auth failures map to clear English and Arabic messages', () => {
 });
 
 test('admin client reports network failures and invalid responses instead of a generic refresh error', () => {
-  assert.match(js, /catch\{throw Error\('connection_error'\)\}/);
+  assert.match(js, /catch\(e\)\{const err=Error\('connection_error'\);err\.detail=method\+' '\+path;throw err\}/);
   assert.match(js, /r\.status>=500\?'service_unavailable':'request_failed'/);
+  assert.match(js, /err\.detail=r\.status\+' '\+method\+' '\+path;throw err/);
   assert.match(js, /await r\.json\(\)\}\s*catch\{throw Error\('request_failed'\)\}/);
+  assert.match(js, /const detail=err\?\.detail\?' · '\+err\.detail:''/);
   assert.match(account, /api\('\/api\/auth\/recover'/);
   assert.match(js, /api\('auth\/change-password'/);
   assert.match(account, /field\(form, 'new_password'\)\.value !== field\(form, 'confirm_password'\)\.value/);
+});
+
+test('retry buttons re-run the failed load with a fresh dashboard cache', () => {
+  assert.match(js, /function retryButton\(text,fn\)\{const b=button\(text,async\(\)=>\{dashboard=null;notice\(t\('Retrying…'/);
+  assert.match(js, /b\.dataset\.retry='1'/);
+  assert.equal((js.match(/replaceChildren\(retryButton\(/g) || []).length, 2);
 });
