@@ -46,7 +46,7 @@ test('service worker keeps accounts, API traffic and private pages network-only'
 
 test('registration and offline fallback share the existing language system', () => {
   assert.match(register, /serviceWorker.*in navigator/);
-  assert.match(register, /register\(['"]\/sw\.js['"]/);
+  assert.match(register, /register\(['"]\/sw\.js\?v=20261121a['"]/);
   assert.match(register, /scope:\s*['"]\/['"]/);
   new Function(register);
   const offline = read('offline.html');

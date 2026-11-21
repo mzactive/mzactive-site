@@ -121,7 +121,9 @@
   window.addEventListener('pagehide', preserveStudioDraft);
 
   const register = () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(watchRegistration).catch(() => {
+    // The script URL is versioned so Cloudflare's cached canonical /sw.js
+    // cannot delay a PWA update. Bump this with each shell release.
+    navigator.serviceWorker.register('/sw.js?v=20261121a', { scope: '/' }).then(watchRegistration).catch(() => {
       // The site remains fully usable if the app shell is unavailable.
     });
   };

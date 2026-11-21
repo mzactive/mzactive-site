@@ -48,7 +48,7 @@ test('cached assets are refreshed in the background without changing versioned U
 
 test('registration polls periodically and on visibility without assuming a paid service', () => {
   assert.match(register, /'serviceWorker' in navigator/);
-  assert.match(register, /register\(['"]\/sw\.js['"]/);
+  assert.match(register, /register\(['"]\/sw\.js\?v=20261121a['"]/);
   assert.match(register, /scope:\s*['"]\/['"]/);
   assert.match(register, /registration\.update\(\)\.catch/);
   assert.match(register, /setInterval\(checkForUpdate, CHECK_INTERVAL\)/);
@@ -108,4 +108,16 @@ test('fixed UI honors safe-area insets and dvh has a vh fallback', () => {
   assert.match(css, /#mz-assistant/);
   assert.match(css, /\.wa-chat-float/);
   assert.match(css, /\.mza-update-banner/);
+});
+
+test('service worker registration is cache-busted on every page that registers it', () => {
+  let checked = 0;
+  for (const page of fs.readdirSync(root).filter(file => file.endsWith('.html'))) {
+    const html = read(page);
+    if (!html.includes('pwa-register.js')) continue;
+    checked += 1;
+    assert.match(html, /pwa-register\.js\?v=20261121a/, page);
+    assert.doesNotMatch(html, /pwa-register\.js\?v=20261120e/, page);
+  }
+  assert.ok(checked >= 18, `expected every registered page to be versioned, found ${checked}`);
 });
