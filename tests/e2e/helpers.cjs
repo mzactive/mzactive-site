@@ -273,7 +273,13 @@ async function installApiMock(page, options = {}) {
 }
 
 function assertOfflineSafe(state) {
-  assert.deepEqual(state.blocked, [], 'Unexpected cross-origin request escaped route interception');
+  // Cloudflare injects a free analytics beacon on the live domain. It is not
+  // an app request, so allow it explicitly when tests run against production.
+  const appBlocked = state.blocked.filter(({ url }) => {
+    try { return new URL(url).hostname !== 'static.cloudflareinsights.com'; }
+    catch { return true; }
+  });
+  assert.deepEqual(appBlocked, [], 'Unexpected cross-origin request escaped route interception');
   const unmocked = state.calls.filter(call => call.status === 501);
   assert.deepEqual(unmocked, [], `Unmocked worker API calls: ${JSON.stringify(unmocked)}`);
 }
