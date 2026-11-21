@@ -176,13 +176,19 @@ async function currentUser(request, env) {
   const match = /^Bearer ([\w-]{30,80})$/.exec(request.headers.get("Authorization") || "");
   if (!match) return null;
   const tokenHash = await sha256(match[1]);
-  return env.DB.prepare(`SELECT u.id, u.email, u.role, u.account_status FROM sessions s JOIN users u ON u.id=s.user_id
+  return env.DB.prepare(`SELECT u.id, u.email, u.role, u.account_status, u.is_super_admin FROM sessions s JOIN users u ON u.id=s.user_id
     WHERE s.token_hash=? AND s.expires_at>? AND (u.account_status IS NULL OR u.account_status='active')
     AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id AND p.status='rejected' AND p.review_note='Removed by owner')`).bind(tokenHash, Math.floor(Date.now() / 1000)).first();
 }
 
 function accountActive(accountStatus) {
   return !accountStatus || accountStatus === "active";
+}
+
+// Existing admins are marked super admins by migration 0027. Newly promoted
+// admins are limited until a super admin explicitly elevates them.
+function isSuperAdmin(user) {
+  return Boolean(user && user.role === "admin" && user.is_super_admin === 1);
 }
 
 async function recordAccountEvent(env, actorId, subjectId, action, detail) {
@@ -428,8 +434,8 @@ async function register(request, env) {
   const specialties = cleanList(body.specialties, 12, 60), languages = cleanList(body.languages, 8, 40);
   try {
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO users(id,email,password_hash,role,created_at) VALUES(?,?,?,?,?)")
-        .bind(userId, email, passwordHash, role, now),
+      env.DB.prepare("INSERT INTO users(id,email,password_hash,role,is_super_admin,created_at) VALUES(?,?,?,?,?,?)")
+        .bind(userId, email, passwordHash, role, isAdminEmail ? 1 : 0, now),
       ...(!isAdminEmail && !isMember ? [env.DB.prepare(`INSERT INTO provider_profiles(id,user_id,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,whatsapp_number,whatsapp_public,social_links_json,status,updated_at,created_at)
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(profileId,userId,type,displayName,text(body.country,80)||"Qatar",city,JSON.stringify(specialties),JSON.stringify(languages),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),canPublishWhatsApp?whatsapp:null,canPublishWhatsApp?1:0,JSON.stringify(socialLinks),"pending",now,now)] : []),
     ]);
@@ -470,15 +476,17 @@ async function safeEqual(left, right) {
 
 async function issueSession(request, env, userId, email, role, status = 200) {
   const token = b64(crypto.getRandomValues(new Uint8Array(32)));
+  const stored = await env.DB.prepare("SELECT role,is_super_admin FROM users WHERE id=?").bind(userId).first();
   await env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(Math.floor(Date.now()/1000)).run();
   await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)")
     .bind(await sha256(token), userId, Math.floor(Date.now()/1000)+SESSION_TTL_SECONDS, new Date().toISOString()).run();
-  const access = await managementAccess(env, { id: userId, email, role });
+  const access = await managementAccess(env, { id: userId, email, role: stored?.role || role, is_super_admin: stored?.is_super_admin });
   return reply(request, env, {
     token,
     user: { id: userId, email, role },
     expires_in: SESSION_TTL_SECONDS,
     account_type: access.account_type,
+    super_admin: access.super_admin,
     dashboard_path: access.dashboard_path,
     management: access.management,
   }, status);
@@ -1423,7 +1431,7 @@ async function handleWorkspaceApi(request, env, url) {
 
 async function canPublishImmediately(env, user) {
   if (!user) return false;
-  if (user.role === "admin") return true;
+  if (isSuperAdmin(user)) return true;
   const profile = await coachProfileForUser(env, user.id);
   return profile?.status === "approved";
 }
@@ -1754,7 +1762,7 @@ async function isMemberAccount(env, user) {
 
 async function hasManagementPermission(env, user, code) {
   if (!user) return false;
-  if (user.role === "admin") return true;
+  if (isSuperAdmin(user)) return true;
   const row = await env.DB.prepare("SELECT 1 AS allowed FROM user_management_permissions WHERE user_id=? AND permission_code=?")
     .bind(user.id, code).first();
   return Boolean(row?.allowed);
@@ -1762,7 +1770,7 @@ async function hasManagementPermission(env, user, code) {
 
 function allowedManagementCategories(user, permissions) {
   return Object.keys(MANAGEMENT_NOTIFICATION_CATEGORIES).filter((category) =>
-    user?.role === "admin" || permissions.includes(MANAGEMENT_NOTIFICATION_CATEGORIES[category].permission));
+    isSuperAdmin(user) || permissions.includes(MANAGEMENT_NOTIFICATION_CATEGORIES[category].permission));
 }
 
 // Actionable items are derived from live records, never from a cached number.
@@ -1961,7 +1969,7 @@ async function managementDashboard(env, user, permissions) {
 
 async function managementPermissionCodes(env, user) {
   if (!user) return [];
-  if (user.role === "admin") return [...MANAGEMENT_PERMISSION_CODES];
+  if (isSuperAdmin(user)) return [...MANAGEMENT_PERMISSION_CODES];
   const row = await env.DB.prepare("SELECT json_group_array(permission_code) AS codes FROM user_management_permissions WHERE user_id=?")
     .bind(user.id).first();
   let codes = [];
@@ -1972,11 +1980,13 @@ async function managementPermissionCodes(env, user) {
 // The backend is the only source of account type and destination. No login
 // form or query parameter can choose a role or grant management access.
 async function managementAccess(env, user) {
+  const superAdmin = isSuperAdmin(user);
+  const adminRole = user.role === "admin";
   const permissions = await managementPermissionCodes(env, user);
-  const manager = user.role === "admin" || permissions.includes("management.view");
+  const manager = superAdmin || adminRole || permissions.includes("management.view");
   let accountType = "member", dashboardPath = "/dashboard.html";
   if (manager) {
-    accountType = user.role === "admin" ? "admin" : "manager";
+    accountType = superAdmin ? "admin" : adminRole ? "limited_admin" : "manager";
     dashboardPath = "/admin.html";
   } else if (await isApprovedCoach(env, user)) {
     accountType = "provider";
@@ -1988,6 +1998,7 @@ async function managementAccess(env, user) {
   return {
     user: { id: user.id, email: user.email, role: user.role },
     account_type: accountType,
+    super_admin: superAdmin,
     account_status: user.account_status || "active",
     dashboard_path: dashboardPath,
     management: {
@@ -1999,7 +2010,7 @@ async function managementAccess(env, user) {
 
 async function dashboardOverview(request, env, user) {
   let teams, dashboardRole, coaches = [];
-  if (user.role === "admin") {
+  if (isSuperAdmin(user)) {
     dashboardRole = "admin";
     const rows = await env.DB.prepare(`SELECT t.id,t.name,t.join_code,t.created_at,p.display_name AS coach_name,COUNT(m.user_id) AS member_count
       FROM training_teams t LEFT JOIN training_team_members m ON m.team_id=t.id
@@ -2072,7 +2083,7 @@ async function dashboardOverview(request, env, user) {
 }
 
 async function canManageTeam(env, user, teamId) {
-  if (user.role === "admin") return Boolean(await env.DB.prepare("SELECT id FROM training_teams WHERE id=?").bind(teamId).first());
+  if (isSuperAdmin(user)) return Boolean(await env.DB.prepare("SELECT id FROM training_teams WHERE id=?").bind(teamId).first());
   if (!await isApprovedCoach(env, user)) return false;
   return Boolean(await env.DB.prepare("SELECT id FROM training_teams WHERE id=? AND coach_user_id=?").bind(teamId,user.id).first());
 }
@@ -2081,7 +2092,7 @@ async function dashboardApi(request, env, user) {
   const url = new URL(request.url), path = url.pathname;
   if (request.method === "GET" && path === "/api/dashboard") return dashboardOverview(request, env, user);
   if (path === "/api/dashboard/programs" && request.method === "POST") {
-    const admin=user.role==="admin";
+    const admin=isSuperAdmin(user);
     if(!admin&&!await isApprovedCoach(env,user))return reply(request,env,{error:"approved_coach_required"},403);
     const body=await readJson(request);
     const athleteName=text(body?.athlete_name,80),athletePhone=normalizeWhatsApp(body?.athlete_phone||"");
@@ -2153,7 +2164,7 @@ async function dashboardApi(request, env, user) {
   }
 
   if (request.method === "POST" && path === "/api/dashboard/teams") {
-    const admin = user.role === "admin";
+    const admin = isSuperAdmin(user);
     if (!admin && !await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
     if (!await rateLimit(request, env, "dashboard-team", 5)) return reply(request, env, { error: "rate_limited" }, 429);
     const body = await readJson(request), name = text(body?.name, 80);
@@ -2186,7 +2197,7 @@ async function dashboardApi(request, env, user) {
   }
 
   if (request.method === "POST" && path === "/api/dashboard/sessions") {
-    if (user.role !== "admin" && !await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
+    if (!isSuperAdmin(user) && !await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
     const body = await readJson(request), teamId = text(body?.team_id, 36), title = text(body?.title, 120), startsAt = text(body?.starts_at, 40);
     if (!body || !teamId || !title || !startsAt || !Number.isFinite(Date.parse(startsAt))) return reply(request, env, { error: "invalid_training_session" }, 400);
     if (!await canManageTeam(env, user, teamId)) return reply(request, env, { error: "team_not_found" }, 404);
@@ -2197,7 +2208,7 @@ async function dashboardApi(request, env, user) {
   }
 
   if (request.method === "POST" && path === "/api/dashboard/messages") {
-    if (user.role !== "admin" && !await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
+    if (!isSuperAdmin(user) && !await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
     const body = await readJson(request), teamId = text(body?.team_id, 36), message = text(body?.body, 1000);
     if (!body || !teamId || !message) return reply(request, env, { error: "team_and_message_required" }, 400);
     if (!await canManageTeam(env, user, teamId)) return reply(request, env, { error: "team_not_found" }, 404);
@@ -2208,10 +2219,10 @@ async function dashboardApi(request, env, user) {
 
   const sessionMatch = /^\/api\/dashboard\/sessions\/([\w-]{36})$/.exec(path);
   if (sessionMatch && request.method === "PATCH") {
-    if (user.role !== "admin" && !await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
+    if (!isSuperAdmin(user) && !await isApprovedCoach(env, user)) return reply(request, env, { error: "approved_coach_required" }, 403);
     const body = await readJson(request), status = body?.status;
     if (!body || !["scheduled","completed","cancelled"].includes(status)) return reply(request, env, { error: "invalid_session_status" }, 400);
-    const session = user.role === "admin"
+    const session = isSuperAdmin(user)
       ? await env.DB.prepare("SELECT id FROM training_sessions WHERE id=?").bind(sessionMatch[1]).first()
       : await env.DB.prepare("SELECT s.id FROM training_sessions s JOIN training_teams t ON t.id=s.team_id WHERE s.id=? AND t.coach_user_id=?").bind(sessionMatch[1],user.id).first();
     if (!session) return reply(request, env, { error: "session_not_found" }, 404);
@@ -2639,7 +2650,7 @@ async function handleAthleteInvitationApi(request, env, url) {
 function requiredManagementPermission(path) {
   if (path.includes("/assistant") || path.includes("/agents") || path.includes("/momo")) return "management.ai";
   if (path.includes("/athletes/") && path.includes("/recommendations")) return "management.ai";
-  if (path.includes("/auth-events")) return "management.audit";
+  if (path.includes("/auth-events") || path.includes("/reports")) return "management.audit";
   if (path.includes("/community") || path.includes("/communities") || path.includes("/achievements")) return "management.community";
   if (path.includes("/blog")) return "management.articles";
   if (path.includes("/booking")) return "management.bookings";
@@ -2659,10 +2670,22 @@ const RESTRICTED_APPLICATION_FIELDS = [
 ];
 
 function applicationForViewer(row, user) {
-  if (user.role === "admin") return row;
+  if (isSuperAdmin(user)) return row;
   const visible = { ...row, credentials_restricted: true };
   for (const field of RESTRICTED_APPLICATION_FIELDS) delete visible[field];
   return visible;
+}
+
+// Account directory rows carry the same identity details that are withheld on
+// application rows. Delegated managers may see workflow state, not contact PII.
+function accountForViewer(row, user) {
+  if (isSuperAdmin(user)) return row;
+  return {
+    ...row,
+    email: "[restricted]",
+    whatsapp_number: null,
+    identity_restricted: true,
+  };
 }
 
 async function adminApplications(request, env, user) {
@@ -2672,35 +2695,38 @@ async function adminApplications(request, env, user) {
   // Only the protected administrator role may change management grants. This
   // endpoint is deliberately outside the general manager permission check.
   if (path === "/api/admin/management/permissions" && request.method === "GET") {
-    if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
-    const rows = await env.DB.prepare(`SELECT u.email,ump.permission_code,p.label_en,p.label_ar,ump.granted_at
+    if (!isSuperAdmin(user)) return reply(request, env, { error: "forbidden" }, 403);
+    const rows = await env.DB.prepare(`SELECT u.id,u.email,u.role,u.is_super_admin,ump.permission_code,p.label_en,p.label_ar,ump.granted_at
       FROM user_management_permissions ump JOIN users u ON u.id=ump.user_id
       JOIN management_permissions p ON p.code=ump.permission_code
       ORDER BY u.email,ump.permission_code`).all();
     return reply(request, env, { grants: rows.results || [], available: MANAGEMENT_PERMISSION_CODES });
   }
   if (path === "/api/admin/management/permissions" && request.method === "PUT") {
-    if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+    if (!isSuperAdmin(user)) return reply(request, env, { error: "forbidden" }, 403);
     const body = await readJson(request);
     const email = emailValue(body?.email);
     const codes = Array.isArray(body?.permissions)
       ? [...new Set(body.permissions.filter((code) => MANAGEMENT_PERMISSION_CODES.includes(code)))]
       : [];
     const target = email
-      ? await env.DB.prepare("SELECT id,email,role FROM users WHERE email=?").bind(email).first()
+      ? await env.DB.prepare("SELECT id,email,role,is_super_admin FROM users WHERE email=?").bind(email).first()
       : null;
-    if (!target || target.role === "admin") return reply(request, env, { error: "invalid_target" }, 400);
+    if (!target || isSuperAdmin(target)) return reply(request, env, { error: "invalid_target" }, 400);
     const now = new Date().toISOString();
     const statements = [
       env.DB.prepare("DELETE FROM user_management_permissions WHERE user_id=?").bind(target.id),
       ...codes.map((code) => env.DB.prepare(`INSERT INTO user_management_permissions(user_id,permission_code,granted_by,granted_at)
         VALUES(?,?,?,?) ON CONFLICT(user_id,permission_code) DO NOTHING`).bind(target.id, code, user.id, now)),
+      env.DB.prepare(`INSERT INTO account_events(id,actor_user_id,subject_user_id,action,detail,created_at)
+        VALUES(?,?,?,'management_permissions_changed',?,?)`)
+        .bind(randomId(), user.id, target.id, JSON.stringify({ email: target.email, permissions: codes }), now),
       env.DB.prepare(`INSERT INTO owner_agent_activity(id,actor_user_id,agent_type,action,status,details_json,created_at)
         VALUES(?,?,'owner','management_permissions_changed','completed',?,?)`)
         .bind(randomId(), user.id, JSON.stringify({ email: target.email, permissions: codes }), now),
     ];
     await env.DB.batch(statements);
-    return reply(request, env, { ok: true, email: target.email, permissions: codes });
+    return reply(request, env, { ok: true, email: target.email, role: target.role, permissions: codes });
   }
 
   if (!await hasManagementPermission(env, user, "management.view")) return reply(request, env, { error: "forbidden" }, 403);
@@ -2710,8 +2736,13 @@ async function adminApplications(request, env, user) {
   // Account management is deliberately separated from the public athlete
   // profile. Viewing needs management.view; every state change needs a full
   // administrator session so a scoped manager cannot escalate roles.
-  const accountFields = `u.id,u.email,u.role,u.account_status,u.status_reason,u.deleted_at,u.created_at,
-    p.id AS profile_id,p.status AS profile_status,p.submission_state,p.display_name,p.provider_type,
+  const accountFields = `u.id,u.email,u.role,u.is_super_admin,u.account_status,u.status_reason,u.deleted_at,u.created_at,
+    p.id AS profile_id,p.status AS profile_status,p.submission_state,p.provider_type,
+    COALESCE(p.display_name,(SELECT ms.display_name FROM member_sports_profiles ms WHERE ms.user_id=u.id)) AS display_name,
+    COALESCE(p.city,(SELECT ms.city FROM member_sports_profiles ms WHERE ms.user_id=u.id)) AS city,
+    COALESCE(p.country,(SELECT ms.country FROM member_sports_profiles ms WHERE ms.user_id=u.id),'Qatar') AS country,
+    COALESCE(p.whatsapp_number,(SELECT ms.whatsapp_number FROM member_sports_profiles ms WHERE ms.user_id=u.id)) AS whatsapp_number,
+    COALESCE((SELECT ms.preferred_language FROM member_sports_profiles ms WHERE ms.user_id=u.id),'') AS preferred_language,
     (SELECT COUNT(*) FROM booking_requests b WHERE b.customer_user_id=u.id OR b.provider_id=p.id) AS booking_count,
     (SELECT COUNT(*) FROM athlete_programs_v2 ap WHERE ap.athlete_user_id=u.id OR ap.coach_user_id=u.id) AS program_count`;
   const withMismatch = row => ({ ...row, role_mismatch: row.role === "provider" && !row.profile_id && (row.booking_count > 0 || row.program_count > 0) });
@@ -2737,21 +2768,111 @@ async function adminApplications(request, env, user) {
       return true;
     };
     const accounts = all.filter(a => !q || a.email.toLowerCase().includes(q) || (a.display_name || "").toLowerCase().includes(q))
-      .filter(matchesFilter);
+      .filter(matchesFilter)
+      .map((row) => accountForViewer(row, user));
     return reply(request, env, { accounts, counts });
   }
-  const accountMatch = /^\/api\/admin\/accounts\/([\w-]{36})(?:\/(coach-application|suspend|reactivate|delete))?$/.exec(path);
+  const accountMatch = /^\/api\/admin\/accounts\/([\w-]{36})(?:\/(coach-application|suspend|reactivate|delete|update|role))?$/.exec(path);
   if (accountMatch && request.method === "GET" && !accountMatch[2]) {
     const row = await env.DB.prepare(`SELECT ${accountFields} FROM users u LEFT JOIN provider_profiles p ON p.user_id=u.id WHERE u.id=?`).bind(accountMatch[1]).first();
     if (!row) return reply(request, env, { error: "account_not_found" }, 404);
     const events = await env.DB.prepare("SELECT id,actor_user_id,action,detail,created_at FROM account_events WHERE subject_user_id=? ORDER BY created_at DESC LIMIT 50").bind(row.id).all();
-    return reply(request, env, { account: withMismatch(row), events: events.results || [] });
+    const visibleEvents = isSuperAdmin(user)
+      ? events.results || []
+      : (events.results || []).map((event) => ({ ...event, detail: null }));
+    return reply(request, env, { account: accountForViewer(withMismatch(row), user), events: visibleEvents });
   }
   if (accountMatch && request.method === "POST" && accountMatch[2]) {
-    if (user.role !== "admin") return reply(request, env, { error: "admin_required" }, 403);
-    const target = await env.DB.prepare("SELECT id,email,role,account_status FROM users WHERE id=?").bind(accountMatch[1]).first();
+    if (!isSuperAdmin(user)) return reply(request, env, { error: "admin_required" }, 403);
+    const target = await env.DB.prepare("SELECT id,email,role,is_super_admin,account_status FROM users WHERE id=?").bind(accountMatch[1]).first();
     if (!target) return reply(request, env, { error: "account_not_found" }, 404);
     const action = accountMatch[2], body = await readJson(request), now = new Date().toISOString();
+
+    if (action === "update") {
+      if (target.account_status === "deleted") return reply(request, env, { error: "account_not_active" }, 409);
+      // A peer super admin's login email must not be changed out from under
+      // them; all other accounts remain editable by a super administrator.
+      if (isSuperAdmin(target) && target.id !== user.id) return reply(request, env, { error: "account_protected" }, 409);
+      const nextEmail = body?.email === undefined ? target.email : emailValue(body.email);
+      if (!nextEmail) return reply(request, env, { error: "invalid_email" }, 400);
+      if (nextEmail !== target.email.toLowerCase()) {
+        const duplicate = await env.DB.prepare("SELECT id FROM users WHERE email=? AND id<>?").bind(nextEmail, target.id).first();
+        if (duplicate) return reply(request, env, { error: "email_in_use" }, 409);
+      }
+      const profile = await env.DB.prepare("SELECT id FROM provider_profiles WHERE user_id=?").bind(target.id).first();
+      const member = await env.DB.prepare("SELECT user_id FROM member_sports_profiles WHERE user_id=?").bind(target.id).first();
+      const displayName = body?.display_name === undefined ? null : text(body.display_name, 100);
+      const city = body?.city === undefined ? null : text(body.city, 80);
+      const country = body?.country === undefined ? null : text(body.country, 80);
+      const whatsappProvided = body?.whatsapp_number !== undefined;
+      let whatsapp = null;
+      if (whatsappProvided) {
+        const raw = text(body.whatsapp_number, 32);
+        if (raw && !normalizeWhatsApp(raw)) return reply(request, env, { error: "invalid_whatsapp" }, 400);
+        whatsapp = raw ? normalizeWhatsApp(raw) : null;
+      }
+      const languageProvided = body?.preferred_language !== undefined;
+      const language = body?.preferred_language === 'ar' ? 'ar' : body?.preferred_language === 'en' ? 'en' : '';
+      const emailChanged = nextEmail !== target.email.toLowerCase();
+      const profileFieldsPresent = displayName !== null || city !== null || country !== null || whatsappProvided;
+      const memberFieldsPresent = profileFieldsPresent || languageProvided;
+      const statements = [env.DB.prepare("UPDATE users SET email=? WHERE id=?").bind(nextEmail, target.id)];
+      if (profile && profileFieldsPresent) statements.push(env.DB.prepare(`UPDATE provider_profiles
+        SET display_name=COALESCE(?,display_name),city=COALESCE(?,city),country=COALESCE(?,country),
+        whatsapp_number=CASE WHEN ?=1 THEN ? ELSE whatsapp_number END,updated_at=? WHERE user_id=?`)
+        .bind(displayName, city, country, whatsappProvided ? 1 : 0, whatsapp, now, target.id));
+      if (!profile && member && memberFieldsPresent) statements.push(env.DB.prepare(`UPDATE member_sports_profiles
+        SET display_name=COALESCE(?,display_name),city=COALESCE(?,city),country=COALESCE(?,country),
+        whatsapp_number=CASE WHEN ?=1 THEN ? ELSE whatsapp_number END,
+        preferred_language=CASE WHEN ?=1 THEN ? ELSE preferred_language END,updated_at=? WHERE user_id=?`)
+        .bind(displayName, city, country, whatsappProvided ? 1 : 0, whatsapp,
+          languageProvided ? 1 : 0, language, now, target.id));
+      if (!member && (languageProvided || (!profile && memberFieldsPresent))) statements.push(env.DB.prepare(`INSERT INTO member_sports_profiles
+        (user_id,display_name,city,country,whatsapp_number,preferred_language,updated_at)
+        VALUES(?,?,?,?,?,?,?)`)
+        .bind(target.id, displayName || '', city || '', country || 'Qatar', whatsapp, language, now));
+      if (profile && languageProvided && member) statements.push(env.DB.prepare("UPDATE member_sports_profiles SET preferred_language=?,updated_at=? WHERE user_id=?").bind(language, now, target.id));
+      if (emailChanged) statements.push(env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id));
+      await env.DB.batch(statements);
+      const changed = [
+        emailChanged ? 'email' : null,
+        displayName !== null ? 'display_name' : null,
+        city !== null ? 'city' : null,
+        country !== null ? 'country' : null,
+        whatsappProvided ? 'whatsapp_number' : null,
+        languageProvided ? 'preferred_language' : null,
+      ].filter(Boolean);
+      await recordAccountEvent(env, user.id, target.id, 'account_updated', { fields: changed });
+      return reply(request, env, { ok: true, fields: changed, sessions_revoked: emailChanged });
+    }
+
+    if (action === "role") {
+      if (target.id === user.id || target.account_status === "deleted") return reply(request, env, { error: "account_protected" }, 409);
+      const nextRole = body?.role === 'admin' || body?.role === 'provider' ? body.role : null;
+      if (!nextRole) return reply(request, env, { error: "invalid_role" }, 400);
+      const elevate = nextRole === 'admin' && body?.super_admin === true;
+      const nextSuper = nextRole === 'admin' && elevate ? 1 : 0;
+      const demotesSuper = isSuperAdmin(target) && (nextRole !== 'admin' || !elevate);
+      // The count and demotion happen in one statement so two concurrent
+      // demotions cannot both pass and leave the portal with no super admin.
+      const lastSuperGuard = demotesSuper
+        ? "AND (SELECT COUNT(*) FROM users WHERE role='admin' AND is_super_admin=1) > 1"
+        : '';
+      const updated = await env.DB.prepare(`UPDATE users SET role=?,is_super_admin=? WHERE id=? ${lastSuperGuard}`)
+        .bind(nextRole, nextSuper, target.id).run();
+      if (!(updated.meta?.changes || updated.changes)) return reply(request, env, { error: "last_super_admin" }, 409);
+      try {
+        await env.DB.batch([
+          env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id),
+        ]);
+      } catch (error) {
+        await env.DB.prepare("UPDATE users SET role=?,is_super_admin=? WHERE id=?")
+          .bind(target.role, target.is_super_admin || 0, target.id).run();
+        throw error;
+      }
+      await recordAccountEvent(env, user.id, target.id, 'account_role_changed', { from: target.role, to: nextRole, super_admin: Boolean(nextSuper) });
+      return reply(request, env, { ok: true, role: nextRole, super_admin: Boolean(nextSuper), sessions_revoked: true });
+    }
 
     if (action === "coach-application") {
       if (target.role !== "provider" || !accountActive(target.account_status)) return reply(request, env, { error: "account_not_eligible" }, 409);
@@ -2769,7 +2890,7 @@ async function adminApplications(request, env, user) {
       return reply(request, env, { ok: true, profile_id: profileId, submission_state: "draft" });
     }
     if (action === "suspend") {
-      if (target.role === "admin" || target.id === user.id) return reply(request, env, { error: "account_protected" }, 409);
+      if (isSuperAdmin(target) || target.id === user.id) return reply(request, env, { error: "account_protected" }, 409);
       if (!accountActive(target.account_status)) return reply(request, env, { error: "account_not_active" }, 409);
       const reason = text(body?.reason, 300) || "Suspended by administrator";
       await env.DB.batch([
@@ -2789,7 +2910,7 @@ async function adminApplications(request, env, user) {
       return reply(request, env, { ok: true, account_status: "active" });
     }
     if (action === "delete") {
-      if (target.role === "admin" || target.id === user.id) return reply(request, env, { error: "account_protected" }, 409);
+      if (isSuperAdmin(target) || target.id === user.id) return reply(request, env, { error: "account_protected" }, 409);
       if (target.account_status === "deleted") return reply(request, env, { error: "account_already_deleted" }, 409);
       const confirmedEmail = emailValue(body?.confirm_email), phrase = text(body?.confirm_phrase, 40);
       if (confirmedEmail !== target.email.toLowerCase() || phrase !== "DELETE") return reply(request, env, { error: "confirmation_required" }, 400);
@@ -3019,6 +3140,19 @@ async function adminApplications(request, env, user) {
     if (!athlete) return reply(request, env, { error: "athlete_not_found" }, 404);
     return athleteCrmDetail(request, env, athlete);
   }
+  if (request.method === "GET" && requestUrl.pathname === "/api/admin/programs") {
+    const rows = await env.DB.prepare(`SELECT ap.id,ap.athlete_user_id,ap.athlete_name,ap.athlete_type,ap.week_start,ap.coach_note,ap.created_at,
+      p.display_name AS coach_name,au.email AS athlete_email,
+      (SELECT COUNT(*) FROM athlete_program_sessions_v2 s WHERE s.program_id=ap.id) AS session_count,
+      (SELECT COUNT(*) FROM athlete_program_completions_v2 c JOIN athlete_program_sessions_v2 s ON s.id=c.session_id WHERE s.program_id=ap.id) AS completion_count
+      FROM athlete_programs_v2 ap
+      LEFT JOIN provider_profiles p ON p.user_id=ap.coach_user_id
+      LEFT JOIN users au ON au.id=ap.athlete_user_id
+      ORDER BY ap.week_start DESC,ap.created_at DESC LIMIT 300`).all();
+    return reply(request, env, {
+      programs: (rows.results || []).map((row) => ({ ...row, access_linked: Boolean(row.athlete_user_id) })),
+    });
+  }
   const assign = /^\/api\/admin\/programs\/([\w-]{36})\/athlete$/.exec(requestUrl.pathname);
   if (request.method === "PATCH" && assign) {
     const body = await readJson(request), athlete = text(body?.athlete_id,36);
@@ -3036,6 +3170,27 @@ async function adminApplications(request, env, user) {
       UNION ALL SELECT 'booking_request',NULL,'received',created_at FROM booking_requests
       ORDER BY created_at DESC LIMIT 100`).all();
     return reply(request,env,{events:rows.results});
+  }
+  if (request.method === "GET" && requestUrl.pathname === "/api/admin/reports") {
+    const [history, authentication, accounts, agents] = await Promise.all([
+      env.DB.prepare(`SELECT entity_type,from_status,to_status,created_at FROM moderation_events
+        UNION ALL SELECT 'registration',NULL,'received',created_at FROM users WHERE role!='admin'
+        UNION ALL SELECT 'booking_request',NULL,'received',created_at FROM booking_requests
+        ORDER BY created_at DESC LIMIT 100`).all(),
+      env.DB.prepare("SELECT id,user_id,kind,detail,created_at FROM auth_events ORDER BY created_at DESC LIMIT 100").all(),
+      env.DB.prepare("SELECT id,actor_user_id,subject_user_id,action,detail,created_at FROM account_events ORDER BY created_at DESC LIMIT 100").all(),
+      env.DB.prepare("SELECT id,agent_type,action,status,created_at FROM owner_agent_activity ORDER BY created_at DESC LIMIT 100").all(),
+    ]);
+    const fullAdmin = isSuperAdmin(user);
+    const forViewer = rows => fullAdmin
+      ? rows
+      : rows.map((row) => ({ ...row, detail: null }));
+    return reply(request, env, {
+      history: history.results || [],
+      authentication: forViewer(authentication.results || []),
+      accounts: forViewer(accounts.results || []),
+      agents: agents.results || [],
+    });
   }
   const agentTaskMatch = /^\/api\/admin\/agents\/([\w-]{36})$/.exec(requestUrl.pathname);
   if (agentTaskMatch && request.method === "PATCH") {
@@ -3072,7 +3227,7 @@ async function adminApplications(request, env, user) {
   if (gallery && request.method === "GET") return galleryImage(gallery[1], Number(gallery[2]), request, env, false);
   const cvMatch = /^\/api\/admin\/providers\/([\w-]{36})\/cv$/.exec(requestUrl.pathname);
   if (cvMatch && request.method === "GET") {
-    if (user.role !== "admin") return reply(request, env, { error: "admin_required" }, 403);
+    if (!isSuperAdmin(user)) return reply(request, env, { error: "admin_required" }, 403);
     const cv = await env.DB.prepare("SELECT cv_bytes,cv_content_type,cv_file_name,cv_byte_size,cv_updated_at FROM provider_profiles WHERE id=?").bind(cvMatch[1]).first();
     if (!cv?.cv_bytes || !cv.cv_content_type) return reply(request, env, { error: "cv_not_found" }, 404);
     const disposition = `attachment; filename="${safeCvFileName(cv.cv_file_name)}"`;
@@ -3133,7 +3288,7 @@ async function adminApplications(request, env, user) {
     const previous = await env.DB.prepare(`SELECT status,provider_type,display_name,review_note,bio,specialties_json,languages_json,qualifications,services_json,license_number,license_issuer,license_expires_on,license_status,license_review_note,submission_state,user_id,(SELECT account_status FROM users WHERE id=user_id) AS account_status
       FROM provider_profiles WHERE id=?`).bind(match[1]).first();
     if (!previous) return reply(request, env, { updated: false }, 404);
-    if (status === "approved" && LICENSED_PROVIDER_TYPES.includes(previous.provider_type) && user.role !== "admin") {
+    if (status === "approved" && LICENSED_PROVIDER_TYPES.includes(previous.provider_type) && !isSuperAdmin(user)) {
       return reply(request, env, { error: "admin_required" }, 403);
     }
     if (status === "approved" && !accountActive(previous.account_status)) return reply(request, env, { error: "account_not_active" }, 409);
@@ -3254,7 +3409,7 @@ async function loadPost(env, id) {
 // comments. Legacy routes predate communities, so enforce the group audience here.
 async function postVisibleToViewer(env, post, viewer) {
   if (!post?.community_id) return true;
-  if (viewer?.role === "admin") return true;
+  if (isSuperAdmin(viewer)) return true;
   const community = await env.DB.prepare("SELECT status,visibility FROM communities WHERE id=?")
     .bind(post.community_id).first();
   if (!community || community.status !== "active") return false;
@@ -3267,7 +3422,7 @@ async function postVisibleToViewer(env, post, viewer) {
 
 async function canModifyPost(env, user, post) {
   if (!user || !post) return false;
-  if (user.role === "admin") return true;
+  if (isSuperAdmin(user)) return true;
   if (post.author_user_id === user.id) return true;
   return false;
 }
@@ -3289,7 +3444,7 @@ async function handleCommunityApi(request, env, url) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
     const user = auth.user;
-    if (user.role === "admin") return reply(request, env, { error: "provider_profile_required" }, 403);
+    if (isSuperAdmin(user)) return reply(request, env, { error: "provider_profile_required" }, 403);
     const profile = await coachProfileForUser(env, user.id);
     if (!profile) return reply(request, env, { error: "provider_unavailable" }, 404);
     if (method === "GET") {
@@ -3357,7 +3512,7 @@ async function handleCommunityApi(request, env, url) {
   if (path === "/api/me/sports-profile" && ["GET", "PUT"].includes(method)) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    if (auth.user.role === "admin") return reply(request, env, { error: "member_profile_unavailable" }, 403);
+    if (isSuperAdmin(auth.user)) return reply(request, env, { error: "member_profile_unavailable" }, 403);
     if (method === "GET") {
       const row = await env.DB.prepare("SELECT * FROM member_sports_profiles WHERE user_id=?").bind(auth.user.id).first();
       const profile = row ? { ...row, sports: safeParse(row.sports_json) } : {
@@ -3450,7 +3605,7 @@ async function handleCommunityApi(request, env, url) {
     if (auth.response) return auth.response;
     const body = await readJson(request);
     const kind = COMMUNITY_KINDS.includes(body?.kind) ? body.kind : "post";
-    if (kind === "challenge" && auth.user.role !== "admin") return reply(request, env, { error: "admin_required" }, 403);
+    if (kind === "challenge" && !isSuperAdmin(auth.user)) return reply(request, env, { error: "admin_required" }, 403);
     const content = text(body?.body, 4000), sport = SPORTS.includes(text(body?.sport, 40)) ? text(body.sport, 40) : "";
     const language = body?.language === "ar" ? "ar" : "en";
     let startsAt = null;
@@ -3474,7 +3629,7 @@ async function handleCommunityApi(request, env, url) {
     const post = await loadPost(env, match[1]);
     if (!post || !await postVisibleToViewer(env, post, viewer)) return reply(request, env, { error: "post_not_found" }, 404);
     if (post.status !== "published" && !viewer && method === "GET") return reply(request, env, { error: "post_not_found" }, 404);
-    if (post.status !== "published" && viewer?.id !== post.author_user_id && viewer?.role !== "admin" && method === "GET") return reply(request, env, { error: "post_not_found" }, 404);
+    if (post.status !== "published" && viewer?.id !== post.author_user_id && !isSuperAdmin(viewer) && method === "GET") return reply(request, env, { error: "post_not_found" }, 404);
     if (method === "GET") {
       if (post.status === "published" && viewer?.id !== post.author_user_id) await recordPostView(env, post.id, request, viewer);
       const [enriched] = await enrichPosts(env, [post], viewer?.id || "");
@@ -3483,7 +3638,7 @@ async function handleCommunityApi(request, env, url) {
         LEFT JOIN member_sports_profiles msp ON msp.user_id=c.user_id
         LEFT JOIN provider_profiles pp ON pp.user_id=c.user_id
         WHERE c.post_id=? AND (?=1 OR c.status='published') ORDER BY c.created_at LIMIT 200`)
-        .bind(post.id, viewer?.role === "admin" || viewer?.id === post.author_user_id ? 1 : 0).all();
+        .bind(post.id, isSuperAdmin(viewer) || viewer?.id === post.author_user_id ? 1 : 0).all();
       const safeComments = (comments.results || []).map((row) => ({
         id: row.id, user_id: row.user_id, body: row.body, status: row.status, created_at: row.created_at,
         author_name: displayName(row),
@@ -3501,7 +3656,7 @@ async function handleCommunityApi(request, env, url) {
     if (!content) return reply(request, env, { error: "post_body_required" }, 400);
     // Never resurrect a post a moderator hid just because its author edited it.
     const status = post.status === "hidden" ? "hidden"
-      : auth.user.role === "admin" ? post.status : postStatusFor(auth.user, await canPublishImmediately(env, auth.user));
+      : isSuperAdmin(auth.user) ? post.status : postStatusFor(auth.user, await canPublishImmediately(env, auth.user));
     await env.DB.prepare("UPDATE community_posts SET body=?,sport=?,language=?,status=?,updated_at=? WHERE id=?")
       .bind(content, SPORTS.includes(text(body?.sport, 40)) ? text(body.sport, 40) : post.sport,
         body?.language === "ar" ? "ar" : post.language, status, new Date().toISOString(), post.id).run();
@@ -3515,7 +3670,7 @@ async function handleCommunityApi(request, env, url) {
     if (!await postVisibleToViewer(env, post, viewer)) return reply(request, env, { error: "post_not_found" }, 404);
     if (method === "GET") {
       if (post.status !== "published") {
-        if (!viewer || (viewer.id !== post.author_user_id && viewer.role !== "admin")) return reply(request, env, { error: "post_not_found" }, 404);
+        if (!viewer || (viewer.id !== post.author_user_id && !isSuperAdmin(viewer))) return reply(request, env, { error: "post_not_found" }, 404);
       }
       const row = await env.DB.prepare("SELECT bytes,content_type FROM community_post_photos WHERE post_id=? AND slot=?").bind(post.id, Number(match[2])).first();
       return row ? binaryReply(request, env, row.bytes, row.content_type, "private, no-store")
@@ -3636,7 +3791,7 @@ async function handleCommunityApi(request, env, url) {
   if (match && method === "PATCH") {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    if (auth.user.role === "admin") return reply(request, env, { error: "forbidden" }, 403);
+    if (isSuperAdmin(auth.user)) return reply(request, env, { error: "forbidden" }, 403);
     const body = await readJson(request), decision = body?.status;
     if (!["accepted", "declined"].includes(decision)) return reply(request, env, { error: "invalid_connection_status" }, 400);
     const connection = await env.DB.prepare("SELECT * FROM coach_connections WHERE id=?").bind(match[1]).first();
@@ -3690,8 +3845,8 @@ async function handleCommunityApi(request, env, url) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
     const profile = await coachProfileForUser(env, auth.user.id);
-    if (auth.user.role !== "admin" && profile?.status !== "approved") return reply(request, env, { error: "approved_coach_required" }, 403);
-    const rows = auth.user.role === "admin"
+    if (!isSuperAdmin(auth.user) && profile?.status !== "approved") return reply(request, env, { error: "approved_coach_required" }, 403);
+    const rows = isSuperAdmin(auth.user)
       ? await env.DB.prepare(`SELECT b.*,p.display_name AS coach_name FROM booking_requests b LEFT JOIN provider_profiles p ON p.id=b.provider_id ORDER BY b.created_at DESC LIMIT 200`).all()
       : await env.DB.prepare(`SELECT b.*,p.display_name AS coach_name FROM booking_requests b JOIN provider_profiles p ON p.id=b.provider_id WHERE p.user_id=? ORDER BY b.created_at DESC LIMIT 200`).bind(auth.user.id).all();
     return reply(request, env, { bookings: rows.results || [] });
@@ -3701,11 +3856,11 @@ async function handleCommunityApi(request, env, url) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
     const profile = await coachProfileForUser(env, auth.user.id);
-    if (auth.user.role !== "admin" && profile?.status !== "approved") return reply(request, env, { error: "approved_coach_required" }, 403);
+    if (!isSuperAdmin(auth.user) && profile?.status !== "approved") return reply(request, env, { error: "approved_coach_required" }, 403);
     const body = await readJson(request), status = body?.status;
     const allowed = { received: ["reviewing", "accepted", "declined", "cancelled"], reviewing: ["accepted", "declined", "cancelled"], accepted: ["cancelled"] };
     if (!body || body.payment_status || !["reviewing", "accepted", "declined", "cancelled"].includes(status)) return reply(request, env, { error: "invalid_booking_status" }, 400);
-    const booking = auth.user.role === "admin"
+    const booking = isSuperAdmin(auth.user)
       ? await env.DB.prepare("SELECT id,status FROM booking_requests WHERE id=?").bind(match[1]).first()
       : await env.DB.prepare(`SELECT b.id,b.status FROM booking_requests b JOIN provider_profiles p ON p.id=b.provider_id WHERE b.id=? AND p.user_id=?`).bind(match[1], auth.user.id).first();
     if (!booking) return reply(request, env, { error: "booking_not_found" }, 404);
@@ -3745,9 +3900,9 @@ async function handleCommunityApi(request, env, url) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
     const profile = await coachProfileForUser(env, auth.user.id);
-    if (auth.user.role !== "admin" && profile?.status !== "approved") return reply(request, env, { error: "approved_coach_required" }, 403);
-    const coachUser = auth.user.role === "admin" ? null : auth.user.id;
-    const provider = auth.user.role === "admin" ? null : profile?.id;
+    if (!isSuperAdmin(auth.user) && profile?.status !== "approved") return reply(request, env, { error: "approved_coach_required" }, 403);
+    const coachUser = isSuperAdmin(auth.user) ? null : auth.user.id;
+    const provider = isSuperAdmin(auth.user) ? null : profile?.id;
     const first = async (sql, ...args) => Number((await env.DB.prepare(sql).bind(...args).first())?.count || 0);
     const analytics = {
       followers: await first("SELECT COUNT(*) AS count FROM user_follows WHERE coach_user_id=?", coachUser || ""),
@@ -3790,7 +3945,7 @@ async function handleCommunityApi(request, env, url) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
     if (method === "GET") {
-      const rows = auth.user.role === "admin"
+      const rows = isSuperAdmin(auth.user)
         ? await env.DB.prepare("SELECT f.*,p.athlete_name FROM training_feedback f JOIN athlete_programs_v2 p ON p.id=f.program_id ORDER BY f.created_at DESC LIMIT 200").all()
         : await env.DB.prepare("SELECT f.*,p.athlete_name FROM training_feedback f JOIN athlete_programs_v2 p ON p.id=f.program_id WHERE f.coach_user_id=? OR f.athlete_user_id=? ORDER BY f.created_at DESC LIMIT 200")
           .bind(auth.user.id, auth.user.id).all();
@@ -3811,10 +3966,10 @@ async function handleCommunityApi(request, env, url) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
     const profile = await coachProfileForUser(env, auth.user.id);
-    const canSeeBookings = auth.user.role === "admin" || profile?.status === "approved";
+    const canSeeBookings = isSuperAdmin(auth.user) || profile?.status === "approved";
     const [bookings, notifications] = await Promise.all([
       canSeeBookings
-        ? (auth.user.role === "admin"
+        ? (isSuperAdmin(auth.user)
           ? env.DB.prepare("SELECT id,customer_name,status,city,created_at FROM booking_requests ORDER BY created_at DESC LIMIT 50").all()
           : env.DB.prepare(`SELECT b.id,b.customer_name,b.status,b.city,b.created_at FROM booking_requests b
               JOIN provider_profiles p ON p.id=b.provider_id WHERE p.user_id=? ORDER BY b.created_at DESC LIMIT 50`).bind(auth.user.id).all())
@@ -4038,7 +4193,7 @@ export default {
     if ((request.method === "GET" || request.method === "PUT") && url.pathname === "/api/me/profile") {
       const user = await currentUser(request, env);
       if (!user) return reply(request, env, { error: "unauthorized" }, 401);
-      if (user.role === "admin") return reply(request, env, { user: { email:user.email, role:user.role } });
+      if (isSuperAdmin(user)) return reply(request, env, { user: { email:user.email, role:user.role } });
       if (request.method === "PUT") return saveProfile(request, env, user);
       const profile = await env.DB.prepare(`SELECT id,verified,qualifications,services_json,coaching_mode,certificate_name,certificate_issuer,certificate_number,license_number,license_issuer,license_country,license_expires_on,license_status,license_review_note,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=provider_profiles.id) AS gallery_slots,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json,status,review_note,submission_state,submitted_at,CASE WHEN cv_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_cv,cv_file_name,cv_byte_size,cv_updated_at,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
       return reply(request, env, { profile: profile ? { ...profile, professional_category:{ en:professionalLabel(profile.provider_type,"en"), ar:professionalLabel(profile.provider_type,"ar") }, services:safeParse(profile.services_json), gallery_slots:safeParse(profile.gallery_slots), specialties:safeParse(profile.specialties_json), languages:safeParse(profile.languages_json), program_durations:safeParse(profile.program_durations_json), social_links:safeParse(profile.social_links_json), public_fields:cleanPublicFields(safeParse(profile.public_fields_json)) } : null });

@@ -87,7 +87,7 @@ test("Admin queue rejects a caller without an authenticated session", async () =
 test("pending profile photos are served only through the authenticated Admin route", async () => {
   const photoBytes = Uint8Array.from([0xff, 0xd8, 0xff, 0x00]);
   const makeEnv = (role) => ({ DB: { prepare(sql) { return { bind() { return this; }, async first() {
-    if (sql.includes("JOIN users")) return { id: "admin-id", email: "admin@example.com", role };
+    if (sql.includes("JOIN users")) return { id: "admin-id", email: "admin@example.com", role, is_super_admin: role === "admin" ? 1 : 0 };
     if (sql.includes("profile_photo_bytes")) return { profile_photo_bytes: photoBytes, profile_photo_content_type: "image/jpeg" };
     return null;
   } }; } } });
@@ -113,7 +113,7 @@ test("Admin can add a photo to an approved profile without changing its approval
   const env = { DB: { prepare(sql) { let params = []; return {
     bind(...values) { params = values; return this; },
     async first() {
-      if (sql.includes("SELECT u.id")) return params[0] === tokenHash ? { id: "admin-id", email: "admin@example.com", role: "admin" } : null;
+      if (sql.includes("SELECT u.id")) return params[0] === tokenHash ? { id: "admin-id", email: "admin@example.com", role: "admin", is_super_admin: 1 } : null;
       if (sql.includes("SELECT id,status FROM provider_profiles")) return { id, status: "approved" };
       return null;
     },
@@ -224,7 +224,7 @@ test("provider photo upload is visible to Admin while remaining private before a
     const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
     return btoa(String.fromCharCode(...digest)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
   };
-  const sessions = new Map([[await tokenHash(providerToken), { id: "provider-id", email: "provider@example.com", role: "provider" }], [await tokenHash(adminToken), { id: "admin-id", email: "admin@example.com", role: "admin" }]]);
+  const sessions = new Map([[await tokenHash(providerToken), { id: "provider-id", email: "provider@example.com", role: "provider" }], [await tokenHash(adminToken), { id: "admin-id", email: "admin@example.com", role: "admin", is_super_admin: 1 }]]);
   let storedPhoto = null;
   const env = { DATA_COLLECTION_ENABLED: "true", DB: { prepare(sql) { let params = []; return {
     bind(...values) { params = values; return this; },
@@ -306,7 +306,7 @@ test("Owner AI Brain requires an Admin session and uses a bounded specialist pro
   let inputSeen;
   const env = {
     DB: { async batch(items){return Promise.all(items.map(s=>s.run()))}, prepare(sql) { return { bind() { return this; }, async first() {
-      if (sql.includes("SELECT u.id")) return { id: "admin-id", email: "admin@example.com", role: "admin" };
+      if (sql.includes("SELECT u.id")) return { id: "admin-id", email: "admin@example.com", role: "admin", is_super_admin: 1 };
       if (sql.includes("ai_chat_usage")) return { request_count: 1 };
       if (sql.includes("rate_limit_buckets")) return { request_count: 1 };
       return null;
@@ -331,7 +331,7 @@ test("Owner agents expose live business snapshots and approval-controlled task h
   const env = { DB: { async batch(items){return Promise.all(items.map(s=>s.run()))}, prepare(sql) { let params = []; return {
     bind(...values) { params = values; return this; },
     async first() {
-      if (sql.includes("SELECT u.id")) return params[0] === tokenHash ? { id: "admin-id", email: "owner@example.com", role: "admin" } : null;
+      if (sql.includes("SELECT u.id")) return params[0] === tokenHash ? { id: "admin-id", email: "owner@example.com", role: "admin", is_super_admin: 1 } : null;
       if (sql.includes("COUNT(*) AS count")) return { count: sql.includes("provider_profiles") ? 3 : 2 };
       if (sql.includes("FROM owner_agent_tasks WHERE id=?")) return { id: params[0], status: "completed", approval_status: "pending", output_json: JSON.stringify({answer:"Draft"}) };
       return null;

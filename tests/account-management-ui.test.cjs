@@ -29,12 +29,12 @@ test('account management is an additive migration with an audit trail', () => {
 test('admin account endpoints are separate from public athlete profile data', () => {
   assert.match(worker, /path === "\/api\/admin\/accounts"/);
   assert.match(worker, /accountMatch && request\.method === "GET" && !accountMatch\[2\]/);
-  assert.match(worker, /\(coach-application\|suspend\|reactivate\|delete\)/);
+  assert.match(worker, /\(coach-application\|suspend\|reactivate\|delete\|update\|role\)/);
   assert.match(worker, /if \(action === "coach-application"\)/);
   assert.match(worker, /if \(action === "suspend"\)/);
   assert.match(worker, /if \(action === "reactivate"\)/);
   assert.match(worker, /if \(action === "delete"\)/);
-  assert.match(worker, /if \(user\.role !== "admin"\) return reply\(request, env, \{ error: "admin_required" \}, 403\)/);
+  assert.match(worker, /if \(!isSuperAdmin\(user\)\) return reply\(request, env, \{ error: "admin_required" \}, 403\)/);
   assert.match(worker, /path\.includes\("\/accounts"\)/);
   assert.match(providersHtml, /BUILD YOUR PROFILE/);
   assert.doesNotMatch(providersHtml, /manageAccountSection/);
@@ -52,7 +52,7 @@ test('coach conversion preserves identity, forces onboarding and blocks early ap
 });
 
 test('suspension is enforced on every shared access path', () => {
-  assert.match(worker, /u\.account_status FROM sessions s JOIN users u/);
+  assert.match(worker, /u\.account_status, u\.is_super_admin FROM sessions s JOIN users u/);
   assert.match(worker, /\(u\.account_status IS NULL OR u\.account_status='active'\)/);
   assert.match(worker, /if \(!accountActive\(user\.account_status\)\) return reply\(request, env, \{ error: "account_unavailable" \}, 403\)/);
   assert.match(worker, /NOT EXISTS\(SELECT 1 FROM users u WHERE u\.id=provider_profiles\.user_id/);
@@ -69,7 +69,7 @@ test('deletion requires explicit confirmation and preserves related records', ()
   assert.match(worker, /account_status='deleted',status_reason=NULL,deleted_at/);
   assert.match(worker, /bookings_preserved: true/);
   assert.match(worker, /account_deleted/);
-  assert.match(worker, /if \(target\.role === "admin" \|\| target\.id === user\.id\)/);
+  assert.match(worker, /if \(isSuperAdmin\(target\) \|\| target\.id === user\.id\)/);
   assert.match(worker, /if \(target\.account_status === "deleted"\)/);
   assert.match(worker, /if \(!user \|\| !accountActive\(user\.account_status\)\) return reply\(request, env, generic\)/);
 });
@@ -97,7 +97,7 @@ test('account controls are bilingual, RTL-aware and mobile-sized', () => {
 });
 
 test('account controls are cache-busted and no production identity is hard-coded', () => {
-  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261122b/);
-  assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261122b/);
+  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261123a/);
+  assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261123a/);
   assert.doesNotMatch(adminJs + worker + migration, /Tamim/i);
 });

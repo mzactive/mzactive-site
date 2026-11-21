@@ -15,6 +15,7 @@ const ATHLETE_EMAIL = 'athlete-e2e@example.invalid';
 
 const adminAccess = json({
   user: { id: 'e2e-admin', email: 'admin@example.invalid', role: 'admin' },
+  super_admin: true,
   account_type: 'admin',
   dashboard_path: '/admin.html',
   management: { enabled: true, permissions: [] },
@@ -159,9 +160,9 @@ test('coach conversion requires confirmation and never fires on cancel', async (
   });
 
   const convert = section.locator('.account-action-button').filter({ hasText: 'Open coach application' });
-  await section.locator('select').selectOption('coach');
+  await section.locator('select.account-convert-type').selectOption('coach');
   await convert.click();
-  await expect(section.locator('.account-status')).toContainText('Cancelled.');
+  await expect(section.locator('.account-action-status')).toContainText('Cancelled.');
   expect(posts).toHaveLength(0);
 
   acceptDialog = true;
@@ -194,6 +195,43 @@ test('suspension requires confirmation and sends the reason only after approval'
   assertOfflineSafe(mock);
 });
 
+test('account edit and role controls send audited backend changes', async ({ page }) => {
+  let acceptDialog = false;
+  page.on('dialog', dialog => acceptDialog ? dialog.accept() : dialog.dismiss());
+  const posts = [];
+  const capture = ctx => { posts.push({ path: ctx.path, body: ctx.body }); return json({ ok: true }); };
+  const { mock, section } = await openAthleteManage(page, {
+    ['POST /api/admin/accounts/' + ATHLETE_ID + '/update']: capture,
+    ['POST /api/admin/accounts/' + ATHLETE_ID + '/role']: capture,
+  });
+
+  await section.locator('.account-edit summary').click();
+  const edit = section.locator('.account-edit');
+  await edit.locator('input[aria-label="Account email"]').fill('athlete.new@example.invalid');
+  await edit.locator('input[aria-label="Display name"]').fill('Synthetic Updated Athlete');
+  await edit.locator('input[aria-label="City"]').fill('Doha');
+  await edit.locator('input[aria-label="WhatsApp number"]').fill('+974 5555 1234');
+  await edit.locator('select.account-language').selectOption('ar');
+  await edit.locator('.account-action-button').filter({ hasText: 'Save account details' }).click();
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0].path).toBe('/api/admin/accounts/' + ATHLETE_ID + '/update');
+  expect(posts[0].body).toEqual({
+    email: 'athlete.new@example.invalid', display_name: 'Synthetic Updated Athlete',
+    city: 'Doha', country: '', whatsapp_number: '+974 5555 1234', preferred_language: 'ar',
+  });
+
+  await section.locator('.account-role summary').click();
+  const role = section.locator('.account-role');
+  await expect(role.locator('input[data-super-admin="1"]')).not.toBeChecked();
+  await role.locator('select.account-role-select').selectOption('admin');
+  acceptDialog = true;
+  await role.locator('.account-action-button').filter({ hasText: 'Apply role change' }).click();
+  await expect.poll(() => posts.length).toBe(2);
+  expect(posts[1].path).toBe('/api/admin/accounts/' + ATHLETE_ID + '/role');
+  expect(posts[1].body).toEqual({ role: 'admin', super_admin: false });
+  assertOfflineSafe(mock);
+});
+
 test('deletion requires typed confirmation and cancel clears the confirmation', async ({ page }) => {
   let acceptDialog = false;
   page.on('dialog', dialog => acceptDialog ? dialog.accept() : dialog.dismiss());
@@ -204,7 +242,7 @@ test('deletion requires typed confirmation and cancel clears the confirmation', 
   });
 
   await section.locator('.account-danger summary').click();
-  const emailConfirm = section.locator('input[type=email]');
+  const emailConfirm = section.locator('input[aria-label="Type the account email to confirm"]');
   const phraseConfirm = section.locator('input[placeholder="DELETE"]');
   const del = section.locator('.danger-action');
   await emailConfirm.fill(ATHLETE_EMAIL);

@@ -8,6 +8,7 @@ const { assertOfflineSafe, clickAdminTab, installApiMock, json, seedSession } = 
 const PROFILE_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const adminAccess = json({
   user: { id: 'e2e-admin', email: 'admin@example.invalid', role: 'admin' },
+  super_admin: true,
   account_type: 'admin',
   dashboard_path: '/admin.html',
   management: { enabled: true, permissions: [] },

@@ -47,6 +47,7 @@ test('account security recovery rejects mismatched and invalid input without acc
     overrides: {
       'GET /api/me/access': json({
         user: { id: 'e2e-admin', email: FAKE_EMAIL, role: 'admin' },
+        super_admin: true,
         account_type: 'admin',
         dashboard_path: '/admin.html',
         management: { enabled: true, permissions: [] },

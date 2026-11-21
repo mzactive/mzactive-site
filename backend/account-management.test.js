@@ -225,7 +225,9 @@ test('account controls are viewable by scoped management but mutable only by ful
     assert.equal(manager.account_type, 'manager');
 
     const visible = await call(env, 'admin/accounts/' + member.user.id, 'GET', undefined, manager.token);
-    assert.equal(visible.account.email, 'athlete@example.test');
+    assert.equal(visible.account.email, '[restricted]');
+    assert.equal(visible.account.whatsapp_number, null);
+    assert.equal(visible.account.identity_restricted, true);
     const denied = await call(env, 'admin/accounts/' + member.user.id + '/suspend', 'POST', {
       reason: 'Synthetic unauthorized action',
     }, manager.token, 403);
@@ -243,5 +245,123 @@ test('account controls are viewable by scoped management but mutable only by ful
       provider_type: 'coach',
     }, admin.token, 409);
     assert.equal(duplicate.error, 'coach_application_exists');
+  } finally { db.close(); }
+});
+
+test('super admins can edit contact fields with an audit event and session revocation', async () => {
+  const { db, env } = makeEnv();
+  try {
+    const { admin, member } = await registerAccounts(env);
+    const updated = await call(env, 'admin/accounts/' + member.user.id + '/update', 'POST', {
+      email: 'athlete.updated@example.test', display_name: 'Synthetic Athlete', city: 'Doha', preferred_language: 'ar',
+    }, admin.token);
+    assert.deepEqual(updated.fields.sort(), ['city', 'display_name', 'email', 'preferred_language']);
+    assert.equal(updated.sessions_revoked, true);
+    assert.equal(db.prepare('SELECT email FROM users WHERE id=?').get(member.user.id).email, 'athlete.updated@example.test');
+    assert.equal(db.prepare('SELECT token_hash FROM sessions WHERE user_id=?').get(member.user.id), undefined);
+    const memberProfile = db.prepare('SELECT display_name,city,preferred_language FROM member_sports_profiles WHERE user_id=?').get(member.user.id);
+    assert.equal(memberProfile.display_name, 'Synthetic Athlete');
+    assert.equal(memberProfile.city, 'Doha');
+    assert.equal(memberProfile.preferred_language, 'ar');
+    const invalidWhatsapp = await call(env, 'admin/accounts/' + member.user.id + '/update', 'POST', {
+      whatsapp_number: 'not-a-number',
+    }, admin.token, 400);
+    assert.equal(invalidWhatsapp.error, 'invalid_whatsapp');
+    const contact = await call(env, 'admin/accounts/' + member.user.id + '/update', 'POST', {
+      country: 'Qatar', whatsapp_number: '+974 5555 9999',
+    }, admin.token);
+    assert.equal(contact.fields.includes('whatsapp_number'), true);
+    assert.equal(db.prepare('SELECT country,whatsapp_number FROM member_sports_profiles WHERE user_id=?').get(member.user.id).whatsapp_number, '97455559999');
+    const clearedLanguage = await call(env, 'admin/accounts/' + member.user.id + '/update', 'POST', {
+      preferred_language: '',
+    }, admin.token);
+    assert.deepEqual(clearedLanguage.fields, ['preferred_language']);
+    assert.equal(db.prepare('SELECT preferred_language FROM member_sports_profiles WHERE user_id=?').get(member.user.id).preferred_language, '');
+    const audit = await call(env, 'admin/accounts/' + member.user.id, 'GET', undefined, admin.token);
+    assert.equal(audit.events.some((event) => event.action === 'account_updated'), true);
+    const oldSession = await call(env, 'me/access', 'GET', undefined, member.token, 401);
+    assert.equal(oldSession.error, 'unauthorized');
+
+    const duplicate = await call(env, 'admin/accounts/' + member.user.id + '/update', 'POST', {
+      email: 'coach@example.test',
+    }, admin.token, 409);
+    assert.equal(duplicate.error, 'email_in_use');
+  } finally { db.close(); }
+});
+
+test('role changes create limited admins only and protect the last super admin', async () => {
+  const { db, env } = makeEnv();
+  try {
+    const { admin, member, coach } = await registerAccounts(env);
+    const promoted = await call(env, 'admin/accounts/' + member.user.id + '/role', 'POST', {
+      role: 'admin',
+    }, admin.token);
+    assert.equal(promoted.super_admin, false);
+    assert.equal(db.prepare('SELECT role,is_super_admin FROM users WHERE id=?').get(member.user.id).is_super_admin, 0);
+
+    const limited = await call(env, 'auth/login', 'POST', { email: 'athlete@example.test', password });
+    assert.equal(limited.account_type, 'limited_admin');
+    assert.equal(limited.super_admin, false);
+    await call(env, 'admin/accounts', 'GET', undefined, limited.token, 403);
+    await call(env, 'admin/accounts/' + coach.user.id + '/suspend', 'POST', { reason: 'Synthetic' }, limited.token, 403);
+
+    const granted = await call(env, 'admin/management/permissions', 'PUT', {
+      email: 'athlete@example.test', permissions: ['management.view', 'management.coaches'],
+    }, admin.token);
+    assert.equal(granted.role, 'admin');
+    const scoped = await call(env, 'auth/login', 'POST', { email: 'athlete@example.test', password });
+    assert.equal(scoped.account_type, 'limited_admin');
+    assert.deepEqual(scoped.management.permissions.sort(), ['management.coaches', 'management.view']);
+    const visible = await call(env, 'admin/accounts', 'GET', undefined, scoped.token);
+    assert.equal(Array.isArray(visible.accounts), true);
+    await call(env, 'admin/accounts/' + coach.user.id + '/suspend', 'POST', { reason: 'Synthetic' }, scoped.token, 403);
+
+    const elevated = await call(env, 'admin/accounts/' + member.user.id + '/role', 'POST', {
+      role: 'admin', super_admin: true,
+    }, admin.token);
+    assert.equal(elevated.super_admin, true);
+    const secondSuper = await call(env, 'auth/login', 'POST', { email: 'athlete@example.test', password });
+    const protectedPeer = await call(env, 'admin/accounts/' + admin.user.id + '/update', 'POST', {
+      city: 'Unauthorized change',
+    }, secondSuper.token, 409);
+    assert.equal(protectedPeer.error, 'account_protected');
+    await call(env, 'admin/accounts/' + admin.user.id + '/role', 'POST', { role: 'provider' }, secondSuper.token);
+    const self = await call(env, 'admin/accounts/' + member.user.id + '/role', 'POST', { role: 'provider' }, secondSuper.token, 409);
+    assert.equal(self.error, 'account_protected');
+  } finally { db.close(); }
+});
+
+test('program and report views expose only stored records to permitted managers', async () => {
+  const { db, env } = makeEnv();
+  try {
+    const { admin, member, coach } = await registerAccounts(env);
+    const { programId } = seedRelated(db, member.user.id, coach.user.id);
+    await call(env, 'admin/accounts/' + member.user.id + '/update', 'POST', { city: 'Doha' }, admin.token);
+
+    const programs = await call(env, 'admin/programs', 'GET', undefined, admin.token);
+    assert.equal(programs.programs.length, 1);
+    assert.equal(programs.programs[0].id, programId);
+    assert.equal(programs.programs[0].athlete_user_id, member.user.id);
+    assert.equal(programs.programs[0].access_linked, true);
+
+    const reports = await call(env, 'admin/reports', 'GET', undefined, admin.token);
+    assert.equal(reports.accounts.some((event) => event.action === 'account_updated'), true);
+
+    await call(env, 'admin/management/permissions', 'PUT', {
+      email: 'coach@example.test', permissions: ['management.view', 'management.coaches'],
+    }, admin.token);
+    const manager = await call(env, 'auth/login', 'POST', { email: 'coach@example.test', password });
+    const scopedPrograms = await call(env, 'admin/programs', 'GET', undefined, manager.token);
+    assert.equal(scopedPrograms.programs.length, 1);
+    await call(env, 'admin/reports', 'GET', undefined, manager.token, 403);
+
+    await call(env, 'admin/management/permissions', 'PUT', {
+      email: 'coach@example.test', permissions: ['management.view', 'management.audit'],
+    }, admin.token);
+    const auditor = await call(env, 'auth/login', 'POST', { email: 'coach@example.test', password });
+    const redacted = await call(env, 'admin/reports', 'GET', undefined, auditor.token);
+    assert.equal(redacted.accounts.length > 0, true);
+    assert.equal(redacted.accounts.every((event) => event.detail === null), true);
+    assert.equal(redacted.authentication.every((event) => event.detail === null), true);
   } finally { db.close(); }
 });

@@ -103,7 +103,7 @@ html[dir="rtl"] .sidebar-toggle span{transform:rotate(180deg)}
 .momo-list .card{display:grid;gap:.35rem}
 .momo-state,.momo-missing{display:block;color:var(--muted);font-size:.76rem}
 .account-actions{display:grid;gap:.55rem;margin-top:.6rem}
-.account-actions .account-convert,.account-actions .account-danger{padding:.7rem;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.account-actions .account-convert,.account-actions .account-edit,.account-actions .account-role,.account-actions .account-danger{padding:.7rem;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
 .account-actions h4{margin:.1rem 0;font-size:.85rem;color:var(--gold)}
 .account-actions label{margin:.45rem 0}
 .account-actions input,.account-actions select{min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text)}
@@ -112,4 +112,14 @@ html[dir="rtl"] .sidebar-toggle span{transform:rotate(180deg)}
 .account-actions .danger-action:hover{background:#5d2424}
 .account-events h4{margin:.7rem 0 .25rem;color:var(--gold)}
 .account-events .crm-row small{flex-basis:auto}
-@media(max-width:760px){.account-actions{grid-template-columns:minmax(0,1fr)}.account-actions .crm-action,.account-actions .account-cancel{width:100%}}
+.permission-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.45rem;margin:.6rem 0}
+.permission-option{display:flex;align-items:center;gap:.5rem;min-height:44px;margin:0;padding:.4rem .6rem;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.permission-option input{width:18px;height:18px;min-height:0;accent-color:var(--gold)}
+.permission-grants{display:grid;gap:.35rem;margin-top:.8rem}
+.permission-grants h4{margin:.2rem 0;color:var(--gold)}
+.permission-grants .crm-row{align-items:flex-start}
+.permission-grants .crm-row strong{flex:1 1 160px}
+.program-row{align-items:flex-start;flex-direction:column}
+.program-row .crm-fields{width:100%}
+.program-row input,.program-row select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text)}
+@media(max-width:760px){.account-actions{grid-template-columns:minmax(0,1fr)}.account-actions .crm-action,.account-actions .account-cancel{width:100%}.permission-options{grid-template-columns:minmax(0,1fr)}}

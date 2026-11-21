@@ -20,6 +20,7 @@ const VISITOR_VIEWER = {
 
 const ADMIN_ACCESS = json({
   user: { id: 'e2e-admin', email: 'admin@example.invalid', role: 'admin' },
+  super_admin: true,
   account_type: 'admin',
   dashboard_path: '/admin.html',
   management: { enabled: true, permissions: [] },

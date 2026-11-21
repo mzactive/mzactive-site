@@ -20,9 +20,9 @@ const communityJs = read('assets/js/community-feed.js');
 test('the management portal exposes an Athletes tab with cache-busted CRM assets', () => {
   assert.match(adminHtml, /id="nav"/);
   assert.match(adminHtml, /id="view"/);
-  assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261122b/);
-  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261122b/);
-  assert.match(adminJs, /athletes:\['Athletes & training','الرياضيون والتدريب'\]/);
+  assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261123a/);
+  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261123a/);
+  assert.match(adminJs, /athletes:\['Athletes','الرياضيون'\]/);
   assert.match(adminJs, /athletes:'management\.coaches'/);
 });
 

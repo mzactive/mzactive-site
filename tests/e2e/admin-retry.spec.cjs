@@ -5,6 +5,7 @@ const { abort, assertOfflineSafe, installApiMock, json, seedSession } = require(
 
 const adminAccess = json({
   user: { id: 'e2e-admin', email: 'admin@example.invalid', role: 'admin' },
+  super_admin: true,
   account_type: 'admin',
   dashboard_path: '/admin.html',
   management: { enabled: true, permissions: [] },
