@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'community.html'), 'utf8');
+const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const signup = fs.readFileSync(path.join(root, 'community-signup.html'), 'utf8');
 const js = fs.readFileSync(path.join(root, 'assets/js/community-feed.js'), 'utf8');
 const groups = fs.readFileSync(path.join(root, 'assets/js/community-groups.js'), 'utf8');
 
@@ -53,4 +55,12 @@ test('community page keeps bilingual labels, RTL and responsive layout', () => {
 test('community page scripts parse', () => {
   for (const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) new Function(match[1]);
   new Function(js);
+});
+
+test('the homepage community CTA uses the working member signup flow', () => {
+  assert.match(index, /href="dashboard\.html#registerForm"[^>]*data-en="Join the community"/);
+  assert.doesNotMatch(index, /href="community-signup\.html"/);
+  assert.match(signup, /http-equiv="refresh" content="0;url=dashboard\.html#registerForm"/);
+  assert.match(signup, /window\.location\.href='dashboard\.html#registerForm'/);
+  assert.doesNotMatch(signup, /Registration is not yet connected to the server/);
 });

@@ -5,8 +5,14 @@
 const { test, expect } = require('./pw.cjs');
 
 test.describe('MZA app install UX', () => {
-  test('uses the native install prompt only when the browser fires it', async ({ page }) => {
+  test('hero keeps only coach actions while the footer uses the native install prompt when fired', async ({ page }) => {
     await page.goto('/index.html');
+    const heroActions = page.locator('.hero-actions a');
+    await expect(heroActions).toHaveCount(2);
+    await expect(heroActions.nth(0)).toHaveText('Find a Coach');
+    await expect(heroActions.nth(1)).toHaveText('Become a Coach');
+    await expect(page.locator('.hero-actions [data-mza-install-button]')).toHaveCount(0);
+    await expect(page.locator('.footer-install [data-mza-install-button]')).toHaveCount(1);
     await page.evaluate(() => {
       const event = new Event('beforeinstallprompt', { cancelable: true });
       event.prompt = () => { window.__mzaPromptCount = (window.__mzaPromptCount || 0) + 1; };
@@ -15,7 +21,7 @@ test.describe('MZA app install UX', () => {
       });
       window.dispatchEvent(event);
     });
-    const button = page.locator('.hero-actions [data-mza-install-button]');
+    const button = page.locator('.footer-install [data-mza-install-button]');
     await expect(button).toHaveAttribute('data-install-mode', 'native');
     await button.click();
     await expect.poll(() => page.evaluate(() => window.__mzaPromptCount || 0)).toBe(1);
@@ -48,7 +54,7 @@ test.describe('MZA app install UX', () => {
 
     test('detects social browsers and explains the safe path', async ({ page }) => {
       await page.goto('/index.html');
-      const button = page.locator('.hero-actions [data-mza-install-button]');
+      const button = page.locator('.footer-install [data-mza-install-button]');
       await expect(button).toHaveAttribute('data-install-mode', 'social');
       await button.click();
       const dialog = page.locator('#mzaInstallDialog');
@@ -83,7 +89,24 @@ test.describe('MZA app install UX', () => {
     });
     await page.goto('/index.html');
     await expect(page.locator('html')).toHaveAttribute('data-mza-launch', 'standalone');
-    await expect(page.locator('.hero-actions [data-mza-install-button]')).toBeHidden();
     await expect(page.locator('.footer-install')).toBeHidden();
+    await expect(page.locator('[data-mza-install-link]')).toBeHidden();
+  });
+
+  test('offline fallback keeps manual EN/AR selection, persistence and RTL', async ({ page }) => {
+    await page.goto('/offline.html');
+    const toggle = page.locator('.lang-toggle');
+    await expect(toggle).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+    await toggle.click();
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+    await expect(page.locator('body')).toHaveAttribute('dir', 'rtl');
+    await expect(page.getByRole('heading', { name: 'أنت غير متصل' })).toBeVisible();
+    await expect(toggle).toHaveText('English');
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+    await expect(toggle).toHaveText('English');
+    await toggle.click();
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
   });
 });

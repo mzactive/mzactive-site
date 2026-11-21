@@ -50,8 +50,9 @@ test('registration and offline fallback share the existing language system', () 
   assert.match(register, /scope:\s*['"]\/['"]/);
   new Function(register);
   const offline = read('offline.html');
-  assert.match(offline, /assets\/js\/language-preference\.js/);
-  assert.match(offline, /assets\/js\/site-language\.js/);
+  assert.match(offline, /assets\/js\/language-preference\.js\?v=20261120c" defer/);
+  assert.match(offline, /assets\/js\/site-language\.js\?v=20261120h" defer/);
+  assert.match(offline, /class="lang-toggle" id="siteLanguage"/);
   assert.match(offline, /data-en=/);
   assert.match(offline, /data-ar=/);
 });

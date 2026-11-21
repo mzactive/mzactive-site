@@ -47,9 +47,10 @@ test('cover, achievements, community, inbox and analytics use live authenticated
   assert.doesNotMatch(html, /secure image-storage support|need additional backend support|status controls are not exposed|analytics are not tracked/);
 });
 
-test('profile is responsive and uses the existing automatic English/Arabic language preference', () => {
+test('profile is responsive and keeps the manual English/Arabic toggle', () => {
   assert.match(html, /assets\/js\/language-preference\.js/);
   assert.match(html, /assets\/js\/site-language\.js/);
+  assert.match(html, /id="lang" class="language-toggle"/);
   assert.match(html, /data-ar=/);
   assert.match(css, /@media\(max-width:760px\)/);
   assert.match(css, /@media\(max-width:520px\)/);

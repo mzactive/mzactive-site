@@ -81,11 +81,16 @@ test('installed and standalone launches hide install controls', () => {
   assert.match(installJs, /dataset\.mzaLaunch = installed \? ['"]standalone['"] : ['"]browser['"]/);
 });
 
-test('the homepage install action is dismissible and not an interrupted popup', () => {
+test('the homepage install action stays near the footer, not in the hero', () => {
   assert.ok(pages.includes('index.html'));
-  assert.match(index, /class="button button-primary mza-install-button"/);
-  assert.match(index, /data-mza-install-button data-mza-install-promo/);
-  assert.match(index, /data-en="Download MZA App" data-ar="تنزيل تطبيق MZA"/);
+  const hero = index.slice(index.indexOf('<section class="hero"'), index.indexOf('<section class="search-section"'));
+  assert.doesNotMatch(hero, /mza-install-button|data-mza-install-promo|Download MZA App/);
+  assert.match(hero, /Find a Coach/);
+  assert.match(hero, /Become a Coach/);
+  const footer = index.slice(index.indexOf('<footer class="site-footer"'));
+  assert.match(footer, /class="footer-install" data-mza-install-promo/);
+  assert.match(footer, /class="mza-install-button footer-install-button"/);
+  assert.match(footer, /data-en="Get the MZA App" data-ar="احصل على تطبيق MZA"/);
 });
 
 test('public footers use the compact bilingual promotion and one shared module', () => {
