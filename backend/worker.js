@@ -4,6 +4,9 @@ const PASSWORD_RESET_TTL_SECONDS = 15 * 60;
 // owner key stays available only as an emergency fallback.
 const ADMIN_PASSWORD_RESET_TTL_SECONDS = 5 * 60;
 const RESET_EMAIL_SUBJECT = "Reset your MZ Active password / إعادة تعيين كلمة مرور MZ Active";
+const WELCOME_EMAIL_SUBJECT = "Welcome to the MZActive Family! 💛";
+const COACH_PROFILE_URL = "https://mzactive.com/dashboard.html#editCoachProfile";
+const WELCOME_MAX_ATTEMPTS = 5;
 // Cloudflare Workers Web Crypto caps PBKDF2 at 100,000 iterations.
 const PASSWORD_ITERATIONS = 100_000;
 const MAX_BODY_BYTES = 16_384;
@@ -13,6 +16,16 @@ const MAX_WORKSPACE_ATTACHMENT_BYTES = 1_000_000;
 const WORKSPACE_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain"]);
 const WORKSPACE_PROGRESS_METRICS = new Set(["distance_km", "duration_minutes", "sessions_completed", "average_pace", "planned_sessions", "completed_sessions", "note"]);
 const MANAGEMENT_PERMISSION_CODES = ["management.view", "management.coaches", "management.bookings", "management.community", "management.articles", "management.ai", "management.audit"];
+// Each notification category maps to an existing least-privilege permission.
+// There is no new role and no broad "see everything" shortcut.
+const MANAGEMENT_NOTIFICATION_CATEGORIES = {
+  bookings: { permission: "management.bookings", tab: "bookings" },
+  coaches: { permission: "management.coaches", tab: "coaches" },
+  messages: { permission: "management.coaches", tab: "messages" },
+  community: { permission: "management.community", tab: "community" },
+  articles: { permission: "management.articles", tab: "articles" },
+  ai: { permission: "management.ai", tab: "ai" },
+};
 
 const PROFESSIONAL_CATEGORIES = {
   coach: { en: "Sports Coach", ar: "مدرب رياضي", sessions: ["training", "race"] },
@@ -507,6 +520,114 @@ async function sendPasswordResetEmail(env, email, token) {
   if (!response.ok) throw new Error("email_delivery_failed");
   const result = await response.json().catch(() => ({}));
   return text(result?.id, 120);
+}
+
+function escapeHtml(value) {
+  return text(value, 100).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
+}
+
+function coachWelcomeEmail(firstName, language = "en") {
+  const name = escapeHtml(firstName) || "Coach";
+  const arabicFirst = language === "ar";
+  const english = `<p style="margin:0 0 12px">Hi ${name},</p>
+  <h1 style="margin:0 0 16px;color:#172a22;font-size:24px">Welcome to the MZActive family! 💛</h1>
+  <p style="margin:0 0 12px">We're truly happy to have you with us.</p>
+  <p style="margin:0 0 12px">Thank you for believing in our vision and choosing to be part of this journey.</p>
+  <p style="margin:0 0 12px">At MZActive, we believe great coaches deserve more opportunities to inspire, connect, and grow.</p>
+  <p style="margin:0 0 12px">We're excited to support you as you build your coaching career, reach new athletes, and make a meaningful impact.</p>
+  <p style="margin:0 0 16px"><strong>Together, let's take your coaching career to the next level.</strong></p>
+  <p style="margin:0 0 18px">Welcome aboard!</p>`;
+  const arabic = `<p style="margin:0 0 12px">مرحباً ${name}،</p>
+  <h1 style="margin:0 0 16px;color:#172a22;font-size:24px">مرحباً بك في عائلة MZActive! 💛</h1>
+  <p style="margin:0 0 12px">يسعدنا انضمامك إلينا حقاً.</p>
+  <p style="margin:0 0 12px">شكراً لإيمانك برؤيتنا واختيارك أن تكون جزءاً من هذه الرحلة.</p>
+  <p style="margin:0 0 12px">نؤمن في MZActive بأن المختصين المتميزين يستحقون المزيد من الفرص للإلهام والتواصل والنمو.</p>
+  <p style="margin:0 0 12px">يسعدنا دعمك في مسيرتك التدريبية، والوصول إلى رياضيين جدد، وترك أثر إيجابي.</p>
+  <p style="margin:0 0 16px"><strong>معاً، لنرتِ بمسيرتك التدريبية إلى المستوى التالي.</strong></p>
+  <p style="margin:0 0 18px">مرحباً بك على متن الفريق!</p>`;
+  const primary = arabicFirst ? arabic : english;
+  const secondary = arabicFirst ? english : arabic;
+  const html = `<div style="background:#f4f1e8;padding:24px 12px;font-family:Arial,sans-serif"><table role="presentation" cellpadding="0" cellspacing="0" style="max-width:600px;margin:auto;width:100%;background:#ffffff;border-radius:14px;overflow:hidden"><tr><td style="background:#091d21;padding:22px 28px"><img src="https://mzactive.com/assets/brand/mzactive-logo.webp" alt="MZ Active" width="180" style="display:block;max-width:70%;height:auto"></td></tr><tr><td style="padding:28px;color:#22352e;line-height:1.6"><div lang="${arabicFirst ? "ar" : "en"}" dir="${arabicFirst ? "rtl" : "ltr"}">${primary}</div><p style="margin:24px 0 0"><a href="${COACH_PROFILE_URL}" style="background:#f2b718;color:#172a22;border-radius:999px;padding:12px 22px;text-decoration:none;font-weight:700;display:inline-block">${arabicFirst ? "أكمل ملف المدرب" : "Complete Your Coach Profile"}</a></p><hr style="border:0;border-top:1px solid #e3e7e2;margin:26px 0"><div lang="${arabicFirst ? "en" : "ar"}" dir="${arabicFirst ? "ltr" : "rtl"}" style="color:#5b6d64;font-size:14px">${secondary}</div></td></tr><tr><td style="background:#091d21;color:#f2b718;padding:18px 28px;font-size:13px">The MZActive Team<br><em>Train Smart. Perform Strong.</em></td></tr></table></div>`;
+  const plain = `${arabicFirst ? "مرحباً بك في عائلة MZActive! 💛" : "Welcome to the MZActive family! 💛"}\n\n${name},\n\nWe're truly happy to have you with us.\nThank you for believing in our vision and choosing to be part of this journey.\nWe're excited to support you as you build your coaching career, reach new athletes, and make a meaningful impact.\nTogether, let's take your coaching career to the next level.\n\nComplete Your Coach Profile: ${COACH_PROFILE_URL}\n\nThe MZActive Team — Train Smart. Perform Strong.\n\nمرحباً بك في عائلة MZActive! 💛\nأكمل ملف المدرب: ${COACH_PROFILE_URL}`;
+  return { subject: WELCOME_EMAIL_SUBJECT, html, text: plain };
+}
+
+async function sendCoachWelcomeEmail(env, details) {
+  const message = coachWelcomeEmail(details.first_name, details.language);
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      from: env.EMAIL_FROM,
+      to: [details.email],
+      subject: message.subject,
+      html: message.html,
+      text: message.text,
+    }),
+  });
+  if (!response.ok) throw new Error("email_delivery_failed");
+  const result = await response.json().catch(() => ({}));
+  return text(result?.id, 120);
+}
+
+async function welcomeEmailStatus(env, profileId) {
+  const row = await env.DB.prepare("SELECT status,attempts,error FROM coach_welcome_emails WHERE profile_id=? ORDER BY created_at DESC LIMIT 1").bind(profileId).first();
+  return row
+    ? { status: row.status, attempts: Number(row.attempts || 0), error: row.error || null }
+    : { status: "none", attempts: 0, error: null };
+}
+
+function welcomeRetryAt(attempts) {
+  const hours = Math.min(2 ** Math.max(0, attempts - 1), 24);
+  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+}
+
+// A unique approval_event_id makes duplicate clicks and worker retries safe.
+// Email failures never fail the approval that created the event.
+async function enqueueCoachWelcome(env, details) {
+  const now = new Date().toISOString();
+  const inserted = await env.DB.prepare(`INSERT OR IGNORE INTO coach_welcome_emails
+    (id,profile_id,approval_event_id,user_id,email,first_name,language,status,attempts,provider_id,error,created_at,next_attempt_at,sent_at)
+    VALUES(?,?,?,?,?,?,?,'pending',0,NULL,NULL,?,NULL,NULL)`)
+    .bind(randomId(), details.profile_id, details.approval_event_id, details.user_id, details.email,
+      text(details.first_name, 100) || "Coach", details.language === "ar" ? "ar" : "en", now).run();
+  if (!inserted.meta?.changes) return welcomeEmailStatus(env, details.profile_id);
+  if (!emailDeliveryConfigured(env)) {
+    await env.DB.prepare("UPDATE coach_welcome_emails SET status='pending',attempts=1,error='email_unavailable',next_attempt_at=? WHERE approval_event_id=?")
+      .bind(welcomeRetryAt(1), details.approval_event_id).run();
+    return { status: "pending", attempts: 1, error: "email_unavailable" };
+  }
+  try {
+    const providerId = await sendCoachWelcomeEmail(env, details);
+    await env.DB.prepare("UPDATE coach_welcome_emails SET status='sent',provider_id=?,sent_at=?,error=NULL WHERE approval_event_id=?")
+      .bind(providerId, new Date().toISOString(), details.approval_event_id).run();
+    return { status: "sent", attempts: 0, error: null };
+  } catch {
+    await env.DB.prepare("UPDATE coach_welcome_emails SET status='pending',attempts=1,error='email_delivery_failed',next_attempt_at=? WHERE approval_event_id=?")
+      .bind(welcomeRetryAt(1), details.approval_event_id).run();
+    return { status: "pending", attempts: 1, error: "email_delivery_failed" };
+  }
+}
+
+async function retryCoachWelcomeEmails(env) {
+  if (!emailDeliveryConfigured(env)) return 0;
+  const due = await env.DB.prepare(`SELECT * FROM coach_welcome_emails WHERE status<>'sent' AND attempts<?
+    AND (next_attempt_at IS NULL OR next_attempt_at<=?) ORDER BY created_at LIMIT 20`)
+    .bind(WELCOME_MAX_ATTEMPTS, new Date().toISOString()).all();
+  let sent = 0;
+  for (const row of due.results || []) {
+    try {
+      const providerId = await sendCoachWelcomeEmail(env, row);
+      await env.DB.prepare("UPDATE coach_welcome_emails SET status='sent',provider_id=?,sent_at=?,error=NULL WHERE id=?")
+        .bind(providerId, new Date().toISOString(), row.id).run();
+      sent += 1;
+    } catch {
+      const attempts = Number(row.attempts || 0) + 1;
+      await env.DB.prepare("UPDATE coach_welcome_emails SET attempts=?,error='email_delivery_failed',next_attempt_at=?,status=? WHERE id=?")
+        .bind(attempts, welcomeRetryAt(attempts), attempts >= WELCOME_MAX_ATTEMPTS ? "failed" : "pending", row.id).run();
+    }
+  }
+  return sent;
 }
 
 // One identity system for admins, members and every professional category:
@@ -1139,8 +1260,11 @@ async function saveProfile(request, env, user) {
   if (whatsappInput && (!whatsapp || !whatsappPublic)) warnings.push("whatsapp_not_saved");
   if (socialLinks === null) warnings.push("social_links_skipped");
   if (LICENSED_PROVIDER_TYPES.includes(type) && credentialsSubmitted && (!credentials.license_number || !credentials.license_issuer)) warnings.push("license_details_incomplete");
+  // An approved coach may complete or update ordinary profile details without
+  // losing dashboard access. Only changed credentials go back for re-review.
+  const nextStatus = existing?.status === "approved" && !credentialsChanged ? "approved" : "pending";
   const now = new Date().toISOString();
-  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=CASE WHEN ?='' THEN display_name ELSE ? END,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,program_durations_json=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,public_fields_json=?,qualifications=COALESCE(?,qualifications),services_json=COALESCE(?,services_json),coaching_mode=COALESCE(?,coaching_mode),certificate_name=CASE WHEN ?=1 THEN ? ELSE certificate_name END,certificate_issuer=CASE WHEN ?=1 THEN ? ELSE certificate_issuer END,certificate_number=CASE WHEN ?=1 THEN ? ELSE certificate_number END,license_number=CASE WHEN ?=1 THEN ? ELSE license_number END,license_issuer=CASE WHEN ?=1 THEN ? ELSE license_issuer END,license_country=CASE WHEN ?=1 THEN ? ELSE license_country END,license_expires_on=CASE WHEN ?=1 THEN ? ELSE license_expires_on END,license_status=CASE WHEN ?=1 THEN 'pending' ELSE license_status END,license_review_note=CASE WHEN ?=1 THEN '' ELSE license_review_note END,status='pending',review_note=NULL,updated_at=? WHERE user_id=?`)
+  await env.DB.prepare(`UPDATE provider_profiles SET provider_type=?,display_name=CASE WHEN ?='' THEN display_name ELSE ? END,country=?,city=?,specialties_json=?,languages_json=?,bio=?,experience_years=?,indicative_rate_qar=?,program_durations_json=?,whatsapp_number=?,whatsapp_public=?,social_links_json=?,public_fields_json=?,qualifications=COALESCE(?,qualifications),services_json=COALESCE(?,services_json),coaching_mode=COALESCE(?,coaching_mode),certificate_name=CASE WHEN ?=1 THEN ? ELSE certificate_name END,certificate_issuer=CASE WHEN ?=1 THEN ? ELSE certificate_issuer END,certificate_number=CASE WHEN ?=1 THEN ? ELSE certificate_number END,license_number=CASE WHEN ?=1 THEN ? ELSE license_number END,license_issuer=CASE WHEN ?=1 THEN ? ELSE license_issuer END,license_country=CASE WHEN ?=1 THEN ? ELSE license_country END,license_expires_on=CASE WHEN ?=1 THEN ? ELSE license_expires_on END,license_status=CASE WHEN ?=1 THEN 'pending' ELSE license_status END,license_review_note=CASE WHEN ?=1 THEN '' ELSE license_review_note END,status=?,review_note=NULL,updated_at=? WHERE user_id=?`)
     .bind(type,name,name,text(body.country,80)||"Qatar",city,JSON.stringify(cleanList(body.specialties,12,60)),JSON.stringify(cleanList(body.languages,8,40)),bio,clampInt(body.experience_years,0,60),clampNullableInt(body.indicative_rate_qar,0,100000),JSON.stringify(programDurations),canPublishWhatsApp?whatsapp:null,canPublishWhatsApp?1:0,JSON.stringify(socialLinks||[]),JSON.stringify(publicFields),
       qualifications,services === null ? null : JSON.stringify(services),body.coaching_mode === undefined ? null : body.coaching_mode,
       Number(credentialsSubmitted),credentials.certificate_name,
@@ -1150,8 +1274,8 @@ async function saveProfile(request, env, user) {
       Number(credentialsSubmitted),credentials.license_issuer,
       Number(credentialsSubmitted),credentials.license_country,
       Number(credentialsSubmitted),credentials.license_expires_on || null,
-      Number(credentialsChanged),Number(credentialsChanged),now,user.id).run();
-  return reply(request, env, { status: "pending_review", warnings });
+      Number(credentialsChanged),Number(credentialsChanged),nextStatus,now,user.id).run();
+  return reply(request, env, { status: nextStatus === "approved" ? "approved" : "pending_review", warnings, profile_updated: nextStatus === "approved" });
 }
 
 async function createBooking(request, env) {
@@ -1218,6 +1342,206 @@ async function hasManagementPermission(env, user, code) {
   const row = await env.DB.prepare("SELECT 1 AS allowed FROM user_management_permissions WHERE user_id=? AND permission_code=?")
     .bind(user.id, code).first();
   return Boolean(row?.allowed);
+}
+
+function allowedManagementCategories(user, permissions) {
+  return Object.keys(MANAGEMENT_NOTIFICATION_CATEGORIES).filter((category) =>
+    user?.role === "admin" || permissions.includes(MANAGEMENT_NOTIFICATION_CATEGORIES[category].permission));
+}
+
+// Actionable items are derived from live records, never from a cached number.
+// A resolved booking/application/message simply stops appearing; read receipts
+// live in a separate per-manager table and never mutate the underlying record.
+async function managementNotificationCounts(env, categories) {
+  const rows = await env.DB.prepare(`SELECT 'bookings' AS category, COUNT(*) AS count FROM booking_requests WHERE status IN ('received','reviewing')
+    UNION ALL SELECT 'coaches', COUNT(*) FROM provider_profiles WHERE status='pending'
+    UNION ALL SELECT 'messages', COUNT(*) FROM coach_messages m JOIN coach_connections c ON c.id=m.connection_id
+      WHERE m.read_at IS NULL AND c.workspace_status IN ('pending','active')
+    UNION ALL SELECT 'community',
+      (SELECT COUNT(*) FROM community_posts WHERE status='pending') +
+      (SELECT COUNT(*) FROM community_comments c JOIN community_posts p ON p.id=c.post_id WHERE c.status='hidden' OR p.status='pending') +
+      (SELECT COUNT(*) FROM provider_achievements WHERE status='pending')
+    UNION ALL SELECT 'articles', COUNT(*) FROM coach_blog_posts WHERE status='pending'
+    UNION ALL SELECT 'ai', COUNT(*) FROM owner_agent_tasks WHERE status='completed' AND approval_status='pending'
+      AND json_valid(output_json) AND json_extract(output_json,'$.answer') IS NOT NULL`).all();
+  const counts = Object.fromEntries(categories.map((category) => [category, 0]));
+  for (const row of rows.results || []) if (Object.hasOwn(counts, row.category)) counts[row.category] = Number(row.count || 0);
+  return counts;
+}
+
+// The bell shows the true actionable total, even when the panel is bounded to
+// the most recent 50 items. A read receipt only counts while its record is
+// still actionable, so resolving a record removes it from both numbers.
+async function managementUnreadCounts(env, user, categories) {
+  const rows = await env.DB.prepare(`SELECT 'bookings' AS category, COUNT(*) AS count FROM booking_requests b
+      WHERE b.status IN ('received','reviewing')
+        AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='bookings' AND r.entity_id=b.id)
+    UNION ALL SELECT 'coaches', COUNT(*) FROM provider_profiles p WHERE p.status='pending'
+        AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='coaches' AND r.entity_id=p.id)
+    UNION ALL SELECT 'messages', COUNT(*) FROM coach_messages m JOIN coach_connections c ON c.id=m.connection_id
+      WHERE m.read_at IS NULL AND c.workspace_status IN ('pending','active')
+        AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='messages' AND r.entity_id=m.id)
+    UNION ALL SELECT 'community', COUNT(*) FROM (
+      SELECT p.id FROM community_posts p WHERE p.status='pending'
+      UNION ALL SELECT c.id FROM community_comments c JOIN community_posts p ON p.id=c.post_id WHERE c.status='hidden' OR p.status='pending'
+      UNION ALL SELECT a.id FROM provider_achievements a WHERE a.status='pending'
+      ) AS community_rows
+      WHERE NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='community' AND r.entity_id=community_rows.id)
+    UNION ALL SELECT 'articles', COUNT(*) FROM coach_blog_posts b WHERE b.status='pending'
+        AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='articles' AND r.entity_id=b.id)
+    UNION ALL SELECT 'ai', COUNT(*) FROM owner_agent_tasks t
+      WHERE t.status='completed' AND t.approval_status='pending' AND json_valid(t.output_json)
+        AND json_extract(t.output_json,'$.answer') IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM management_notification_reads r WHERE r.user_id=? AND r.category='ai' AND r.entity_id=t.id)`)
+    .bind(user.id, user.id, user.id, user.id, user.id, user.id).all();
+  const counts = Object.fromEntries(categories.map((category) => [category, 0]));
+  for (const row of rows.results || []) if (Object.hasOwn(counts, row.category)) counts[row.category] = Number(row.count || 0);
+  return counts;
+}
+
+async function managementNotificationItems(env, categories, limit = 50) {
+  const items = [];
+  const bounded = Math.min(Math.max(Number(limit) || 50, 1), 1000);
+  const add = (rows, category, eventType, entityType, hrefTab) => {
+    for (const row of rows.results || []) {
+      items.push({
+        id: category + ':' + row.id,
+        category,
+        event_type: eventType,
+        entity_type: entityType || category,
+        entity_id: row.id,
+        name: String(row.name || row.title || "MZ Active").slice(0, 160),
+        status: String(row.status || "pending"),
+        created_at: row.created_at,
+        href: '/admin.html?tab=' + hrefTab + '&record=' + encodeURIComponent(row.id),
+      });
+    }
+  };
+  const queries = [];
+  if (categories.includes('bookings')) queries.push(
+    env.DB.prepare("SELECT id,customer_name AS name,status,created_at FROM booking_requests WHERE status IN ('received','reviewing') ORDER BY created_at DESC LIMIT ?").bind(bounded)
+      .all().then((rows) => add(rows, 'bookings', 'booking_request', 'booking_request', 'bookings')));
+  if (categories.includes('coaches')) queries.push(
+    env.DB.prepare("SELECT id,display_name AS name,status,created_at FROM provider_profiles WHERE status='pending' ORDER BY created_at LIMIT ?").bind(bounded)
+      .all().then((rows) => add(rows, 'coaches', 'coach_application', 'provider_profile', 'coaches')));
+  if (categories.includes('messages')) queries.push(
+    env.DB.prepare(`SELECT m.id,m.created_at,
+      COALESCE(NULLIF(ms.display_name,''),NULLIF(pd.display_name,''),u.email,'MZ Active member') AS name,
+      'unread' AS status FROM coach_messages m
+      JOIN coach_connections c ON c.id=m.connection_id
+      JOIN users u ON u.id=m.sender_user_id
+      LEFT JOIN member_sports_profiles ms ON ms.user_id=u.id
+      LEFT JOIN provider_profiles pd ON pd.user_id=u.id
+      WHERE m.read_at IS NULL AND c.workspace_status IN ('pending','active')
+      ORDER BY m.created_at DESC LIMIT ?`).bind(bounded)
+      .all().then((rows) => add(rows, 'messages', 'private_message', 'coach_message', 'messages')));
+  if (categories.includes('community')) queries.push(
+    env.DB.prepare(`SELECT * FROM (
+      SELECT 'community_post' AS entity_type,p.id,
+        COALESCE(NULLIF(ms.display_name,''),NULLIF(pd.display_name,''),u.email,'MZ Active member') AS name,
+        p.status,p.created_at FROM community_posts p
+        JOIN users u ON u.id=p.author_user_id
+        LEFT JOIN member_sports_profiles ms ON ms.user_id=u.id
+        LEFT JOIN provider_profiles pd ON pd.user_id=u.id WHERE p.status='pending'
+      UNION ALL
+      SELECT 'community_comment' AS entity_type,c.id,
+        COALESCE(NULLIF(ms.display_name,''),NULLIF(pd.display_name,''),u.email,'MZ Active member') AS name,
+        c.status,c.created_at FROM community_comments c
+        JOIN users u ON u.id=c.user_id JOIN community_posts p ON p.id=c.post_id
+        LEFT JOIN member_sports_profiles ms ON ms.user_id=u.id
+        LEFT JOIN provider_profiles pd ON pd.user_id=u.id WHERE c.status='hidden' OR p.status='pending'
+      UNION ALL
+      SELECT 'provider_achievement' AS entity_type,a.id,pd.display_name AS name,a.status,a.created_at
+        FROM provider_achievements a JOIN provider_profiles pd ON pd.id=a.provider_id WHERE a.status='pending'
+      ) AS community_items ORDER BY created_at DESC LIMIT ?`).bind(bounded)
+      .all().then((rows) => {
+        for (const row of rows.results || []) items.push({
+          id: 'community:' + row.id,
+          category: 'community',
+          event_type: row.entity_type === 'community_comment' ? 'community_comment'
+            : row.entity_type === 'provider_achievement' ? 'achievement' : 'community_post',
+          entity_type: row.entity_type,
+          entity_id: row.id,
+          name: String(row.name || 'MZ Active member').slice(0, 160),
+          status: String(row.status || 'pending'),
+          created_at: row.created_at,
+          href: '/admin.html?tab=community&record=' + encodeURIComponent(row.id),
+        });
+      }));
+  if (categories.includes('articles')) queries.push(
+    env.DB.prepare(`SELECT b.id,b.title AS name,b.status,b.created_at FROM coach_blog_posts b
+      JOIN users u ON u.id=b.coach_user_id LEFT JOIN provider_profiles p ON p.id=b.provider_id
+      WHERE b.status='pending' ORDER BY b.created_at LIMIT ?`).bind(bounded)
+      .all().then((rows) => add(rows, 'articles', 'article', 'coach_blog_post', 'articles')));
+  if (categories.includes('ai')) queries.push(
+    env.DB.prepare(`SELECT id,title AS name,approval_status AS status,created_at FROM owner_agent_tasks
+      WHERE status='completed' AND approval_status='pending' AND json_valid(output_json)
+      AND json_extract(output_json,'$.answer') IS NOT NULL ORDER BY created_at LIMIT ?`).bind(bounded)
+      .all().then((rows) => add(rows, 'ai', 'ai_recommendation', 'owner_agent_task', 'ai')));
+  await Promise.all(queries);
+  items.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  return items.slice(0, bounded);
+}
+
+// Mark-all must cover every actionable record, not just the bounded panel.
+// Read receipts are written with INSERT ... SELECT so the badge can reach zero
+// without loading thousands of rows into memory or touching record state.
+async function markAllManagementNotifications(env, user, categories) {
+  const now = new Date().toISOString(), statements = [];
+  const add = (sql) => statements.push(env.DB.prepare(sql).bind(user.id, now));
+  if (categories.includes('bookings')) add(`INSERT OR IGNORE INTO management_notification_reads(user_id,category,entity_id,read_at)
+    SELECT ?, 'bookings', b.id, ? FROM booking_requests b WHERE b.status IN ('received','reviewing')`);
+  if (categories.includes('coaches')) add(`INSERT OR IGNORE INTO management_notification_reads(user_id,category,entity_id,read_at)
+    SELECT ?, 'coaches', p.id, ? FROM provider_profiles p WHERE p.status='pending'`);
+  if (categories.includes('messages')) add(`INSERT OR IGNORE INTO management_notification_reads(user_id,category,entity_id,read_at)
+    SELECT ?, 'messages', m.id, ? FROM coach_messages m JOIN coach_connections c ON c.id=m.connection_id
+      WHERE m.read_at IS NULL AND c.workspace_status IN ('pending','active')`);
+  if (categories.includes('community')) add(`INSERT OR IGNORE INTO management_notification_reads(user_id,category,entity_id,read_at)
+    SELECT ?, 'community', rows.id, ? FROM (
+      SELECT p.id FROM community_posts p WHERE p.status='pending'
+      UNION ALL SELECT c.id FROM community_comments c JOIN community_posts p ON p.id=c.post_id WHERE c.status='hidden' OR p.status='pending'
+      UNION ALL SELECT a.id FROM provider_achievements a WHERE a.status='pending'
+    ) AS rows`);
+  if (categories.includes('articles')) add(`INSERT OR IGNORE INTO management_notification_reads(user_id,category,entity_id,read_at)
+    SELECT ?, 'articles', b.id, ? FROM coach_blog_posts b WHERE b.status='pending'`);
+  if (categories.includes('ai')) add(`INSERT OR IGNORE INTO management_notification_reads(user_id,category,entity_id,read_at)
+    SELECT ?, 'ai', t.id, ? FROM owner_agent_tasks t
+      WHERE t.status='completed' AND t.approval_status='pending' AND json_valid(t.output_json)
+        AND json_extract(t.output_json,'$.answer') IS NOT NULL`);
+  if (!statements.length) return 0;
+  const results = await env.DB.batch(statements);
+  return results.reduce((sum, result) => sum + Number(result?.meta?.changes || 0), 0);
+}
+
+async function managementDashboard(env, user, permissions) {
+  const categories = allowedManagementCategories(user, permissions);
+  const [counts, unreadCounts, items, readRows, activity] = await Promise.all([
+    managementNotificationCounts(env, categories),
+    managementUnreadCounts(env, user, categories),
+    managementNotificationItems(env, categories, 50),
+    env.DB.prepare("SELECT category,entity_id,read_at FROM management_notification_reads WHERE user_id=?").bind(user.id).all(),
+    env.DB.prepare(`SELECT 'moderation' AS source,entity_type,from_status,to_status,created_at FROM moderation_events
+      UNION ALL SELECT 'registration','user',NULL,'received',created_at FROM users WHERE role!='admin'
+      UNION ALL SELECT 'booking','booking_request',NULL,'received',created_at FROM booking_requests
+      UNION ALL SELECT 'application','provider_profile',NULL,status,created_at FROM provider_profiles WHERE status IN ('pending','approved','rejected')
+      UNION ALL SELECT 'ai',agent_type,NULL,status,created_at FROM owner_agent_activity
+      ORDER BY created_at DESC LIMIT 20`).all(),
+  ]);
+  const reads = new Map();
+  for (const row of readRows.results || []) reads.set(row.category + ':' + row.entity_id, row.read_at);
+  const notifications = items.map((item) => ({ ...item, read_at: reads.get(item.id) || null }));
+  // The panel is capped; the badge is not. This keeps the bell accurate when
+  // there are more than 50 actionable records.
+  const unread = Object.values(unreadCounts).reduce((sum, count) => sum + Number(count || 0), 0);
+  return {
+    counts,
+    unreadCounts,
+    notifications,
+    unread,
+    total: Object.values(counts).reduce((sum, count) => sum + count, 0),
+    activity: (activity.results || []).map((row) => ({ ...row })),
+    generated_at: new Date().toISOString(),
+  };
 }
 
 async function managementPermissionCodes(env, user) {
@@ -1516,6 +1840,7 @@ function requiredManagementPermission(path) {
   if (path.includes("/community") || path.includes("/achievements")) return "management.community";
   if (path.includes("/blog")) return "management.articles";
   if (path.includes("/booking")) return "management.bookings";
+  if (path.includes("/messages")) return "management.coaches";
   if (path.includes("/provider") || path.includes("/athletes") || path.includes("/programs")) return "management.coaches";
   return "management.view";
 }
@@ -1561,6 +1886,48 @@ async function adminApplications(request, env, user) {
   if (!await hasManagementPermission(env, user, "management.view")) return reply(request, env, { error: "forbidden" }, 403);
   const needed = requiredManagementPermission(path);
   if (needed !== "management.view" && !await hasManagementPermission(env, user, needed)) return reply(request, env, { error: "forbidden" }, 403);
+  if (request.method === "GET" && path === "/api/admin/dashboard") {
+    const permissions = await managementPermissionCodes(env, user);
+    return reply(request, env, await managementDashboard(env, user, permissions));
+  }
+  if (request.method === "PATCH" && path === "/api/admin/notifications") {
+    const permissions = await managementPermissionCodes(env, user);
+    const categories = allowedManagementCategories(user, permissions);
+    const body = await readJson(request);
+    if (!body) return reply(request, env, { error: "invalid_notification" }, 400);
+    let targets = [];
+    if (body.all === true) {
+      const updated = await markAllManagementNotifications(env, user, categories);
+      return reply(request, env, { updated: true, count: updated });
+    } else {
+      const id = text(body.id, 120), colon = id.indexOf(':');
+      const category = colon > 0 ? id.slice(0, colon) : '';
+      const entityId = colon > 0 ? id.slice(colon + 1) : '';
+      if (!categories.includes(category) || !/^[\w-]{36}$/.test(entityId)) return reply(request, env, { error: "invalid_notification" }, 400);
+      targets = [{ category, entity_id: entityId }];
+    }
+    const now = new Date().toISOString();
+    if (targets.length) await env.DB.batch(targets.map((target) =>
+      env.DB.prepare("INSERT OR IGNORE INTO management_notification_reads(user_id,category,entity_id,read_at) VALUES(?,?,?,?)")
+        .bind(user.id, target.category, target.entity_id, now)));
+    return reply(request, env, { updated: true, count: targets.length });
+  }
+  if (request.method === "GET" && path === "/api/admin/messages") {
+    const rows = await env.DB.prepare(`SELECT m.id,m.connection_id,m.created_at,m.read_at,
+      COALESCE(NULLIF(ms.display_name,''),NULLIF(sp.display_name,''),su.email,'MZ Active member') AS sender_name,
+      COALESCE(NULLIF(rm.display_name,''),NULLIF(rp.display_name,''),ru.email,'MZ Active member') AS recipient_name,
+      c.workspace_status FROM coach_messages m
+      JOIN coach_connections c ON c.id=m.connection_id
+      JOIN users su ON su.id=m.sender_user_id
+      LEFT JOIN users ru ON ru.id = CASE WHEN m.sender_user_id=c.coach_user_id THEN c.athlete_user_id ELSE c.coach_user_id END
+      LEFT JOIN member_sports_profiles ms ON ms.user_id=su.id
+      LEFT JOIN provider_profiles sp ON sp.user_id=su.id
+      LEFT JOIN member_sports_profiles rm ON rm.user_id=ru.id
+      LEFT JOIN provider_profiles rp ON rp.user_id=ru.id
+      WHERE c.workspace_status IN ('pending','active')
+      ORDER BY (m.read_at IS NULL) DESC, m.created_at DESC LIMIT 100`).all();
+    return reply(request, env, { messages: rows.results || [] });
+  }
   if (request.method === "POST" && path === "/api/admin/assistant") {
     return ownerAssistant(request, env);
   }
@@ -1658,28 +2025,47 @@ async function adminApplications(request, env, user) {
     return reply(request, env, { photo_uploaded: true, status: profile.status, updated_at: now });
   }
   if (request.method === "GET" && requestUrl.pathname === "/api/admin/applications") {
-    const providers = await env.DB.prepare(`SELECT p.id,p.qualifications,p.services_json,p.coaching_mode,p.certificate_name,p.certificate_issuer,p.certificate_number,p.license_number,p.license_issuer,p.license_country,p.license_expires_on,p.license_status,p.license_review_note,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=p.id) AS gallery_slots,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.whatsapp_number,p.whatsapp_public,p.social_links_json,p.status,p.review_note,p.updated_at,u.email
-      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all();
-    const approvedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.updated_at,u.email
-      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='approved' ORDER BY p.updated_at DESC LIMIT 100`).all();
-    const suspendedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.review_note,p.updated_at,u.email\n      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='rejected' AND p.review_note='Removed by owner' ORDER BY p.updated_at DESC LIMIT 100`).all();
+    const welcomeFields = `w.status AS welcome_email_status,w.attempts AS welcome_attempts,w.error AS welcome_error`;
+    const welcomeJoin = `LEFT JOIN coach_welcome_emails w ON w.id=(SELECT id FROM coach_welcome_emails WHERE profile_id=p.id ORDER BY created_at DESC LIMIT 1)`;
+    const completeness = `CASE WHEN p.provider_type='coach' THEN (p.specialties_json NOT IN ('[]','') AND p.bio NOT IN ('','Profile awaiting completion by the provider.'))
+      WHEN p.provider_type IN ('nutritionist','physiotherapist','sports_massage_therapist') THEN (p.qualifications<>'' AND p.services_json NOT IN ('[]','') AND p.license_number<>'' AND p.license_issuer<>'')
+      ELSE (p.bio NOT IN ('','Profile awaiting completion by the provider.')) END AS profile_complete`;
+    const providers = await env.DB.prepare(`SELECT p.id,p.qualifications,p.services_json,p.coaching_mode,p.certificate_name,p.certificate_issuer,p.certificate_number,p.license_number,p.license_issuer,p.license_country,p.license_expires_on,p.license_status,p.license_review_note,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=p.id) AS gallery_slots,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.whatsapp_number,p.whatsapp_public,p.social_links_json,p.status,p.review_note,p.updated_at,u.email,${completeness},${welcomeFields}
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='pending' ORDER BY p.created_at LIMIT 100`).all();
+    const approvedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='approved' ORDER BY p.updated_at DESC LIMIT 100`).all();
+    const rejectedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.review_note,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='rejected' AND (p.review_note IS NULL OR p.review_note<>'Removed by owner') ORDER BY p.updated_at DESC LIMIT 100`).all();
+    const suspendedProviders = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.country,p.city,p.review_note,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='rejected' AND p.review_note='Removed by owner' ORDER BY p.updated_at DESC LIMIT 100`).all();
     const bookings = await env.DB.prepare(`SELECT id,provider_id,(SELECT display_name FROM provider_profiles WHERE id=booking_requests.provider_id) AS coach_name,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,service_name,distance,target_pace,program_duration_months,created_at
       FROM booking_requests ORDER BY CASE WHEN status IN ('received','reviewing') THEN 0 ELSE 1 END, created_at DESC LIMIT 100`).all();
-    return reply(request, env, { providers: providers.results || [], approved_providers: approvedProviders.results || [], suspended_providers: suspendedProviders.results || [], bookings: bookings.results || [] });
+    return reply(request, env, { providers: providers.results || [], approved_providers: approvedProviders.results || [], rejected_providers: rejectedProviders.results || [], suspended_providers: suspendedProviders.results || [], bookings: bookings.results || [] });
   }
   const match = /^\/api\/admin\/providers\/([\w-]{36})$/.exec(new URL(request.url).pathname);
   if (match && request.method === "PATCH") {
     const body = await readJson(request), status = body?.status;
     if (!body || !["approved","rejected","suspended"].includes(status)) return reply(request, env, { error: "invalid_review_status" }, 400);
-    const previous = await env.DB.prepare(`SELECT status,provider_type,review_note,bio,specialties_json,qualifications,services_json,license_number,license_issuer,license_status,license_review_note
+    const previous = await env.DB.prepare(`SELECT status,provider_type,display_name,review_note,bio,specialties_json,languages_json,qualifications,services_json,license_number,license_issuer,license_status,license_review_note,user_id
       FROM provider_profiles WHERE id=?`).bind(match[1]).first();
     if (!previous) return reply(request, env, { updated: false }, 404);
-    const ownerRemoved = previous.status === "rejected" && previous.review_note === "Removed by owner";
-    const allowed = (previous.status === "pending" && ["approved","rejected"].includes(status))
-      || (previous.status === "approved" && status === "suspended")
+    const fromStatus = previous.status;
+    const ownerRemoved = fromStatus === "rejected" && previous.review_note === "Removed by owner";
+    const isSameDecision = (row) => status === "approved" ? row?.status === "approved"
+      : status === "rejected" ? row?.status === "rejected" && row.review_note !== "Removed by owner"
+        : row?.status === "rejected" && row.review_note === "Removed by owner";
+    const allowed = (fromStatus === "pending" && ["approved","rejected"].includes(status))
+      || (fromStatus === "approved" && status === "suspended")
       || (ownerRemoved && status === "approved");
-    if (!allowed) return reply(request, env, { error: "invalid_provider_status_change" }, 409);
-    if (status==="approved" && previous.provider_type==="coach" && (!safeParse(previous.specialties_json)?.length || !previous.bio?.trim() || previous.bio==="Profile awaiting completion by the provider.")) return reply(request,env,{error:"coach_profile_incomplete"},422);
+    if (!allowed) {
+      // A repeated click on the same decision is a no-op, never a second event
+      // or a second welcome email.
+      if (isSameDecision(previous)) return reply(request, env, { updated: false, already: true, status, welcome_email: await welcomeEmailStatus(env, match[1]) });
+      return reply(request, env, { error: "invalid_provider_status_change" }, 409);
+    }
+    // Incomplete applications can be approved too: the coach then completes the
+    // profile from the dashboard. A missing name is the only hard blocker.
+    if (status === "approved" && !previous.display_name?.trim()) return reply(request, env, { error: "coach_profile_incomplete" }, 422);
     const licensed = LICENSED_PROVIDER_TYPES.includes(previous.provider_type);
     if (status === "approved" && licensed && (
       !previous.qualifications?.trim() || !cleanList(safeParse(previous.services_json),12,120).length
@@ -1696,13 +2082,32 @@ async function adminApplications(request, env, user) {
       : licensed && status === "rejected" && body.license_verified === false ? "rejected"
         : licensed && status === "suspended" ? "pending" : previous.license_status;
     const nextLicenseNote = licensed && body.license_review_note !== undefined ? text(body.license_review_note,300) : previous.license_review_note || "";
+    const now = new Date().toISOString(), approvalEventId = randomId();
     const result = await env.DB.prepare("UPDATE provider_profiles SET status=?,review_note=?,updated_at=?,verified=?,license_status=?,license_review_note=? WHERE id=? AND status=? AND (? IS NULL OR updated_at=?)")
-      .bind(storedStatus,note,new Date().toISOString(),Number(verified),nextLicenseStatus,nextLicenseNote,match[1],previous.status,body.review_version ?? null,body.review_version ?? null).run();
+      .bind(storedStatus,note,now,Number(verified),nextLicenseStatus,nextLicenseNote,match[1],fromStatus,body.review_version ?? null,body.review_version ?? null).run();
     const updated = Boolean(result.meta?.changes);
-    if (!updated) return reply(request, env, { error: "profile_changed_reload_review" }, 409);
+    if (!updated) {
+      // Two simultaneous clicks can both read the old status. Only one UPDATE
+      // wins; the loser reports the already-completed decision instead of a
+      // confusing stale-version error or a second email.
+      const current = await env.DB.prepare("SELECT status,review_note FROM provider_profiles WHERE id=?").bind(match[1]).first();
+      if (isSameDecision(current)) return reply(request, env, { updated: false, already: true, status, welcome_email: await welcomeEmailStatus(env, match[1]) });
+      return reply(request, env, { error: "profile_changed_reload_review" }, 409);
+    }
     await env.DB.prepare(`INSERT INTO moderation_events(id,actor_user_id,entity_type,entity_id,from_status,to_status,created_at) VALUES(?,?,'provider_profile',?,?,?,?)`)
-      .bind(randomId(),user.id,match[1],previous.status,status,new Date().toISOString()).run();
-    return reply(request, env, { updated, status });
+      .bind(approvalEventId,user.id,match[1],fromStatus,status,now).run();
+    let welcome_email = null;
+    if (status === "approved" && previous.provider_type === "coach") {
+      const account = await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(previous.user_id).first();
+      if (account?.email) {
+        welcome_email = await enqueueCoachWelcome(env, {
+          profile_id: match[1], approval_event_id: approvalEventId, user_id: previous.user_id,
+          email: account.email, first_name: previous.display_name,
+          language: /arabic|عربي/i.test(previous.languages_json || "") ? "ar" : "en",
+        });
+      }
+    }
+    return reply(request, env, { updated, status, welcome_email });
   }
   const bookingMatch = /^\/api\/admin\/bookings\/([\w-]{36})$/.exec(new URL(request.url).pathname);
   if (bookingMatch && request.method === "PATCH") {
@@ -2475,6 +2880,8 @@ export default {
     return reply(request, env, { error: "not_found" }, 404);
   },
   async scheduled(event, env) {
+    // Failed welcome deliveries retry safely; approval itself is never retried.
+    try { await retryCoachWelcomeEmails(env); } catch { /* never block the scheduled analysis */ }
     const hour = Math.floor((event.scheduledTime || Date.now()) / 3600000);
     const tasks = ["operations","monitoring","analytics","marketing","growth","community"];
     const task = tasks[hour % tasks.length];

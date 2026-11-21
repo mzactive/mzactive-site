@@ -1,14 +1,14 @@
-/* One install experience for the MZA web app. It never claims an install that
- * did not happen: Chromium browsers get the native beforeinstallprompt only
- * when the browser fires it; iOS Safari gets exact manual steps; other browsers
- * get accurate guidance. Installed/standalone sessions hide install controls. */
+/* Discreet MZA install affordance. It never claims an install that did not
+ * happen: Chromium browsers get the native beforeinstallprompt only when the
+ * browser fires it; iOS Safari gets exact manual steps. Nothing opens without
+ * a deliberate click, and dismissal is remembered in this browser only. */
 (() => {
   // The homepage keeps its critical CSS fully inline, so the install styles are
   // attached from this single module instead of adding a blocking stylesheet.
   const script = document.currentScript;
   const cssHref = script
-    ? new URL('../css/pwa-install.css?v=20261120f', script.src).href
-    : '/assets/css/pwa-install.css?v=20261120f';
+    ? new URL('../css/pwa-install.css?v=20261121c', script.src).href
+    : '/assets/css/pwa-install.css?v=20261121c';
   const injectStyles = () => {
     if (document.querySelector('link[data-mza-install-styles]') || !document.head) return;
     const link = document.createElement('link');
@@ -21,7 +21,10 @@
   const pair = (en, ar) => ({ en, ar });
   const COPY = {
     download: pair('Download MZA App', 'تنزيل تطبيق MZA'),
-    title: pair('Install MZA on your device', 'ثبّت MZA على جهازك'),
+    install: pair('Install', 'تثبيت'),
+    getApp: pair('Get the MZA App', 'احصل على تطبيق MZA'),
+    dismiss: pair('Dismiss app promotion', 'إخفاء عرض التطبيق'),
+    title: pair('Get the MZA App', 'احصل على تطبيق MZA'),
     close: pair('Close', 'إغلاق'),
     gotIt: pair('Got it', 'حسناً'),
     ios: pair(
@@ -41,6 +44,7 @@
       'استخدم Safari على iPhone أو Chrome على Android لإضافة MZA إلى الشاشة الرئيسية.'
     ),
   };
+  const PROMO_DISMISSED_KEY = 'mza-install-promo-dismissed';
 
   const lang = () => (window.MZActiveLanguage?.get?.() === 'ar'
     ? 'ar'
@@ -95,9 +99,19 @@
     }
   }
 
+  function promoDismissed() {
+    try { return localStorage.getItem(PROMO_DISMISSED_KEY) === '1'; }
+    catch { return false; } // private mode must never break the page
+  }
+
+  const buttonCopy = button => button.dataset.mzaInstallLabel === 'install'
+    ? COPY.install
+    : button.dataset.mzaInstallLabel === 'get' ? COPY.getApp : COPY.download;
+
   function applyState() {
     const installed = standaloneNow() || relatedAppsInstalled;
     const mode = currentMode();
+    const dismissed = promoDismissed();
     const root = document.documentElement;
     root.dataset.mzaLaunch = installed ? 'standalone' : 'browser';
     root.dataset.mzaInstallMode = mode;
@@ -105,10 +119,13 @@
     for (const button of document.querySelectorAll('[data-mza-install-button]')) {
       button.dataset.installMode = mode;
       button.hidden = installed;
-      setPair(button, COPY.download);
-      setAttrPair(button, 'aria-label', COPY.download);
+      setPair(button, buttonCopy(button));
+      setAttrPair(button, 'aria-label', buttonCopy(button));
     }
-    for (const region of document.querySelectorAll('.footer-install')) region.hidden = installed;
+    // The card and the permanent link are mutually exclusive. Both disappear
+    // once the app is installed or running in standalone mode.
+    for (const promo of document.querySelectorAll('[data-mza-install-promo]')) promo.hidden = installed || dismissed;
+    for (const link of document.querySelectorAll('[data-mza-install-link]')) link.hidden = installed || !dismissed;
   }
 
   function buildDialog() {
@@ -126,7 +143,7 @@
     close.type = 'button';
     close.className = 'mza-install-dialog__close';
     close.id = 'mzaInstallClose';
-    setPair(close, pair('×', '×'));
+    close.textContent = '×';
     setAttrPair(close, 'aria-label', COPY.close);
     close.addEventListener('click', () => dialog.close());
 
@@ -188,42 +205,33 @@
     openInstructions(trigger, trigger.dataset.installMode || platformMode());
   }
 
-  function newButton(className) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = className;
-    button.dataset.mzaInstallButton = '';
-    button.disabled = true;
-    setPair(button, COPY.download);
-    setAttrPair(button, 'aria-label', COPY.download);
-    return button;
-  }
-
-  function bind(button) {
-    if (button.dataset.installBound) return;
-    button.dataset.installBound = '1';
-    button.disabled = false;
-    button.addEventListener('click', activate);
-  }
-
-  function ensureButtons() {
-    const hero = document.querySelector('.hero-actions');
-    if (hero && !hero.querySelector('[data-mza-install-button]')) {
-      hero.append(newButton('button button-primary mza-install-button'));
+  function bindControls() {
+    for (const button of document.querySelectorAll('[data-mza-install-button]')) {
+      if (button.dataset.installBound) continue;
+      button.dataset.installBound = '1';
+      button.disabled = false;
+      button.addEventListener('click', activate);
     }
-    for (const region of document.querySelectorAll('.footer-install')) {
-      const host = region.querySelector('div') || region;
-      if (!host.querySelector('[data-mza-install-button]')) {
-        host.append(newButton('mza-install-button footer-install-button'));
-      }
+    for (const button of document.querySelectorAll('[data-mza-install-dismiss]')) {
+      if (button.dataset.installDismissBound) continue;
+      button.dataset.installDismissBound = '1';
+      setAttrPair(button, 'aria-label', COPY.dismiss);
+      button.addEventListener('click', () => {
+        try { localStorage.setItem(PROMO_DISMISSED_KEY, '1'); }
+        catch { /* private mode: hide for this visit only */ }
+        applyState();
+        document.querySelector('[data-mza-install-link]')?.focus();
+      });
     }
-    for (const button of document.querySelectorAll('[data-mza-install-button]')) bind(button);
   }
 
   const localize = () => {
     for (const button of document.querySelectorAll('[data-mza-install-button]')) {
-      setPair(button, COPY.download);
-      setAttrPair(button, 'aria-label', COPY.download);
+      setPair(button, buttonCopy(button));
+      setAttrPair(button, 'aria-label', buttonCopy(button));
+    }
+    for (const button of document.querySelectorAll('[data-mza-install-dismiss]')) {
+      setAttrPair(button, 'aria-label', COPY.dismiss);
     }
     if (dialog) {
       for (const node of dialog.querySelectorAll('[data-en][data-ar]')) {
@@ -241,12 +249,13 @@
 
   function init() {
     injectStyles();
-    ensureButtons();
+    bindControls();
     applyState();
     localize();
   }
 
   window.addEventListener('beforeinstallprompt', event => {
+    // Store the browser event; never prompt without the visitor's click.
     event.preventDefault();
     deferredPrompt = event;
     applyState();

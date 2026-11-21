@@ -123,7 +123,7 @@
   const register = () => {
     // The script URL is versioned so Cloudflare's cached canonical /sw.js
     // cannot delay a PWA update. Bump this with each shell release.
-    navigator.serviceWorker.register('/sw.js?v=20261121a', { scope: '/' }).then(watchRegistration).catch(() => {
+    navigator.serviceWorker.register('/sw.js?v=20261121b', { scope: '/' }).then(watchRegistration).catch(() => {
       // The site remains fully usable if the app shell is unavailable.
     });
   };

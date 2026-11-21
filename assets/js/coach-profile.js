@@ -102,6 +102,10 @@
 
     const cover = $('#coverPhoto');
     if (cover) {
+      cover.onerror = () => {
+        cover.onerror = null;
+        cover.src = 'assets/images/mzactive-coaching-session.jpg';
+      };
       if (privateCoverPreview) cover.src = privateCoverPreview;
       else if (p.has_cover) cover.src = `${endpoint}/cover?v=${encodeURIComponent(p.cover_updated_at || '')}`;
       else cover.src = 'assets/images/mzactive-coaching-session.jpg';
@@ -405,8 +409,12 @@
   async function uploadPhoto(file) {
     const output = $('#photoStatus');
     if (!file) return;
-    if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 1_000_000) {
-      output.textContent = t('Choose a JPG, PNG or WebP image up to 1 MB.','اختر صورة JPG أو PNG أو WebP بحجم يصل إلى 1 ميغابايت.');
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+      output.textContent = t('Choose a JPG, PNG or WebP photo. Your existing photo was kept.','اختر صورة JPG أو PNG أو WebP. تم الاحتفاظ بصورتك الحالية.');
+      return;
+    }
+    if (file.size > 1_000_000) {
+      output.textContent = t('The photo is larger than 1 MB. Choose a smaller image; your existing photo was kept.','حجم الصورة أكبر من ١ ميغابايت. اختر صورة أصغر؛ تم الاحتفاظ بصورتك الحالية.');
       return;
     }
     $('#changePhoto').disabled = true;
@@ -429,9 +437,13 @@
       image.hidden = false;
       $('#avatarFallback').hidden = true;
     } catch (err) {
-      output.textContent = err.message === 'unauthorized'
-        ? t('Please sign in again through the coach portal.','يرجى تسجيل الدخول مجدداً عبر بوابة المدرب.')
-        : t('The profile photo could not be saved. Use the coach portal to retry.','تعذر حفظ صورة الملف. استخدم بوابة المدرب للمحاولة مجدداً.');
+      output.textContent = err.message === 'photo_too_large'
+        ? t('The photo is larger than 1 MB. Your existing photo was kept.','حجم الصورة أكبر من ١ ميغابايت. تم الاحتفاظ بصورتك الحالية.')
+        : err.message === 'invalid_photo'
+          ? t('Choose a valid JPG, PNG or WebP photo. Your existing photo was kept.','اختر صورة JPG أو PNG أو WebP صالحة. تم الاحتفاظ بصورتك الحالية.')
+          : err.message === 'unauthorized'
+            ? t('Please sign in again through the coach portal.','يرجى تسجيل الدخول مجدداً عبر بوابة المدرب.')
+            : t('The profile photo could not be saved. Your existing photo was kept.','تعذر حفظ صورة الملف. تم الاحتفاظ بصورتك الحالية.');
     } finally {
       $('#changePhoto').disabled = false;
       $('#photoInput').value = '';
@@ -440,8 +452,12 @@
   async function uploadCover(file) {
     const output = $('#photoStatus');
     if (!file) return;
-    if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 1_000_000) {
-      output.textContent = t('Choose a JPG, PNG or WebP image up to 1 MB.','اختر صورة JPG أو PNG أو WebP بحجم يصل إلى 1 ميغابايت.');
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+      output.textContent = t('Choose a JPG, PNG or WebP cover. Your existing cover was kept.','اختر صورة غلاف JPG أو PNG أو WebP. تم الاحتفاظ بصورة الغلاف الحالية.');
+      return;
+    }
+    if (file.size > 1_000_000) {
+      output.textContent = t('The cover is larger than 1 MB. Choose a smaller image; your existing cover was kept.','حجم صورة الغلاف أكبر من ١ ميغابايت. اختر صورة أصغر؛ تم الاحتفاظ بصورة الغلاف الحالية.');
       return;
     }
     $('#changeCover').disabled = true;
@@ -456,8 +472,12 @@
       output.textContent = result.status === 'approved'
         ? t('Cover photo published.','تم نشر صورة الغلاف.')
         : t('Cover photo saved and sent for review.','تم حفظ صورة الغلاف وإرسالها للمراجعة.');
-    } catch {
-      output.textContent = t('The cover photo could not be saved.','تعذر حفظ صورة الغلاف.');
+    } catch (err) {
+      output.textContent = err.message === 'photo_too_large'
+        ? t('The cover is larger than 1 MB. Your existing cover was kept.','حجم صورة الغلاف أكبر من ١ ميغابايت. تم الاحتفاظ بصورة الغلاف الحالية.')
+        : err.message === 'invalid_photo'
+          ? t('Choose a valid JPG, PNG or WebP cover. Your existing cover was kept.','اختر صورة غلاف JPG أو PNG أو WebP صالحة. تم الاحتفاظ بصورة الغلاف الحالية.')
+          : t('The cover photo could not be saved. Your existing cover was kept.','تعذر حفظ صورة الغلاف. تم الاحتفاظ بصورة الغلاف الحالية.');
     } finally {
       $('#changeCover').disabled = false;
       $('#coverInput').value = '';

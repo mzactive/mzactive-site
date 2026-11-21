@@ -1,7 +1,7 @@
 'use strict';
 
 const { test, expect } = require('./pw.cjs');
-const { assertOfflineSafe, installApiMock, json } = require('./helpers.cjs');
+const { assertOfflineSafe, installApiMock, json, seedSession } = require('./helpers.cjs');
 
 // All values below are deliberately fake. No real administrator email,
 // password, setup key or recovery key is ever typed or stored.
@@ -42,15 +42,25 @@ test('invalid admin sign-in maps to a clear error and keeps the workspace locked
   assertOfflineSafe(mock);
 });
 
-test('recovery UI rejects mismatched and invalid input without accepting secrets', async ({ page }) => {
+test('account security recovery rejects mismatched and invalid input without accepting secrets', async ({ page }) => {
   const mock = await installApiMock(page, {
-    overrides: { 'POST /api/auth/recover': json({ error: 'invalid_recovery' }, 400) },
+    overrides: {
+      'GET /api/me/access': json({
+        user: { id: 'e2e-admin', email: FAKE_EMAIL, role: 'admin' },
+        account_type: 'admin',
+        dashboard_path: '/admin.html',
+        management: { enabled: true, permissions: [] },
+      }),
+      'POST /api/auth/recover': json({ error: 'invalid_recovery' }, 400),
+    },
   });
-  await page.goto('/admin.html');
+  await seedSession(page, { storage: 'local' });
+  await page.goto('/account.html');
 
+  await expect(page.locator('#security')).toBeVisible();
+  await expect(page.locator('#emergencyRecovery')).toBeVisible();
   await page.locator('#recoverOpen').click();
   await expect(page.locator('#recover')).toBeVisible();
-  await expect(page.locator('#login')).toBeHidden();
 
   await page.locator('#recover input[name=email]').fill(FAKE_EMAIL);
   await page.locator('#recover input[name=key]').fill(FAKE_RECOVERY_KEY);
@@ -58,19 +68,15 @@ test('recovery UI rejects mismatched and invalid input without accepting secrets
   await page.locator('#recover input[name=confirm_password]').fill('different-new-password');
   await page.locator('#recover button[type=submit]').click();
 
-  await expect(page.locator('#notice')).toContainText('passwords do not match');
+  await expect(page.locator('#accountStatus')).toContainText('passwords do not match');
   expect(mock.calls.filter(call => call.path === '/api/auth/recover')).toEqual([]);
 
   await page.locator('#recover input[name=confirm_password]').fill('invalid-new-password');
   await page.locator('#recover button[type=submit]').click();
 
-  await expect(page.locator('#notice')).toContainText('email or recovery key is incorrect');
+  await expect(page.locator('#accountStatus')).toContainText('email or recovery key is incorrect');
   const attempts = mock.calls.filter(call => call.path === '/api/auth/recover');
   expect(attempts).toHaveLength(1);
   expect(attempts[0].body).toMatchObject({ email: FAKE_EMAIL, key: FAKE_RECOVERY_KEY });
-
-  await page.locator('#recoverCancel').click();
-  await expect(page.locator('#login')).toBeVisible();
-  await expect(page.locator('#recover')).toBeHidden();
   assertOfflineSafe(mock);
 });

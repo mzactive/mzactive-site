@@ -9,13 +9,13 @@ const sw = read('sw.js');
 const register = read('assets/js/pwa-register.js');
 const css = read('assets/css/site-theme.css');
 
-test('the active service worker shell cache is bumped to v7', () => {
-  assert.match(sw, /const CACHE = ['"]mza-shell-v7['"]/);
-  assert.doesNotMatch(sw, /const CACHE = ['"]mza-shell-v6['"]/);
+test('the active service worker shell cache is bumped to v8', () => {
+  assert.match(sw, /const CACHE = ['"]mza-shell-v8['"]/);
+  assert.doesNotMatch(sw, /const CACHE = ['"]mza-shell-v7['"]/);
   assert.match(sw, /key\.startsWith\(['"]mza-shell-['"]\) && key !== CACHE/);
   assert.match(sw, /caches\.delete\(key\)/);
   // The previous name only survives as migration documentation.
-  const legacy = sw.split('\n').filter(line => line.includes('mza-shell-v6'));
+  const legacy = sw.split('\n').filter(line => line.includes('mza-shell-v7'));
   assert.equal(legacy.length, 1);
   assert.match(legacy[0], /^\/\//);
   new Function(sw);
@@ -48,7 +48,7 @@ test('cached assets are refreshed in the background without changing versioned U
 
 test('registration polls periodically and on visibility without assuming a paid service', () => {
   assert.match(register, /'serviceWorker' in navigator/);
-  assert.match(register, /register\(['"]\/sw\.js\?v=20261121a['"]/);
+  assert.match(register, /register\(['"]\/sw\.js\?v=20261121b['"]/);
   assert.match(register, /scope:\s*['"]\/['"]/);
   assert.match(register, /registration\.update\(\)\.catch/);
   assert.match(register, /setInterval\(checkForUpdate, CHECK_INTERVAL\)/);
@@ -116,7 +116,7 @@ test('service worker registration is cache-busted on every page that registers i
     const html = read(page);
     if (!html.includes('pwa-register.js')) continue;
     checked += 1;
-    assert.match(html, /pwa-register\.js\?v=20261121a/, page);
+    assert.match(html, /pwa-register\.js\?v=20261121b/, page);
     assert.doesNotMatch(html, /pwa-register\.js\?v=20261120e/, page);
   }
   assert.ok(checked >= 18, `expected every registered page to be versioned, found ${checked}`);

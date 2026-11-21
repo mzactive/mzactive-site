@@ -139,14 +139,20 @@
 
   const setBilingualContent = (el, value) => {
     const children = [...el.children];
-    if (children.length && children.every(child => child.hasAttribute('aria-hidden')) && !value.includes('<')) {
-      const label = [...el.childNodes].find(node => node.nodeType === Node.TEXT_NODE && node.nodeValue.trim());
+    // Plain-text translations must never replace innerHTML: labels and actions
+    // often contain inputs, icons or other controls that would be destroyed.
+    // Update the element's own text nodes and leave child elements intact.
+    if (children.length && !value.includes('<')) {
+      const textNodes = [...el.childNodes].filter(node => node.nodeType === Node.TEXT_NODE);
+      const label = textNodes.find(node => node.nodeValue.trim());
       if (label) {
         const leading = label.nodeValue.match(/^\s*/)[0];
         const trailing = label.nodeValue.match(/\s*$/)[0];
         const next = `${leading}${value}${trailing}`;
         if (label.nodeValue !== next) label.nodeValue = next;
-      } else {
+        for (const node of textNodes) if (node !== label) node.nodeValue = '';
+      } else if (!children.some(child => child.hasAttribute('data-en') && child.hasAttribute('data-ar'))) {
+        // Icon-only composites keep their own text in a translated child.
         el.insertBefore(document.createTextNode(value), children[0]);
       }
       markProcessed(el);

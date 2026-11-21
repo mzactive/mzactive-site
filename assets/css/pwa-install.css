@@ -1,4 +1,4 @@
-/* MZA install affordances. Uses the approved landing-page palette only. */
+/* Discreet MZA install affordances. Approved palette only. */
 [hidden] { display: none !important; }
 
 .mza-install-button {
@@ -7,46 +7,64 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.hero-actions .mza-install-button.button-primary {
-  min-height: 31px;
-  padding: 7px 14px;
-  border: 1px solid #f2b718;
-  border-radius: 999px;
-  color: #172a22;
-  background: linear-gradient(180deg, #ffd42e, #efa900);
-  font-size: 10px;
+.footer-install {
+  grid-column: 1 / -1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 8px 44px 8px 10px;
+  border: 1px solid #26575a;
+  border-radius: 10px;
+  background: #0b2f34;
+}
+.footer-install-copy { min-width: 0; flex: 1 1 auto; }
+.footer-install h2 { margin: 0; color: #f2b718; font-size: 11px; font-weight: 750; }
+.footer-install p { margin: 2px 0 0; color: #b6ccc6; font-size: 9px; line-height: 1.4; }
+.footer-install-badge { display: none; }
+.footer-install-dismiss {
+  position: absolute;
+  top: 4px;
+  inset-inline-end: 4px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #b8cbc6;
+  background: #103538;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.footer-install-link,
+.footer-app-link {
+  min-height: 32px;
+  padding: 6px 4px;
+  border: 0;
+  background: none;
+  color: #f2b718;
+  font: inherit;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: .01em;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
+.footer-app-link { grid-column: 1 / -1; justify-self: start; margin-top: 8px; }
 
-.hero-actions .mza-install-button.button-primary:disabled {
-  opacity: 1;
-  cursor: default;
-}
-
-.footer-install-button {
-  margin-top: 11px;
-  min-height: 38px;
-  padding: 8px 16px;
-  border: 1px solid #f2b718;
-  border-radius: 999px;
-  color: #172a22;
-  background: linear-gradient(180deg, #ffd42e, #efa900);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.footer-install-button:focus-visible,
-.hero-actions .mza-install-button:focus-visible,
+.footer-install-link:focus-visible,
+.footer-app-link:focus-visible,
+.footer-install-dismiss:focus-visible,
 .mza-install-dialog button:focus-visible {
   outline: 2px solid #67b9ac;
   outline-offset: 2px;
 }
 
-.mza-is-installed .mza-install-button,
-.mza-is-installed .footer-install {
-  display: none !important;
-}
+.mza-is-installed .footer-install,
+.mza-is-installed .footer-app-link { display: none !important; }
 
 .mza-install-dialog {
   width: min(92vw, 420px);
@@ -64,10 +82,7 @@
   backdrop-filter: blur(2px);
 }
 
-.mza-install-dialog__panel {
-  position: relative;
-  padding: 42px 20px 20px;
-}
+.mza-install-dialog__panel { position: relative; padding: 42px 20px 20px; }
 
 .mza-install-dialog__close {
   position: absolute;
@@ -98,11 +113,7 @@
   line-height: 1.6;
 }
 
-.mza-install-dialog__actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 18px;
-}
+.mza-install-dialog__actions { display: flex; justify-content: flex-end; margin-top: 18px; }
 
 .mza-install-dialog__confirm {
   min-height: 40px;
@@ -116,11 +127,10 @@
   cursor: pointer;
 }
 
+html[dir="rtl"] .footer-install { text-align: right; }
+
 @media (prefers-reduced-motion: no-preference) {
-  .mza-install-button, .footer-install-button, .mza-install-dialog button {
-    transition: transform .15s ease, background-color .15s ease;
-  }
-  .mza-install-button:active, .footer-install-button:active, .mza-install-dialog button:active {
-    transform: translateY(1px);
+  .footer-install-link, .footer-app-link, .footer-install-dismiss, .mza-install-dialog button {
+    transition: color .15s ease, background-color .15s ease;
   }
 }

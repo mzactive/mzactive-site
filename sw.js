@@ -1,6 +1,6 @@
 // MZA app shell. Private pages, API traffic and cross-origin requests stay network-only.
-// Cache name bumped from mza-shell-v6 to mza-shell-v7; older shell caches are retired on activate.
-const CACHE = 'mza-shell-v7';
+// Cache name bumped from mza-shell-v7 to mza-shell-v8; older shell caches are retired on activate.
+const CACHE = 'mza-shell-v8';
 const SHELL = [
   '/offline.html',
   '/manifest.json',
@@ -13,8 +13,8 @@ const SHELL = [
   '/assets/css/account-menu.css?v=20261120h',
   '/assets/js/account-menu.js?v=20261120h',
   '/assets/js/auth-session.js?v=20261120h',
-  '/assets/css/pwa-install.css?v=20261120f',
-  '/assets/js/pwa-install.js?v=20261120f',
+  '/assets/css/pwa-install.css?v=20261121c',
+  '/assets/js/pwa-install.js?v=20261121c',
   '/assets/js/language-preference.js?v=20261120c',
   '/assets/js/site-language.js?v=20261120h',
   '/assets/js/api-base.js',

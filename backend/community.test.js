@@ -71,6 +71,12 @@ test('approved coaches publish cover images, achievements and community posts im
   const cover = await call('me/profile/cover', 'PUT', image, coach.token);
   assert.equal(cover.status, 'approved');
   assert.deepEqual(await call('providers/' + profileId + '/cover'), image);
+  assert.deepEqual(await call('admin/providers/' + profileId + '/cover', 'GET', undefined, admin.token), image);
+  const adminQueue = await call('admin/applications', 'GET', undefined, admin.token);
+  const adminRow = adminQueue.approved_providers.find((item) => item.id === profileId);
+  assert.equal(adminRow.has_cover, 1);
+  assert.ok(adminRow.has_profile_photo === 0 || adminRow.has_profile_photo === 1);
+  assert.ok(adminRow.profile_photo_updated_at === null || typeof adminRow.profile_photo_updated_at === 'string');
 
   const achievement = await call('me/achievements', 'POST', { title: 'National champion', details: '2024 10K', awarded_year: 2024 }, coach.token, 201);
   assert.equal(achievement.status, 'published');

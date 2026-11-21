@@ -46,7 +46,7 @@ test('service worker keeps accounts, API traffic and private pages network-only'
 
 test('registration and offline fallback share the existing language system', () => {
   assert.match(register, /serviceWorker.*in navigator/);
-  assert.match(register, /register\(['"]\/sw\.js\?v=20261121a['"]/);
+  assert.match(register, /register\(['"]\/sw\.js\?v=20261121b['"]/);
   assert.match(register, /scope:\s*['"]\/['"]/);
   new Function(register);
   const offline = read('offline.html');
@@ -71,21 +71,22 @@ test('all site pages expose install metadata and the mobile viewport', () => {
   assert.match(subdirectory, /assets\/js\/pwa-register\.js/);
 });
 
-test('every footer includes the bilingual MZA app installation section', () => {
-  const withFooter = [...pages, '4-week-10k/index.html'].filter(page => /<\/footer>/.test(read(page)));
+test('public footers include the compact bilingual MZA app link; the portal does not', () => {
+  const withFooter = [...pages.filter(page => page !== 'admin.html'), '4-week-10k/index.html'].filter(page => /<\/footer>/.test(read(page)));
   assert.ok(withFooter.length >= 13);
   for (const page of withFooter) {
     const html = read(page);
-    assert.match(html, /class="footer-install"/, page);
-    assert.match(html, /data-en="Install the MZA app"/, page);
-    assert.match(html, /data-ar="تثبيت تطبيق MZA"/, page);
+    assert.match(html, /class="footer-install" data-mza-install-promo/, page);
+    assert.match(html, /data-en="Get the MZA App"/, page);
+    assert.match(html, /data-ar="احصل على تطبيق MZA"/, page);
     assert.match(html, /class="footer-vision-link"[^>]*href="(?:\.\.\/)?vision\.html"/, page);
     assert.match(html, /data-en="Our Vision" data-ar="رؤيتنا"/, page);
   }
+  assert.doesNotMatch(read('admin.html'), /footer-install|pwa-install\.js/);
 });
 
 test('service worker cache refresh bypasses stale profile and language assets', () => {
-  assert.match(sw, /mza-shell-v7/);
+  assert.match(sw, /mza-shell-v8/);
   assert.match(sw, /\/assets\/js\/language-preference\.js\?v=20261120c/);
   assert.match(sw, /\/assets\/css\/site-theme\.css\?v=20261120h/);
   assert.match(sw, /\/assets\/css\/account-menu\.css\?v=20261120h/);

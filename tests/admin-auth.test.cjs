@@ -5,20 +5,26 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const html = read('admin.html');
+const account = read('account.html');
 const js = read('assets/js/admin.js');
 const css = read('assets/css/admin.css');
 
-test('admin login and recovery forms are bilingual and keyboard accessible', () => {
-  for (const id of ['login', 'recover', 'setup', 'changePassword']) {
+test('admin login and account security forms are bilingual and keyboard accessible', () => {
+  for (const id of ['login', 'setup', 'changePassword']) {
     assert.match(html, new RegExp(`<form id="${id}"`));
   }
+  for (const id of ['accountPasswordForm', 'recover']) {
+    assert.match(account, new RegExp(`<form id="${id}"`));
+  }
   assert.match(html, /name="password"[^>]*autocomplete="current-password"/);
-  assert.match(html, /name="new_password"[^>]*autocomplete="new-password"/);
-  assert.match(html, /name="confirm_password"[^>]*autocomplete="new-password"/);
-  assert.equal((html.match(/data-password-toggle=/g) || []).length, 4);
+  assert.match(account, /name="new_password"[^>]*autocomplete="new-password"/);
+  assert.match(account, /name="confirm_password"[^>]*autocomplete="new-password"/);
+  assert.equal((html.match(/data-password-toggle=/g) || []).length, 3);
+  assert.equal((account.match(/data-password-toggle=/g) || []).length, 2);
   assert.match(html, /data-en="Show" data-ar="إظهار"/);
   assert.match(html, /data-en="Forgot your password\?" data-ar="هل نسيت كلمة المرور\؟"/);
-  assert.match(html, /data-en="Reset admin password" data-ar="إعادة تعيين كلمة مرور المسؤول"/);
+  assert.match(account, /id="security"[^>]*data-en="Security" data-ar="الأمان"/);
+  assert.match(account, /data-en="Administrator email" data-ar="بريد المسؤول"/);
   assert.match(css, /\.password-toggle/);
   assert.match(css, /\.link-button/);
 });
@@ -41,7 +47,7 @@ test('admin client reports network failures and invalid responses instead of a g
   assert.match(js, /catch\{throw Error\('connection_error'\)\}/);
   assert.match(js, /r\.status>=500\?'service_unavailable':'request_failed'/);
   assert.match(js, /await r\.json\(\)\}\s*catch\{throw Error\('request_failed'\)\}/);
-  assert.match(js, /api\('auth\/recover'/);
+  assert.match(account, /api\('\/api\/auth\/recover'/);
   assert.match(js, /api\('auth\/change-password'/);
-  assert.match(js, /f\.elements\.new_password\.value!==f\.elements\.confirm_password\.value/);
+  assert.match(account, /field\(form, 'new_password'\)\.value !== field\(form, 'confirm_password'\)\.value/);
 });

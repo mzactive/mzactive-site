@@ -57,6 +57,23 @@ test.describe('MZA app install UX', () => {
     });
   });
 
+  test('dismissal is remembered and leaves only a small optional footer link', async ({ page }) => {
+    await page.goto('/index.html');
+    await expect(page.locator('.footer-install')).toBeVisible();
+    await expect(page.locator('#mzaInstallDialog')).toHaveCount(0);
+
+    await page.locator('[data-mza-install-dismiss]').click();
+    await expect(page.locator('.footer-install')).toBeHidden();
+    const link = page.locator('[data-mza-install-link]');
+    await expect(link).toBeVisible();
+    await expect(link).toHaveText('Get the MZA App');
+
+    await page.reload();
+    await expect(page.locator('.footer-install')).toBeHidden();
+    await expect(link).toBeVisible();
+    await expect(page.locator('#mzaInstallDialog')).toHaveCount(0);
+  });
+
   test('standalone launch reports the mode and hides install controls', async ({ page }) => {
     await page.addInitScript(() => {
       const realMatchMedia = window.matchMedia.bind(window);

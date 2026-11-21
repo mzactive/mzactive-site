@@ -20,8 +20,8 @@
   <link rel="stylesheet" href="assets/css/account-menu.css?v=20261120h">
   <script src="assets/js/account-menu.js?v=20261120h" defer></script>
   <script src="assets/js/site-language.js?v=20261120h" defer></script>
-  <script src="assets/js/pwa-register.js?v=20261121a" defer></script>
-  <script src="assets/js/pwa-install.js?v=20261120f" defer></script>
+  <script src="assets/js/pwa-register.js?v=20261121b" defer></script>
+  <script src="assets/js/pwa-install.js?v=20261121c" defer></script>
 </head>
 <body>
   <header><div class="wrap" style="min-height:70px;display:flex;align-items:center;justify-content:space-between;gap:14px">
@@ -37,7 +37,8 @@
       <h2 data-en="Your account" data-ar="حسابك">Your account</h2>
       <p><strong data-en="Email" data-ar="البريد الإلكتروني">Email</strong>: <span id="accountEmail">—</span></p>
       <p><strong data-en="Account type" data-ar="نوع الحساب">Account type</strong>: <span id="accountType">—</span></p>
-      <h2 data-en="Change password" data-ar="تغيير كلمة المرور">Change password</h2>
+      <h2 id="security" data-en="Security" data-ar="الأمان">Security</h2>
+      <h3 data-en="Change password" data-ar="تغيير كلمة المرور">Change password</h3>
       <form id="accountPasswordForm" class="auth-form">
         <label data-en="Current password" data-ar="كلمة المرور الحالية">Current password
           <input name="current_password" type="password" autocomplete="current-password" required>
@@ -49,21 +50,42 @@
       </form>
       <p><button id="accountSignOut" class="secondary" type="button" data-en="Sign Out" data-ar="تسجيل الخروج">Sign Out</button></p>
       <p class="muted" data-en="Changing your password signs out other sessions. Use Forgot Password on the sign-in page if you cannot sign in." data-ar="يؤدي تغيير كلمة المرور إلى تسجيل الخروج من الجلسات الأخرى. استخدم «نسيت كلمة المرور» في صفحة الدخول إذا تعذر تسجيل الدخول.">Changing your password signs out other sessions. Use Forgot Password on the sign-in page if you cannot sign in.</p>
+      <details id="emergencyRecovery" class="auth-emergency" hidden><summary id="recoverOpen" data-en="Emergency owner recovery (offline key only)" data-ar="استعادة مالك الحساب للطوارئ (مفتاح غير متصل فقط)">Emergency owner recovery (offline key only)</summary>
+        <form id="recover" class="auth-form">
+          <p class="muted" data-en="Emergency fallback for the administrator only. Use this when email recovery is unavailable; it requires the offline recovery key held by the account owner." data-ar="حل طارئ للمسؤول فقط. استخدمه عندما تتعذر الاستعادة عبر البريد؛ فهو يتطلب مفتاح الاستعادة غير المتصل الذي يحتفظ به صاحب الحساب.">Emergency fallback for the administrator only. Use this when email recovery is unavailable; it requires the offline recovery key held by the account owner.</p>
+          <label data-en="Administrator email" data-ar="بريد المسؤول">Administrator email
+            <input name="email" type="email" autocomplete="username" required>
+          </label>
+          <label data-en="Recovery key" data-ar="مفتاح الاستعادة">Recovery key
+            <input name="key" type="password" autocomplete="off" required>
+          </label>
+          <label data-en="New password (12+ characters)" data-ar="كلمة المرور الجديدة (١٢ حرفاً على الأقل)">New password (12+ characters)
+            <span class="auth-password-field"><input id="recoverPassword" name="new_password" type="password" minlength="12" autocomplete="new-password" required><button class="auth-password-toggle" type="button" data-password-toggle="recoverPassword" data-en="Show" data-ar="إظهار" aria-label="Show password">Show</button></span>
+          </label>
+          <label data-en="Confirm new password" data-ar="تأكيد كلمة المرور الجديدة">Confirm new password
+            <input name="confirm_password" type="password" minlength="12" autocomplete="new-password" required>
+          </label>
+          <button type="submit" data-en="Reset password" data-ar="إعادة تعيين كلمة المرور">Reset password</button>
+        </form>
+      </details>
     </section>
   </main>
   <footer><div class="wrap">
     <a class="management-footer-link" href="https://mzactive.com/admin.html" rel="nofollow" aria-label="Management Portal" data-en-aria-label="Management Portal" data-ar-aria-label="بوابة الإدارة"><svg class="management-shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.75 5 5.5v5.35c0 4.15 2.75 8 7 9.4 4.25-1.4 7-5.25 7-9.4V5.5l-7-2.75Z"></path><path d="M12 7.6v8.8M8.6 12h6.8"></path></svg><span data-en="Management Portal" data-ar="بوابة الإدارة">Management Portal</span></a>
     <a class="footer-vision-link" href="vision.html" data-en="Our Vision" data-ar="رؤيتنا">Our Vision</a>
-    <div class="footer-install" role="region" aria-labelledby="footerInstallTitle">
-      <div><h2 id="footerInstallTitle" data-en="Install the MZA app" data-ar="تثبيت تطبيق MZA">Install the MZA app</h2>
-      <p data-en="Open this site in Safari or Chrome, tap Share or the menu, then choose Add to Home Screen. Saved pages work offline." data-ar="افتح هذا الموقع في Safari أو Chrome، واضغط مشاركة أو قائمة المتصفح، ثم اختر «إضافة إلى الشاشة الرئيسية». تعمل الصفحات المحفوظة دون اتصال.">Open this site in Safari or Chrome, tap Share or the menu, then choose Add to Home Screen. Saved pages work offline.</p></div>
-      <span class="footer-install-badge" aria-hidden="true">MZA</span>
-    </div>
+    <div class="footer-install" data-mza-install-promo role="region" aria-labelledby="footerInstallTitle">
+          <div class="footer-install-copy"><h2 id="footerInstallTitle" data-en="Get the MZA App" data-ar="احصل على تطبيق MZA">Get the MZA App</h2>
+          <p data-en="Open MZA in Safari or Chrome and use the browser menu to add it to your home screen." data-ar="افتح MZA في Safari أو Chrome واستخدم قائمة المتصفح لإضافته إلى الشاشة الرئيسية.">Open MZA in Safari or Chrome and use the browser menu to add it to your home screen.</p></div>
+          <button class="mza-install-button footer-install-button" type="button" data-mza-install-button data-mza-install-label="get" data-en="Get the MZA App" data-ar="احصل على تطبيق MZA" aria-label="Get the MZA App" data-en-aria-label="Get the MZA App" data-ar-aria-label="احصل على تطبيق MZA">Get the MZA App</button>
+          <button class="footer-install-dismiss" type="button" data-mza-install-dismiss aria-label="Dismiss app promotion" data-en-aria-label="Dismiss app promotion" data-ar-aria-label="إخفاء عرض التطبيق">×</button>
+        </div>
+        <button class="footer-app-link" type="button" data-mza-install-button data-mza-install-label="get" data-mza-install-link data-en="Get the MZA App" data-ar="احصل على تطبيق MZA" aria-label="Get the MZA App" data-en-aria-label="Get the MZA App" data-ar-aria-label="احصل على تطبيق MZA" hidden>Get the MZA App</button>
   </div></footer>
   <script>
   (() => {
     const API = window.MZACTIVE_API_BASE, KEY = 'mzactive-provider-session';
     const $ = id => document.getElementById(id);
+    const field = (form, name) => form.elements.namedItem(name);
     const lang = () => window.MZActiveLanguage?.get() === 'ar' ? 1 : 0;
     const t = (en, ar) => lang() ? ar : en;
     const token = () => sessionStorage.getItem(KEY) || localStorage.getItem(KEY) || '';
@@ -88,6 +110,12 @@
         $('accountEmail').textContent = access.user?.email || '—';
         const type = access.account_type;
         $('accountType').textContent = type === 'admin' ? t('Administrator', 'مسؤول') : type === 'manager' ? t('Manager', 'مدير') : type === 'provider' ? t('Professional provider', 'مقدم خدمة محترف') : t('Member', 'عضو');
+        // The protected offline-key fallback is shown only to the administrator.
+        $('emergencyRecovery').hidden = type !== 'admin';
+        if (type === 'admin') {
+          const emailField = $('recover').elements.namedItem('email');
+          if (emailField) emailField.value = access.user?.email || '';
+        }
       } catch {
         localStorage.removeItem(KEY); sessionStorage.removeItem(KEY);
         location.replace('/dashboard.html#loginForm');
@@ -100,8 +128,8 @@
       button.disabled = true;
       try {
         await api('/api/auth/change-password', {
-          current_password: form.elements.current_password.value,
-          new_password: form.elements.new_password.value,
+          current_password: field(form, 'current_password').value,
+          new_password: field(form, 'new_password').value,
         });
         form.reset();
         $('accountStatus').textContent = t('Password changed. Other sessions were signed out.', 'تم تغيير كلمة المرور. تم تسجيل الخروج من الجلسات الأخرى.');
@@ -116,6 +144,43 @@
       localStorage.removeItem(KEY); sessionStorage.removeItem(KEY);
       location.assign('/index.html');
     });
+    $('recover').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget, button = form.querySelector('button[type=submit]');
+      if (field(form, 'new_password').value !== field(form, 'confirm_password').value) {
+        $('accountStatus').textContent = t('The new passwords do not match.', 'كلمتا المرور الجديدتان غير متطابقتين.');
+        return;
+      }
+      $('accountStatus').textContent = t('Resetting password…', 'جارٍ إعادة تعيين كلمة المرور…');
+      button.disabled = true;
+      try {
+        await api('/api/auth/recover', {
+          email: field(form, 'email').value,
+          key: field(form, 'key').value,
+          new_password: field(form, 'new_password').value,
+        });
+        form.reset();
+        $('emergencyRecovery').open = false;
+        $('accountStatus').textContent = t('Password reset. Sign in with your new password.', 'تمت إعادة تعيين كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.');
+      } catch (error) {
+        $('accountStatus').textContent = error.message === 'invalid_recovery'
+          ? t('The email or recovery key is incorrect, or no administrator account matches it.', 'البريد أو مفتاح الاستعادة غير صحيح، أو لا يوجد حساب مسؤول مطابق.')
+          : error.message === 'recovery_unavailable' ? t('Password recovery is not configured. Contact the account owner.', 'استعادة كلمة المرور غير مهيأة. تواصل مع صاحب الحساب.')
+          : t('Could not reset the password. Please try again.', 'تعذر إعادة تعيين كلمة المرور. يرجى المحاولة مجدداً.');
+      } finally { button.disabled = false; }
+    });
+    for (const button of document.querySelectorAll('[data-password-toggle]')) {
+      if (button.dataset.bound) continue;
+      button.dataset.bound = '1';
+      button.addEventListener('click', () => {
+        const input = $(button.dataset.passwordToggle);
+        if (!input) return;
+        input.type = input.type === 'password' ? 'text' : 'password';
+        const label = input.type === 'text' ? t('Hide', 'إخفاء') : t('Show', 'إظهار');
+        button.textContent = label;
+        button.setAttribute('aria-label', label);
+      });
+    }
     start();
   })();
   </script>

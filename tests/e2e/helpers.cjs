@@ -83,6 +83,21 @@ function defaultApiHandler(ctx, state) {
   }
   if (urlPath === '/api/auth/logout') return json({ ok: true });
   if (urlPath === '/api/admin/history') return json({ events: [] });
+  if (urlPath === '/api/admin/dashboard') {
+    return json({
+      counts: { bookings: 0, coaches: 0, messages: 0, community: 0, articles: 0, ai: 0 },
+      notifications: [],
+      unread: 0,
+      total: 0,
+      activity: [],
+      generated_at: '2026-11-21T12:00:00.000Z',
+    });
+  }
+  if (urlPath === '/api/admin/notifications' && method === 'PATCH') return json({ updated: true, count: 0 });
+  if (urlPath === '/api/admin/messages') return json({ messages: [] });
+  if (urlPath === '/api/admin/applications') {
+    return json({ providers: [], approved_providers: [], rejected_providers: [], suspended_providers: [], bookings: [] });
+  }
   if (urlPath === '/api/admin/agents') {
     return json({
       snapshot: {

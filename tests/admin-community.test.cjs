@@ -12,7 +12,7 @@ test('admin moderates real community posts, comments and achievements', () => {
   assert.match(js, /admin\/community\/posts\/\'\+p\.id/);
   assert.match(js, /admin\/community\/comments\/\'\+c\.id/);
   assert.match(js, /admin\/achievements\/\'\+a\.id/);
-  assert.match(js, /p\.has_cover\)photo\(c,p\.id,\'cover\'\)/);
+  assert.match(js, /p\.has_cover\)photo\(c,p\.id,\'cover\',p\.display_name\)/);
   assert.match(js, /upload\(c,p,\'cover\'/);
 });
 

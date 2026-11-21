@@ -14,6 +14,7 @@ const authUi = read('assets/js/auth-ui.js');
 const authCss = read('assets/css/auth.css');
 const adminHtml = read('admin.html');
 const adminJs = read('assets/js/admin.js');
+const accountHtml = read('account.html');
 const dashboardHtml = read('dashboard.html');
 const providersHtml = read('providers.html');
 
@@ -101,21 +102,23 @@ test('shared dialog is generic, bilingual and never asks for a recovery key', ()
   assert.ok(authUi.indexOf("'If an account exists for this email") < authUi.indexOf("'Password reset successful'") || !authUi.includes('Password reset successful'));
 });
 
-test('admin emergency key form is collapsed and is not the forgot-password trigger', () => {
-  const start = adminHtml.indexOf('<details id="emergencyRecovery"');
-  const end = adminHtml.indexOf('</details>', start);
-  assert.ok(start > -1 && end > start, 'emergency details wrapper missing');
-  const emergency = adminHtml.slice(start, end);
+test('emergency owner recovery lives only in Account Security and is admin-gated', () => {
+  assert.doesNotMatch(adminHtml, /emergencyRecovery|auth\/recover|<form id="recover"/);
+  assert.doesNotMatch(adminJs, /auth\/recover|\$\('emergencyRecovery'\)/);
+  assert.match(adminHtml, /id="forgotPasswordOpen"[^>]*data-forgot-password/);
+  const start = accountHtml.indexOf('<details id="emergencyRecovery"');
+  const end = accountHtml.indexOf('</details>', start);
+  assert.ok(start > -1 && end > start, 'account security emergency details missing');
+  const emergency = accountHtml.slice(start, end);
+  assert.match(accountHtml, /<details id="emergencyRecovery"[^>]*hidden/);
   assert.match(emergency, /Emergency owner recovery \(offline key only\)/);
   assert.match(emergency, /استعادة مالك الحساب للطوارئ \(مفتاح غير متصل فقط\)/);
   assert.match(emergency, /<form id="recover"/);
   assert.match(emergency, /name="key"/);
-  assert.match(emergency, /Emergency fallback only\./);
-  assert.match(adminHtml, /id="forgotPasswordOpen"[^>]*data-forgot-password/);
-  assert.match(adminJs, /\$\('emergencyRecovery'\)\.open=true/);
-  assert.match(adminJs, /auth\/recover/);
+  assert.match(accountHtml, /\$\('emergencyRecovery'\)\.hidden\s*=\s*type\s*!==\s*'admin'/);
+  assert.match(accountHtml, /api\('\/api\/auth\/recover'/);
   assert.match(authUi, /Older pages used "Forgot your password\?"; normalise to the shared label\./);
-  // The key form's action stays with the emergency handler, not the dialog.
+  // The normal dialog remains the only forgot-password trigger on the portal.
   assert.doesNotMatch(adminJs, /\$\('forgotPasswordOpen'\)\.onclick/);
 });
 
