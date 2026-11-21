@@ -171,6 +171,8 @@ test('install assets join the offline-safe versioned shell', () => {
 
 test('the subdirectory guide uses the same versioned PWA assets as the rest of the site', () => {
   const guide = read('4-week-10k/index.html');
+  assert.doesNotMatch(guide, /id="plan">div class="wrap"/);
+  assert.match(guide, /id="plan"><div class="wrap"><div class="eyebrow">Four-week structure/);
   assert.match(guide, /pwa-register\.js\?v=20261121b/);
   assert.match(guide, /icon-192\.png\?v=20261120c/);
   assert.match(guide, /apple-touch-icon-180\.png\?v=20261120c/);

@@ -146,6 +146,11 @@ test('Arabic profile keeps RTL facts readable and translates the Momo label', as
   const metrics = await layoutMetrics(page);
   expect(metrics.momo.text).toContain('اسأل مومو');
   expect(metrics.momo.label).toBe('اسأل مومو');
+  await page.locator('#mz-assistant-toggle').click();
+  await expect(page.locator('#mz-assistant-note')).toContainText('اسأل عن المدربين');
+  await expect(page.locator('#mz-assistant-input')).toHaveAttribute('placeholder', 'اكتب سؤالك…');
+  await expect(page.locator('#mz-assistant-send')).toHaveText('إرسال');
+  await expect(page.locator('#mz-assistant-messages p').first()).toContainText('مرحباً! أنا مومو');
   expect(metrics.overflow).toBeLessThanOrEqual(1);
   for (const fact of metrics.facts) {
     expect(fact.width).toBeGreaterThan(80);

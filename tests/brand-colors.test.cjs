@@ -23,7 +23,7 @@ const changedSiteFiles = [
   'providers.html',
   'events.html',
   'privacy.html',
-  'assets/js/assistant-chat.js',
+  'assets/js/assistant-chat-v2.js',
   '4-week-10k/index.html',
 ];
 const changedAppFiles = ['App.tsx', 'app.json'];

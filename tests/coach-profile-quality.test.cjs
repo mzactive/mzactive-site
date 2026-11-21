@@ -9,7 +9,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const css = read('assets/css/coach-profile.css');
 const page = read('coach.html');
 const profileJs = read('assets/js/coach-profile.js');
-const assistant = read('assets/js/assistant-chat.js');
+const assistant = read('assets/js/assistant-chat-v2.js');
 const whatsapp = read('assets/js/whatsapp-chat.js');
 const contactHelper = read('assets/js/management-contact.js');
 const worker = read('backend/worker.js');
@@ -41,6 +41,10 @@ test('Momo assistant is compact, localized, and honest when unavailable', () => 
   assert.match(assistant, /min-height:40px/);
   assert.match(assistant, /env\(safe-area-inset-bottom\)/);
   assert.match(assistant, /The assistant is unavailable right now/);
+  assert.match(assistant, /المساعد غير متاح حالياً/);
+  assert.match(assistant, /note: 'اسأل عن المدربين/);
+  assert.match(assistant, /placeholder: 'اكتب سؤالك/);
+  assert.match(assistant, /data-ar="\$\{COPY\.ar\.note\}"|data-ar-placeholder="\$\{COPY\.ar\.placeholder\}"/);
   assert.doesNotMatch(assistant, /Ask MZ Active/);
 });
 
