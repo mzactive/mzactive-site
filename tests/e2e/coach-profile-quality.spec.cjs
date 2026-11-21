@@ -132,6 +132,11 @@ test('floating Momo and WhatsApp controls stay compact, labelled, and non-overla
     expect(metrics.widgetOverlap, `widget overlap at ${width}px`).toBe(false);
     expect(metrics.footerOverlap, `footer overlap at ${width}px`).toBe(false);
     expect(metrics.overflow, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(1);
+    if (width <= 900) {
+      const isCentered = rect => Math.abs(rect.x - (width - rect.w) / 2) <= 2;
+      expect(isCentered(metrics.momo), `Momo centering at ${width}px`).toBe(true);
+      expect(isCentered(metrics.whatsapp), `WhatsApp centering at ${width}px`).toBe(true);
+    }
   }
 });
 
