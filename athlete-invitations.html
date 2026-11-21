@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="Review an MZ Active athlete invitation.">
+  <title>Athlete invitation | MZ Active</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MZA">
+  <meta name="theme-color" content="#091d21">
+  <script src="assets/js/language-preference.js?v=20261120c"></script>
+  <script src="assets/js/api-base.js?v=20261120f"></script>
+  <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h">
+  <link rel="stylesheet" href="assets/css/auth.css?v=20261120f">
+  <script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
+</head>
+<body class="auth-reset-page">
+  <header>
+    <div class="wrap">
+      <a class="brand" href="index.html"><img src="assets/brand/mzactive-logo.webp" alt="MZ Active"></a>
+      <nav class="nav">
+        <a href="dashboard.html" data-en="Go to dashboard" data-ar="الذهاب إلى لوحة التحكم">Go to dashboard</a>
+        <button class="lang-toggle" type="button" data-en="العربية" data-ar="English">العربية</button>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <section class="auth-reset-card">
+      <h1 data-en="Your MZ Active invitation" data-ar="دعوتك من MZ Active">Your MZ Active invitation</h1>
+      <p id="invitationIntro" data-en="Review the details below. You decide whether to accept or decline." data-ar="راجع التفاصيل أدناه. أنت من يقرر القبول أو الرفض.">Review the details below. You decide whether to accept or decline.</p>
+      <div id="invitationLoading" role="status" aria-live="polite" data-en="Loading invitation…" data-ar="جارٍ تحميل الدعوة…">Loading invitation…</div>
+      <div id="invitationDetails" hidden>
+        <h2 id="invitationTitle"></h2>
+        <p id="invitationMeta" class="muted"></p>
+        <ul id="invitationReasons"></ul>
+        <p class="muted" data-en="No coaching workspace opens unless you accept. Nothing here is a medical claim or diagnosis." data-ar="لا تُفتح أي مساحة تدريب إلا إذا قبلت. لا يتضمن هذا أي ادعاء أو تشخيص طبي.">No coaching workspace opens unless you accept. Nothing here is a medical claim or diagnosis.</p>
+        <div class="auth-reset-links">
+          <button id="invitationAccept" class="auth-reset-submit" type="button" data-en="Accept" data-ar="قبول">Accept</button>
+          <button id="invitationDecline" class="auth-reset-submit alt" type="button" data-en="Decline" data-ar="رفض">Decline</button>
+        </div>
+      </div>
+      <div id="invitationSuccess" hidden>
+        <h2 id="invitationSuccessTitle" tabindex="-1"></h2>
+        <p id="invitationSuccessBody"></p>
+        <div class="auth-reset-links">
+          <a id="invitationNext" href="dashboard.html" data-en="Go to dashboard" data-ar="الذهاب إلى لوحة التحكم">Go to dashboard</a>
+        </div>
+      </div>
+      <p id="invitationStatus" class="auth-reset-status" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+  <script src="assets/js/athlete-invitations.js?v=20261121a"></script>
+  <script src="assets/js/site-language.js?v=20261120h"></script>
+  <footer><div class="wrap"><a class="management-footer-link" href="https://mzactive.com/admin.html" rel="nofollow" aria-label="Management Portal" data-en-aria-label="Management Portal" data-ar-aria-label="بوابة الإدارة"><svg class="management-shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.75 5 5.5v5.35c0 4.15 2.75 8 7 9.4 4.25-1.4 7-5.25 7-9.4V5.5l-7-2.75Z"></path><path d="M12 7.6v8.8M8.6 12h6.8"></path></svg><span data-en="Management Portal" data-ar="بوابة الإدارة">Management Portal</span></a><a class="footer-vision-link" href="vision.html" data-en="Our Vision" data-ar="رؤيتنا">Our Vision</a><div class="footer-install" data-mza-install-promo role="region" aria-labelledby="footerInstallTitle">
+          <div class="footer-install-copy"><h2 id="footerInstallTitle" data-en="Get the MZA App" data-ar="احصل على تطبيق MZA">Get the MZA App</h2>
+          <p data-en="Open MZA in Safari or Chrome and use the browser menu to add it to your home screen." data-ar="افتح MZA في Safari أو Chrome واستخدم قائمة المتصفح لإضافته إلى الشاشة الرئيسية.">Open MZA in Safari or Chrome and use the browser menu to add it to your home screen.</p></div>
+          <button class="mza-install-button footer-install-button" type="button" data-mza-install-button data-mza-install-label="get" data-en="Get the MZA App" data-ar="احصل على تطبيق MZA" aria-label="Get the MZA App" data-en-aria-label="Get the MZA App" data-ar-aria-label="احصل على تطبيق MZA">Get the MZA App</button>
+          <button class="footer-install-dismiss" type="button" data-mza-install-dismiss aria-label="Dismiss app promotion" data-en-aria-label="Dismiss app promotion" data-ar-aria-label="إخفاء عرض التطبيق">×</button>
+        </div>
+        <button class="footer-app-link" type="button" data-mza-install-button data-mza-install-label="get" data-mza-install-link data-en="Get the MZA App" data-ar="احصل على تطبيق MZA" aria-label="Get the MZA App" data-en-aria-label="Get the MZA App" data-ar-aria-label="احصل على تطبيق MZA" hidden>Get the MZA App</button></div></footer><script src="assets/js/pwa-install.js?v=20261121c" defer></script>
+</body>
+</html>

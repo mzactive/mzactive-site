@@ -223,6 +223,8 @@
       $('sportsList').value = (p.sports || []).join(', ');
       $('sportsLevel').value = p.experience_level || '';
       $('sportsGoals').value = p.goals || '';
+      $('sportsLanguage').value = p.preferred_language || '';
+      $('sportsAvailability').value = p.availability_notes || '';
       $('sportsAge').value = p.age_range || '';
       $('sportsGender').value = p.gender || '';
       $('sportsGarmin').value = p.garmin_public_url || '';
@@ -245,6 +247,7 @@
           display_name: $('sportsName').value, city: $('sportsCity').value,
           sports: $('sportsList').value.split(',').map(item => item.trim()),
           experience_level: $('sportsLevel').value, goals: $('sportsGoals').value,
+          preferred_language: $('sportsLanguage').value, availability_notes: $('sportsAvailability').value,
           age_range: $('sportsAge').value, gender: $('sportsGender').value, garmin_public_url: garmin,
         },
       });

@@ -1,0 +1,321 @@
+/* Premium sign-in shell for dashboard.html and admin.html.
+ * Approved palette only: #091d21 #103538 #205456 #67b9ac #f2b718
+ * #f0f5f3 #b8cbc6 #c5d5d1 #2e6567 #367477 #123d40.
+ * Loaded after site-theme.css / auth.css; every rule is scoped to the
+ * signed-out state so the authenticated dashboards and CRM workspace keep
+ * their existing presentation. */
+:root {
+  --premium-bg: #091d21;
+  --premium-panel: #103538;
+  --premium-panel-2: #205456;
+  --premium-deep: #123d40;
+  --premium-accent: #67b9ac;
+  --premium-gold: #f2b718;
+  --premium-text: #f0f5f3;
+  --premium-muted: #b8cbc6;
+  --premium-muted-2: #c5d5d1;
+  --premium-line: #2e6567;
+  --premium-line-2: #367477;
+}
+
+/* The sign-in photograph is the existing licensed Doha running image. The
+ * JPEG is the fallback; capable browsers get the repository WebP derivatives. */
+body:has(#login:not([hidden])),
+body:has(#auth:not(.hidden)) {
+  background-image: linear-gradient(180deg, rgb(9 29 33 / 78%) 0%, rgb(9 29 33 / 62%) 38%, rgb(9 29 33 / 94%) 100%), url('../images/mzactive-hero-doha.jpg');
+  background-position: center, center 38%;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+@supports (background-image: image-set(url("../images/responsive/mzactive-hero-doha-640w.webp") type("image/webp") 1x)) {
+  body:has(#login:not([hidden])),
+  body:has(#auth:not(.hidden)) {
+    background-image: linear-gradient(180deg, rgb(9 29 33 / 78%) 0%, rgb(9 29 33 / 62%) 38%, rgb(9 29 33 / 94%) 100%), image-set(url("../images/responsive/mzactive-hero-doha-960w.webp") type("image/webp") 1x, url("../images/responsive/mzactive-hero-doha-1280w.webp") type("image/webp") 2x, url("../images/responsive/mzactive-hero-doha-1600w.webp") type("image/webp") 3x);
+  }
+}
+
+/* Shared card typography ------------------------------------------------- */
+.premium-auth__head {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+  text-align: center;
+}
+.premium-auth__logo {
+  display: block;
+  width: clamp(118px, 30vw, 152px);
+  height: auto;
+}
+body:not(.home-page) .premium-auth__eyebrow {
+  margin: 0;
+  color: var(--premium-gold) !important;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+body:not(.home-page) .premium-auth__intro {
+  margin: 0;
+  color: var(--premium-muted-2) !important;
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+/* Admin / Management Portal login --------------------------------------- */
+body:has(#login:not([hidden])) main > h1 {
+  margin: clamp(20px, 5vw, 42px) auto 0;
+  text-align: center;
+  font-size: clamp(1.7rem, 4.5vw, 2.5rem);
+  letter-spacing: -0.03em;
+}
+body:has(#login:not([hidden])) #notice {
+  width: min(520px, 100%);
+  margin: 12px auto 0;
+  text-align: center;
+  font-weight: 700;
+}
+body:not(.home-page) #login.panel:not([hidden]) {
+  display: grid;
+  gap: 18px;
+  width: min(520px, 100%);
+  max-width: none !important;
+  margin: clamp(18px, 5vw, 44px) auto clamp(28px, 6vw, 64px);
+  padding: clamp(26px, 5vw, 46px) !important;
+  border: 1px solid var(--premium-line-2) !important;
+  border-radius: 26px !important;
+  background: linear-gradient(155deg, var(--premium-panel-2), var(--premium-panel) 58%, var(--premium-bg)) !important;
+  box-shadow: 0 28px 70px rgb(9 29 33 / 62%);
+}
+
+/* Dashboard / athlete + coach sign-in (progressive studio shell) --------- */
+body:not(.home-page) section.studio-auth {
+  border: 1px solid var(--premium-line-2);
+  border-radius: 28px;
+  background-color: var(--premium-panel) !important;
+  box-shadow: 0 32px 90px rgb(9 29 33 / 66%);
+  min-height: 620px;
+  margin: clamp(22px, 5vw, 50px) auto 70px;
+  max-width: 1160px;
+  overflow: hidden;
+}
+body:not(.home-page) .studio-auth .panel {
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.studio-auth .auth-forms {
+  padding: clamp(28px, 5vw, 60px);
+  gap: 20px;
+}
+.studio-auth form.form-grid { gap: 18px; }
+.studio-auth .auth-switch {
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.studio-auth .auth-switch button {
+  min-height: 48px;
+  border: 1px solid var(--premium-line-2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--premium-muted-2);
+  font-weight: 800;
+}
+.studio-auth .auth-switch button[aria-pressed="true"] {
+  border-color: var(--premium-gold);
+  background: rgb(242 183 24 / 12%);
+  color: var(--premium-gold) !important;
+}
+.studio-auth .auth-story {
+  position: relative;
+  isolation: isolate;
+  min-height: 100%;
+  padding: clamp(32px, 5vw, 56px);
+  border-inline-start: 1px solid var(--premium-line-2);
+  border-radius: 0 26px 26px 0;
+  background-color: var(--premium-panel) !important;
+}
+.studio-auth .auth-story::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(180deg, rgb(9 29 33 / 4%) 28%, rgb(9 29 33 / 74%) 100%);
+  pointer-events: none;
+}
+.studio-auth .auth-story > * {
+  position: relative;
+  z-index: 1;
+}
+body:not(.home-page) .studio-auth .auth-story h2 {
+  color: var(--premium-text) !important;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+body:not(.home-page) .studio-auth .auth-story p {
+  color: var(--premium-muted-2) !important;
+}
+.studio-auth .auth-story .story-badge {
+  color: var(--premium-gold);
+  font-weight: 800;
+}
+.studio-auth .auth-coach-link {
+  margin-top: 6px;
+  color: var(--premium-muted) !important;
+}
+.studio-auth .auth-coach-link a {
+  color: var(--premium-gold) !important;
+  font-weight: 800;
+}
+.studio-auth .auth-forms .notice {
+  margin: 6px 0;
+  color: var(--premium-gold) !important;
+  text-align: center;
+}
+
+/* Controls shared by both sign-in cards ---------------------------------- */
+body:not(.home-page) #login label,
+body:not(.home-page) .studio-auth label {
+  color: var(--premium-muted-2) !important;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+body:not(.home-page) #login input:not([type="checkbox"]),
+body:not(.home-page) .studio-auth .field input {
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid var(--premium-line-2) !important;
+  border-radius: 14px !important;
+  background-color: var(--premium-deep) !important;
+  color: var(--premium-text) !important;
+  font-size: 16px;
+}
+body:not(.home-page) #login input::placeholder,
+body:not(.home-page) .studio-auth input::placeholder {
+  color: var(--premium-muted) !important;
+  opacity: 1;
+}
+.password-field,
+.auth-password-field {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.password-field input,
+.auth-password-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+body:not(.home-page) #login .password-toggle,
+body:not(.home-page) .studio-auth #loginForm .auth-password-toggle,
+body:not(.home-page) .studio-auth .password-field .password-toggle {
+  min-height: 52px !important;
+  padding: 10px 14px !important;
+  border: 1px solid var(--premium-line-2);
+  border-radius: 999px;
+  background: transparent !important;
+  color: var(--premium-gold) !important;
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+/* coaching-studio.js appends a second login toggle; the bilingual
+ * auth-ui.js control already in the markup is the accessible one. */
+.studio-auth #loginForm .auth-password-field .password-toggle { display: none; }
+body:not(.home-page) #login button[type="submit"],
+body:not(.home-page) .studio-auth form > button {
+  min-height: 52px;
+  padding: 13px 22px;
+  border: 1px solid var(--premium-gold) !important;
+  border-radius: 999px !important;
+  background: var(--premium-gold) !important;
+  color: var(--premium-bg) !important;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+body:not(.home-page) #login button[type="submit"]:hover,
+body:not(.home-page) .studio-auth form > button:hover {
+  background: var(--premium-gold) !important;
+  box-shadow: 0 10px 24px rgb(242 183 24 / 22%);
+  transform: translateY(-1px);
+}
+body:not(.home-page) #login .link-button,
+.studio-auth .auth-forgot-trigger {
+  justify-self: center;
+  min-height: 44px;
+  margin-top: 2px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--premium-gold) !important;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Keyboard and RTL ------------------------------------------------------- */
+body:not(.home-page) #login :is(input, button, a):focus-visible,
+.studio-auth :is(input, button, a):focus-visible {
+  outline: 3px solid var(--premium-gold) !important;
+  outline-offset: 3px;
+}
+html[dir="rtl"] .premium-auth__eyebrow,
+html[dir="rtl"] .premium-auth__intro,
+html[dir="rtl"] .studio-auth .auth-story,
+html[dir="rtl"] body:has(#login:not([hidden])) #notice {
+  text-align: right;
+}
+html[dir="rtl"] .studio-auth .auth-story {
+  border-inline-start: 0;
+  border-inline-end: 1px solid var(--premium-line-2);
+  border-radius: 26px 0 0 26px;
+}
+
+/* Mobile-first: keep the photo, shorten it, and stack the panel. --------- */
+@media (max-width: 760px) {
+  body:has(#login:not([hidden])),
+  body:has(#auth:not(.hidden)) {
+    background-attachment: scroll;
+    background-position: center, 50% 22%;
+  }
+  body:not(.home-page) #login.panel:not([hidden]) {
+    padding: 24px 18px 28px !important;
+    border-radius: 22px !important;
+  }
+  body:not(.home-page) section.studio-auth {
+    min-height: 0;
+    margin: 18px auto 48px;
+    border-radius: 22px;
+  }
+  .studio-auth .auth-story {
+    order: -1;
+    min-height: 230px;
+    padding: 26px 22px;
+    border-inline: 0;
+    border-bottom: 1px solid var(--premium-line-2);
+    border-radius: 22px 22px 0 0;
+    background-position: center, 50% 32% !important;
+  }
+  .studio-auth .auth-story h2 {
+    font-size: clamp(28px, 8vw, 36px);
+  }
+  .studio-auth .auth-forms {
+    padding: 28px 20px 32px;
+  }
+  html[dir="rtl"] .studio-auth .auth-story {
+    border-radius: 22px 22px 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.home-page) #login button[type="submit"],
+  body:not(.home-page) .studio-auth form > button {
+    transition: none !important;
+    transform: none !important;
+  }
+}

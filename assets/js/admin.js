@@ -4,9 +4,9 @@
   const key = 'mzactive-provider-session';
   const base = window.MZACTIVE_API_BASE;
   const tabs = {overview:['Overview','نظرة عامة'],coaches:['Coaches','المدربون'],bookings:['Bookings','الحجوزات'],messages:['Messages','الرسائل'],athletes:['Athletes & training','الرياضيون والتدريب'],community:['Community','المجتمع'],articles:['Articles','المقالات'],ai:['AI Brain','المساعد الذكي'],history:['Activity','سجل النشاط']};
-  const TAB_PERMISSIONS = {coaches:'management.coaches',bookings:'management.bookings',messages:'management.coaches',community:'management.community',articles:'management.articles',ai:'management.ai'};
+  const TAB_PERMISSIONS = {coaches:'management.coaches',bookings:'management.bookings',messages:'management.coaches',athletes:'management.coaches',community:'management.community',articles:'management.articles',ai:'management.ai'};
   const labels = {operations:['Operations manager','مدير العمليات'],monitoring:['Website monitoring','مراقبة الموقع'],analytics:['Business analytics','تحليل الأعمال'],growth:['Growth and strategy','النمو والاستراتيجية'],marketing:['Marketing','التسويق'],community:['Community planning','تخطيط المجتمع'],support:['Customer support','دعم العملاء'],
-    received:['Received','تم الاستلام'],reviewing:['Under review','قيد المراجعة'],accepted:['Confirmed','مؤكد'],cancelled:['Cancelled','ملغى'],declined:['Declined','مرفوض'],approved:['Approved','معتمد'],rejected:['Rejected','مرفوض'],pending:['Pending','قيد الانتظار'],published:['Published','منشور'],completed:['Completed','مكتمل'],failed:['Failed','فشل'],running:['Running','قيد التنفيذ'],run_completed:['AI analysis completed','اكتمل التحليل الذكي'],scheduled_snapshot_completed:['Data collected','تم جمع البيانات'],run_failed:['Analysis failed','فشل التحليل'],program_assigned:['Program assigned','تم ربط البرنامج'],run_started:['Analysis started','بدأ التحليل'],post:['Update','تحديث'],event:['Event','فعالية'],group_session:['Group session','جلسة جماعية'],challenge:['Challenge','تحدٍ'],hidden:['Hidden','مخفي'],owner:['Owner','المالك'],coach:['Sports Coach','مدرب رياضي'],pacer:['Champion Pacer','مرافق جري'],nutritionist:['Nutritionist','أخصائي تغذية رياضية'],physiotherapist:['Physiotherapist','أخصائي علاج طبيعي رياضي'],sports_massage_therapist:['Sports Massage Therapist','معالج تدليك رياضي'],certificate:['Certificate','شهادة'],license_number:['License number','رقم الترخيص'],license_issuer:['License issuer','جهة الترخيص'],issuer:['Issuer','الجهة المصدرة'],number:['Number','الرقم'],country:['Country','الدولة'],expiry:['Expiry','الانتهاء'],identity:['Identity and qualifications verified','تم التحقق من الهوية والمؤهلات'],license_required:['Professional license verified','تم التحقق من الترخيص المهني'],license_note:['License review note','ملاحظة مراجعة الترخيص'],previous_note:['Previous review note','ملاحظة المراجعة السابقة']};
+    received:['Received','تم الاستلام'],reviewing:['Under review','قيد المراجعة'],accepted:['Confirmed','مؤكد'],cancelled:['Cancelled','ملغى'],declined:['Declined','مرفوض'],approved:['Approved','معتمد'],rejected:['Rejected','مرفوض'],pending:['Pending','قيد الانتظار'],published:['Published','منشور'],completed:['Completed','مكتمل'],failed:['Failed','فشل'],running:['Running','قيد التنفيذ'],run_completed:['AI analysis completed','اكتمل التحليل الذكي'],scheduled_snapshot_completed:['Data collected','تم جمع البيانات'],run_failed:['Analysis failed','فشل التحليل'],program_assigned:['Program assigned','تم ربط البرنامج'],run_started:['Analysis started','بدأ التحليل'],post:['Update','تحديث'],event:['Event','فعالية'],group_session:['Group session','جلسة جماعية'],challenge:['Challenge','تحدٍ'],hidden:['Hidden','مخفي'],owner:['Owner','المالك'],coach:['Sports Coach','مدرب رياضي'],pacer:['Champion Pacer','مرافق جري'],nutritionist:['Nutritionist','أخصائي تغذية رياضية'],physiotherapist:['Physiotherapist','أخصائي علاج طبيعي رياضي'],sports_massage_therapist:['Sports Massage Therapist','معالج تدليك رياضي'],certificate:['Certificate','شهادة'],license_number:['License number','رقم الترخيص'],license_issuer:['License issuer','جهة الترخيص'],issuer:['Issuer','الجهة المصدرة'],number:['Number','الرقم'],country:['Country','الدولة'],expiry:['Expiry','الانتهاء'],identity:['Identity and qualifications verified','تم التحقق من الهوية والمؤهلات'],license_required:['Professional license verified','تم التحقق من الترخيص المهني'],license_note:['License review note','ملاحظة مراجعة الترخيص'],previous_note:['Previous review note','ملاحظة المراجعة السابقة'],assigned:['Assigned','معين'],unassigned:['Unassigned','غير معين'],invitation_pending:['Invitation pending','دعوة معلقة'],onboarding_incomplete:['Onboarding incomplete','الملف غير مكتمل'],email_failed:['Invitation email failed','فشل إرسال الدعوة'],email_sent:['Invitation email sent','تم إرسال الدعوة'],sent:['Sent','تم الإرسال'],coach_invited:['Coach invited','تمت دعوة مدرب'],profile_invited:['Profile invitation sent','تم إرسال دعوة الملف'],coach_reassigned:['Coach reassignment requested','تم طلب تغيير المدرب'],coach_revoked:['Coach revoked','تم إلغاء المدرب'],coach_invite_accepted:['Coach invitation accepted','تم قبول دعوة المدرب'],coach_invite_declined:['Coach invitation declined','تم رفض دعوة المدرب'],profile_invite_accepted:['Profile invitation accepted','تم قبول دعوة الملف'],invitation_resent:['Invitation resent','تمت إعادة إرسال الدعوة'],not_provided:['Not provided','غير متوفر'],view_profile:['View profile','عرض الملف'],recommend_coach:['Recommend coach','اقتراح مدرب'],invite_profile:['Invite to complete profile','دعوة لإكمال الملف'],view_programs:['View programs','عرض البرامج'],view_bookings:['View bookings','عرض الحجوزات'],revoke_coach:['Revoke coach','إلغاء المدرب'],reassign_coach:['Reassign coach','تغيير المدرب'],send_invitation:['Send invitation','إرسال الدعوة'],resend_invitation:['Resend invitation','إعادة إرسال الدعوة'],why_recommended:['Why this recommendation','سبب هذا الاقتراح'],no_recommendations:['No approved coaches match the verified profile details yet.','لا يوجد مدربون معتمدون يتطابقون مع بيانات الملف الموثقة بعد.'],no_programs:['No training programs have been assigned.','لم تُربط أي برامج تدريبية.'],no_bookings:['No booking requests are linked to this account.','لا توجد طلبات حجز مرتبطة بهذا الحساب.'],no_invitations:['No invitations have been sent yet.','لم تُرسل أي دعوات بعد.'],no_audit:['No consent or assignment changes have been recorded.','لم تُسجل أي تغييرات في الموافقة أو التعيين.'],athlete_directory:['Athlete directory','دليل الرياضيين'],search_athletes:['Search athletes (name, email, sport…)','ابحث عن الرياضيين (الاسم، البريد، الرياضة…)'],all_athletes:['All athletes','جميع الرياضيين'],active:['Active','نشط'],inactive:['Inactive','غير نشط'],assigned_coaches:['Assigned coach','المدرب المعين'],last_activity:['Last activity','آخر نشاط'],sports:['Sports','الرياضات'],goals:['Goals','الأهداف'],city:['City','المدينة'],language:['Preferred language','اللغة المفضلة'],availability:['Availability','الأوقات المناسبة'],experience:['Experience level','مستوى الخبرة'],age_range:['Age range','الفئة العمرية'],gender:['Gender','الجنس'],programs_count:['Programs','البرامج'],bookings_count:['Bookings','الحجوزات'],invitation_status:['Invitation status','حالة الدعوة'],invitation_email:['Invitation email','بريد الدعوة'],refresh:['Refresh','تحديث'],clear_filters:['Clear filters','مسح عوامل التصفية'],select_coach:['Select an approved coach','اختر مدرباً معتمداً'],approve_and_invite:['Review and send invitation','راجع وأرسل الدعوة'],consent_notice:['The athlete decides. No workspace opens and nothing is shared until they accept.','الرياضي هو من يقرر. لا تُفتح مساحة ولا تتم مشاركة أي بيانات قبل قبوله.'],ai_disclaimer:['Assistive suggestions from verified profile fields only. No medical advice, diagnosis or licensed-coach claim.','اقتراحات مساعدة من حقول الملف الموثقة فقط. لا تشخيص طبي أو ادعاء بأن المدرب مرخص.'],ai_recommendations:['AI recommendations','توصيات الذكاء الاصطناعي'],next_steps:['Safe next steps','الخطوات التالية الآمنة'],outreach_draft:['Outreach draft (requires approval)','مسودة تواصل (تتطلب الموافقة)'],audit_history:['Consent and assignment history','سجل الموافقة والتعيين'],coach_workspaces:['Coach workspaces','مساحات المدربين'],messages:['Messages','الرسائل'],recommendation_score:['Match score','درجة التطابق'],viewing_profile:['Showing verified athlete profile.','عرض الملف الرياضي الموثق.'],opening_programs:['Opening assigned programs…','فتح البرامج المخصصة…'],opening_bookings:['Opening linked bookings…','فتح الحجوزات المرتبطة…'],programs_ready:['Programs section ready.','قسم البرامج جاهز.'],bookings_ready:['Bookings section ready.','قسم الحجوزات جاهز.']};
   const name = code => labels[code]?t(...labels[code]):code;
   const notificationLabels = {
     booking_request:['Booking request','طلب حجز'],coach_application:['Coach application','طلب مدرب'],private_message:['Private message','رسالة خاصة'],
@@ -20,6 +20,7 @@
   let tab=tabs[requestedTab]?requestedTab:'overview', sequence=0, managementPermissions=[], managementIsAdmin=false;
   let applications=null, coachFilter='pending', coachVisible=12, refreshing=false;
   let dashboard=null, notificationRefreshing=false, notificationPoll=null;
+  let athleteDirectory=null, athleteFilter='all', athleteSort='recent', athleteTimer=null, athleteDialog=null, openedAthleteRecord='';
   const inFlight=new Set();
   let recordId = new URLSearchParams(location.search).get('record') || '';
   const node=(tag,text,cls)=>{const el=document.createElement(tag);if(text!=null)el.textContent=text;if(cls)el.className=cls;return el};
@@ -43,7 +44,7 @@
     try{return r.headers.get('content-type')?.startsWith('image/')?await r.blob():await r.json()}
     catch{throw Error('request_failed')}
   }
-  function errorMessage(err){const code=err?.message||'',messages={service_unavailable:['The service is temporarily unavailable. Please try again shortly.','الخدمة غير متاحة مؤقتاً. يرجى المحاولة بعد قليل.'],invalid_credentials:['That email or password is incorrect. Use the administrator email registered for this portal.','البريد أو كلمة المرور غير صحيحة. استخدم بريد المسؤول المسجل لهذه البوابة.'],unauthorized:['Your session has expired. Please sign in again.','انتهت جلستك. يرجى تسجيل الدخول مجدداً.'],forbidden:['An administrator account is required for this action.','يلزم حساب مسؤول لتنفيذ هذا الإجراء.'],rate_limited:['Too many attempts. Wait a minute and try again.','محاولات كثيرة. انتظر دقيقة ثم حاول مجدداً.'],origin_not_allowed:['This site address is not authorized. Open the portal from https://mzactive.com.','عنوان الموقع هذا غير مصرح به. افتح البوابة من https://mzactive.com.'],request_failed:['The service returned an unexpected response. Try again shortly.','عادت الخدمة باستجابة غير متوقعة. حاول بعد قليل.'],connection_error:['Could not reach the service. Check your connection and try again.','تعذر الاتصال بالخدمة. تحقق من اتصالك وحاول مجدداً.'],invalid_recovery:['The email or recovery key is incorrect, or no administrator account matches it.','البريد أو مفتاح الاستعادة غير صحيح، أو لا يوجد حساب مسؤول مطابق.'],recovery_unavailable:['Password recovery is not configured. Contact the account owner.','استعادة كلمة المرور غير مهيأة. تواصل مع صاحب الحساب.'],photo_too_large:['Use a JPG, PNG or WebP image up to 1 MB.','استخدم صورة JPG أو PNG أو WebP بحجم أقصى ١ ميغابايت.'],invalid_photo:['Choose a valid JPG, PNG or WebP image. The existing photo was kept.','اختر صورة JPG أو PNG أو WebP صالحة. تم الاحتفاظ بالصورة الحالية.'],photo_not_found:['No photo has been uploaded for this coach.','لم يتم رفع صورة لهذا المدرب بعد.'],invalid_password:['Use a new password of at least 12 characters.','استخدم كلمة مرور جديدة من ١٢ حرفاً على الأقل.'],current_password_incorrect:['Your current password is incorrect.','كلمة المرور الحالية غير صحيحة.'],admin_setup_required:['The setup key is missing or incorrect.','مفتاح الإعداد مفقود أو غير صحيح.'],admin_already_exists:['An administrator account already exists.','يوجد بالفعل حساب مسؤول.'],admin_setup_unavailable:['This email is not authorized for setup.','هذا البريد غير مصرح له بالإعداد.'],invalid_registration:['Check the email, password and consent, then try again.','تحقق من البريد وكلمة المرور والموافقة ثم حاول مجدداً.'],provider_removed_by_owner:['This account has been suspended by the owner.','تم تعليق هذا الحساب من قِبل المالك.'],intake_paused:['Registration is paused.','التسجيل متوقف مؤقتاً.'],account_already_exists_or_storage_error:['The account could not be saved. Try a different email.','تعذر حفظ الحساب. جرّب بريداً مختلفاً.'],daily_limit_reached:['Daily AI allowance reached.','تم بلوغ الحد اليومي للتحليل.'],assistant_unavailable:['AI analysis failed. Check the task history.','تعذر التحليل. راجع سجل المهام.'],assistant_format_error:['The AI draft could not be formatted. Try again.','تعذر تنسيق المسودة الذكية. حاول مجدداً.'],profile_changed_reload_review:['This profile changed. Refresh before reviewing.','تغير الملف. حدّث البيانات قبل المراجعة.'],coach_profile_incomplete:['The coach must complete their biography and specialties first.','يجب إكمال النبذة والتخصصات أولاً.'],professional_license_incomplete:['Provide qualifications, services and license details, then confirm verification.','أدخل المؤهلات والخدمات وبيانات الترخيص، ثم أكد التحقق.'],invalid_session_for_provider:['This session type is not available for the selected professional.','نوع الجلسة غير متاح لهذا المختص.'],service_required:['Choose a service offered by this professional.','اختر خدمة يقدمها هذا المختص.']};const detail=err?.detail?' · '+err.detail:'';
+  function errorMessage(err){const code=err?.message||'',messages={service_unavailable:['The service is temporarily unavailable. Please try again shortly.','الخدمة غير متاحة مؤقتاً. يرجى المحاولة بعد قليل.'],invalid_credentials:['That email or password is incorrect. Use the administrator email registered for this portal.','البريد أو كلمة المرور غير صحيحة. استخدم بريد المسؤول المسجل لهذه البوابة.'],unauthorized:['Your session has expired. Please sign in again.','انتهت جلستك. يرجى تسجيل الدخول مجدداً.'],forbidden:['An administrator account is required for this action.','يلزم حساب مسؤول لتنفيذ هذا الإجراء.'],rate_limited:['Too many attempts. Wait a minute and try again.','محاولات كثيرة. انتظر دقيقة ثم حاول مجدداً.'],origin_not_allowed:['This site address is not authorized. Open the portal from https://mzactive.com.','عنوان الموقع هذا غير مصرح به. افتح البوابة من https://mzactive.com.'],request_failed:['The service returned an unexpected response. Try again shortly.','عادت الخدمة باستجابة غير متوقعة. حاول بعد قليل.'],athlete_not_found:['This athlete account was not found. Refresh the directory.','لم يتم العثور على حساب الرياضي. حدّث دليل الرياضيين.'],coach_unavailable:['That approved coach is no longer available. Review the suggestions again.','لم يعد المدرب المعتمد متاحاً. راجع الاقتراحات مجدداً.'],invitation_exists:['A pending invitation already exists for this coach.','توجد دعوة معلقة بالفعل لهذا المدرب.'],assignment_exists:['This athlete already has an active coach. Revoke or reassign first.','لدى هذا الرياضي مدرب نشط بالفعل. ألغِ التعيين أو غيّره أولاً.'],no_active_assignment:['There is no active assignment to revoke.','لا يوجد تعيين نشط لإلغائه.'],active_assignment_exists:['The athlete already accepted another active workspace.','قبل الرياضي مساحة نشطة أخرى بالفعل.'],invitation_unavailable:['This invitation can no longer be changed.','لم يعد ممكناً تعديل هذه الدعوة.'],invitation_expired:['This invitation link has expired.','انتهت صلاحية رابط الدعوة.'],invitation_not_pending:['Only a pending invitation can be resent.','يمكن إعادة إرسال الدعوات المعلقة فقط.'],email_unavailable:['The invitation was saved but email delivery is unavailable. Retry after checking delivery.','حُفظت الدعوة لكن إرسال البريد غير متاح. أعد المحاولة بعد التحقق من الإرسال.'],connection_error:['Could not reach the service. Check your connection and try again.','تعذر الاتصال بالخدمة. تحقق من اتصالك وحاول مجدداً.'],invalid_recovery:['The email or recovery key is incorrect, or no administrator account matches it.','البريد أو مفتاح الاستعادة غير صحيح، أو لا يوجد حساب مسؤول مطابق.'],recovery_unavailable:['Password recovery is not configured. Contact the account owner.','استعادة كلمة المرور غير مهيأة. تواصل مع صاحب الحساب.'],photo_too_large:['Use a JPG, PNG or WebP image up to 1 MB.','استخدم صورة JPG أو PNG أو WebP بحجم أقصى ١ ميغابايت.'],invalid_photo:['Choose a valid JPG, PNG or WebP image. The existing photo was kept.','اختر صورة JPG أو PNG أو WebP صالحة. تم الاحتفاظ بالصورة الحالية.'],photo_not_found:['No photo has been uploaded for this coach.','لم يتم رفع صورة لهذا المدرب بعد.'],invalid_password:['Use a new password of at least 12 characters.','استخدم كلمة مرور جديدة من ١٢ حرفاً على الأقل.'],current_password_incorrect:['Your current password is incorrect.','كلمة المرور الحالية غير صحيحة.'],admin_setup_required:['The setup key is missing or incorrect.','مفتاح الإعداد مفقود أو غير صحيح.'],admin_already_exists:['An administrator account already exists.','يوجد بالفعل حساب مسؤول.'],admin_setup_unavailable:['This email is not authorized for setup.','هذا البريد غير مصرح له بالإعداد.'],invalid_registration:['Check the email, password and consent, then try again.','تحقق من البريد وكلمة المرور والموافقة ثم حاول مجدداً.'],provider_removed_by_owner:['This account has been suspended by the owner.','تم تعليق هذا الحساب من قِبل المالك.'],intake_paused:['Registration is paused.','التسجيل متوقف مؤقتاً.'],account_already_exists_or_storage_error:['The account could not be saved. Try a different email.','تعذر حفظ الحساب. جرّب بريداً مختلفاً.'],daily_limit_reached:['Daily AI allowance reached.','تم بلوغ الحد اليومي للتحليل.'],assistant_unavailable:['AI analysis failed. Check the task history.','تعذر التحليل. راجع سجل المهام.'],assistant_format_error:['The AI draft could not be formatted. Try again.','تعذر تنسيق المسودة الذكية. حاول مجدداً.'],profile_changed_reload_review:['This profile changed. Refresh before reviewing.','تغير الملف. حدّث البيانات قبل المراجعة.'],coach_profile_incomplete:['The coach must complete their biography and specialties first.','يجب إكمال النبذة والتخصصات أولاً.'],professional_license_incomplete:['Provide qualifications, services and license details, then confirm verification.','أدخل المؤهلات والخدمات وبيانات الترخيص، ثم أكد التحقق.'],invalid_session_for_provider:['This session type is not available for the selected professional.','نوع الجلسة غير متاح لهذا المختص.'],service_required:['Choose a service offered by this professional.','اختر خدمة يقدمها هذا المختص.']};const detail=err?.detail?' · '+err.detail:'';
   if(!code||/fetch|network|load failed/i.test(code))return t(...messages.connection_error)+detail;return t(...(messages[code]||['The request could not be completed. Refresh and try again.','تعذر إتمام الطلب. حدّث الصفحة وحاول مجدداً.']))+detail}
   function button(text,fn){const b=node('button',text);b.type='button';b.dataset.label=text;b.onclick=async()=>{
     if(b.disabled)return;b.disabled=true;b.setAttribute('aria-busy','true');b.textContent=t('Working…','جارٍ التنفيذ…');
@@ -61,7 +62,7 @@
   }
   function group(root,title,items,paint){root.append(node('h3',title));if(!items.length){root.append(node('p',t('No records.','لا توجد سجلات.')));return}for(const item of items)paint(root,item)}
   async function save(path,body,method='PATCH'){const result=await api(path,{method,body});notice(t('Saved.','تم الحفظ.'),'success');if(tab==='coaches')refreshApplications();refreshNotifications();await render();return result}
-  function go(next,keepRecord=false){tab=next;if(!keepRecord)recordId='';notice('');if(next==='coaches')applications=null;return render()}
+  function go(next,keepRecord=false){if(athleteDialog?.open)athleteDialog.close();tab=next;if(!keepRecord)recordId='';notice('');if(next==='coaches')applications=null;return render()}
   function staticLabels(){for(const e of document.querySelectorAll('[data-en]'))e.textContent=e.dataset[lang.get()];for(const e of document.querySelectorAll('[data-en-aria-label]'))e.setAttribute('aria-label',e.dataset[lang.get()==='ar'?'arAriaLabel':'enAriaLabel']);$('language').textContent=t('العربية','English');syncToggles()}
   function syncToggles(){for(const b of document.querySelectorAll('[data-password-toggle]')){const input=$(b.dataset.passwordToggle);if(!input)continue;b.textContent=t(input.type==='text'?'Hide':'Show',input.type==='text'?'إخفاء':'إظهار');b.setAttribute('aria-label',b.textContent)}}
   function bindToggles(){for(const b of document.querySelectorAll('[data-password-toggle]')){if(b.dataset.bound)continue;b.dataset.bound='1';b.onclick=()=>{const input=$(b.dataset.passwordToggle);if(!input)return;input.type=input.type==='password'?'text':'password';syncToggles()}}}
@@ -453,6 +454,246 @@
     target.scrollIntoView({block:'center',behavior:'smooth'});
     target.classList.add('record-focus');
   }
+  function crmStatus(text,tone=''){const p=node('p',text||'','crm-status');if(tone)p.dataset.tone=tone;return p}
+  function setCrmStatus(p,text,tone=''){p.textContent=text;if(tone)p.dataset.tone=tone;else delete p.dataset.tone}
+  function crmField(label,value){
+    const row=node('div',null,'crm-field'),has=value!==''&&value!=null&&value!==undefined;
+    row.append(node('span',label,'crm-field-label'));
+    row.append(node('strong',has?String(value):t(...labels.not_provided),has?'':'crm-missing'));
+    return row;
+  }
+  function crmSection(title,id){const s=node('section',null,'crm-section');if(id)s.id=id;s.append(node('h3',title));return s}
+  function crmEmpty(pair){return node('p',t(...pair),'crm-empty')}
+  function crmAction(label,statusNode,fn,successPair){
+    const b=node('button',label,'crm-action');b.type='button';b.dataset.label=label;
+    b.onclick=async()=>{
+      if(b.disabled)return;
+      b.disabled=true;b.setAttribute('aria-busy','true');
+      setCrmStatus(statusNode,t('Working…','جارٍ التنفيذ…'),'busy');
+      try{
+        const result=await fn();
+        setCrmStatus(statusNode,successPair?t(...successPair):t('Done.','تم.'),'success');
+        return result;
+      }catch(e){
+        if(e?.cancelled)setCrmStatus(statusNode,t('Cancelled.','تم الإلغاء.'));
+        else setCrmStatus(statusNode,errorMessage(e).split(' · ')[0],'error');
+      }finally{b.disabled=false;b.removeAttribute('aria-busy')}
+    };
+    return b;
+  }
+  function athleteParams(){
+    const p=new URLSearchParams();
+    p.set('filter',athleteFilter);p.set('sort',athleteSort);p.set('q',athleteDirectory?.q||'');
+    return p;
+  }
+  function paintAthleteDirectory(root,data){
+    const focused=document.activeElement,restoreSearch=focused?.classList?.contains('athlete-search')?focused:null;
+    const caret=restoreSearch?restoreSearch.selectionStart:null;
+    root.replaceChildren();
+    const toolbar=node('div',null,'athlete-toolbar');
+    const search=node('input',null,'athlete-search');search.type='search';search.maxLength=80;
+    search.placeholder=t(...labels.search_athletes);search.setAttribute('aria-label',search.placeholder);search.value=data.q||'';
+    search.oninput=()=>{athleteDirectory={...athleteDirectory,q:search.value};clearTimeout(athleteTimer);athleteTimer=setTimeout(()=>loadAthleteDirectory(root),260)};
+    toolbar.append(search);
+    const filters=node('div',null,'athlete-filters');filters.setAttribute('role','group');filters.setAttribute('aria-label',t('Filter athletes','تصفية الرياضيين'));
+    const counts=data.counts||{};
+    for(const [code,label] of [['all',labels.all_athletes],['unassigned',labels.unassigned],['assigned',labels.assigned],['active',labels.active],['inactive',labels.inactive],['onboarding_incomplete',labels.onboarding_incomplete]]){
+      const b=node('button',t(...label)+' ('+Number(counts[code]||0)+')','athlete-filter');b.type='button';b.dataset.filter=code;
+      if(code===athleteFilter){b.classList.add('active');b.setAttribute('aria-pressed','true')}else b.setAttribute('aria-pressed','false');
+      b.onclick=()=>{athleteFilter=code;loadAthleteDirectory(root)};filters.append(b);
+    }
+    const sort=node('select',null,'athlete-sort');sort.setAttribute('aria-label',t('Sort athletes','ترتيب الرياضيين'));
+    for(const [code,label] of [['recent',['Recently active','الأكثر نشاطاً']],['name',['Name','الاسم']],['status',['Status','الحالة']]]){
+      const o=node('option',t(...label));o.value=code;if(code===athleteSort)o.selected=true;sort.append(o);
+    }
+    sort.onchange=()=>{athleteSort=sort.value;loadAthleteDirectory(root)};
+    toolbar.append(filters,sort);root.append(toolbar);
+    const listStatus=crmStatus();root.append(listStatus);
+    root.append(node('p',t('Showing ','عرض ')+data.total+' / '+counts.all+' · '+t(...labels.athlete_directory),'athlete-summary'));
+    const list=node('div',null,'athlete-list');
+    if(!data.athletes?.length)list.append(crmEmpty(['No athletes match these filters. Clear the search or choose another status.','لا يوجد رياضيون يطابقون هذه العوامل. امسح البحث أو اختر حالة أخرى.']));
+    for(const a of data.athletes||[]){
+      const b=node('button',null,'athlete-card');b.type='button';b.dataset.recordId=a.id;
+      b.setAttribute('aria-label',t('View profile for ','عرض ملف ')+(a.name||a.email));
+      const head=node('span',null,'athlete-card-head');head.append(avatar(a.name));
+      const who=node('span',null,'athlete-who');who.append(node('strong',a.name||a.email,'athlete-name'),node('small',a.email||'','athlete-email'));head.append(who);
+      const badges=node('span',null,'athlete-badges');badges.append(badge(a.assignment_status),badge(a.active?'active':'inactive'));
+      if(a.onboarding_incomplete)badges.append(badge('onboarding_incomplete'));
+      const meta=[(a.sports||[]).join(', '),a.city,a.assigned_coach_name?t(...labels.assigned_coaches)+': '+a.assigned_coach_name:'',a.last_activity_at?t(...labels.last_activity)+': '+date(a.last_activity_at):''].filter(Boolean).join(' · ');
+      b.append(head,badges,node('span',meta||t(...labels.not_provided),'athlete-meta'),node('span',t('View profile →','عرض الملف ←'),'athlete-card-more'));
+      b.onclick=()=>openAthleteDetail(a.id);
+      list.append(b);
+    }
+    root.append(list);
+    const unlinked=node('div',null,'athlete-unlinked');unlinked.append(node('h3',t('Programs without account access','برامج غير مرتبطة بحساب')));
+    if(!data.unlinked?.length)unlinked.append(crmEmpty(['All programs are linked to an athlete account.','جميع البرامج مرتبطة بحساب رياضي.']));
+    for(const p of data.unlinked||[]){
+      const c=node('article',null,'crm-row');c.append(node('strong',p.athlete_name||t(...labels.not_provided)),node('small',date(p.week_start)));
+      const sel=node('select');sel.setAttribute('aria-label',t('Athlete email','بريد الرياضي'));sel.append(node('option',t('Choose the athlete account','اختر حساب الرياضي')));sel.firstChild.value='';
+      for(const a of data.athletes||[]){const o=node('option',a.email);o.value=a.id;sel.append(o)}
+      c.append(sel,crmAction(t('Grant program access','منح الوصول للبرنامج'),listStatus,async()=>{
+        if(!sel.value)throw Object.assign(new Error('missing_athlete'),{cancelled:true});
+        if(!confirm(t('Grant access to ','منح الوصول إلى ')+sel.selectedOptions[0].textContent+'؟'))throw Object.assign(new Error('cancelled'),{cancelled:true});
+        await save('admin/programs/'+p.id+'/athlete',{athlete_id:sel.value});
+      },['Program access granted.','تم منح الوصول للبرنامج.']));
+      unlinked.append(c);
+    }
+    root.append(unlinked);
+    if(restoreSearch){const next=root.querySelector('.athlete-search');if(next){next.focus();if(caret!=null)next.setSelectionRange(caret,caret)}}
+    if(recordId&&(data.athletes||[]).some(a=>a.id===recordId)&&openedAthleteRecord!==recordId)openAthleteDetail(recordId);
+    else focusRecord();
+  }
+  async function loadAthleteDirectory(root){
+    const list=root.querySelector('.athlete-list');if(list)list.textContent=t('Loading athletes…','جارٍ تحميل الرياضيين…');
+    try{const data=await api('admin/athletes?'+athleteParams().toString());athleteDirectory=data;paintAthleteDirectory(root,data)}
+    catch(e){notice(errorMessage(e),'error');if(list)list.replaceChildren(node('p',errorMessage(e),'crm-error'))}
+  }
+  function renderAthletes(root){return loadAthleteDirectory(root)}
+  const localizedReason = reason => lang.get()==='ar' ? reason?.ar : reason?.en;
+  async function openAthleteDetail(id){
+    if(!athleteDialog){
+      athleteDialog=node('dialog');athleteDialog.id='athleteDetailDialog';athleteDialog.className='crm-dialog athlete-drawer';
+      athleteDialog.addEventListener('close',()=>{openedAthleteRecord=''});
+      athleteDialog.addEventListener('click',event=>{if(event.target===athleteDialog)athleteDialog.close()});
+      document.body.append(athleteDialog);
+    }
+    openedAthleteRecord=id;
+    athleteDialog.replaceChildren(node('p',t('Loading athlete profile…','جارٍ تحميل الملف الرياضي…'),'crm-loading'));
+    if(!athleteDialog.open)athleteDialog.showModal();
+    try{const data=await api('admin/athletes/'+encodeURIComponent(id));renderAthleteDetail(athleteDialog,data)}
+    catch(e){athleteDialog.replaceChildren(crmHeader(t('Unable to load profile','تعذر تحميل الملف'),()=>athleteDialog.close()),node('p',errorMessage(e),'crm-error'))}
+  }
+  function crmHeader(title,onClose){
+    const h=node('header',null,'crm-header'),monogram=avatar(title);
+    h.append(monogram,node('h2',title));
+    const close=node('button',t('Close','إغلاق'),'crm-close');close.type='button';close.onclick=onClose;h.append(close);return h;
+  }
+  function renderAthleteDetail(dialog,data){
+    const a=data.athlete||{},shell=node('div',null,'crm-shell');
+    shell.append(crmHeader(a.name||a.email||t('Athlete','رياضي'),()=>dialog.close()));
+    const status=crmStatus(),actions=node('div',null,'crm-actions');
+    actions.append(
+      crmAction(t(...labels.view_profile),status,async()=>shell.querySelector('#crmProfileSection')?.scrollIntoView({block:'start',behavior:'smooth'}),labels.viewing_profile),
+      crmAction(t(...labels.recommend_coach),status,async()=>renderRecommendations(shell,a,status),['Recommendations ready for review.','التوصيات جاهزة للمراجعة.']),
+      crmAction(t(...labels.invite_profile),status,async()=>{
+        if(!confirm(t('Send a profile completion invitation to ','إرسال دعوة إكمال الملف إلى ')+(a.email||'')+'؟'))throw Object.assign(new Error('cancelled'),{cancelled:true});
+        return api('admin/athletes/'+encodeURIComponent(a.id)+'/invitations/profile',{method:'POST',body:{language:a.preferred_language==='ar'||lang.get()==='ar'?'ar':'en'}});
+      },['Profile invitation sent.','تم إرسال دعوة إكمال الملف.']),
+      crmAction(t(...labels.view_programs),status,async()=>shell.querySelector('#crmProgramsSection')?.scrollIntoView({block:'start',behavior:'smooth'}),labels.programs_ready),
+      crmAction(t(...labels.view_bookings),status,async()=>shell.querySelector('#crmBookingsSection')?.scrollIntoView({block:'start',behavior:'smooth'}),labels.bookings_ready),
+      crmAction(t(...labels.refresh),status,async()=>openAthleteDetail(a.id),['Profile refreshed.','تم تحديث الملف.'])
+    );
+    shell.append(actions,status);
+    const body=node('div',null,'crm-body');
+    const profile=crmSection(t('Verified athlete profile','الملف الرياضي الموثق'),'crmProfileSection'),fields=node('div',null,'crm-fields');
+    fields.append(
+      crmField(t('Name','الاسم'),a.name),
+      crmField(t('Email','البريد الإلكتروني'),a.email),
+      crmField(t(...labels.city),a.city),
+      crmField(t(...labels.sports),(a.sports||[]).join(', ')),
+      crmField(t(...labels.goals),a.goals),
+      crmField(t(...labels.experience),a.experience_level),
+      crmField(t(...labels.language),a.preferred_language==='ar'?'العربية':a.preferred_language==='en'?'English':''),
+      crmField(t(...labels.availability),a.availability_notes),
+      crmField(t(...labels.age_range),a.age_range),
+      crmField(t(...labels.gender),a.gender),
+      crmField(t(...labels.last_activity),a.last_activity_at?date(a.last_activity_at):''),
+      crmField(t('Registered','تاريخ التسجيل'),a.registered_at?date(a.registered_at):'')
+    );
+    profile.append(fields,node('p',t('Only verified profile fields are shown. Missing details appear as “Not provided”.','تُعرض الحقول الموثقة فقط. تظهر البيانات الناقصة كـ «غير متوفر».'),'crm-note'));
+    body.append(profile);
+    const state=crmSection(t('Status and access','الحالة والوصول'));
+    const stateFields=node('div',null,'crm-fields');
+    stateFields.append(
+      crmField(t('Assignment','التعيين'),name(a.assignment_status||'unassigned')),
+      crmField(t('Activity','النشاط'),name(a.active?'active':'inactive')),
+      crmField(t('Onboarding','إكمال الملف'),name(a.onboarding_incomplete?'onboarding_incomplete':'completed')),
+      crmField(t(...labels.assigned_coaches),a.assigned_coach_name),
+      crmField(t(...labels.programs_count),Number(a.program_count||0)),
+      crmField(t(...labels.bookings_count),Number(a.booking_count||0))
+    );
+    state.append(stateFields);body.append(state);
+    const coaching=crmSection(t(...labels.coach_workspaces));
+    if(!data.coaches?.length)coaching.append(crmEmpty(['No coach connection has been created for this athlete.','لم يتم إنشاء أي ارتباط مع مدرب لهذا الرياضي.']));
+    for(const c of data.coaches||[]){
+      const row=node('article',null,'crm-row');
+      row.append(node('strong',c.coach_name||t(...labels.not_provided)),node('small',[name(c.status),c.workspace_status?name(c.workspace_status):'',c.updated_at?date(c.updated_at):''].filter(Boolean).join(' · ')));
+      if(c.status==='accepted'&&c.workspace_status==='active')row.append(crmAction(t(...labels.revoke_coach),status,async()=>{
+        if(!confirm(t('Close this coaching workspace? The athlete keeps their account.','إغلاق مساحة التدريب هذه؟ يحتفظ الرياضي بحسابه.')))throw Object.assign(new Error('cancelled'),{cancelled:true});
+        await api('admin/athletes/'+encodeURIComponent(a.id)+'/connections/'+encodeURIComponent(c.id)+'/revoke',{method:'POST',body:{}});
+      },['Coach revoked and workspace closed.','تم إلغاء المدرب وإغلاق المساحة.']));
+      coaching.append(row);
+    }
+    body.append(coaching);
+    const invitations=crmSection(t('Invitations','الدعوات'));
+    if(!data.invitations?.length)invitations.append(crmEmpty(labels.no_invitations));
+    for(const i of data.invitations||[]){
+      const row=node('article',null,'crm-row');row.append(node('strong',i.coach_name||t(...labels.profile_invited)),node('small',[name(i.kind),name(i.status),name(i.email_status),i.created_at?date(i.created_at):''].filter(Boolean).join(' · ')));
+      if(['pending','email_failed'].includes(i.status))row.append(crmAction(t(...labels.resend_invitation),status,async()=>api('admin/athletes/'+encodeURIComponent(a.id)+'/invitations/'+encodeURIComponent(i.id)+'/resend',{method:'POST',body:{}}),['Invitation resent.','تمت إعادة إرسال الدعوة.']));
+      invitations.append(row);
+    }
+    body.append(invitations);
+    const programs=crmSection(t('Training programs','برامج التدريب'),'crmProgramsSection');
+    if(!data.programs?.length)programs.append(crmEmpty(labels.no_programs));
+    for(const p of data.programs||[]){
+      const done=(p.sessions||[]).filter(s=>s.completed_at).length,row=node('article',null,'crm-row');
+      row.append(node('strong',p.week_start||t(...labels.not_provided)),node('small',t('Sessions','الحصص')+': '+(p.sessions||[]).length+' · '+t('Completed','مكتملة')+': '+done));
+      programs.append(row);
+    }
+    body.append(programs);
+    const bookings=crmSection(t(...labels.bookings_count),'crmBookingsSection');
+    if(!data.bookings?.length)bookings.append(crmEmpty(labels.no_bookings));
+    for(const b of data.bookings||[]){
+      const row=node('article',null,'crm-row');
+      row.append(node('strong',b.session_type||t(...labels.not_provided)),node('small',[name(b.status),b.city,date(b.created_at)].filter(Boolean).join(' · ')));
+      bookings.append(row);
+    }
+    body.append(bookings);
+    const messages=crmSection(t(...labels.messages));
+    if(!data.messages?.length)messages.append(crmEmpty(['No private coaching messages are linked to this athlete.','لا توجد رسائل تدريب خاصة مرتبطة بهذا الرياضي.']));
+    for(const m of data.messages||[]){
+      const row=node('article',null,'crm-row');
+      row.append(node('small',[m.coach_name,date(m.created_at),m.read_at?t('Read','مقروء'):t('Unread','غير مقروء')].filter(Boolean).join(' · ')));
+      messages.append(row);
+    }
+    body.append(messages);
+    const ai=crmSection(t(...labels.ai_recommendations));
+    ai.append(node('p',t(...labels.consent_notice),'crm-note'),node('div',null,'crm-recommendations'),crmAction(t(...labels.recommend_coach),status,async()=>renderRecommendations(shell,a,status),['Recommendations ready for review.','التوصيات جاهزة للمراجعة.']));
+    body.append(ai);
+    const audit=crmSection(t(...labels.audit_history));
+    if(!data.audit?.length)audit.append(crmEmpty(labels.no_audit));
+    for(const e of data.audit||[]){
+      const row=node('article',null,'crm-row');
+      row.append(node('strong',name(e.action)),node('small',[date(e.created_at),e.actor_user_id?t('Recorded by manager','سجلها المدير'):t('Recorded by athlete','سجلها الرياضي')].join(' · ')));
+      audit.append(row);
+    }
+    body.append(audit);
+    shell.append(body);dialog.replaceChildren(shell);
+  }
+  async function renderRecommendations(shell,athlete,status){
+    const box=shell.querySelector('.crm-recommendations');if(!box)return;
+    box.replaceChildren(node('p',t('Generating safe recommendations…','جارٍ إنشاء توصيات آمنة…'),'crm-loading'));
+    try{
+      const data=await api('admin/athletes/'+encodeURIComponent(athlete.id)+'/recommendations');
+      const disclaimer=data.disclaimer?[data.disclaimer.en,data.disclaimer.ar]:labels.ai_disclaimer;
+      box.replaceChildren(node('p',t(...disclaimer),'crm-note'));
+      if(data.next_steps?.length){const steps=node('ul',null,'crm-reasons');for(const step of data.next_steps)steps.append(node('li',lang.get()==='ar'?step.ar:step.en));box.append(node('h4',t(...labels.next_steps)),steps)}
+      for(const draft of data.drafts||[]){const pre=node('pre',(lang.get()==='ar'?draft.subject_ar:draft.subject_en)+'\n\n'+(lang.get()==='ar'?draft.body_ar:draft.body_en),'crm-draft');pre.setAttribute('aria-label',t(...labels.outreach_draft));box.append(node('h4',t(...labels.outreach_draft)),pre)}
+      if(!data.matches?.length)box.append(crmEmpty(labels.no_recommendations));
+      for(const match of data.matches||[]){
+        const c=node('article',null,'crm-match');
+        c.append(node('strong',match.coach_name),node('span',t(...labels.recommendation_score)+': '+match.score,'crm-score'));
+        c.append(node('small',[match.city,match.coaching_mode,(match.languages||[]).join(', '),(match.specialties||[]).join(', ')].filter(Boolean).join(' · ')||t(...labels.not_provided)));
+        const reasons=node('ul',null,'crm-reasons');for(const reason of match.reasons||[])reasons.append(node('li',localizedReason(reason)));
+        c.append(node('h4',t(...labels.why_recommended)),reasons);
+        c.append(crmAction(t(...labels.approve_and_invite),status,async()=>{
+          const path=athlete.assigned?'admin/athletes/'+encodeURIComponent(athlete.id)+'/reassign':'admin/athletes/'+encodeURIComponent(athlete.id)+'/invitations/coach';
+          return api(path,{method:'POST',body:{coach_id:match.coach_id,reasons:(match.reasons||[]).map(r=>r.code),language:athlete.preferred_language==='ar'||lang.get()==='ar'?'ar':'en'}});
+        },['Invitation saved. The athlete must accept before any workspace opens.','حُفظت الدعوة. يجب أن يقبل الرياضي قبل فتح أي مساحة.']));
+        box.append(c);
+      }
+    }catch(e){box.replaceChildren(node('p',errorMessage(e).split(' · ')[0],'crm-error'))}
+  }
   async function paint(root){
     if(tab==='overview'){
       const data=dashboard||await api('admin/dashboard');dashboard=data;
@@ -480,11 +721,11 @@
       return;
     }
     if(tab==='articles'){const d=await api('admin/blog');group(root,t('Awaiting moderation','بانتظار المراجعة'),d.posts,(r,p)=>{const c=card(r,p.title,[p.coach_name,p.summary,p.body].join('\n'),p.id);for(const a of ['publish','return'])c.append(button(a==='publish'?t('Publish article','نشر المقال'):t('Return for edits','إعادة للتعديل'),()=>{if(a==='publish'&&!confirm(t('Publish this article?','نشر هذا المقال؟')))return;return save('admin/blog/'+p.id,{action:a})}))});return}
-    if(tab==='athletes'){const d=await api('admin/athletes');root.append(link(t('Open training dashboard','فتح لوحة التدريب'),'dashboard.html'));group(root,t('Programs without account access','برامج غير مرتبطة بحساب'),d.unlinked,(r,p)=>{const c=card(r,p.athlete_name,p.week_start),sel=node('select');sel.setAttribute('aria-label',t('Athlete email','بريد الرياضي'));sel.append(node('option',t('Choose the athlete account','اختر حساب الرياضي')));sel.firstChild.value='';for(const a of d.athletes){const o=node('option',a.email);o.value=a.id;sel.append(o)}c.append(sel,button(t('Grant program access','منح الوصول للبرنامج'),()=>{if(sel.value&&confirm(t('Grant access to ','منح الوصول إلى ')+sel.selectedOptions[0].textContent+'؟'))return save('admin/programs/'+p.id+'/athlete',{athlete_id:sel.value})}))});group(root,t('Registered athletes','الرياضيون المسجلون'),d.athletes,(r,a)=>card(r,a.email,t('Assigned programs','البرامج المرتبطة')+' · '+a.programs));return}
+    if(tab==='athletes'){root.append(link(t('Open training dashboard','فتح لوحة التدريب'),'dashboard.html'));await renderAthletes(root);return}
     const [h,ai]=await Promise.all([api('admin/history'),api('admin/agents')]);const events=[...h.events,...ai.activity].sort((a,b)=>b.created_at.localeCompare(a.created_at));
     group(root,t('Recent decisions and activity','آخر القرارات والأنشطة'),events.slice(0,100),(r,e)=>card(r,e.action?name(e.action):e.entity_type==='provider_profile'?t('Coach profile','ملف المدرب'):e.entity_type==='registration'?t('New registration','تسجيل جديد'):t('Booking','حجز'),[date(e.created_at),e.action?name(e.agent_type):name(e.from_status),e.to_status?name(e.to_status):''].filter(Boolean).join(' · ')));
   }
-  async function render(){const n=++sequence;staticLabels();$('nav').replaceChildren();const available=Object.entries(tabs).filter(([id])=>managementIsAdmin||!TAB_PERMISSIONS[id]||managementPermissions.includes(TAB_PERMISSIONS[id]));if(!available.some(([id])=>id===tab))tab='overview';for(const [id,v] of available){const b=button(t(...v),()=>go(id));b.dataset.navTab=id;b.setAttribute('aria-current',id===tab);$('nav').append(b)}paintNotificationBadges();const params=new URLSearchParams();if(tab!=='overview')params.set('tab',tab);if(recordId)params.set('record',recordId);history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:''));$('title').textContent=t(...tabs[tab]);$('view').textContent=t('Loading…','جارٍ التحميل…');const root=node('div');try{await paint(root);if(n===sequence)$('view').replaceChildren(root)}catch(err){if(n===sequence||$('workspace').hidden)notice(errorMessage(err));if(n===sequence)$('view').replaceChildren(retryButton(t('Retry','إعادة المحاولة'),render))}}
+  async function render(){const n=++sequence;staticLabels();$('nav').replaceChildren();const available=Object.entries(tabs).filter(([id])=>managementIsAdmin||!TAB_PERMISSIONS[id]||managementPermissions.includes(TAB_PERMISSIONS[id]));if(!available.some(([id])=>id===tab))tab='overview';for(const [id,v] of available){const b=button(t(...v),()=>go(id));b.dataset.navTab=id;b.setAttribute('aria-current',id===tab);$('nav').append(b)}paintNotificationBadges();const params=new URLSearchParams();if(tab!=='overview')params.set('tab',tab);if(recordId)params.set('record',recordId);history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:''));$('title').textContent=t(...tabs[tab]);$('view').textContent=t('Loading…','جارٍ التحميل…');const root=node('div');try{await paint(root);if(n===sequence){$('view').replaceChildren(root);focusRecord()}}catch(err){if(n===sequence||$('workspace').hidden)notice(errorMessage(err));if(n===sequence)$('view').replaceChildren(retryButton(t('Retry','إعادة المحاولة'),render))}}
   async function open(){
     try {
       const [,access,overview] = await Promise.all([api('admin/history'),api('me/access'),api('admin/dashboard')]);

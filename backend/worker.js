@@ -1,3 +1,5 @@
+import { ATHLETE_INVITATION_TTL_DAYS, onboardingIncomplete, lastActivityAt, isActive, coachMatches, invitationEmail } from "./athlete-crm.js";
+
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
 const PASSWORD_RESET_TTL_SECONDS = 15 * 60;
 // Administrator links expire sooner and get a tighter rate limit; the offline
@@ -15,6 +17,7 @@ const MAX_DAILY_ASSISTANT_REQUESTS = 60;
 const MAX_WORKSPACE_ATTACHMENT_BYTES = 1_000_000;
 const WORKSPACE_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain"]);
 const WORKSPACE_PROGRESS_METRICS = new Set(["distance_km", "duration_minutes", "sessions_completed", "average_pace", "planned_sessions", "completed_sessions", "note"]);
+const ATHLETE_CRM_INVITE_LIMIT = 10;
 const MANAGEMENT_PERMISSION_CODES = ["management.view", "management.coaches", "management.bookings", "management.community", "management.articles", "management.ai", "management.audit"];
 // Each notification category maps to an existing least-privilege permission.
 // There is no new role and no broad "see everything" shortcut.
@@ -1833,8 +1836,393 @@ async function dashboardApi(request, env, user) {
   return reply(request, env, { error: "not_found" }, 404);
 }
 
+const ATHLETE_CRM_SELECT = `SELECT u.id,u.email,u.created_at AS registered_at,
+  ms.display_name,ms.city,ms.sports_json,ms.experience_level,ms.goals,ms.age_range,ms.gender,
+  ms.garmin_public_url,ms.preferred_language,ms.availability_notes,ms.updated_at AS profile_updated_at,
+  (SELECT MAX(c.updated_at) FROM coach_connections c JOIN provider_profiles cp ON cp.user_id=c.coach_user_id
+    WHERE c.athlete_user_id=u.id AND cp.status='approved' AND cp.provider_type='coach') AS connection_updated_at,
+  (SELECT MAX(created_at) FROM athlete_programs_v2 WHERE athlete_user_id=u.id) AS program_created_at,
+  (SELECT MAX(created_at) FROM booking_requests WHERE customer_user_id=u.id) AS booking_created_at,
+  (SELECT MAX(m.created_at) FROM coach_messages m JOIN coach_connections c ON c.id=m.connection_id
+    WHERE c.athlete_user_id=u.id) AS message_created_at,
+  (SELECT MAX(created_at) FROM athlete_crm_invitations WHERE athlete_user_id=u.id) AS invitation_created_at,
+  (SELECT COUNT(*) FROM athlete_programs_v2 WHERE athlete_user_id=u.id) AS program_count,
+  (SELECT COUNT(*) FROM booking_requests WHERE customer_user_id=u.id) AS booking_count,
+  (SELECT COUNT(*) FROM coach_connections c JOIN provider_profiles cp ON cp.user_id=c.coach_user_id
+    WHERE c.athlete_user_id=u.id AND c.status='accepted' AND c.workspace_status='active'
+      AND cp.status='approved' AND cp.provider_type='coach') AS assigned_coach_count,
+  (SELECT COUNT(*) FROM athlete_crm_invitations WHERE athlete_user_id=u.id AND status='pending') AS pending_invite_count,
+  (SELECT cp.display_name FROM coach_connections c JOIN provider_profiles cp ON cp.user_id=c.coach_user_id
+    WHERE c.athlete_user_id=u.id AND c.status='accepted' AND c.workspace_status='active'
+      AND cp.status='approved' AND cp.provider_type='coach' ORDER BY c.updated_at DESC LIMIT 1) AS assigned_coach_name
+  FROM users u LEFT JOIN member_sports_profiles ms ON ms.user_id=u.id
+  WHERE u.role='provider' AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id)`;
+
+function shapeAthleteRow(row) {
+  const sports = safeParse(row.sports_json);
+  const profile = { ...row, sports };
+  const lastActivity = lastActivityAt(row);
+  const assigned = Number(row.assigned_coach_count || 0) > 0;
+  return {
+    ...row,
+    sports,
+    name: row.display_name || String(row.email || "").split("@")[0] || "MZ Active member",
+    onboarding_incomplete: onboardingIncomplete(profile),
+    last_activity_at: lastActivity,
+    active: isActive(row),
+    assigned,
+    assignment_status: assigned ? "assigned" : Number(row.pending_invite_count || 0) > 0 ? "invitation_pending" : "unassigned",
+  };
+}
+
+async function athleteCrmRows(env, suffix = "", params = []) {
+  const statement = env.DB.prepare(ATHLETE_CRM_SELECT + suffix);
+  if (params.length) statement.bind(...params);
+  const result = await statement.all();
+  return (result.results || []).map(shapeAthleteRow);
+}
+
+async function athleteCrmById(env, athleteId) {
+  const rows = await athleteCrmRows(env, " AND u.id=?", [athleteId]);
+  return rows[0] || null;
+}
+
+async function athleteCrmDirectory(env, options = {}) {
+  const rows = await athleteCrmRows(env);
+  const q = text(options.q, 80).toLowerCase();
+  const searched = q ? rows.filter((row) => [
+    row.name, row.email, row.city, row.assigned_coach_name,
+    (row.sports || []).join(" "), row.goals,
+  ].some((value) => String(value || "").toLowerCase().includes(q))) : rows;
+  const counts = {
+    all: searched.length,
+    unassigned: searched.filter((row) => !row.assigned).length,
+    assigned: searched.filter((row) => row.assigned).length,
+    active: searched.filter((row) => row.active).length,
+    inactive: searched.filter((row) => !row.active).length,
+    onboarding_incomplete: searched.filter((row) => row.onboarding_incomplete).length,
+  };
+  const filter = ["all", "unassigned", "assigned", "active", "inactive", "onboarding_incomplete"].includes(options.filter) ? options.filter : "all";
+  let filtered = searched;
+  if (filter === "unassigned") filtered = searched.filter((row) => !row.assigned);
+  if (filter === "assigned") filtered = searched.filter((row) => row.assigned);
+  if (filter === "active") filtered = searched.filter((row) => row.active);
+  if (filter === "inactive") filtered = searched.filter((row) => !row.active);
+  if (filter === "onboarding_incomplete") filtered = searched.filter((row) => row.onboarding_incomplete);
+  const sort = ["recent", "name", "status"].includes(options.sort) ? options.sort : "recent";
+  filtered = [...filtered].sort((a, b) => {
+    if (sort === "name") return String(a.name).localeCompare(String(b.name));
+    if (sort === "status") return Number(b.assigned) - Number(a.assigned) || Number(b.onboarding_incomplete) - Number(a.onboarding_incomplete);
+    return String(b.last_activity_at || "").localeCompare(String(a.last_activity_at || ""));
+  });
+  const limit = Math.min(Math.max(Number(options.limit) || 50, 1), 100);
+  const offset = Math.max(Number(options.offset) || 0, 0);
+  return { athletes: filtered.slice(offset, offset + limit), total: filtered.length, counts, filter, sort, q };
+}
+
+async function recordAthleteCrmEvent(env, athleteId, actorId, action, entityType = "", entityId = "", details = {}) {
+  await env.DB.prepare(`INSERT INTO athlete_crm_events(id,athlete_user_id,actor_user_id,action,entity_type,entity_id,details_json,created_at)
+    VALUES(?,?,?,?,?,?,?,?)`).bind(randomId(), athleteId, actorId || null, action, text(entityType, 40), text(entityId, 36),
+      JSON.stringify(details || {}), new Date().toISOString()).run();
+}
+
+async function markCrmEmail(env, invitationId, status) {
+  await env.DB.prepare("UPDATE athlete_crm_invitations SET email_status=?,status=CASE WHEN ?='sent' AND status='email_failed' THEN 'pending' WHEN ?='failed' THEN 'email_failed' ELSE status END,updated_at=? WHERE id=?")
+    .bind(status, status, status, new Date().toISOString(), invitationId).run();
+}
+
+async function sendAthleteCrmInvitation(env, invitation, athlete, token, coachName) {
+  if (!emailDeliveryConfigured(env)) {
+    await markCrmEmail(env, invitation.id, "failed");
+    return false;
+  }
+  const message = invitationEmail(invitation.kind, {
+    athleteName: athlete.name,
+    coachName: coachName || invitation.coach_name || "",
+    language: invitation.language,
+  }, token);
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+      body: JSON.stringify({ from: env.EMAIL_FROM, to: [athlete.email], subject: message.subject, html: message.html, text: message.text }),
+    });
+    if (!response.ok) throw new Error("email_delivery_failed");
+    await markCrmEmail(env, invitation.id, "sent");
+    return true;
+  } catch {
+    await markCrmEmail(env, invitation.id, "failed");
+    return false;
+  }
+}
+
+async function revokeActiveAthleteAssignment(env, athleteId, actorId, action = "coach_revoked") {
+  const active = await env.DB.prepare(`SELECT c.id,c.coach_user_id,c.booking_id,p.display_name AS coach_name
+    FROM coach_connections c JOIN provider_profiles p ON p.user_id=c.coach_user_id
+    WHERE c.athlete_user_id=? AND c.status='accepted' AND c.workspace_status='active'
+      AND p.status='approved' AND p.provider_type='coach' ORDER BY c.updated_at DESC LIMIT 1`).bind(athleteId).first();
+  if (!active) return null;
+  const now = new Date().toISOString();
+  await env.DB.batch([
+    env.DB.prepare("UPDATE coach_connections SET status='declined',workspace_status='closed',updated_at=? WHERE id=?").bind(now, active.id),
+    env.DB.prepare("UPDATE athlete_crm_invitations SET status='revoked',updated_at=? WHERE connection_id=? AND status='pending'").bind(now, active.id),
+    env.DB.prepare(`INSERT INTO athlete_crm_events(id,athlete_user_id,actor_user_id,action,entity_type,entity_id,details_json,created_at)
+      VALUES(?,?,?,?,?,?,?,?)`).bind(randomId(), athleteId, actorId || null, action, "coach_connection", active.id, JSON.stringify({ coach_user_id: active.coach_user_id }), now),
+  ]);
+  await createNotification(env, active.coach_user_id, "connection_reviewed", "Coaching workspace closed",
+    "A manager closed a coaching workspace. No athlete details were shared.", "coach_connection", active.id);
+  return active;
+}
+
+function newInvitationToken() {
+  return b64(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+async function createAthleteCrmInvitation(request, env, manager, athleteId, kind, options = {}) {
+  const body = await readJson(request);
+  if (!body) return { response: reply(request, env, { error: "invalid_invitation" }, 400) };
+  if (!await collectionEnabled(env)) return { response: reply(request, env, { error: "intake_paused" }, 503) };
+  if (!await rateLimit(request, env, "athlete-crm-invite", ATHLETE_CRM_INVITE_LIMIT)) return { response: reply(request, env, { error: "rate_limited" }, 429) };
+  const athlete = await athleteCrmById(env, athleteId);
+  if (!athlete) return { response: reply(request, env, { error: "athlete_not_found" }, 404) };
+  const language = body.language === "ar" ? "ar" : "en";
+  const reasons = Array.isArray(body.reasons)
+    ? [...new Set(body.reasons.map((code) => text(code, 40)).filter(Boolean))].slice(0, 8) : [];
+
+  let coach = null, connectionId = null, action = "profile_invited";
+  if (kind === "coach") {
+    const coachProfileId = text(body.coach_id, 36);
+    coach = await env.DB.prepare(`SELECT id,user_id,display_name,city,status,provider_type FROM provider_profiles
+      WHERE id=? AND status='approved' AND provider_type='coach'`).bind(coachProfileId).first();
+    if (!coach) return { response: reply(request, env, { error: "coach_unavailable" }, 404) };
+    if (coach.user_id === athlete.id) return { response: reply(request, env, { error: "cannot_invite_self" }, 400) };
+    if (await env.DB.prepare("SELECT id FROM athlete_crm_invitations WHERE athlete_user_id=? AND coach_user_id=? AND status='pending'")
+      .bind(athlete.id, coach.user_id).first()) return { response: reply(request, env, { error: "invitation_exists" }, 409) };
+
+    if (options.reassign) {
+      const revoked = await revokeActiveAthleteAssignment(env, athlete.id, manager.id, "coach_reassigned");
+      if (!revoked) return { response: reply(request, env, { error: "no_active_assignment" }, 409) };
+      action = "coach_reassigned";
+    } else {
+      action = "coach_invited";
+      const active = await env.DB.prepare(`SELECT id FROM coach_connections WHERE athlete_user_id=? AND status='accepted' AND workspace_status='active'`)
+        .bind(athlete.id).first();
+      if (active) return { response: reply(request, env, { error: "assignment_exists" }, 409) };
+    }
+
+    const existing = await env.DB.prepare("SELECT id,status,workspace_status FROM coach_connections WHERE coach_user_id=? AND athlete_user_id=?")
+      .bind(coach.user_id, athlete.id).first();
+    const now = new Date().toISOString();
+    if (existing && existing.status === "pending") return { response: reply(request, env, { error: "invitation_exists" }, 409) };
+    if (existing) {
+      await env.DB.prepare(`UPDATE coach_connections SET status='pending',source='admin_invite',booking_id=NULL,
+        athlete_accepted_at=NULL,workspace_status='none',workspace_created_at=NULL,updated_at=? WHERE id=?`).bind(now, existing.id).run();
+      connectionId = existing.id;
+    } else {
+      connectionId = randomId();
+      await env.DB.prepare(`INSERT INTO coach_connections
+        (id,coach_user_id,athlete_user_id,status,created_at,updated_at,booking_id,source,athlete_accepted_at,workspace_status,workspace_created_at)
+        VALUES(?,?,?,'pending',?,?,NULL,'admin_invite',NULL,'none',NULL)`)
+        .bind(connectionId, coach.user_id, athlete.id, now, now).run();
+    }
+  }
+
+  const token = newInvitationToken();
+  const tokenHash = await sha256(token);
+  const now = new Date().toISOString();
+  const invitationId = randomId();
+  await env.DB.prepare(`INSERT INTO athlete_crm_invitations
+    (id,kind,athlete_user_id,coach_user_id,connection_id,invited_by_user_id,token_hash,language,status,email_status,reason_json,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,'pending','pending',?,?,?)`)
+    .bind(invitationId, kind, athlete.id, coach?.user_id || null, connectionId, manager?.id || null, tokenHash, language,
+      JSON.stringify(reasons), now, now).run();
+  await recordAthleteCrmEvent(env, athlete.id, manager?.id, action, kind === "coach" ? "coach_invitation" : "profile_invitation",
+    invitationId, { language, reason_codes: reasons, connection_id: connectionId || "" });
+
+  const invitation = { id: invitationId, kind, language, coach_name: coach?.display_name || "", email_status: "pending" };
+  const delivered = await sendAthleteCrmInvitation(env, invitation, athlete, token, coach?.display_name || "");
+  const payload = {
+    id: invitationId, kind, language, status: delivered ? "pending" : "email_failed",
+    email_status: delivered ? "sent" : "failed", coach_id: coach?.id || null,
+    athlete_id: athlete.id, created_at: now,
+  };
+  if (!delivered) return { response: reply(request, env, { error: "email_unavailable", invitation: payload }, 503), invitation: payload };
+  return { response: reply(request, env, { invitation: payload }, 201), invitation: payload };
+}
+
+async function athleteCrmRecommendations(request, env, manager, athlete) {
+  await recordAthleteCrmEvent(env, athlete.id, manager?.id, "recommendations_viewed", "athlete", athlete.id, { source: "verified_profile" });
+  const coaches = await env.DB.prepare(`SELECT p.id,p.user_id,p.display_name,p.city,p.specialties_json,p.languages_json,
+      p.bio,p.services_json,p.coaching_mode,p.provider_type,p.experience_years
+    FROM provider_profiles p WHERE p.status='approved' AND p.provider_type='coach' AND p.user_id<>?
+      AND NOT EXISTS(SELECT 1 FROM coach_connections c WHERE c.athlete_user_id=? AND c.coach_user_id=p.user_id AND c.status IN ('pending','accepted'))
+      AND NOT EXISTS(SELECT 1 FROM athlete_crm_invitations i WHERE i.athlete_user_id=? AND i.coach_user_id=p.user_id AND i.status='pending')
+    ORDER BY p.display_name LIMIT 100`).bind(athlete.id, athlete.id, athlete.id).all();
+  const matches = coachMatches(athlete, (coaches.results || []).map((coach) => ({
+    ...coach,
+    specialties: safeParse(coach.specialties_json),
+    languages: safeParse(coach.languages_json),
+    services: safeParse(coach.services_json),
+  })));
+  const nextSteps = [];
+  if (athlete.onboarding_incomplete) nextSteps.push({ code: "complete_profile", en: "Invite the athlete to complete their sports profile.", ar: "ادعُ الرياضي لإكمال ملفه الرياضي." });
+  if (athlete.assigned) nextSteps.push({ code: "review_assignment", en: "Review the current coach connection before recommending a change.", ar: "راجع ارتباط المدرب الحالي قبل اقتراح تغيير." });
+  else nextSteps.push({ code: "invite_coach", en: "Invite a recommended coach and wait for the athlete's consent.", ar: "ادعُ مدرباً مقترحاً وانتظر موافقة الرياضي." });
+  if (!athlete.active) nextSteps.push({ code: "reengage", en: "Send a gentle re-engagement invitation.", ar: "أرسل دعوة لطيفة للتفاعل مجدداً." });
+  const drafts = [
+    {
+      kind: "profile", requires_approval: true,
+      subject_en: "Complete your sports profile", subject_ar: "أكمل ملفك الرياضي",
+      body_en: "Add your sports, goals and preferred language to help MZ Active suggest suitable coaches. Your profile stays private.",
+      body_ar: "أضف رياضاتك وأهدافك ولغتك المفضلة لمساعدة MZ Active في اقتراح مدربين مناسبين. يبقى ملفك خاصاً.",
+    },
+    ...matches.slice(0, 1).map((match) => ({
+      kind: "coach", coach_id: match.coach_id, requires_approval: true,
+      subject_en: "A coach has been recommended to you", subject_ar: "مدرب مقترح لك",
+      body_en: `${match.coach_name} can open a private workspace with you. You decide whether to accept or decline.`,
+      body_ar: `يمكن لـ ${match.coach_name} فتح مساحة تدريب خاصة معك. أنت من يقرر القبول أو الرفض.`,
+    })),
+  ];
+  return reply(request, env, {
+    athlete_id: athlete.id,
+    generated_at: new Date().toISOString(),
+    matches,
+    next_steps: nextSteps,
+    drafts,
+    disclaimer: {
+      en: "Assistive suggestions based on verified profile fields only. No medical advice, diagnosis or licensed-coach claim is made.",
+      ar: "اقتراحات مساعدة مبنية على حقول الملف الموثقة فقط. لا تتضمن تشخيصاً طبياً أو ادعاءً بأن المدرب مرخص.",
+    },
+  });
+}
+
+async function athleteCrmDetail(request, env, athlete) {
+  const [connections, invitations, programs, sessions, bookings, messages, events] = await Promise.all([
+    env.DB.prepare(`SELECT c.id,c.status,c.workspace_status,c.updated_at,c.source,c.athlete_accepted_at,
+      p.id AS coach_profile_id,p.display_name AS coach_name,p.city,p.provider_type,p.specialties_json,p.languages_json,p.coaching_mode
+      FROM coach_connections c JOIN provider_profiles p ON p.user_id=c.coach_user_id
+      WHERE c.athlete_user_id=? ORDER BY c.updated_at DESC LIMIT 50`).bind(athlete.id).all(),
+    env.DB.prepare(`SELECT i.id,i.kind,i.status,i.email_status,i.language,i.created_at,i.responded_at,i.reason_json,
+      p.display_name AS coach_name FROM athlete_crm_invitations i
+      LEFT JOIN provider_profiles p ON p.user_id=i.coach_user_id
+      WHERE i.athlete_user_id=? ORDER BY i.created_at DESC LIMIT 50`).bind(athlete.id).all(),
+    env.DB.prepare("SELECT id,week_start,coach_note,athlete_type,created_at FROM athlete_programs_v2 WHERE athlete_user_id=? ORDER BY week_start DESC LIMIT 40")
+      .bind(athlete.id).all(),
+    env.DB.prepare(`SELECT s.program_id,s.id,s.session_code,s.day_key,s.sport_type,s.details,
+      c.completed_at,c.actual_km,c.duration_minutes FROM athlete_programs_v2 p
+      JOIN athlete_program_sessions_v2 s ON s.program_id=p.id
+      LEFT JOIN athlete_program_completions_v2 c ON c.session_id=s.id AND c.athlete_user_id=p.athlete_user_id
+      WHERE p.athlete_user_id=? ORDER BY p.week_start DESC,s.sort_order LIMIT 500`).bind(athlete.id).all(),
+    env.DB.prepare(`SELECT id,provider_id,customer_name,status,session_type,preferred_date,city,created_at
+      FROM booking_requests WHERE customer_user_id=? ORDER BY created_at DESC LIMIT 50`).bind(athlete.id).all(),
+    env.DB.prepare(`SELECT m.id,m.connection_id,m.created_at,m.read_at,c.workspace_status,p.display_name AS coach_name
+      FROM coach_messages m JOIN coach_connections c ON c.id=m.connection_id
+      LEFT JOIN provider_profiles p ON p.user_id=c.coach_user_id
+      WHERE c.athlete_user_id=? ORDER BY m.created_at DESC LIMIT 100`).bind(athlete.id).all(),
+    env.DB.prepare("SELECT id,actor_user_id,action,entity_type,entity_id,details_json,created_at FROM athlete_crm_events WHERE athlete_user_id=? ORDER BY created_at DESC LIMIT 100")
+      .bind(athlete.id).all(),
+  ]);
+  const sessionRows = sessions.results || [];
+  const programMap = new Map((programs.results || []).map((program) => [program.id, { ...program, sessions: [] }]));
+  for (const session of sessionRows) programMap.get(session.program_id)?.sessions.push(session);
+  const completed = sessionRows.filter((session) => session.completed_at);
+  const stats = {
+    programs: programMap.size,
+    sessions: sessionRows.length,
+    completed_sessions: completed.length,
+    total_km: Number(completed.reduce((sum, session) => sum + Number(session.actual_km || 0), 0).toFixed(1)),
+    total_minutes: completed.reduce((sum, session) => sum + Number(session.duration_minutes || 0), 0),
+    bookings: (bookings.results || []).length,
+    messages: (messages.results || []).length,
+  };
+  return reply(request, env, {
+    athlete,
+    summary: stats,
+    coaches: (connections.results || []).map((row) => ({ ...row, specialties: safeParse(row.specialties_json), languages: safeParse(row.languages_json) })),
+    invitations: (invitations.results || []).map((row) => ({ ...row, reasons: safeParse(row.reason_json) })),
+    programs: [...programMap.values()],
+    bookings: bookings.results || [],
+    messages: messages.results || [],
+    audit: (events.results || []).map((row) => ({ ...row, details: safeParse(row.details_json) })),
+  });
+}
+
+async function handleAthleteInvitationApi(request, env, url) {
+  const match = /^\/api\/athlete-invitations\/([\w-]{20,120})$/.exec(url.pathname);
+  if (!match) return null;
+  if (!["GET", "POST"].includes(request.method)) return reply(request, env, { error: "not_found" }, 404);
+  if (!await rateLimit(request, env, "athlete-invitation", 20)) return reply(request, env, { error: "rate_limited" }, 429);
+  const tokenHash = await sha256(match[1]);
+  const invitation = await env.DB.prepare(`SELECT i.*,u.email,u.id AS athlete_id,
+      COALESCE(NULLIF(ms.display_name,''),substr(u.email,1,instr(u.email,'@')-1)) AS athlete_name,
+      p.display_name AS coach_name
+    FROM athlete_crm_invitations i JOIN users u ON u.id=i.athlete_user_id
+    LEFT JOIN member_sports_profiles ms ON ms.user_id=u.id
+    LEFT JOIN provider_profiles p ON p.user_id=i.coach_user_id WHERE i.token_hash=?`).bind(tokenHash).first();
+  if (!invitation || !["pending", "email_failed"].includes(invitation.status)) return reply(request, env, { error: "invitation_not_found" }, 404);
+  const cutoff = new Date(Date.now() - ATHLETE_INVITATION_TTL_DAYS * 86400000).toISOString();
+  if (String(invitation.created_at) < cutoff) {
+    await env.DB.prepare("UPDATE athlete_crm_invitations SET status='expired',updated_at=? WHERE id=?").bind(new Date().toISOString(), invitation.id).run();
+    return reply(request, env, { error: "invitation_expired" }, 410);
+  }
+  if (request.method === "GET") return reply(request, env, {
+    invitation: {
+      id: invitation.id, kind: invitation.kind, language: invitation.language, status: "pending",
+      athlete_name: invitation.athlete_name, coach_name: invitation.coach_name || "",
+      created_at: invitation.created_at, expires_at: new Date(Date.parse(invitation.created_at) + ATHLETE_INVITATION_TTL_DAYS * 86400000).toISOString(),
+      reason_codes: safeParse(invitation.reason_json),
+    },
+  });
+
+  const body = await readJson(request);
+  const action = body?.action === "decline" ? "declined" : body?.action === "accept" ? "accepted" : "";
+  if (!action) return reply(request, env, { error: "invalid_action" }, 400);
+  const now = new Date().toISOString();
+  let workspaceActive = false;
+
+  if (action === "accepted" && invitation.kind === "coach") {
+    const coach = await env.DB.prepare("SELECT user_id FROM provider_profiles WHERE user_id=? AND status='approved' AND provider_type='coach'")
+      .bind(invitation.coach_user_id).first();
+    if (!coach) return reply(request, env, { error: "coach_unavailable" }, 409);
+    const other = await env.DB.prepare(`SELECT id FROM coach_connections WHERE athlete_user_id=? AND coach_user_id<>?
+      AND status='accepted' AND workspace_status='active'`).bind(invitation.athlete_id, invitation.coach_user_id).first();
+    if (other) return reply(request, env, { error: "active_assignment_exists" }, 409);
+    const updated = await env.DB.prepare(`UPDATE coach_connections SET status='accepted',workspace_status='active',
+      athlete_accepted_at=?,workspace_created_at=COALESCE(workspace_created_at,?),updated_at=?
+      WHERE id=? AND status='pending' AND athlete_user_id=? AND coach_user_id=?`)
+      .bind(now, now, now, invitation.connection_id, invitation.athlete_id, invitation.coach_user_id).run();
+    if (!updated.meta?.changes) return reply(request, env, { error: "invitation_unavailable" }, 409);
+    workspaceActive = true;
+  } else if (action === "declined" && invitation.kind === "coach") {
+    await env.DB.prepare(`UPDATE coach_connections SET status='declined',workspace_status='closed',updated_at=?
+      WHERE id=? AND athlete_user_id=?`).bind(now, invitation.connection_id, invitation.athlete_id).run();
+  }
+
+  const saved = await env.DB.prepare(`UPDATE athlete_crm_invitations SET status=?,updated_at=?,responded_at=?
+    WHERE id=? AND status IN ('pending','email_failed')`).bind(action, now, now, invitation.id).run();
+  if (!saved.meta?.changes) return reply(request, env, { error: "invitation_unavailable" }, 409);
+  const auditAction = invitation.kind === "coach"
+    ? action === "accepted" ? "coach_invite_accepted" : "coach_invite_declined"
+    : action === "accepted" ? "profile_invite_accepted" : "profile_invite_declined";
+  await recordAthleteCrmEvent(env, invitation.athlete_id, invitation.athlete_id, auditAction,
+    "athlete_crm_invitation", invitation.id, { kind: invitation.kind });
+  if (action === "accepted" && workspaceActive) {
+    await recordAthleteCrmEvent(env, invitation.athlete_id, invitation.athlete_id, "coach_assigned", "coach_connection", invitation.connection_id, {});
+    await createNotification(env, invitation.coach_user_id, "workspace_ready", "Private coaching workspace ready", "", "coach_connection", invitation.connection_id);
+  } else if (invitation.kind === "coach") {
+    await createNotification(env, invitation.coach_user_id, "connection_reviewed", "Coach invitation reviewed", "", "athlete_crm_invitation", invitation.id);
+  }
+  return reply(request, env, {
+    ok: true, status: action, workspace_active: workspaceActive,
+    message: invitation.kind === "profile" && action === "accepted"
+      ? { en: "Open your sports profile to continue.", ar: "افتح ملفك الرياضي للمتابعة." }
+      : null,
+  });
+}
+
 function requiredManagementPermission(path) {
   if (path.includes("/assistant") || path.includes("/agents")) return "management.ai";
+  if (path.includes("/athletes/") && path.includes("/recommendations")) return "management.ai";
   if (path.includes("/auth-events")) return "management.audit";
   if (path.includes("/community") || path.includes("/achievements")) return "management.community";
   if (path.includes("/blog")) return "management.articles";
@@ -1946,10 +2334,59 @@ async function adminApplications(request, env, user) {
     return reply(request, env, { snapshot, pending:pending.results || [], status: env.AI?.run ? "available" : "not_configured", tasks: tasks.results || [], activity: activity.results || [] });
   }
   if (request.method === "GET" && requestUrl.pathname === "/api/admin/athletes") {
-    const athletes = await env.DB.prepare(`SELECT u.id,u.email, (SELECT COUNT(*) FROM athlete_programs_v2 WHERE athlete_user_id=u.id) AS programs
-      FROM users u WHERE role='provider' AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id) ORDER BY u.email`).all();
+    const directory = await athleteCrmDirectory(env, {
+      q: requestUrl.searchParams.get("q"), filter: requestUrl.searchParams.get("filter"),
+      sort: requestUrl.searchParams.get("sort"), limit: requestUrl.searchParams.get("limit"),
+      offset: requestUrl.searchParams.get("offset"),
+    });
     const unlinked = await env.DB.prepare("SELECT id,athlete_name,week_start FROM athlete_programs_v2 WHERE athlete_user_id IS NULL ORDER BY week_start DESC").all();
-    return reply(request,env,{athletes:athletes.results,unlinked:unlinked.results});
+    return reply(request, env, { ...directory, unlinked: unlinked.results || [] });
+  }
+  const athleteRecommendationMatch = /^\/api\/admin\/athletes\/([\w-]{36})\/recommendations$/.exec(requestUrl.pathname);
+  if (request.method === "GET" && athleteRecommendationMatch) {
+    const athlete = await athleteCrmById(env, athleteRecommendationMatch[1]);
+    if (!athlete) return reply(request, env, { error: "athlete_not_found" }, 404);
+    return athleteCrmRecommendations(request, env, user, athlete);
+  }
+  const athleteInvitationMatch = /^\/api\/admin\/athletes\/([\w-]{36})\/invitations\/(profile|coach)$/.exec(requestUrl.pathname);
+  if (request.method === "POST" && athleteInvitationMatch) {
+    return (await createAthleteCrmInvitation(request, env, user, athleteInvitationMatch[1], athleteInvitationMatch[2])).response;
+  }
+  const athleteResendMatch = /^\/api\/admin\/athletes\/([\w-]{36})\/invitations\/([\w-]{36})\/resend$/.exec(requestUrl.pathname);
+  if (request.method === "POST" && athleteResendMatch) {
+    const invitation = await env.DB.prepare(`SELECT i.*,p.display_name AS coach_name FROM athlete_crm_invitations i
+      LEFT JOIN provider_profiles p ON p.user_id=i.coach_user_id WHERE i.id=? AND i.athlete_user_id=?`)
+      .bind(athleteResendMatch[2], athleteResendMatch[1]).first();
+    if (!invitation) return reply(request, env, { error: "invitation_not_found" }, 404);
+    if (!["pending", "email_failed"].includes(invitation.status)) return reply(request, env, { error: "invitation_not_pending" }, 409);
+    const athlete = await athleteCrmById(env, athleteResendMatch[1]);
+    const token = newInvitationToken();
+    await env.DB.prepare("UPDATE athlete_crm_invitations SET token_hash=?,status='pending',updated_at=? WHERE id=?")
+      .bind(await sha256(token), new Date().toISOString(), invitation.id).run();
+    await recordAthleteCrmEvent(env, athlete.id, user.id, "invitation_resent", "athlete_crm_invitation", invitation.id, { kind: invitation.kind });
+    const delivered = await sendAthleteCrmInvitation(env, invitation, athlete, token, invitation.coach_name);
+    return delivered
+      ? reply(request, env, { ok: true, status: "pending" }, 201)
+      : reply(request, env, { error: "email_unavailable", invitation_id: invitation.id }, 503);
+  }
+  const athleteRevokeMatch = /^\/api\/admin\/athletes\/([\w-]{36})\/connections\/([\w-]{36})\/revoke$/.exec(requestUrl.pathname);
+  if (request.method === "POST" && athleteRevokeMatch) {
+    const connection = await env.DB.prepare(`SELECT c.id FROM coach_connections c JOIN provider_profiles p ON p.user_id=c.coach_user_id
+      WHERE c.id=? AND c.athlete_user_id=? AND c.status='accepted' AND c.workspace_status='active'
+        AND p.status='approved' AND p.provider_type='coach'`).bind(athleteRevokeMatch[2], athleteRevokeMatch[1]).first();
+    if (!connection) return reply(request, env, { error: "assignment_not_found" }, 404);
+    await revokeActiveAthleteAssignment(env, athleteRevokeMatch[1], user.id);
+    return reply(request, env, { ok: true, revoked_connection_id: connection.id });
+  }
+  const athleteReassignMatch = /^\/api\/admin\/athletes\/([\w-]{36})\/reassign$/.exec(requestUrl.pathname);
+  if (request.method === "POST" && athleteReassignMatch) {
+    return (await createAthleteCrmInvitation(request, env, user, athleteReassignMatch[1], "coach", { reassign: true })).response;
+  }
+  const athleteDetailMatch = /^\/api\/admin\/athletes\/([\w-]{36})$/.exec(requestUrl.pathname);
+  if (request.method === "GET" && athleteDetailMatch) {
+    const athlete = await athleteCrmById(env, athleteDetailMatch[1]);
+    if (!athlete) return reply(request, env, { error: "athlete_not_found" }, 404);
+    return athleteCrmDetail(request, env, athlete);
   }
   const assign = /^\/api\/admin\/programs\/([\w-]{36})\/athlete$/.exec(requestUrl.pathname);
   if (request.method === "PATCH" && assign) {
@@ -2254,7 +2691,7 @@ async function handleCommunityApi(request, env, url) {
       const row = await env.DB.prepare("SELECT * FROM member_sports_profiles WHERE user_id=?").bind(auth.user.id).first();
       const profile = row ? { ...row, sports: safeParse(row.sports_json) } : {
         user_id: auth.user.id, display_name: "", city: "", sports: [], experience_level: "", goals: "",
-        age_range: "", gender: "", garmin_public_url: "", updated_at: null,
+        age_range: "", gender: "", garmin_public_url: "", preferred_language: "", availability_notes: "", updated_at: null,
       };
       return reply(request, env, { profile });
     }
@@ -2262,14 +2699,30 @@ async function handleCommunityApi(request, env, url) {
     if (!body) return reply(request, env, { error: "invalid_profile" }, 400);
     const garmin = cleanGarminPublicUrl(body.garmin_public_url);
     if (garmin === null) return reply(request, env, { error: "invalid_garmin_url" }, 400);
+    const preferred = text(body.preferred_language, 20).toLowerCase();
+    const preferredLanguage = ["en", "ar", "english", "arabic"].includes(preferred) ? (preferred.startsWith("a") ? "ar" : "en") : "";
     const now = new Date().toISOString();
-    await env.DB.prepare(`INSERT INTO member_sports_profiles(user_id,display_name,city,sports_json,experience_level,goals,age_range,gender,garmin_public_url,updated_at)
-      VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET
+    await env.DB.prepare(`INSERT INTO member_sports_profiles(user_id,display_name,city,sports_json,experience_level,goals,age_range,gender,garmin_public_url,preferred_language,availability_notes,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET
       display_name=excluded.display_name,city=excluded.city,sports_json=excluded.sports_json,
       experience_level=excluded.experience_level,goals=excluded.goals,age_range=excluded.age_range,
-      gender=excluded.gender,garmin_public_url=excluded.garmin_public_url,updated_at=excluded.updated_at`)
+      gender=excluded.gender,garmin_public_url=excluded.garmin_public_url,
+      preferred_language=excluded.preferred_language,availability_notes=excluded.availability_notes,updated_at=excluded.updated_at`)
       .bind(auth.user.id, text(body.display_name, 80), text(body.city, 80), JSON.stringify(cleanSports(body.sports)),
-        text(body.experience_level, 60), text(body.goals, 600), text(body.age_range, 40), text(body.gender, 40), garmin || "", now).run();
+        text(body.experience_level, 60), text(body.goals, 600), text(body.age_range, 40), text(body.gender, 40), garmin || "",
+        preferredLanguage, text(body.availability_notes, 300), now).run();
+    const pendingInvites = await env.DB.prepare("SELECT id FROM athlete_crm_invitations WHERE athlete_user_id=? AND kind='profile' AND status IN ('pending','email_failed')")
+      .bind(auth.user.id).all();
+    if ((pendingInvites.results || []).length) {
+      const auditStatements = (pendingInvites.results || []).flatMap((invitation) => [
+        env.DB.prepare(`INSERT INTO athlete_crm_events(id,athlete_user_id,actor_user_id,action,entity_type,entity_id,details_json,created_at)
+          VALUES(?,?,?,'profile_invite_accepted','athlete_crm_invitation',?,'{}',?)`)
+          .bind(randomId(), auth.user.id, auth.user.id, invitation.id, now),
+        env.DB.prepare("UPDATE athlete_crm_invitations SET status='accepted',updated_at=?,responded_at=? WHERE id=?")
+          .bind(now, now, invitation.id),
+      ]);
+      await env.DB.batch(auditStatements);
+    }
     return reply(request, env, { saved: true, updated_at: now });
   }
 
@@ -2813,6 +3266,8 @@ export default {
     const cors = corsHeaders(request, env);
     if (!cors) return json({ error: "origin_not_allowed" }, 403);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: Object.fromEntries(cors) });
+    const invitationResponse = await handleAthleteInvitationApi(request, env, url);
+    if (invitationResponse) return invitationResponse;
     const communityResponse = await handleCommunityApi(request, env, url);
     if (communityResponse) return communityResponse;
     const workspaceResponse = await handleWorkspaceApi(request, env, url);
