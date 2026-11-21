@@ -50,6 +50,8 @@ test('community discovery, detail, events, feed and chat use live fixture data',
   await expect(page.locator('#communityList')).toContainText('Doha Morning Runners');
   await expect(page.locator('#communityList')).not.toContainText('Doha Cyclists');
   expect(mock.calls.some(call => call.path === '/api/communities' && call.query.sport === 'running')).toBe(true);
+  await expect(page.locator('#upcomingList')).toContainText('Saturday Easy Run');
+  expect(mock.calls.some(call => call.path === '/api/community/upcoming')).toBe(true);
 
   await page.locator('#communityList').getByRole('button', { name: 'Open community' }).first().click();
   await expect(page.locator('#communityDetail')).toBeVisible();

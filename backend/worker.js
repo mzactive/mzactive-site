@@ -1476,7 +1476,12 @@ function binaryReply(request, env, bytes, contentType, cacheControl) {
   headers.set("vary", `${headers.get("vary") || "Origin"}, Authorization`);
   headers.set("x-content-type-options", "nosniff");
   headers.set("content-disposition", "inline");
-  return new Response(bytes, { headers });
+  // D1 can materialize BLOB columns as plain number arrays in real runtimes.
+  // Response does not accept those as a body, so normalize every binary result.
+  const body = Array.isArray(bytes) ? Uint8Array.from(bytes)
+    : ArrayBuffer.isView(bytes) ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+      : bytes;
+  return new Response(body, { headers });
 }
 
 async function uploadProfilePhoto(request, env, user) {

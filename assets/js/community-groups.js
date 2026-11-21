@@ -567,6 +567,7 @@
     if (!token && $('communityScope').value === 'mine') $('communityScope').value = 'discover';
     if (token) api('/me/community').then(data => { currentUserId = data.user_id || ''; }).catch(() => {});
     loadCommunities();
+    loadUpcoming();
     const requested = new URL(window.location.href).searchParams.get('community');
     if (requested) openCommunity(requested);
   }
