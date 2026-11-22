@@ -12,9 +12,10 @@ test.describe('MZA app install UX', () => {
   test('one controller powers the header and footer, and the native prompt is used only after a click', async ({ page }) => {
     await page.goto('/index.html');
     const heroActions = page.locator('.hero-actions a');
-    await expect(heroActions).toHaveCount(2);
+    await expect(heroActions).toHaveCount(3);
     await expect(heroActions.nth(0)).toHaveText('Find a Coach');
     await expect(heroActions.nth(1)).toHaveText('Become a Coach');
+    await expect(heroActions.nth(2)).toHaveText('Join the Community');
     await expect(page.locator('.hero-actions [data-mza-install-button]')).toHaveCount(0);
 
     const header = page.locator('.mza-header-install');

@@ -16,8 +16,11 @@
       toggle: 'Ask Momo AI',
       greeting: 'Hello! I’m Momo. I can help you find a coach, send a booking request, or set up a coach profile.',
       limit: 'The assistant has reached today’s usage limit. You can still browse the help pages.',
+      rateLimited: 'Momo is receiving a lot of questions right now. Please wait a moment and try again.',
       unavailable: 'The assistant is unavailable right now. Please try again shortly.',
       answerFailed: 'I couldn’t prepare an answer. Please try again.',
+      directoryIntro: 'Here are real, approved MZ Active profiles you can open now.',
+      directoryEmpty: 'No approved profiles are available right now. You can still browse the coach directory.',
       inviteTitle: 'Need a hand finding someone?',
       inviteBody: 'Momo can help you refine your search using real approved profiles.',
       inviteAccept: 'Ask Momo',
@@ -39,8 +42,11 @@
       toggle: 'اسأل مومو',
       greeting: 'مرحباً! أنا مومو. يمكنني مساعدتك في العثور على مدرب أو إرسال طلب حجز أو إعداد ملف مدرب.',
       limit: 'وصل المساعد إلى حد الاستخدام اليومي. لا يزال يمكنك تصفح صفحات المساعدة.',
+      rateLimited: 'يتلقى مومو عددا كبيرا من الأسئلة الآن. يُرجى الانتظار قليلاً ثم المحاولة مرة أخرى.',
       unavailable: 'المساعد غير متاح حالياً. يُرجى المحاولة بعد قليل.',
       answerFailed: 'لم أتمكن من تجهيز إجابة. يُرجى المحاولة مرة أخرى.',
+      directoryIntro: 'إليك ملفات معتمدة حقيقية في MZ Active يمكنك فتحها الآن.',
+      directoryEmpty: 'لا توجد ملفات معتمدة حالياً. لا يزال يمكنك تصفح دليل المدربين.',
       inviteTitle: 'هل تحتاج مساعدة في البحث؟',
       inviteBody: 'يمكن لمومو مساعدتك في تحسين بحثك باستخدام ملفات معتمدة حقيقية.',
       inviteAccept: 'اسأل مومو',
@@ -78,6 +84,7 @@
   const inviteDismiss = root.querySelector('#mz-assistant-invite-dismiss');
   const INVITE_KEY = 'mzactive-momo-invite-shown';
   let providerData = [];
+  let chatHistory = [];
   function setInviteCopy() {
     const current = lang();
     invite.querySelector('strong').textContent = COPY[current].inviteTitle;
@@ -121,6 +128,50 @@
     messages.append(item);
     messages.scrollTop = messages.scrollHeight;
   }
+  function validProviders(list) {
+    return (Array.isArray(list) ? list : []).filter(item => item
+      && /^[A-Za-z0-9_-]+$/.test(String(item.id || ''))
+      && typeof item.display_name === 'string'
+      && item.display_name.trim());
+  }
+  function appendProviderLinks(list, limit = 5) {
+    const providers = validProviders(list).slice(0, limit);
+    if (!providers.length) return false;
+    const block = document.createElement('div');
+    block.className = 'mz-assistant-suggestions';
+    const title = document.createElement('div');
+    title.className = 'mz-assistant-providers-title';
+    title.textContent = t('suggestionsTitle');
+    title.dataset.momoKey = 'suggestionsTitle';
+    block.append(title);
+    for (const provider of providers) {
+      const link = document.createElement('a');
+      link.className = 'mz-assistant-provider';
+      link.href = `/coach.html?id=${encodeURIComponent(String(provider.id))}`;
+      link.textContent = `${provider.display_name} ↗`;
+      block.append(link);
+    }
+    messages.append(block);
+    messages.scrollTop = messages.scrollHeight;
+    return true;
+  }
+  async function showDirectoryFallback() {
+    try {
+      const response = await fetch(`${API}/api/providers`, { cache: 'no-store' });
+      if (!response.ok) return false;
+      const data = await response.json().catch(() => ({}));
+      const providers = validProviders(data.providers);
+      if (!providers.length) {
+        addMessage('assistant', '', 'directoryEmpty');
+        return true;
+      }
+      addMessage('assistant', '', 'directoryIntro');
+      return appendProviderLinks(providers, 5);
+    } catch (error) {
+      console.error('Momo coach directory fallback failed:', error);
+      return false;
+    }
+  }
   addMessage('assistant', '', 'greeting');
   function setOpen(open) { panel.hidden = !open; toggle.setAttribute('aria-expanded', String(open)); if (open) input.focus(); }
   toggle.addEventListener('click', () => setOpen(panel.hidden));
@@ -136,18 +187,24 @@
     try {
       const response = await fetch(`${API}/api/assistant/chat`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ message, history: history.slice(-4) }),
+        body: JSON.stringify({ message, history: chatHistory.slice(-4) }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        addMessage('assistant', '', data.error === 'daily_limit_reached' ? 'limit' : 'unavailable');
+        const replyKey = data.error === 'daily_limit_reached' ? 'limit' : data.error === 'rate_limited' ? 'rateLimited' : 'directoryIntro';
+        if (data.error === 'daily_limit_reached') addMessage('assistant', '', 'limit');
+        else if (data.error === 'rate_limited') addMessage('assistant', '', 'rateLimited');
+        else if (!await showDirectoryFallback()) addMessage('assistant', '', 'unavailable');
+        chatHistory.push({ role: 'user', content: message }, { role: 'assistant', content: t(replyKey) });
         return;
       }
       const answer = typeof data.answer === 'string' ? data.answer : t('answerFailed');
       addMessage('assistant', answer);
-      history.push({ role: 'user', content: message }, { role: 'assistant', content: answer });
-    } catch {
-      addMessage('assistant', '', 'unavailable');
+      if (Array.isArray(data.providers)) appendProviderLinks(data.providers, 5);
+      chatHistory.push({ role: 'user', content: message }, { role: 'assistant', content: answer });
+    } catch (error) {
+      console.error('Momo assistant request failed:', error);
+      if (!await showDirectoryFallback()) addMessage('assistant', '', 'unavailable');
     } finally {
       send.disabled = false;
       send.textContent = COPY[lang()].send;

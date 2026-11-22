@@ -35,6 +35,24 @@ test('Momo assistance invitation is once per session, dismissible and bilingual'
   assert.doesNotMatch(js, /Math\.random\(\)/);
 });
 
+test('Momo sends chat history from its own state and falls back to real profiles', () => {
+  const js = read('assets/js/assistant-chat-v2.js');
+  assert.match(js, /let chatHistory = \[\]/);
+  assert.match(js, /history: chatHistory\.slice\(-4\)/);
+  assert.match(js, /chatHistory\.push\(/);
+  assert.doesNotMatch(js, /history: history\.slice/);
+  assert.match(js, /showDirectoryFallback/);
+  assert.match(js, /appendProviderLinks/);
+  assert.match(js, /rateLimited:/);
+  assert.match(js, /directoryIntro:/);
+
+  const worker = read('backend/worker.js');
+  assert.match(worker, /momoApprovedProviders/);
+  assert.match(worker, /momoDirectoryResult/);
+  assert.match(worker, /MOMO_PROFILE_BASE/);
+  assert.match(worker, /source: "directory"/);
+});
+
 test('new sports and professional services are available across public discovery', () => {
   const worker = read('backend/worker.js');
   assert.match(worker, /boxing/);
