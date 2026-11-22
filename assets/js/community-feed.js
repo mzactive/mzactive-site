@@ -7,6 +7,7 @@
   const sports = ['running', 'walking', 'cycling', 'swimming', 'strength', 'boxing', 'kickboxing', 'padel', 'football', 'other'];
   let token = '';
   let posts = [];
+  let sportsPhotoUrl = '';
   let currentUserId = '';
   let communityState = { id: '', name: '', member: false, can_manage: false };
 
@@ -336,6 +337,71 @@
     finally { submit.disabled = false; }
   }
 
+  function clearSportsPhoto() {
+    if (sportsPhotoUrl) URL.revokeObjectURL(sportsPhotoUrl);
+    sportsPhotoUrl = '';
+    const preview = $('sportsPhotoPreview');
+    preview.removeAttribute('src');
+    preview.hidden = true;
+    $('sportsPhotoEmpty').hidden = false;
+    $('sportsPhotoRemove').hidden = true;
+  }
+
+  async function loadSportsPhoto() {
+    if (!token) return;
+    try {
+      const response = await fetch(`${base}/api/me/sports-profile/photo`, {
+        headers: { authorization: `Bearer ${token}` }, cache: 'no-store',
+      });
+      if (response.status === 404) { clearSportsPhoto(); return; }
+      if (!response.ok) throw new Error('photo_unavailable');
+      const blob = await response.blob();
+      clearSportsPhoto();
+      sportsPhotoUrl = URL.createObjectURL(blob);
+      const preview = $('sportsPhotoPreview');
+      preview.src = sportsPhotoUrl;
+      preview.alt = t('Your private profile photo', 'صورتك الخاصة');
+      preview.hidden = false;
+      $('sportsPhotoEmpty').hidden = true;
+      $('sportsPhotoRemove').hidden = false;
+    } catch { /* the form stays usable without a preview */ }
+  }
+
+  async function uploadSportsPhoto() {
+    const input = $('sportsPhoto');
+    const file = input.files && input.files[0];
+    if (!file) {
+      sportsNotice(t('Choose a photo first.', 'اختر صورة أولاً.'));
+      return;
+    }
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type) || file.size > 1000000) {
+      sportsNotice(t('Choose a JPEG, PNG or WebP photo under 1 MB.', 'اختر صورة JPEG أو PNG أو WebP بحجم أقل من 1 ميجابايت.'));
+      return;
+    }
+    const button = $('sportsPhotoUpload');
+    button.disabled = true;
+    try {
+      await api('/me/sports-profile/photo', { method: 'PUT', headers: { 'content-type': file.type }, body: file });
+      input.value = '';
+      await loadSportsPhoto();
+      sportsNotice(t('Private photo saved to your account.', 'تم حفظ الصورة الخاصة في حسابك.'));
+    } catch (error) { sportsNotice(error.message); }
+    finally { button.disabled = false; }
+  }
+
+  async function removeSportsPhoto() {
+    if (!confirm(t('Remove your private profile photo?', 'إزالة صورتك الخاصة؟'))) return;
+    const button = $('sportsPhotoRemove');
+    button.disabled = true;
+    try {
+      await api('/me/sports-profile/photo', { method: 'DELETE' });
+      $('sportsPhoto').value = '';
+      clearSportsPhoto();
+      sportsNotice(t('Private photo removed.', 'تمت إزالة الصورة الخاصة.'));
+    } catch (error) { sportsNotice(error.message); }
+    finally { button.disabled = false; }
+  }
+
   async function loadSportsProfile() {
     if (!token) return;
     try {
@@ -351,6 +417,7 @@
       $('sportsAge').value = p.age_range || '';
       $('sportsGender').value = p.gender || '';
       $('sportsGarmin').value = p.garmin_public_url || '';
+      $('sportsShare').checked = p.share_with_coaches === true;
     } catch { /* the form stays usable */ }
   }
 
@@ -372,9 +439,10 @@
           experience_level: $('sportsLevel').value, goals: $('sportsGoals').value,
           preferred_language: $('sportsLanguage').value, availability_notes: $('sportsAvailability').value,
           age_range: $('sportsAge').value, gender: $('sportsGender').value, garmin_public_url: garmin,
+          share_with_coaches: $('sportsShare').checked,
         },
       });
-      sportsNotice(t('Sports profile saved privately.', 'تم حفظ الملف الرياضي بشكل خاص.'));
+      sportsNotice(t('Sports profile saved privately. Coaches only see details you choose to share.', 'تم حفظ الملف الرياضي بشكل خاص. لا يرى المدربون التفاصيل إلا إذا اخترت مشاركتها.'));
     } catch (error) { sportsNotice(error.message); }
     finally { submit.disabled = false; }
   }
@@ -383,7 +451,8 @@
     token = currentToken();
     $('signInPrompt').hidden = Boolean(token);
     $('sportsForm').hidden = !token;
-    if (token) loadSportsProfile();
+    if (token) { loadSportsProfile(); loadSportsPhoto(); }
+    else clearSportsPhoto();
     syncComposerAccess();
     loadViewer().finally(loadFeed);
   }
@@ -402,6 +471,8 @@
   $('postKind').addEventListener('change', syncComposerFields);
   $('postForm').addEventListener('submit', createPost);
   $('sportsForm').addEventListener('submit', saveSportsProfile);
+  $('sportsPhotoUpload').addEventListener('click', uploadSportsPhoto);
+  $('sportsPhotoRemove').addEventListener('click', removeSportsPhoto);
   $('feedKind').addEventListener('change', loadFeed);
   $('feedSport').addEventListener('change', loadFeed);
   document.addEventListener('mzactive:language-change', () => { updateStaticLabels(); loadFeed(); });

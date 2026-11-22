@@ -1,0 +1,33 @@
+.program-doc-dialog{width:min(1000px,96vw);max-height:92dvh;overflow:auto;border:1px solid #c9a227;border-radius:18px;background:#0c1415;color:#f0f5f3;padding:18px}
+.program-doc-dialog::backdrop{background:rgba(5,12,13,.86)}
+.program-doc-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.program-doc-actions h2{margin:0;color:#f2b718;font-size:18px}
+.program-doc-actions button,.program-doc-buttons button,.program-doc-buttons a{background:#f2b718;color:#111;border:1px solid #f2b718;padding:10px 14px;border-radius:999px;font-weight:800;text-decoration:none;cursor:pointer}
+.program-doc-actions button.secondary,.program-doc-buttons .secondary{background:transparent;color:#f0f5f3;border-color:#80672e}
+.program-doc-buttons{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+.program-doc-preview{max-height:58dvh;overflow:auto;margin-top:12px;background:#fff;color:#16201f;border-radius:10px;padding:18px}
+.program-doc-dialog .notice{min-height:22px;color:#f0d89e;margin-top:10px}
+.program-doc .brand{margin:0;color:#a67c00;font-weight:900;letter-spacing:.1em;font-size:12px}
+.program-doc .doc-coach{margin:6px 0;color:#4b5b5b;font-size:12px}
+.program-doc .doc-athlete{margin:8px 0 4px;font-size:22px;color:#16201f}
+.program-doc .doc-title{margin:4px 0;color:#16201f;font-size:26px;letter-spacing:.01em}
+.program-doc .doc-range{margin:0 0 14px;color:#4b5b5b}
+.program-doc .doc-week{margin:18px 0 8px;font-size:16px;color:#16201f}
+.program-doc .doc-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px}
+.program-doc .doc-table th,.program-doc .doc-table td{border:1px solid #c9a227;padding:7px;vertical-align:top;text-align:start;white-space:pre-wrap;overflow-wrap:anywhere}
+.program-doc .doc-table th{background:#f5ecd5;font-weight:800;color:#16201f}
+.program-doc .doc-table tr.rest-row td{background:#f3f5f2;color:#6b736f}
+.program-doc .doc-note{white-space:pre-wrap;line-height:1.6}
+.program-doc .doc-page-break{break-after:page;page-break-after:always;height:0;border-top:1px dashed #c9a227;margin:18px 0}
+@media(max-width:620px){.program-doc-dialog{padding:12px;width:100vw;max-height:100dvh}.program-doc-preview{max-height:52dvh;padding:11px}.program-doc .doc-title{font-size:20px}.program-doc .doc-athlete{font-size:18px}.program-doc .doc-table{font-size:10px}.program-doc-buttons button,.program-doc-buttons a{width:100%;text-align:center}}
+@media print{
+  body>*:not(#programDocumentDialog){display:none!important}
+  #programDocumentDialog{position:static!important;display:block!important;width:auto!important;max-height:none!important;overflow:visible!important;border:0!important;background:#fff!important;color:#000!important;padding:0!important;box-shadow:none!important}
+  #programDocumentDialog::backdrop{display:none!important}
+  .program-doc-actions,.program-doc-dialog .notice,.program-doc-dialog .muted,.program-doc-buttons,#programDocShareInfo{display:none!important}
+  .program-doc-preview{max-height:none!important;overflow:visible!important;background:#fff!important;padding:0!important}
+  .program-doc .doc-page-break{break-after:page;page-break-after:always}
+  .program-doc .doc-table{font-size:11pt}
+  .program-doc .doc-table tr,.program-doc .doc-week,.program-doc .doc-note{break-inside:avoid;page-break-inside:avoid}
+  @page{margin:16mm}
+}

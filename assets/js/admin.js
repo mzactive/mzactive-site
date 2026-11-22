@@ -839,152 +839,171 @@
     const after=async()=>{await reload();if(onChanged)await onChanged()};
     const a=data.account||{},events=data.events||[];
     const status=node('p',null,'account-status account-action-status');
+    const group=(number,title,cls='')=>{const box=node('section',null,'account-group '+cls);box.append(node('h4',number+'. '+title));return box};
     section.replaceChildren(node('h3',t(...labels.manage_account)));
     section.append(node('p',t('Administrative controls only. Public profile fields are not changed here.','أدوات إدارية فقط. لا تُغيَّر هنا حقول الملف العام.'),'crm-note'));
+    const grid=node('div',null,'account-manage-grid');
+    const overview=group(1,t('Account overview','نظرة عامة على الحساب'));
     const fields=node('div',null,'crm-fields');
     fields.append(
       crmField(t('Account email','بريد الحساب'),a.email),
       crmField(t('Login status','حالة الدخول'),accountStatusLabel(a.account_status)),
       crmField(t('Account type','نوع الحساب'),accountRole(a)),
-      crmField(t('Public profile','الملف العام'),accountVisibilityLabel(a)),
-      crmField(t('Application status','حالة الطلب'),a.profile_id?(a.submission_state==='draft'?t('Draft — awaiting submission','مسودة — بانتظار الإرسال'):name(a.profile_status||'pending')):t('Not a coach applicant','ليس متقدماً لمدرب')),
-      crmField(t('Bookings retained','الحجوزات المحفوظة'),String(a.booking_count||0)),
-      crmField(t('Training records retained','سجلات التدريب المحفوظة'),String(a.program_count||0))
+      crmField(t('Application status','حالة الطلب'),a.profile_id?(a.submission_state==='draft'?t('Draft — awaiting submission','مسودة — بانتظار الإرسال'):name(a.profile_status||'pending')):t('Not a coach applicant','ليس متقدماً لمدرب'))
     );
-    section.append(fields,status);
-    if(a.role_mismatch)section.append(node('p',t('This account has athlete records but no professional profile. Correct the account type here; never create a second account.','هذا الحساب له سجلات رياضية دون ملف مهني. صحّح نوع الحساب هنا؛ لا تنشئ حساباً ثانياً.'),'crm-note'));
-    if(!managementIsAdmin)section.append(node('p',t('View only. A full administrator must make account changes.','عرض فقط. يجب على مسؤول كامل إجراء تغييرات الحساب.'),'crm-note'));
-    else{
-      const actions=node('div',null,'account-actions');
-      if(!a.profile_id&&a.role==='provider'&&a.account_status!=='deleted'){
-        const setup=node('div',null,'account-convert');
-        setup.append(node('h4',t('Correct account type → coach applicant','تصحيح نوع الحساب → متقدم لمدرب')));
-        setup.append(node('p',t('The same email, password and account are kept. Bookings and training stay linked. Coach permissions open only after the provider completes onboarding, submits the application and an administrator approves it.','تُحتفظ بالبريد وكلمة المرور والحساب نفسه. تبقى الحجوزات والتدريب مرتبطة. لا تُفتح صلاحيات المدرب إلا بعد إكمال الملف وإرسال الطلب واعتماده من المسؤول.'),'crm-note'));
-        const display=node('input');display.type='text';display.maxLength=100;display.value=prefill.name||a.email||'';
-        const displayLabel=node('label',t('Display name','الاسم المعروض'));displayLabel.append(display);
-        const city=node('input');city.type='text';city.maxLength=80;city.value=prefill.city||'';
-        const cityLabel=node('label',t('City','المدينة'));cityLabel.append(city);
-        const type=node('select',null,'account-convert-type');
-        for(const code of ['coach','pacer','nutritionist','physiotherapist','sports_massage_therapist']){const option=node('option',name(code));option.value=code;type.append(option)}
-        const typeLabel=node('label',t('Professional category','الفئة المهنية'));typeLabel.append(type);
-        setup.append(displayLabel,cityLabel,typeLabel);
-        setup.append(adminAction(t('Open coach application','فتح طلب المدرب'),status,async()=>{
-          if(!confirm(t('Convert this existing account to a coach applicant without creating another account?','تحويل هذا الحساب الحالي إلى متقدم لمدرب دون إنشاء حساب آخر؟')))throw Object.assign(new Error('cancelled'),{cancelled:true});
-          return api('admin/accounts/'+encodeURIComponent(userId)+'/coach-application',{method:'POST',body:{display_name:display.value,city:city.value,country:prefill.country||'Qatar',provider_type:type.value}});
-        },['Coach application opened. The provider must complete and submit it before review.','تم فتح طلب المدرب. يجب على مقدم الخدمة إكماله وإرساله قبل المراجعة.'],after));
-        actions.append(setup);
-      }
-      if(a.account_status!=='deleted'){
-        const edit=node('details',null,'account-edit');
-        edit.append(node('summary',t('Edit account details','تعديل بيانات الحساب')));
-        edit.append(node('p',t('Identity and contact fields used for account administration. Changing the email signs the user out everywhere.','حقول الهوية والتواصل المستخدمة لإدارة الحساب. تغيير البريد يسجّل المستخدم من كل الجلسات.'),'crm-note'));
-        const emailInput=node('input');emailInput.type='email';emailInput.maxLength=180;emailInput.value=a.email||'';emailInput.setAttribute('aria-label',t('Account email','بريد الحساب'));
-        const emailLabel=node('label',t('Account email','بريد الحساب'));emailLabel.append(emailInput);
-        const displayInput=node('input');displayInput.type='text';displayInput.maxLength=100;displayInput.value=a.display_name||'';displayInput.setAttribute('aria-label',t('Display name','الاسم المعروض'));
-        const displayLabel=node('label',t('Display name','الاسم المعروض'));displayLabel.append(displayInput);
-        const cityInput=node('input');cityInput.type='text';cityInput.maxLength=80;cityInput.value=a.city||'';cityInput.setAttribute('aria-label',t('City','المدينة'));
-        const cityLabel=node('label',t('City','المدينة'));cityLabel.append(cityInput);
-        const countryInput=node('input');countryInput.type='text';countryInput.maxLength=80;countryInput.value=a.country||'';countryInput.setAttribute('aria-label',t('Country','الدولة'));
-        const countryLabel=node('label',t('Country','الدولة'));countryLabel.append(countryInput);
-        const whatsappInput=node('input');whatsappInput.type='text';whatsappInput.maxLength=32;whatsappInput.value=a.whatsapp_number||'';whatsappInput.setAttribute('aria-label',t('WhatsApp number','رقم واتساب'));
-        const whatsappLabel=node('label',t('WhatsApp number','رقم واتساب'));whatsappLabel.append(whatsappInput);
-        const language=node('select',null,'account-language');language.setAttribute('aria-label',t('Preferred language','اللغة المفضلة'));
-        for(const [value,label] of [['',t('No preference','لا تفضيل')],['en',t('English','الإنجليزية')],['ar',t('Arabic','العربية')]]){const o=node('option',label);o.value=value;language.append(o)}
-        language.value=a.preferred_language||'';
-        const languageLabel=node('label',t('Preferred language','اللغة المفضلة'));languageLabel.append(language);
-        const editStatus=node('p',null,'account-status');
-        edit.append(emailLabel,displayLabel,cityLabel,countryLabel,whatsappLabel,languageLabel,editStatus);
-        edit.append(adminAction(t('Save account details','حفظ بيانات الحساب'),editStatus,async()=>{
-          return api('admin/accounts/'+encodeURIComponent(userId)+'/update',{method:'POST',body:{
-            email:emailInput.value.trim(),display_name:displayInput.value,city:cityInput.value,country:countryInput.value,
-            whatsapp_number:whatsappInput.value,preferred_language:language.value,
-          }});
-        },['Account details saved and audited.','تم حفظ بيانات الحساب وتسجيل التغيير.'],after));
-        actions.append(edit);
-        const role=node('details',null,'account-role');
-        role.append(node('summary',t('Change account role','تغيير دور الحساب')));
-        role.append(node('p',t('Promotions create limited administrators. Super-admin status is never granted implicitly and requires an explicit decision.','تُنشئ الترقيات مسؤولين محدودي الصلاحية. لا تُمنح صفة المسؤول الأعلى ضمنياً بل تتطلب قراراً صريحاً.'),'crm-note'));
-        const roleSelect=node('select',null,'account-role-select');roleSelect.setAttribute('aria-label',t('Account role','دور الحساب'));
-        for(const [value,label] of [['provider',t('Athlete / member','رياضي / عضو')],['admin',t('Administrator','مسؤول')]]){const o=node('option',label);o.value=value;roleSelect.append(o)}
-        roleSelect.value=a.role==='admin'?'admin':'provider';
-        const superWrap=node('label',null,'permission-option'),superBox=node('input');superBox.type='checkbox';superBox.dataset.superAdmin='1';superWrap.append(superBox,node('span',t('Grant super administrator status','منح صفة المسؤول الأعلى')));superBox.checked=a.role==='admin'&&a.is_super_admin===1;
-        const roleStatus=node('p',null,'account-status');
-        role.append(roleSelect,superWrap,roleStatus);
-        role.append(adminAction(t('Apply role change','تطبيق تغيير الدور'),roleStatus,async()=>{
-          if(!confirm(t('Change this account role? Existing sessions will be signed out.','تغيير دور هذا الحساب؟ ستُلغى الجلسات الحالية.')))throw Object.assign(new Error('cancelled'),{cancelled:true});
-          return api('admin/accounts/'+encodeURIComponent(userId)+'/role',{method:'POST',body:{role:roleSelect.value,super_admin:roleSelect.value==='admin'&&superBox.checked}});
-        },['Account role updated and sessions revoked.','تم تحديث دور الحساب وإلغاء الجلسات.'],after));
-        actions.append(role);
-      }
-      if(a.account_status!=='deleted'){
-        const visibility=node('details',null,'account-visibility');
-        visibility.append(node('summary',t('Public profile visibility','ظهور الملف العام')));
-        visibility.append(node('p',t('Hiding removes this account from public search, coach discovery, community listings, recommendations and published content. Sign-in, bookings and private account records stay intact.','يؤدي الإخفاء إلى إزالة هذا الحساب من البحث العام واكتشاف المدربين وقوائم المجتمع والتوصيات والمحتوى المنشور. يبقى الدخول والحجوزات وسجلات الحساب الخاصة سليمة.'),'crm-note'));
-        const visibilityReason=node('input');visibilityReason.type='text';visibilityReason.maxLength=300;
-        visibilityReason.placeholder=t('Reason (required)','السبب (مطلوب)');visibilityReason.setAttribute('aria-label',t('Moderation reason','سبب الرقابة'));
-        const visibilityReasonLabel=node('label',t('Moderation reason','سبب الرقابة'));visibilityReasonLabel.append(visibilityReason);
-        const visibilityStatus=node('p',null,'account-status');
-        visibility.append(visibilityReasonLabel,visibilityStatus);
-        if(a.profile_visibility==='hidden'){
-          visibility.append(adminAction(t('Restore public profile','استعادة الملف العام'),visibilityStatus,async()=>{
-            if(!visibilityReason.value.trim())throw Error('reason_required');
-            if(!confirm(t('Restore this public profile?','استعادة هذا الملف العام؟')))throw Object.assign(new Error('cancelled'),{cancelled:true});
-            return api('admin/accounts/'+encodeURIComponent(userId)+'/restore-profile',{method:'POST',body:{reason:visibilityReason.value.trim()}});
-          },['Public profile restored.','تمت استعادة الملف العام.'],after));
-        }else{
-          visibility.append(adminAction(t('Hide public profile','إخفاء الملف العام'),visibilityStatus,async()=>{
-            if(!visibilityReason.value.trim())throw Error('reason_required');
-            if(!confirm(t('Hide this public profile? Sign-in stays active.','إخفاء هذا الملف العام؟ سيبقى الدخول نشطاً.')))throw Object.assign(new Error('cancelled'),{cancelled:true});
-            return api('admin/accounts/'+encodeURIComponent(userId)+'/hide-profile',{method:'POST',body:{reason:visibilityReason.value.trim()}});
-          },['Public profile hidden from all public surfaces.','تم إخفاء الملف العام من كل الواجهات العامة.'],after));
-        }
-        actions.append(visibility);
-        if(a.account_status==='suspended'){
-          const reactivateReason=node('input');reactivateReason.type='text';reactivateReason.maxLength=300;
-          reactivateReason.placeholder=t('Reason (required)','السبب (مطلوب)');reactivateReason.setAttribute('aria-label',t('Reactivation reason','سبب إعادة التفعيل'));
-          const reactivateReasonLabel=node('label',t('Reactivation reason','سبب إعادة التفعيل'));reactivateReasonLabel.append(reactivateReason);
-          actions.append(reactivateReasonLabel,adminAction(t('Reactivate account','إعادة تفعيل الحساب'),status,async()=>{
-            if(!reactivateReason.value.trim())throw Error('reason_required');
-            if(!confirm(t('Reactivate this account? Existing sessions stay signed out.','إعادة تفعيل هذا الحساب؟ ستبقى الجلسات الحالية مسجّلة الخروج.')))throw Object.assign(new Error('cancelled'),{cancelled:true});
-            return api('admin/accounts/'+encodeURIComponent(userId)+'/reactivate',{method:'POST',body:{reason:reactivateReason.value.trim()}});
-          },['Account reactivated. The user must sign in again.','تمت إعادة تفعيل الحساب. يجب على المستخدم تسجيل الدخول مجدداً.'],after));
-        }else{
-          const reason=node('input');reason.type='text';reason.maxLength=300;reason.placeholder=t('Reason (required)','السبب (مطلوب)');reason.setAttribute('aria-label',t('Suspension reason','سبب التعليق'));
-          const reasonLabel=node('label',t('Suspension reason','سبب التعليق'));reasonLabel.append(reason);
-          actions.append(reasonLabel,adminAction(t('Suspend access','تعليق الوصول'),status,async()=>{
-            if(!reason.value.trim())throw Error('reason_required');
-            if(!confirm(t('Suspend this account? Sign-in stops immediately and all sessions are revoked.','تعليق هذا الحساب؟ سيتوقف الدخول فوراً وتُلغى كل الجلسات.')))throw Object.assign(new Error('cancelled'),{cancelled:true});
-            return api('admin/accounts/'+encodeURIComponent(userId)+'/suspend',{method:'POST',body:{reason:reason.value.trim()}});
-          },['Account suspended and sessions revoked.','تم تعليق الحساب وإلغاء الجلسات.'],after));
-        }
-        const danger=node('details',null,'account-danger account-danger-zone');
-        danger.append(node('summary',t('Danger Zone — delete account','منطقة الخطر — حذف الحساب')));
-        danger.append(node('p',t('Deleting disables sign-in, removes the public professional profile and anonymizes account identifiers. Bookings, training and participation records are retained according to the retention policy. This cannot be undone from the portal.','يؤدي الحذف إلى تعطيل الدخول وإزالة الملف المهني العام وإخفاء معرّفات الحساب. تُحتفظ بالحجوزات والتدريب وسجلات المشاركة وفق سياسة الاحتفاظ. لا يمكن التراجع عن ذلك من البوابة.'),'crm-note'));
-        const deleteReason=node('input');deleteReason.type='text';deleteReason.maxLength=300;
-        deleteReason.placeholder=t('Reason (required)','السبب (مطلوب)');deleteReason.setAttribute('aria-label',t('Deletion reason','سبب الحذف'));
-        const deleteReasonLabel=node('label',t('Deletion reason','سبب الحذف'));deleteReasonLabel.append(deleteReason);
-        const emailConfirm=node('input');emailConfirm.type='email';emailConfirm.autocomplete='off';emailConfirm.placeholder=a.email||'';emailConfirm.setAttribute('aria-label',t('Type the account email to confirm','اكتب بريد الحساب للتأكيد'));
-        const emailLabel=node('label',t('Type the account email','اكتب بريد الحساب'));emailLabel.append(emailConfirm);
-        const phraseConfirm=node('input');phraseConfirm.type='text';phraseConfirm.autocomplete='off';phraseConfirm.placeholder='DELETE';phraseConfirm.setAttribute('aria-label',t('Type DELETE to confirm','اكتب DELETE للتأكيد'));
-        const phraseLabel=node('label',t('Type DELETE','اكتب DELETE'));phraseLabel.append(phraseConfirm);
-        const cancel=node('button',t('Cancel','إلغاء'),'account-cancel');cancel.type='button';
-        cancel.onclick=()=>{deleteReason.value='';emailConfirm.value='';phraseConfirm.value='';danger.open=false;setCrmStatus(status,'')};
-        const del=adminAction(t('Permanently delete account','حذف الحساب نهائياً'),status,async()=>{
-          if(!deleteReason.value.trim())throw Error('reason_required');
-          if(!emailConfirm.value||!phraseConfirm.value)throw Error('confirmation_required');
-          if(!confirm(t('Final confirmation: delete and anonymize this account?','تأكيد نهائي: حذف هذا الحساب وإخفاء بياناته؟')))throw Object.assign(new Error('cancelled'),{cancelled:true});
-          return api('admin/accounts/'+encodeURIComponent(userId)+'/delete',{method:'POST',body:{confirm_email:emailConfirm.value,confirm_phrase:phraseConfirm.value,reason:deleteReason.value.trim()}});
-        },['Account deleted and anonymized. Related records were retained.','تم حذف الحساب وإخفاء بياناته مع الاحتفاظ بالسجلات ذات الصلة.'],after);
-        del.classList.add('danger-action');
-        danger.append(deleteReasonLabel,emailLabel,phraseLabel,cancel,del);actions.append(danger);
-      }
-      section.append(actions);
+    overview.append(fields,status);
+    if(a.role_mismatch)overview.append(node('p',t('This account has athlete records but no professional profile. Correct the account type here; never create a second account.','هذا الحساب له سجلات رياضية دون ملف مهني. صحّح نوع الحساب هنا؛ لا تنشئ حساباً ثانياً.'),'crm-note'));
+    if(!managementIsAdmin)overview.append(node('p',t('View only. A full administrator must make account changes.','عرض فقط. يجب على مسؤول كامل إجراء تغييرات الحساب.'),'crm-note'));
+    grid.append(overview);
+    const profile=group(2,t('Profile information','معلومات الملف'));
+    const records=group(5,t('Bookings and training programs','الحجوزات والبرامج التدريبية'));
+    records.append(node('p',t('Bookings retained','الحجوزات المحفوظة')+': '+String(a.booking_count||0)+' · '+t('Training records retained','سجلات التدريب المحفوظة')+': '+String(a.program_count||0),'crm-note'));
+    const recordsActions=node('div',null,'actions');
+    for(const [tab,label,ar] of [['bookings','View bookings','عرض الحجوزات'],['programs','View training programs','عرض البرامج التدريبية']]){
+      const go=node('button',t(label,ar),'crm-action');go.type='button';go.onclick=()=>$('nav').querySelector('[data-nav-tab="'+tab+'"]')?.click();recordsActions.append(go)
     }
-    const audit=node('div',null,'account-events');audit.append(node('h4',t('Account audit','سجل الحساب')));
+    records.append(recordsActions);
+    const audit=node('section',null,'account-group account-events');
+    audit.append(node('h4','6. '+t('Activity and audit history','النشاط وسجل التدقيق')));
     if(!events.length)audit.append(crmEmpty(['No account changes recorded.','لا توجد تغييرات مسجلة على الحساب.']));
     for(const e of events){const row=node('article',null,'crm-row');row.append(node('strong',name(e.action)),node('small',[date(e.created_at),e.actor_user_id?t('Recorded by administrator','سجّله المسؤول'):t('Recorded by system','سجّله النظام')].join(' · ')));
       const detail=parse(e.detail);if(detail?.reason)row.append(node('small',t('Reason: ','السبب: ')+detail.reason));audit.append(row)}
-    section.append(audit);
+    const danger=node('details',null,'account-group account-danger account-danger-zone');
+    danger.append(node('summary','7. '+t('Danger Zone — delete account','منطقة الخطر — حذف الحساب')));
+    if(a.account_status==='deleted'||!managementIsAdmin){
+      danger.append(node('p',t('This account has already been deleted and anonymized. No further account actions are available.','تم حذف هذا الحساب وإخفاء بياناته بالفعل. لا توجد إجراءات إضافية متاحة.'),'crm-note'));
+    }else{
+      danger.append(node('p',t('Deleting disables sign-in, removes the public professional profile and anonymizes account identifiers. Bookings, training and participation records are retained according to the retention policy. This cannot be undone from the portal.','يؤدي الحذف إلى تعطيل الدخول وإزالة الملف المهني العام وإخفاء معرّفات الحساب. تُحتفظ بالحجوزات والتدريب وسجلات المشاركة وفق سياسة الاحتفاظ. لا يمكن التراجع عن ذلك من البوابة.'),'crm-note'));
+      const deleteReason=node('input');deleteReason.type='text';deleteReason.maxLength=300;
+      deleteReason.placeholder=t('Reason (required)','السبب (مطلوب)');deleteReason.setAttribute('aria-label',t('Deletion reason','سبب الحذف'));
+      const deleteReasonLabel=node('label',t('Deletion reason','سبب الحذف'));deleteReasonLabel.append(deleteReason);
+      const emailConfirm=node('input');emailConfirm.type='email';emailConfirm.autocomplete='off';emailConfirm.placeholder=a.email||'';emailConfirm.setAttribute('aria-label',t('Type the account email to confirm','اكتب بريد الحساب للتأكيد'));
+      const emailLabel=node('label',t('Type the account email','اكتب بريد الحساب'));emailLabel.append(emailConfirm);
+      const phraseConfirm=node('input');phraseConfirm.type='text';phraseConfirm.autocomplete='off';phraseConfirm.placeholder='DELETE';phraseConfirm.setAttribute('aria-label',t('Type DELETE to confirm','اكتب DELETE للتأكيد'));
+      const phraseLabel=node('label',t('Type DELETE','اكتب DELETE'));phraseLabel.append(phraseConfirm);
+      const cancel=node('button',t('Cancel','إلغاء'),'account-cancel');cancel.type='button';
+      cancel.onclick=()=>{deleteReason.value='';emailConfirm.value='';phraseConfirm.value='';danger.open=false;setCrmStatus(status,'')};
+      const del=adminAction(t('Permanently delete account','حذف الحساب نهائياً'),status,async()=>{
+        if(!deleteReason.value.trim())throw Error('reason_required');
+        if(!emailConfirm.value||!phraseConfirm.value)throw Error('confirmation_required');
+        if(!confirm(t('Final confirmation: delete and anonymize this account?','تأكيد نهائي: حذف هذا الحساب وإخفاء بياناته؟')))throw Object.assign(new Error('cancelled'),{cancelled:true});
+        return api('admin/accounts/'+encodeURIComponent(userId)+'/delete',{method:'POST',body:{confirm_email:emailConfirm.value,confirm_phrase:phraseConfirm.value,reason:deleteReason.value.trim()}});
+      },['Account deleted and anonymized. Related records were retained.','تم حذف الحساب وإخفاء بياناته مع الاحتفاظ بالسجلات ذات الصلة.'],after);
+      del.classList.add('danger-action');
+      danger.append(deleteReasonLabel,emailLabel,phraseLabel,cancel,del);
+    }
+    if(managementIsAdmin&&a.account_status!=='deleted'){
+      const edit=node('details',null,'account-edit');
+      edit.append(node('summary',t('Edit account details','تعديل بيانات الحساب')));
+      edit.append(node('p',t('Identity and contact fields used for account administration. Changing the email signs the user out everywhere.','حقول الهوية والتواصل المستخدمة لإدارة الحساب. تغيير البريد يسجّل المستخدم من كل الجلسات.'),'crm-note'));
+      const emailInput=node('input');emailInput.type='email';emailInput.maxLength=180;emailInput.value=a.email||'';emailInput.setAttribute('aria-label',t('Account email','بريد الحساب'));
+      const emailLabel=node('label',t('Account email','بريد الحساب'));emailLabel.append(emailInput);
+      const displayInput=node('input');displayInput.type='text';displayInput.maxLength=100;displayInput.value=a.display_name||'';displayInput.setAttribute('aria-label',t('Display name','الاسم المعروض'));
+      const displayLabel=node('label',t('Display name','الاسم المعروض'));displayLabel.append(displayInput);
+      const cityInput=node('input');cityInput.type='text';cityInput.maxLength=80;cityInput.value=a.city||'';cityInput.setAttribute('aria-label',t('City','المدينة'));
+      const cityLabel=node('label',t('City','المدينة'));cityLabel.append(cityInput);
+      const countryInput=node('input');countryInput.type='text';countryInput.maxLength=80;countryInput.value=a.country||'';countryInput.setAttribute('aria-label',t('Country','الدولة'));
+      const countryLabel=node('label',t('Country','الدولة'));countryLabel.append(countryInput);
+      const whatsappInput=node('input');whatsappInput.type='text';whatsappInput.maxLength=32;whatsappInput.value=a.whatsapp_number||'';whatsappInput.setAttribute('aria-label',t('WhatsApp number','رقم واتساب'));
+      const whatsappLabel=node('label',t('WhatsApp number','رقم واتساب'));whatsappLabel.append(whatsappInput);
+      const language=node('select',null,'account-language');language.setAttribute('aria-label',t('Preferred language','اللغة المفضلة'));
+      for(const [value,label] of [['',t('No preference','لا تفضيل')],['en',t('English','الإنجليزية')],['ar',t('Arabic','العربية')]]){const o=node('option',label);o.value=value;language.append(o)}
+      language.value=a.preferred_language||'';
+      const languageLabel=node('label',t('Preferred language','اللغة المفضلة'));languageLabel.append(language);
+      const editStatus=node('p',null,'account-status');
+      edit.append(emailLabel,displayLabel,cityLabel,countryLabel,whatsappLabel,languageLabel,editStatus);
+      edit.append(adminAction(t('Save account details','حفظ بيانات الحساب'),editStatus,async()=>{
+        return api('admin/accounts/'+encodeURIComponent(userId)+'/update',{method:'POST',body:{
+          email:emailInput.value.trim(),display_name:displayInput.value,city:cityInput.value,country:countryInput.value,
+          whatsapp_number:whatsappInput.value,preferred_language:language.value,
+        }});
+      },['Account details saved and audited.','تم حفظ بيانات الحساب وتسجيل التغيير.'],after));
+      profile.append(edit);
+    }else profile.append(node('p',t('Profile details are managed by the account holder in their coach or member profile.','تُدار تفاصيل الملف من قِبل صاحب الحساب في ملف المدرب أو العضو.'),'crm-note'));
+    grid.append(profile);
+    const roles=group(3,t('Roles and permissions','الأدوار والصلاحيات'));
+    const roleActions=node('div',null,'account-actions');
+    if(!a.profile_id&&a.role==='provider'&&a.account_status!=='deleted'&&managementIsAdmin){
+      const setup=node('div',null,'account-convert');
+      setup.append(node('h4',t('Correct account type → coach applicant','تصحيح نوع الحساب → متقدم لمدرب')));
+      setup.append(node('p',t('The same email, password and account are kept. Bookings and training stay linked. Coach permissions open only after the provider completes onboarding, submits the application and an administrator approves it.','تُحتفظ بالبريد وكلمة المرور والحساب نفسه. تبقى الحجوزات والتدريب مرتبطة. لا تُفتح صلاحيات المدرب إلا بعد إكمال الملف وإرسال الطلب واعتماده من المسؤول.'),'crm-note'));
+      const display=node('input');display.type='text';display.maxLength=100;display.value=prefill.name||a.email||'';
+      const displayLabel=node('label',t('Display name','الاسم المعروض'));displayLabel.append(display);
+      const city=node('input');city.type='text';city.maxLength=80;city.value=prefill.city||'';
+      const cityLabel=node('label',t('City','المدينة'));cityLabel.append(city);
+      const type=node('select',null,'account-convert-type');
+      for(const code of ['coach','pacer','nutritionist','physiotherapist','sports_massage_therapist']){const option=node('option',name(code));option.value=code;type.append(option)}
+      const typeLabel=node('label',t('Professional category','الفئة المهنية'));typeLabel.append(type);
+      setup.append(displayLabel,cityLabel,typeLabel);
+      setup.append(adminAction(t('Open coach application','فتح طلب المدرب'),status,async()=>{
+        if(!confirm(t('Convert this existing account to a coach applicant without creating another account?','تحويل هذا الحساب الحالي إلى متقدم لمدرب دون إنشاء حساب آخر؟')))throw Object.assign(new Error('cancelled'),{cancelled:true});
+        return api('admin/accounts/'+encodeURIComponent(userId)+'/coach-application',{method:'POST',body:{display_name:display.value,city:city.value,country:prefill.country||'Qatar',provider_type:type.value}});
+      },['Coach application opened. The provider must complete and submit it before review.','تم فتح طلب المدرب. يجب على مقدم الخدمة إكماله وإرساله قبل المراجعة.'],after));
+      roleActions.append(setup);
+    }
+    if(a.account_status!=='deleted'&&managementIsAdmin){
+      const role=node('details',null,'account-role');
+      role.append(node('summary',t('Change account role','تغيير دور الحساب')));
+      role.append(node('p',t('Promotions create limited administrators. Super-admin status is never granted implicitly and requires an explicit decision.','تُنشئ الترقيات مسؤولين محدودي الصلاحية. لا تُمنح صفة المسؤول الأعلى ضمنياً بل تتطلب قراراً صريحاً.'),'crm-note'));
+      const roleSelect=node('select',null,'account-role-select');roleSelect.setAttribute('aria-label',t('Account role','دور الحساب'));
+      for(const [value,label] of [['provider',t('Athlete / member','رياضي / عضو')],['admin',t('Administrator','مسؤول')]]){const o=node('option',label);o.value=value;roleSelect.append(o)}
+      roleSelect.value=a.role==='admin'?'admin':'provider';
+      const superWrap=node('label',null,'permission-option'),superBox=node('input');superBox.type='checkbox';superBox.dataset.superAdmin='1';superWrap.append(superBox,node('span',t('Grant super administrator status','منح صفة المسؤول الأعلى')));superBox.checked=a.role==='admin'&&a.is_super_admin===1;
+      const roleStatus=node('p',null,'account-status');
+      role.append(roleSelect,superWrap,roleStatus);
+      role.append(adminAction(t('Apply role change','تطبيق تغيير الدور'),roleStatus,async()=>{
+        if(!confirm(t('Change this account role? Existing sessions will be signed out.','تغيير دور هذا الحساب؟ ستُلغى الجلسات الحالية.')))throw Object.assign(new Error('cancelled'),{cancelled:true});
+        return api('admin/accounts/'+encodeURIComponent(userId)+'/role',{method:'POST',body:{role:roleSelect.value,super_admin:roleSelect.value==='admin'&&superBox.checked}});
+      },['Account role updated and sessions revoked.','تم تحديث دور الحساب وإلغاء الجلسات.'],after));
+      roleActions.append(role);
+    }
+    roles.append(roleActions);grid.append(roles);
+    const state=group(4,t('Visibility and account status','ظهور الملف وحالة الحساب'));
+    state.append(crmField(t('Public profile','الملف العام'),a.profile_visibility==='hidden'?t('Hidden','مخفي'):t('Public','عام')));
+    if(a.account_status!=='deleted'&&managementIsAdmin){
+      const visibility=node('details',null,'account-visibility');
+      visibility.append(node('summary',t('Public profile visibility','ظهور الملف العام')));
+      visibility.append(node('p',t('Hiding removes this account from public search, coach discovery, community listings, recommendations and published content. Sign-in, bookings and private account records stay intact.','يؤدي الإخفاء إلى إزالة هذا الحساب من البحث العام واكتشاف المدربين وقوائم المجتمع والتوصيات والمحتوى المنشور. يبقى الدخول والحجوزات وسجلات الحساب الخاصة سليمة.'),'crm-note'));
+      const visibilityReason=node('input');visibilityReason.type='text';visibilityReason.maxLength=300;
+      visibilityReason.placeholder=t('Reason (required)','السبب (مطلوب)');visibilityReason.setAttribute('aria-label',t('Moderation reason','سبب الرقابة'));
+      const visibilityReasonLabel=node('label',t('Moderation reason','سبب الرقابة'));visibilityReasonLabel.append(visibilityReason);
+      const visibilityStatus=node('p',null,'account-status');
+      visibility.append(visibilityReasonLabel,visibilityStatus);
+      if(a.profile_visibility==='hidden'){
+        visibility.append(adminAction(t('Restore public profile','استعادة الملف العام'),visibilityStatus,async()=>{
+          if(!visibilityReason.value.trim())throw Error('reason_required');
+          if(!confirm(t('Restore this public profile?','استعادة هذا الملف العام؟')))throw Object.assign(new Error('cancelled'),{cancelled:true});
+          return api('admin/accounts/'+encodeURIComponent(userId)+'/restore-profile',{method:'POST',body:{reason:visibilityReason.value.trim()}});
+        },['Public profile restored.','تمت استعادة الملف العام.'],after));
+      }else{
+        visibility.append(adminAction(t('Hide public profile','إخفاء الملف العام'),visibilityStatus,async()=>{
+          if(!visibilityReason.value.trim())throw Error('reason_required');
+          if(!confirm(t('Hide this public profile? Sign-in stays active.','إخفاء هذا الملف العام؟ سيبقى الدخول نشطاً.')))throw Object.assign(new Error('cancelled'),{cancelled:true});
+          return api('admin/accounts/'+encodeURIComponent(userId)+'/hide-profile',{method:'POST',body:{reason:visibilityReason.value.trim()}});
+        },['Public profile hidden from all public surfaces.','تم إخفاء الملف العام من كل الواجهات العامة.'],after));
+      }
+      state.append(visibility);
+      if(a.account_status==='suspended'){
+        const reactivateReason=node('input');reactivateReason.type='text';reactivateReason.maxLength=300;
+        reactivateReason.placeholder=t('Reason (required)','السبب (مطلوب)');reactivateReason.setAttribute('aria-label',t('Reactivation reason','سبب إعادة التفعيل'));
+        const reactivateReasonLabel=node('label',t('Reactivation reason','سبب إعادة التفعيل'));reactivateReasonLabel.append(reactivateReason);
+        state.append(reactivateReasonLabel,adminAction(t('Reactivate account','إعادة تفعيل الحساب'),status,async()=>{
+          if(!reactivateReason.value.trim())throw Error('reason_required');
+          if(!confirm(t('Reactivate this account? Existing sessions stay signed out.','إعادة تفعيل هذا الحساب؟ ستبقى الجلسات الحالية مسجّلة الخروج.')))throw Object.assign(new Error('cancelled'),{cancelled:true});
+          return api('admin/accounts/'+encodeURIComponent(userId)+'/reactivate',{method:'POST',body:{reason:reactivateReason.value.trim()}});
+        },['Account reactivated. The user must sign in again.','تمت إعادة تفعيل الحساب. يجب على المستخدم تسجيل الدخول مجدداً.'],after));
+      }else{
+        const reason=node('input');reason.type='text';reason.maxLength=300;reason.placeholder=t('Reason (required)','السبب (مطلوب)');reason.setAttribute('aria-label',t('Suspension reason','سبب التعليق'));
+        const reasonLabel=node('label',t('Suspension reason','سبب التعليق'));reasonLabel.append(reason);
+        state.append(reasonLabel,adminAction(t('Suspend access','تعليق الوصول'),status,async()=>{
+          if(!reason.value.trim())throw Error('reason_required');
+          if(!confirm(t('Suspend this account? Sign-in stops immediately and all sessions are revoked.','تعليق هذا الحساب؟ سيتوقف الدخول فوراً وتُلغى كل الجلسات.')))throw Object.assign(new Error('cancelled'),{cancelled:true});
+          return api('admin/accounts/'+encodeURIComponent(userId)+'/suspend',{method:'POST',body:{reason:reason.value.trim()}});
+        },['Account suspended and sessions revoked.','تم تعليق الحساب وإلغاء الجلسات.'],after));
+      }
+    }else state.append(node('p',t('Sign-in and visibility controls are not available for this account.','أدوات الدخول وظهور الملف غير متاحة لهذا الحساب.'),'crm-note'));
+    grid.append(state,records,audit);
+    section.append(grid,danger);
   }
   function athleteParams(){
     const p=new URLSearchParams();

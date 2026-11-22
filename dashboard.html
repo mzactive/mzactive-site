@@ -16,6 +16,7 @@
 .session-meta{margin-top:7px}.progress-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;margin:12px 0}.metric{display:flex;flex-direction:column;gap:4px;border:1px solid var(--line);background:#0b0e0c;padding:10px}.metric strong{font-size:22px;color:var(--gold)}.progress-chart{height:130px;display:flex;align-items:flex-end;gap:5px;padding:12px 6px 0;border-bottom:1px solid #70766f;margin:12px 0 18px;overflow:auto}.progress-bar{height:100%;min-width:28px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}.progress-bar span{width:100%;min-height:3px;background:linear-gradient(0deg,#df8e20,#f2c55a);border-radius:4px 4px 0 0}.progress-bar small{font-size:9px;color:var(--muted);white-space:nowrap}.program-card{border:1px solid var(--line);background:#0e1210;padding:12px;margin:10px 0}.program-day{display:grid;grid-template-columns:minmax(160px,1fr) minmax(210px,auto);gap:12px;align-items:center;border-top:1px solid var(--line);padding:10px 0}.program-day-copy{display:grid;gap:3px}.program-day-copy p{margin:0}.member-session-log{display:grid;grid-template-columns:95px 80px auto;align-items:center;gap:7px}.member-session-log input[type=number]{width:100%;min-width:0;background:#090d0b;color:var(--text);border:1px solid #48534b;padding:8px}.member-session-log .inline{font-size:12px}.program-progress{margin-top:20px}.program-progress>.subhead{font-size:20px}.program-card .team-head{align-items:center}
 @media(max-width:620px){.program-day{grid-template-columns:1fr}.member-session-log{grid-template-columns:1fr 1fr auto}.progress-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.progress-chart{height:110px}}
 </style><style>.coach-community-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}@media(max-width:760px){.coach-community-actions{grid-template-columns:1fr}}</style><link rel="stylesheet" href="assets/css/coaching-studio.css?v=20261115-doha-runner">
+<link rel="stylesheet" href="assets/css/program-document.css?v=20261122a">
 <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h"><link rel="stylesheet" href="assets/css/workspace.css?v=20261120e"><link rel="stylesheet" href="assets/css/auth.css?v=20261120f"><link rel="stylesheet" href="assets/css/account-menu.css?v=20261120h"><link rel="stylesheet" href="assets/css/premium-login.css?v=20261121a"><link rel="stylesheet" href="assets/css/profile-completion.css?v=20261122c"><script src="assets/js/api-base.js?v=20261120f"></script><script src="assets/js/auth-session.js?v=20261120h"></script>
 <link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091d21"><script src="/assets/js/pwa-register.js?v=20261121b" defer></script></head>
 <body><script src="assets/js/language-preference.js?v=20261120c"></script>
@@ -75,6 +76,22 @@
       <section id="communityWorkspace" class="hidden" aria-label="Community and private coaching workspace"></section>
     </section>
   </main>
+  <dialog id="programDocumentDialog" class="program-doc-dialog" aria-labelledby="programDocumentHeading">
+    <div class="program-doc-actions">
+      <h2 id="programDocumentHeading" data-en="Program document preview" data-ar="معاينة مستند البرنامج">Program document preview</h2>
+      <button id="programDocClose" type="button" class="secondary" data-en="Close" data-ar="إغلاق">Close</button>
+    </div>
+    <p id="programDocIntro" class="muted" data-en="Review the complete document before sending" data-ar="راجع المستند كاملاً قبل الإرسال">Review the complete document before sending</p>
+    <div id="programDocPreview" class="program-doc-preview"></div>
+    <div id="programDocStatus" class="notice" role="status" aria-live="polite"></div>
+    <div class="program-doc-actions program-doc-buttons">
+      <button id="programDocPdf" type="button" data-en="Save as PDF" data-ar="حفظ بصيغة PDF">Save as PDF</button>
+      <button id="programDocDocx" type="button" class="secondary" data-en="Download DOCX" data-ar="تنزيل DOCX">Download DOCX</button>
+      <button id="programDocShare" type="button" class="secondary" data-en="Share document via WhatsApp" data-ar="مشاركة المستند عبر واتساب">Share document via WhatsApp</button>
+      <a id="programDocFallback" class="secondary hidden" target="_blank" rel="noopener noreferrer" data-en="Open WhatsApp with a summary (no file attachment)" data-ar="فتح واتساب بملخص (بدون إرفاق ملف)">Open WhatsApp with a summary (no file attachment)</a>
+    </div>
+    <p id="programDocShareInfo" class="muted" data-en="Choose WhatsApp in the share sheet and select the recipient. MZ Active cannot confirm delivery; send the document yourself in WhatsApp." data-ar="اختر واتساب من قائمة المشاركة وحدد المستلم. لا يمكن لـ MZ Active تأكيد التسليم؛ أرسل المستند بنفسك في واتساب.">Choose WhatsApp in the share sheet and select the recipient. MZ Active cannot confirm delivery; send the document yourself in WhatsApp.</p>
+  </dialog>
   <footer class="footer"><div class="wrap"><span data-en="MZ Active · Train Smart. Perform Strong." data-ar="MZ Active · تدرب بذكاء. حقق أداءً أقوى.">MZ Active · Train Smart. Perform Strong.</span> · <a href="privacy.html" data-en="Privacy" data-ar="الخصوصية">Privacy</a></div>        <a class="management-footer-link" href="https://mzactive.com/admin.html" rel="nofollow" aria-label="Management Portal" data-en-aria-label="Management Portal" data-ar-aria-label="بوابة الإدارة"><svg class="management-shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.75 5 5.5v5.35c0 4.15 2.75 8 7 9.4 4.25-1.4 7-5.25 7-9.4V5.5l-7-2.75Z"></path><path d="M12 7.6v8.8M8.6 12h6.8"></path></svg><span data-en="Management Portal" data-ar="بوابة الإدارة">Management Portal</span></a>        <a class="footer-vision-link" href="vision.html" data-en="Our Vision" data-ar="رؤيتنا">Our Vision</a>
         <div class="footer-install" data-mza-install-promo role="region" aria-labelledby="footerInstallTitle">
           <div class="footer-install-copy"><h2 id="footerInstallTitle" data-en="Get the MZA App" data-ar="احصل على تطبيق MZA">Get the MZA App</h2>
@@ -212,7 +229,7 @@
       const coachNote=$('weeklyCoachNote').value.trim(),profileLink=$('publicProfileLink').classList.contains('hidden')?'https://mzactive.com/coaches.html':$('publicProfileLink').href;
       const submitButtons=[...event.currentTarget.querySelectorAll('button[type="submit"]')];if(submitButtons.some(b=>b.disabled))return;submitButtons.forEach(b=>b.disabled=true);const saveOnly=event.submitter?.value==='save';
       const fallback=$('whatsappFallback');fallback.classList.add('hidden');fallback.removeAttribute('href');
-      const newWindow=saveOnly?null:window.open('about:blank','_blank');if(newWindow)newWindow.opener=null;
+      const newWindow=null;
       try{
         const payload=JSON.stringify({team_id:teamId,athlete_user_id:athleteId,athlete_name:client,athlete_phone:$('trainingClientPhone').value,athlete_type:athleteType,week_start:rawDate,coach_note:coachNote,sessions:sessionData});
         const saved=savedProgramCache?.payload===payload?savedProgramCache.result:await api('/api/dashboard/programs',{method:'POST',body:payload});savedProgramCache={payload,result:saved};
@@ -221,9 +238,21 @@
         const locale=lang==='ar'?'ar-QA':'en-QA',weekDate=new Intl.DateTimeFormat(locale,{dateStyle:'long'}).format(weekDateObj);
         const blocks=(saved.session_codes||[]).map(session=>dayNames[keys.indexOf(session.day_key)]+' · '+session.sport_type.toUpperCase()+' · '+session.session_code+'\n'+readableWorkout(session.details)).join('\n\n');
         const message=w().trainingPrefix+' '+client+',\n\n'+w().weeklyTitle+' · '+(athleteType==='triathlon'?'TRIATHLON':'RUNNING')+'\n'+w().weekBeginning+': '+weekDate+'\n\n'+blocks+(coachNote?'\n\n'+w().coachNote+':\n'+coachNote:'')+(athleteId?'\n\n'+(lang==='ar'?'سجّل إنجاز الحصص والمسافة في لوحة MZ Active:':'Track completed sessions and distance in your MZ Active dashboard:')+'\nhttps://mzactive.com/dashboard.html':'')+'\n\n'+w().profileVisit+'\n'+profileLink;
-        const url='https://wa.me/'+phone+'?text='+encodeURIComponent(message),fallback=$('whatsappFallback');fallback.href=url;fallback.textContent=w().trainingFallback;fallback.classList.remove('hidden');if(newWindow)newWindow.location.href=url;
-        try{await loadDashboard()}catch{notice(lang==='ar'?'تم الحفظ. تعذر تحديث السجل الآن؛ أعد تحميل الصفحة لاحقاً.':'Saved. History refresh failed; reload the page later.');return}
-        notice(saveOnly?(lang==='ar'?'تم حفظ البرنامج في السجل.':'Program saved to history.'):w().programSaved);
+        const doc=window.MZAProgramDocument;
+        if(saveOnly){
+          try{await loadDashboard()}catch{notice(lang==='ar'?'تم الحفظ. تعذر تحديث السجل الآن؛ أعد تحميل الصفحة لاحقاً.':'Saved. History refresh failed; reload the page later.');return}
+          notice(lang==='ar'?'تم حفظ البرنامج في السجل.':'Program saved to history.');
+        }else if(doc){
+          const payload=doc.fromForm($('whatsappTrainingForm'),{coachName:$('welcome').textContent||''});
+          doc.save(payload);
+          document.dispatchEvent(new Event('mzactive:program-saved'));
+          window.MZActiveStudio?.openDocumentPreview(payload);
+          $('whatsappFallback').textContent=w().trainingFallback;
+          notice(lang==='ar'?'تم حفظ البرنامج. راجع المستند ثم شاركه عبر واتساب.':'Program saved. Review the document, then share it via WhatsApp.');
+        }else{
+          const url='https://wa.me/'+phone+'?text='+encodeURIComponent(message),fallback=$('whatsappFallback');fallback.href=url;fallback.textContent=w().trainingFallback;fallback.classList.remove('hidden');
+          notice(w().programSaved);
+        }
       }catch(error){if(newWindow)newWindow.close();notice(error.message==='weekly_program_exists'?w().programExists:error.message==='invalid_flexible_program'?(lang==='ar'?'راجع بيانات الرياضي وأضف حصة واحدة على الأقل.':'Check athlete details and add at least one session.'):error.message)}
       finally{submitButtons.forEach(b=>b.disabled=false)}
     });
@@ -236,7 +265,8 @@
   <script src="assets/js/site-language.js?v=20261120h"></script>
 <script src="assets/js/account-menu.js?v=20261120h" defer></script>
 <script src="assets/js/auth-ui.js?v=20261120f" defer></script>
-<script src="assets/js/coaching-studio.js?v=20261115b" defer></script>
+<script src="assets/js/program-document.js?v=20261122a" defer></script>
+<script src="assets/js/coaching-studio.js?v=20261122b" defer></script>
 <script src="assets/js/community-workspace.js?v=20261120e" defer></script>
 <script src="assets/js/coach-contact.js?v=20261122c" defer></script>
 <script src="assets/js/profile-completion.js?v=20261122c" defer></script>

@@ -141,7 +141,7 @@ test("workspace stores messages, attachments, progress and Garmin public link wi
 
   await call("me/sports-profile", "PUT", {
     display_name: "Athlete One", city: "Doha", sports: ["running"], goals: "First half marathon",
-    garmin_public_url: "https://connect.garmin.com/profile/athlete",
+    garmin_public_url: "https://connect.garmin.com/profile/athlete", share_with_coaches: true,
   }, athlete.token);
   await call("connections/" + connection.id + "/messages", "POST", { body: "See you at the track." }, coach.token, 201);
   const uploaded = await call("connections/" + connection.id + "/attachments", "POST", attachment, coach.token, 201, {
@@ -173,5 +173,48 @@ test("workspace stores messages, attachments, progress and Garmin public link wi
   const coachConnection = (await call("connections", "GET", undefined, coach.token)).connections[0];
   assert.equal(coachConnection.workspace_status, "active");
   assert.equal(coachConnection.booking_id, booking.request_id);
+  db.close();
+});
+
+test("member profile sharing is opt-in and the private photo is owner-only", async () => {
+  const { call, admin, athlete, coach, outsider, profileId, db } = await fixtures();
+  const booking = await call("bookings", "POST", {
+    provider_id: profileId, customer_name: "Athlete One", customer_email: athlete.email, customer_phone: "+97455555555",
+    city: "Doha", goal_summary: "Private profile review", session_type: "training", program_duration_months: 1, consent: true,
+  }, athlete.token, 201);
+  await call("admin/bookings/" + booking.request_id, "PATCH", { status: "accepted" }, admin.token);
+  const connection = (await call("connections", "GET", undefined, athlete.token)).connections[0];
+  await call("connections/" + connection.id, "PATCH", { status: "accepted" }, athlete.token);
+
+  await call("me/sports-profile", "PUT", {
+    display_name: "Secret Athlete", city: "Doha", sports: ["running"], goals: "Private goal",
+    garmin_public_url: "https://connect.garmin.com/profile/secret",
+  }, athlete.token);
+  const privateWorkspace = (await call("connections/" + connection.id + "/workspace", "GET", undefined, coach.token)).workspace;
+  assert.equal(privateWorkspace.garmin.share_enabled, false);
+  assert.equal(privateWorkspace.garmin.public_url, "");
+  assert.equal(privateWorkspace.athlete.name, "MZ Active member");
+
+  await call("me/sports-profile", "PUT", {
+    display_name: "Shared Athlete", city: "Doha", sports: ["running"], goals: "Shared goal",
+    garmin_public_url: "https://connect.garmin.com/profile/shared", share_with_coaches: true,
+  }, athlete.token);
+  const saved = (await call("me/sports-profile", "GET", undefined, athlete.token)).profile;
+  assert.equal(saved.share_with_coaches, true);
+  const sharedWorkspace = (await call("connections/" + connection.id + "/workspace", "GET", undefined, coach.token)).workspace;
+  assert.equal(sharedWorkspace.garmin.share_enabled, true);
+  assert.equal(sharedWorkspace.garmin.public_url, "https://connect.garmin.com/profile/shared");
+  assert.equal(sharedWorkspace.athlete.name, "Shared Athlete");
+
+  const uploaded = await call("me/sports-profile/photo", "PUT", attachment, athlete.token);
+  assert.equal(uploaded.updated, true);
+  assert.deepEqual(await call("me/sports-profile/photo", "GET", undefined, athlete.token), attachment);
+  // Other accounts cannot probe the endpoint: they receive the same not-found
+  // response whether or not the member has uploaded a photo.
+  await call("me/sports-profile/photo", "GET", undefined, coach.token, 404);
+  await call("me/sports-profile/photo", "GET", undefined, outsider.token, 404);
+  await call("me/sports-profile/photo", "GET", undefined, admin.token, 403);
+  assert.equal((await call("me/sports-profile/photo", "DELETE", undefined, athlete.token)).removed, true);
+  await call("me/sports-profile/photo", "GET", undefined, athlete.token, 404);
   db.close();
 });

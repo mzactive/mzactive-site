@@ -103,8 +103,19 @@ test('account controls are bilingual, RTL-aware and mobile-sized', () => {
   assert.match(adminJs, /document\.addEventListener\('mzactive:language-change'/);
 });
 
+test('manage account is a spacious workspace with the required section order', () => {
+  assert.match(adminCss, /\.athlete-drawer\{[^}]*width:min\(1180px/);
+  assert.match(adminCss, /\.account-manage-grid\{/);
+  for(const title of ['Account overview','Profile information','Roles and permissions','Visibility and account status','Bookings and training programs','Activity and audit history','Danger Zone — delete account'])assert.match(adminJs,new RegExp(title));
+  const fn=adminJs.slice(adminJs.indexOf('async function fillManageAccount'),adminJs.indexOf('function athleteParams'));
+  const order=['grid.append(overview)','grid.append(profile)','grid.append(roles)','grid.append(state,records,audit)','section.append(grid,danger)'].map(token=>fn.indexOf(token));
+  assert.deepEqual(order,[...order].sort((a,b)=>a-b));
+  assert.match(fn, /'7\. '\+t\('Danger Zone — delete account'/);
+  assert.match(fn, /const audit=node\('section',null,'account-group account-events'\)/);
+});
+
 test('account controls are cache-busted and no production identity is hard-coded', () => {
-  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261124a/);
-  assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261123b/);
+  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261122e/);
+  assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261122e/);
   assert.doesNotMatch(adminJs + worker + migration, /Tamim/i);
 });

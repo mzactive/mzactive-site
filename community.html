@@ -40,6 +40,13 @@
     .filters,.feed-form,.feed-filters,.sports-form,.community-form{display:grid;gap:12px;margin:16px 0}
     .filters{grid-template-columns:repeat(4,minmax(0,1fr));align-items:end}
     .filters label,.feed-form label,.sports-form label,.community-form label{display:grid;gap:5px;font-size:14px}
+    .member-photo-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px;border:1px solid #4a524d;border-radius:12px;background:#0d100f}
+    .member-photo-row img{width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid #f2b718;background:#18201d}
+    .member-photo-row label{flex:1 1 220px;margin:0}
+    .member-photo-row button{flex:0 0 auto;min-height:44px;border:1px solid #f2b718;border-radius:10px;background:transparent;color:#f2b718;padding:8px 12px;font:inherit;cursor:pointer}
+    .member-photo-row button.danger{border-color:#e58b7a;color:#e58b7a}
+    .consent-row{display:flex;align-items:flex-start;gap:10px;font-size:14px}
+    .consent-row input{width:20px;height:20px;flex:0 0 auto;margin:2px 0 0}
     input,textarea,select{width:100%;background:#0d100f;border:1px solid #4a524d;border-radius:10px;color:#f0f5f3;padding:10px;font:inherit}
     textarea{resize:vertical}
     .feed-filters{grid-template-columns:repeat(2,minmax(0,220px))}
@@ -261,6 +268,14 @@
     <p class="note" data-en="Optional. Used only for private coach communication. Garmin support is a public profile link only; no credentials or health data are collected." data-ar="اختياري. يُستخدم للتواصل الخاص مع المدرب. يدعم Garmin عبر رابط عام فقط؛ لا تُجمع بيانات دخول أو صحية.">Optional. Used only for private coach communication. Garmin support is a public profile link only; no credentials or health data are collected.</p>
     <p id="sportsNotice" class="note" role="status" aria-live="polite"></p>
     <form id="sportsForm" class="card sports-form" hidden>
+      <div class="member-photo-row">
+        <img id="sportsPhotoPreview" alt="" hidden>
+        <span id="sportsPhotoEmpty" data-en="No private photo yet." data-ar="لا توجد صورة خاصة بعد.">No private photo yet.</span>
+        <label><span data-en="Private profile photo (JPEG, PNG or WebP, up to 1 MB)" data-ar="صورة الملف الخاصة (JPEG أو PNG أو WebP حتى 1 ميجابايت)">Private profile photo (JPEG, PNG or WebP, up to 1 MB)</span><input id="sportsPhoto" type="file" accept="image/jpeg,image/png,image/webp"></label>
+        <button id="sportsPhotoUpload" type="button" data-en="Upload photo" data-ar="رفع الصورة">Upload photo</button>
+        <button id="sportsPhotoRemove" class="danger" type="button" data-en="Remove photo" data-ar="إزالة الصورة" hidden>Remove photo</button>
+      </div>
+      <p class="note" data-en="Your photo stays private to your account and is never published on community posts or public profiles." data-ar="تبقى صورتك خاصة بحسابك ولا تُنشر في منشورات المجتمع أو الملفات العامة.">Your photo stays private to your account and is never published on community posts or public profiles.</p>
       <label><span data-en="Name shown to coaches" data-ar="الاسم الظاهر للمدربين">Name shown to coaches</span><input id="sportsName" maxlength="80"></label>
       <label><span data-en="City" data-ar="المدينة">City</span><input id="sportsCity" maxlength="80"></label>
       <label><span data-en="Sports" data-ar="الرياضات">Sports</span><input id="sportsList" maxlength="240" placeholder="running, walking, strength"></label>
@@ -271,6 +286,7 @@
       <label><span data-en="Age range" data-ar="الفئة العمرية">Age range</span><input id="sportsAge" maxlength="40"></label>
       <label><span data-en="Gender" data-ar="الجنس">Gender</span><input id="sportsGender" maxlength="40"></label>
       <label><span data-en="Public Garmin URL" data-ar="رابط Garmin عام">Public Garmin URL</span><input id="sportsGarmin" type="url" maxlength="300" placeholder="https://connect.garmin.com/profile/…"></label>
+      <label class="consent-row"><input id="sportsShare" type="checkbox"><span data-en="Share this sports profile and public Garmin link with coaches I am connected with. Off by default." data-ar="مشاركة هذا الملف الرياضي ورابط Garmin العام مع المدربين المرتبطين بي. متوقف افتراضياً.">Share this sports profile and public Garmin link with coaches I am connected with. Off by default.</span></label>
       <button class="button" type="submit" data-en="Save sports profile" data-ar="احفظ الملف الرياضي">Save sports profile</button>
     </form>
   </section>
@@ -333,7 +349,7 @@
   document.addEventListener('mzactive:language-change',event=>{lang=event.detail.lang;render()});render();
 })();
 </script>
-<script src="assets/js/community-feed.js?v=20261122a" defer></script>
+<script src="assets/js/community-feed.js?v=20261122b" defer></script>
 <script src="assets/js/community-groups.js?v=20261121n" defer></script>
 <script src="assets/js/site-language.js?v=20261120h"></script>
 <script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script>

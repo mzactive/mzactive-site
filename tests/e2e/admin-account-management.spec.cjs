@@ -137,15 +137,15 @@ test('View Profile has a separate Manage Account section with status and admin-o
   await expect(section).toContainText('Active');
   await expect(section).toContainText('Athlete / member');
   await expect(section).toContainText('Not a coach applicant');
-  await expect(section.locator('.crm-field').filter({ hasText: 'Bookings retained' })).toContainText('2');
-  await expect(section.locator('.crm-field').filter({ hasText: 'Training records retained' })).toContainText('1');
+  await expect(section).toContainText('Bookings retained: 2');
+  await expect(section).toContainText('Training records retained: 1');
   await expect(section.locator('.account-action-button').filter({ hasText: 'Open coach application' })).toBeVisible();
   await expect(section.locator('.account-action-button').filter({ hasText: 'Suspend access' })).toBeVisible();
   await section.locator('.account-visibility summary').click();
   await expect(section.locator('.account-action-button').filter({ hasText: 'Hide public profile' })).toBeVisible();
   await section.locator('.account-danger summary').click();
   await expect(section.locator('.danger-action')).toBeVisible();
-  await expect(section.locator('.account-events')).toContainText('Account audit');
+  await expect(section.locator('.account-events')).toContainText('Activity and audit history');
 
   const manageShortcut = page.locator('#athleteDetailDialog .crm-action').filter({ hasText: 'Manage account' });
   await manageShortcut.click();
@@ -345,7 +345,7 @@ test('coach accounts expose the same account controls and audit history', async 
   await expect(section.locator('.account-action-button').filter({ hasText: 'Suspend access' })).toBeVisible();
   await section.locator('.account-danger summary').click();
   await expect(section.locator('.danger-action')).toBeVisible();
-  await expect(section.locator('.account-events')).toContainText('Account audit');
+  await expect(section.locator('.account-events')).toContainText('Activity and audit history');
   assertOfflineSafe(mock);
 });
 
@@ -361,8 +361,9 @@ test('Arabic account controls render RTL at 360px with 44px targets', async ({ p
   await expect(section).toContainText('نشط');
   await expect(section).toContainText('حذف الحساب');
 
+  await section.locator('details').evaluateAll(nodes => nodes.forEach(node => { node.open = true; }));
   const heights = await section.locator('.account-action-button, .account-cancel, select, input[type=email], input[type=text]')
-    .evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().height));
+    .evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().height).filter(height => height > 0));
   expect(heights.length).toBeGreaterThan(0);
   for (const height of heights) expect(height).toBeGreaterThanOrEqual(44);
   assertOfflineSafe(mock);

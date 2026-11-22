@@ -429,6 +429,11 @@ function defaultApiHandler(ctx, state) {
     if (method === 'PUT') return json({ saved: true });
     return json({ profile: state.sportsProfile });
   }
+  if (urlPath === '/api/me/sports-profile/photo') {
+    if (method === 'DELETE') return json({ removed: true });
+    if (method === 'PUT') return json({ saved: true });
+    return { status: 404, contentType: 'application/json', body: '{"error":"photo_not_found"}' };
+  }
   if (urlPath === '/api/connections') {
     if (method === 'POST') return json({ id: 'conn-e2e-new', status: 'pending' }, 201);
     return json({ connections: state.connections });

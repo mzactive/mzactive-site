@@ -1286,7 +1286,7 @@ async function workspacePayload(request, env, connection, viewer) {
   const athleteId = connection.athlete_user_id, coachId = connection.coach_user_id;
   const [bookingRow, sportsRow, coachRow, athleteRow, messages, attachments, progress, programs, sessions, feedback, teamEvents] = await Promise.all([
     env.DB.prepare("SELECT id,customer_name,city,session_type,preferred_date,status,created_at FROM booking_requests WHERE id=?").bind(connection.booking_id || "").first(),
-    env.DB.prepare("SELECT display_name,garmin_public_url,goals,experience_level,sports_json FROM member_sports_profiles WHERE user_id=?").bind(athleteId).first(),
+    env.DB.prepare("SELECT display_name,garmin_public_url,goals,experience_level,sports_json,share_with_coaches FROM member_sports_profiles WHERE user_id=?").bind(athleteId).first(),
     env.DB.prepare("SELECT display_name FROM provider_profiles WHERE user_id=?").bind(coachId).first(),
     env.DB.prepare("SELECT email FROM users WHERE id=?").bind(athleteId).first(),
     env.DB.prepare("SELECT id,sender_user_id,body,created_at,read_at FROM coach_messages WHERE connection_id=? ORDER BY created_at LIMIT 200").bind(connection.id).all(),
@@ -1333,14 +1333,15 @@ async function workspacePayload(request, env, connection, viewer) {
       detail: [session.actual_km ? `${session.actual_km} km` : "", session.duration_minutes ? `${session.duration_minutes} min` : ""].filter(Boolean).join(" · "),
     }))),
   ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 200);
-  const publicUrl = sportsRow?.garmin_public_url || "";
+  const sportsShared = sportsRow?.share_with_coaches === 1 || sportsRow?.share_with_coaches === true;
+  const publicUrl = sportsShared ? (sportsRow?.garmin_public_url || "") : "";
   return reply(request, env, {
     workspace: {
       id: connection.id,
       status: connection.workspace_status,
       created_at: connection.workspace_created_at,
       coach: { user_id: coachId, name: coachRow?.display_name || "MZ Active coach" },
-      athlete: { user_id: athleteId, name: sportsRow?.display_name || athleteRow?.email?.split("@")[0] || "MZ Active member" },
+      athlete: { user_id: athleteId, name: sportsShared ? (sportsRow?.display_name || athleteRow?.email?.split("@")[0] || "MZ Active member") : "MZ Active member" },
       booking: bookingRow || null,
       viewing_as: who(viewer.id),
       permissions: { coach: viewer.id === coachId, athlete: viewer.id === athleteId, admin: false },
@@ -1348,7 +1349,10 @@ async function workspacePayload(request, env, connection, viewer) {
         public_url: publicUrl,
         sync_status: publicUrl ? "public_profile_link_only" : "not_provided",
         sync_enabled: false,
-        note: "Official Garmin Connect authorization and activity sync are not enabled. Only an athlete-provided public profile link is shown.",
+        share_enabled: sportsShared,
+        note: sportsShared
+          ? "Official Garmin Connect authorization and activity sync are not enabled. Only an athlete-provided public profile link is shown."
+          : "The member has not chosen to share sports profile details with this coach.",
       },
       messages: messages.results || [],
       attachments: attachments.results || [],
@@ -3547,16 +3551,40 @@ async function handleCommunityApi(request, env, url) {
     return result.meta?.changes ? reply(request, env, { updated: true, status }) : reply(request, env, { error: "achievement_not_found" }, 404);
   }
 
-  // Private member sports profile. Garmin support is a public URL only, never credentials.
+  // Private member profile photo. Only the authenticated owner can read or
+  // change it; bytes stay in the existing member sports profile row.
+  if (path === "/api/me/sports-profile/photo" && ["GET", "PUT", "DELETE"].includes(method)) {
+    const auth = await authenticated(request, env);
+    if (auth.response) return auth.response;
+    if (isSuperAdmin(auth.user)) return reply(request, env, { error: "member_profile_unavailable" }, 403);
+    if (method === "GET") {
+      const row = await env.DB.prepare("SELECT photo_bytes,photo_content_type,photo_updated_at FROM member_sports_profiles WHERE user_id=?").bind(auth.user.id).first();
+      if (!row?.photo_bytes) return reply(request, env, { error: "photo_not_found" }, 404);
+      return binaryReply(request, env, row.photo_bytes, row.photo_content_type || "image/jpeg", "private, no-store");
+    }
+    if (method === "DELETE") {
+      await env.DB.prepare("UPDATE member_sports_profiles SET photo_bytes=NULL,photo_content_type=NULL,photo_updated_at=NULL,updated_at=? WHERE user_id=?")
+        .bind(new Date().toISOString(), auth.user.id).run();
+      return reply(request, env, { removed: true });
+    }
+    const uploaded = await readImageBody(request);
+    if (uploaded.error) return reply(request, env, { error: uploaded.error }, uploaded.status);
+    const now = new Date().toISOString();
+    await env.DB.prepare("INSERT OR IGNORE INTO member_sports_profiles(user_id,updated_at) VALUES(?,?)").bind(auth.user.id, now).run();
+    await env.DB.prepare("UPDATE member_sports_profiles SET photo_bytes=?,photo_content_type=?,photo_updated_at=?,updated_at=? WHERE user_id=?")
+      .bind(new Uint8Array(uploaded.bytes), uploaded.contentType, now, now, auth.user.id).run();
+    return reply(request, env, { updated: true, photo_updated_at: now });
+  }
   if (path === "/api/me/sports-profile" && ["GET", "PUT"].includes(method)) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
     if (isSuperAdmin(auth.user)) return reply(request, env, { error: "member_profile_unavailable" }, 403);
     if (method === "GET") {
-      const row = await env.DB.prepare("SELECT * FROM member_sports_profiles WHERE user_id=?").bind(auth.user.id).first();
-      const profile = row ? { ...row, sports: safeParse(row.sports_json) } : {
+      const row = await env.DB.prepare("SELECT user_id,display_name,city,sports_json,experience_level,goals,age_range,gender,garmin_public_url,preferred_language,availability_notes,whatsapp_number,country,photo_updated_at,share_with_coaches,updated_at FROM member_sports_profiles WHERE user_id=?").bind(auth.user.id).first();
+      const profile = row ? { ...row, share_with_coaches: row.share_with_coaches === 1 || row.share_with_coaches === true, sports: safeParse(row.sports_json) } : {
         user_id: auth.user.id, display_name: "", city: "", sports: [], experience_level: "", goals: "",
-        age_range: "", gender: "", garmin_public_url: "", preferred_language: "", availability_notes: "", updated_at: null,
+        age_range: "", gender: "", garmin_public_url: "", preferred_language: "", availability_notes: "",
+        whatsapp_number: "", country: "Qatar", photo_updated_at: null, share_with_coaches: false, updated_at: null,
       };
       return reply(request, env, { profile });
     }
@@ -3566,16 +3594,18 @@ async function handleCommunityApi(request, env, url) {
     if (garmin === null) return reply(request, env, { error: "invalid_garmin_url" }, 400);
     const preferred = text(body.preferred_language, 20).toLowerCase();
     const preferredLanguage = ["en", "ar", "english", "arabic"].includes(preferred) ? (preferred.startsWith("a") ? "ar" : "en") : "";
+    const shareWithCoaches = body.share_with_coaches === true || body.share_with_coaches === 1 || body.share_with_coaches === "true" ? 1 : 0;
     const now = new Date().toISOString();
-    await env.DB.prepare(`INSERT INTO member_sports_profiles(user_id,display_name,city,sports_json,experience_level,goals,age_range,gender,garmin_public_url,preferred_language,availability_notes,updated_at)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET
+    await env.DB.prepare(`INSERT INTO member_sports_profiles(user_id,display_name,city,sports_json,experience_level,goals,age_range,gender,garmin_public_url,preferred_language,availability_notes,share_with_coaches,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET
       display_name=excluded.display_name,city=excluded.city,sports_json=excluded.sports_json,
       experience_level=excluded.experience_level,goals=excluded.goals,age_range=excluded.age_range,
       gender=excluded.gender,garmin_public_url=excluded.garmin_public_url,
-      preferred_language=excluded.preferred_language,availability_notes=excluded.availability_notes,updated_at=excluded.updated_at`)
+      preferred_language=excluded.preferred_language,availability_notes=excluded.availability_notes,
+      share_with_coaches=excluded.share_with_coaches,updated_at=excluded.updated_at`)
       .bind(auth.user.id, text(body.display_name, 80), text(body.city, 80), JSON.stringify(cleanSports(body.sports)),
         text(body.experience_level, 60), text(body.goals, 600), text(body.age_range, 40), text(body.gender, 40), garmin || "",
-        preferredLanguage, text(body.availability_notes, 300), now).run();
+        preferredLanguage, text(body.availability_notes, 300), shareWithCoaches, now).run();
     const pendingInvites = await env.DB.prepare("SELECT id FROM athlete_crm_invitations WHERE athlete_user_id=? AND kind='profile' AND status IN ('pending','email_failed')")
       .bind(auth.user.id).all();
     if ((pendingInvites.results || []).length) {
