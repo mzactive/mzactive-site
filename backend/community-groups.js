@@ -211,8 +211,9 @@ async function communityDetail(env, api, request, community, user) {
       FROM community_group_members m JOIN users u ON u.id=m.user_id
       LEFT JOIN member_sports_profiles msp ON msp.user_id=m.user_id
       LEFT JOIN provider_profiles pp ON pp.user_id=m.user_id
-      WHERE m.community_id=? AND m.status='active' ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'moderator' THEN 1 ELSE 2 END,m.joined_at LIMIT 100`).bind(community.id).all(),
-    env.DB.prepare("SELECT user_id FROM community_group_members WHERE community_id=? AND role IN ('owner','moderator') AND status='active'").bind(community.id).all(),
+      WHERE m.community_id=? AND m.status='active' AND u.profile_visibility='public' ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'moderator' THEN 1 ELSE 2 END,m.joined_at LIMIT 100`).bind(community.id).all(),
+    env.DB.prepare(`SELECT m.user_id FROM community_group_members m JOIN users u ON u.id=m.user_id
+      WHERE m.community_id=? AND m.role IN ('owner','moderator') AND m.status='active' AND u.profile_visibility='public'`).bind(community.id).all(),
   ]);
   const prefs = user ? await env.DB.prepare("SELECT muted,activity_enabled,event_reminders,last_read_at FROM community_message_reads WHERE community_id=? AND user_id=?")
     .bind(community.id, user.id).first() : null;
@@ -355,7 +356,7 @@ export async function handleCommunityGroupsApi(request, env, url, api) {
       FROM community_group_members m JOIN users u ON u.id=m.user_id
       LEFT JOIN member_sports_profiles msp ON msp.user_id=m.user_id
       LEFT JOIN provider_profiles pp ON pp.user_id=m.user_id
-      WHERE m.community_id=? AND m.status='active' ORDER BY m.joined_at LIMIT 100`).bind(community.id).all();
+      WHERE m.community_id=? AND m.status='active' AND u.profile_visibility='public' ORDER BY m.joined_at LIMIT 100`).bind(community.id).all();
     return api.reply(request, env, { members: rows.results || [], member_count: Number(community.member_count || 0) });
   }
 

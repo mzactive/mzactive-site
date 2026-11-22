@@ -77,6 +77,7 @@ function accountFixture(overrides = {}) {
       display_name: athlete.name,
       booking_count: 2,
       program_count: 1,
+      profile_visibility: 'public',
       role_mismatch: true,
       ...overrides,
     },
@@ -140,6 +141,8 @@ test('View Profile has a separate Manage Account section with status and admin-o
   await expect(section.locator('.crm-field').filter({ hasText: 'Training records retained' })).toContainText('1');
   await expect(section.locator('.account-action-button').filter({ hasText: 'Open coach application' })).toBeVisible();
   await expect(section.locator('.account-action-button').filter({ hasText: 'Suspend access' })).toBeVisible();
+  await section.locator('.account-visibility summary').click();
+  await expect(section.locator('.account-action-button').filter({ hasText: 'Hide public profile' })).toBeVisible();
   await section.locator('.account-danger summary').click();
   await expect(section.locator('.danger-action')).toBeVisible();
   await expect(section.locator('.account-events')).toContainText('Account audit');
@@ -182,7 +185,7 @@ test('suspension requires confirmation and sends the reason only after approval'
     ['POST /api/admin/accounts/' + ATHLETE_ID + '/suspend']: capture,
   });
 
-  await section.locator('input[aria-label="Reason (optional)"]').fill('Synthetic suspension test');
+  await section.locator('input[aria-label="Suspension reason"]').fill('Synthetic suspension test');
   const suspend = section.locator('.account-action-button').filter({ hasText: 'Suspend access' });
   await suspend.click();
   expect(posts).toHaveLength(0);
@@ -192,6 +195,57 @@ test('suspension requires confirmation and sends the reason only after approval'
   await expect.poll(() => posts.length).toBe(1);
   expect(posts[0].path).toBe('/api/admin/accounts/' + ATHLETE_ID + '/suspend');
   expect(posts[0].body.reason).toBe('Synthetic suspension test');
+  assertOfflineSafe(mock);
+});
+
+test('hiding a public profile requires a reason and confirmation', async ({ page }) => {
+  let acceptDialog = false;
+  page.on('dialog', dialog => acceptDialog ? dialog.accept() : dialog.dismiss());
+  const posts = [];
+  const capture = ctx => { posts.push({ path: ctx.path, body: ctx.body }); return json({ ok: true }); };
+  const { mock, section } = await openAthleteManage(page, {
+    ['POST /api/admin/accounts/' + ATHLETE_ID + '/hide-profile']: capture,
+  });
+
+  await expect(section.locator('.crm-field').filter({ hasText: 'Public profile' })).toContainText('Public');
+  await section.locator('.account-visibility summary').click();
+  const visibility = section.locator('.account-visibility');
+  await expect(visibility.locator('.account-action-button').filter({ hasText: 'Hide public profile' })).toBeVisible();
+  await visibility.locator('input[aria-label="Moderation reason"]').fill('Synthetic hide test');
+  const hide = visibility.locator('.account-action-button').filter({ hasText: 'Hide public profile' });
+  await hide.click();
+  expect(posts).toHaveLength(0);
+
+  acceptDialog = true;
+  await hide.click();
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0].path).toBe('/api/admin/accounts/' + ATHLETE_ID + '/hide-profile');
+  expect(posts[0].body.reason).toBe('Synthetic hide test');
+  assertOfflineSafe(mock);
+});
+
+test('hidden profiles expose a restore action with a required reason', async ({ page }) => {
+  let acceptDialog = false;
+  page.on('dialog', dialog => acceptDialog ? dialog.accept() : dialog.dismiss());
+  const posts = [];
+  const capture = ctx => { posts.push({ path: ctx.path, body: ctx.body }); return json({ ok: true }); };
+  const { mock, section } = await openAthleteManage(page, {
+    ['GET /api/admin/accounts/' + ATHLETE_ID]: () => json(accountFixture({ profile_visibility: 'hidden' })),
+    ['POST /api/admin/accounts/' + ATHLETE_ID + '/restore-profile']: capture,
+  });
+
+  await expect(section.locator('.crm-field').filter({ hasText: 'Public profile' })).toContainText('Hidden');
+  await section.locator('.account-visibility summary').click();
+  const visibility = section.locator('.account-visibility');
+  const restore = visibility.locator('.account-action-button').filter({ hasText: 'Restore public profile' });
+  await expect(restore).toBeVisible();
+  await expect(visibility.locator('.account-action-button').filter({ hasText: 'Hide public profile' })).toHaveCount(0);
+  await visibility.locator('input[aria-label="Moderation reason"]').fill('Synthetic restore test');
+  acceptDialog = true;
+  await restore.click();
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0].path).toBe('/api/admin/accounts/' + ATHLETE_ID + '/restore-profile');
+  expect(posts[0].body.reason).toBe('Synthetic restore test');
   assertOfflineSafe(mock);
 });
 
@@ -242,25 +296,29 @@ test('deletion requires typed confirmation and cancel clears the confirmation', 
   });
 
   await section.locator('.account-danger summary').click();
+  const deleteReason = section.locator('input[aria-label="Deletion reason"]');
   const emailConfirm = section.locator('input[aria-label="Type the account email to confirm"]');
   const phraseConfirm = section.locator('input[placeholder="DELETE"]');
   const del = section.locator('.danger-action');
+  await deleteReason.fill('Synthetic deletion test');
   await emailConfirm.fill(ATHLETE_EMAIL);
   await phraseConfirm.fill('DELETE');
   await section.locator('.account-cancel').click();
+  await expect(deleteReason).toHaveValue('');
   await expect(emailConfirm).toHaveValue('');
   await expect(phraseConfirm).toHaveValue('');
   await section.locator('.account-danger summary').click();
   await del.click();
   expect(posts).toHaveLength(0);
 
+  await deleteReason.fill('Synthetic deletion test');
   await emailConfirm.fill(ATHLETE_EMAIL);
   await phraseConfirm.fill('DELETE');
   acceptDialog = true;
   await del.click();
   await expect.poll(() => posts.length).toBe(1);
   expect(posts[0].path).toBe('/api/admin/accounts/' + ATHLETE_ID + '/delete');
-  expect(posts[0].body).toEqual({ confirm_email: ATHLETE_EMAIL, confirm_phrase: 'DELETE' });
+  expect(posts[0].body).toEqual({ confirm_email: ATHLETE_EMAIL, confirm_phrase: 'DELETE', reason: 'Synthetic deletion test' });
   assertOfflineSafe(mock);
 });
 

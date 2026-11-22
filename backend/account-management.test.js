@@ -166,11 +166,74 @@ test('suspension revokes sessions and blocks login, listings, bookings and appro
     assert.equal(detail.account.account_status, 'suspended');
     assert.equal(detail.events.some((e) => e.action === 'account_suspended'), true);
 
-    await call(env, 'admin/accounts/' + coach.user.id + '/reactivate', 'POST', {}, admin.token);
+    await call(env, 'admin/accounts/' + coach.user.id + '/reactivate', 'POST', { reason: 'Synthetic reactivation test' }, admin.token);
     await call(env, 'me/access', 'GET', undefined, coach.token, 401);
     const restored = await call(env, 'auth/login', 'POST', { email: 'coach@example.test', password });
     const access = await call(env, 'me/access', 'GET', undefined, restored.token);
     assert.equal(access.account_status, 'active');
+  } finally { db.close(); }
+});
+
+test('hiding a profile removes public surfaces while keeping login and records, and restore is reversible', async () => {
+  const { db, env } = makeEnv();
+  try {
+    const { admin, coach } = await registerAccounts(env);
+    const profileId = db.prepare('SELECT id FROM provider_profiles WHERE user_id=?').get(coach.user.id).id;
+    await approveCoach(env, admin.token, profileId);
+    const before = await call(env, 'providers');
+    assert.equal(before.providers.some((p) => p.id === profileId), true);
+
+    const missingReason = await call(env, 'admin/accounts/' + coach.user.id + '/hide-profile', 'POST', {}, admin.token, 400);
+    assert.equal(missingReason.error, 'reason_required');
+
+    const hidden = await call(env, 'admin/accounts/' + coach.user.id + '/hide-profile', 'POST', {
+      reason: 'Synthetic hide test',
+    }, admin.token);
+    assert.equal(hidden.profile_visibility, 'hidden');
+    assert.equal(hidden.sessions_revoked, false);
+    const row = db.prepare('SELECT profile_visibility,profile_hidden_at,profile_hidden_reason FROM users WHERE id=?').get(coach.user.id);
+    assert.equal(row.profile_visibility, 'hidden');
+    assert.ok(row.profile_hidden_at);
+    assert.equal(row.profile_hidden_reason, 'Synthetic hide test');
+
+    const after = await call(env, 'providers');
+    assert.equal(after.providers.some((p) => p.id === profileId), false, 'hidden profile leaves public discovery');
+    const session = await call(env, 'me/access', 'GET', undefined, coach.token);
+    assert.equal(session.account_status, 'active', 'hiding does not revoke login');
+    const signIn = await call(env, 'auth/login', 'POST', { email: 'coach@example.test', password });
+    assert.equal(signIn.user.id, coach.user.id, 'hidden account can still sign in');
+
+    const detail = await call(env, 'admin/accounts/' + coach.user.id, 'GET', undefined, admin.token);
+    assert.equal(detail.account.profile_visibility, 'hidden');
+    assert.equal(detail.events.some((e) => e.action === 'profile_hidden'), true);
+    const directory = await call(env, 'admin/accounts?filter=hidden', 'GET', undefined, admin.token);
+    assert.equal(directory.counts.hidden, 1);
+    assert.equal(directory.accounts.length, 1);
+
+    const duplicate = await call(env, 'admin/accounts/' + coach.user.id + '/hide-profile', 'POST', {
+      reason: 'Synthetic repeat hide',
+    }, admin.token, 409);
+    assert.equal(duplicate.error, 'profile_already_hidden');
+
+    const missingRestoreReason = await call(env, 'admin/accounts/' + coach.user.id + '/restore-profile', 'POST', {}, admin.token, 400);
+    assert.equal(missingRestoreReason.error, 'reason_required');
+    const restored = await call(env, 'admin/accounts/' + coach.user.id + '/restore-profile', 'POST', {
+      reason: 'Synthetic restore test',
+    }, admin.token);
+    assert.equal(restored.profile_visibility, 'public');
+    const restoredRow = db.prepare('SELECT profile_visibility,profile_hidden_at,profile_hidden_reason FROM users WHERE id=?').get(coach.user.id);
+    assert.equal(restoredRow.profile_visibility, 'public');
+    assert.equal(restoredRow.profile_hidden_at, null);
+    assert.equal(restoredRow.profile_hidden_reason, null);
+    const publicAfter = await call(env, 'providers');
+    assert.equal(publicAfter.providers.some((p) => p.id === profileId), true, 'restore returns the profile to public discovery');
+    const events = await call(env, 'admin/accounts/' + coach.user.id, 'GET', undefined, admin.token);
+    assert.equal(events.events.some((e) => e.action === 'profile_restored'), true);
+
+    const protectedAdmin = await call(env, 'admin/accounts/' + admin.user.id + '/hide-profile', 'POST', {
+      reason: 'Synthetic protected hide',
+    }, admin.token, 409);
+    assert.equal(protectedAdmin.error, 'account_protected');
   } finally { db.close(); }
 });
 
@@ -189,7 +252,7 @@ test('deletion requires typed confirmation, anonymizes identity and retains rela
     assert.equal(db.prepare('SELECT account_status FROM users WHERE id=?').get(coach.user.id).account_status, 'active');
 
     const deleted = await call(env, 'admin/accounts/' + coach.user.id + '/delete', 'POST', {
-      confirm_email: 'coach@example.test', confirm_phrase: 'DELETE',
+      confirm_email: 'coach@example.test', confirm_phrase: 'DELETE', reason: 'Synthetic deletion test',
     }, admin.token);
     assert.equal(deleted.anonymized, true);
     assert.equal(deleted.bookings_preserved, true);
@@ -208,7 +271,7 @@ test('deletion requires typed confirmation, anonymizes identity and retains rela
     assert.equal(detail.account.account_status, 'deleted');
     assert.equal(detail.events.some((e) => e.action === 'account_deleted'), true);
     const repeat = await call(env, 'admin/accounts/' + coach.user.id + '/delete', 'POST', {
-      confirm_email: 'coach@example.test', confirm_phrase: 'DELETE',
+      confirm_email: 'coach@example.test', confirm_phrase: 'DELETE', reason: 'Synthetic repeat deletion',
     }, admin.token, 409);
     assert.equal(repeat.error, 'account_already_deleted');
   } finally { db.close(); }

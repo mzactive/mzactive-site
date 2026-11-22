@@ -185,6 +185,12 @@ function accountActive(accountStatus) {
   return !accountStatus || accountStatus === "active";
 }
 
+// Public visibility is enforced in SQL, never by CSS. Hidden accounts keep
+// their login and all records; only public discovery and content are filtered.
+function publicVisibility(alias = "u") {
+  return `(${alias}.profile_visibility='public' AND (${alias}.account_status IS NULL OR ${alias}.account_status='active'))`;
+}
+
 // Existing admins are marked super admins by migration 0027. Newly promoted
 // admins are limited until a super admin explicitly elevates them.
 function isSuperAdmin(user) {
@@ -295,14 +301,14 @@ async function ownerBusinessSnapshot(env) {
   const [pendingProviderProfiles, approvedProviders, openBookingRequests, pendingCoachArticles, registeredAthletes,
     unlinkedPrograms, activeTrainingTeams, pendingCommunityPosts, publishedCommunityPosts, pendingCommunityComments, weeklyChallenges] = await Promise.all([
     firstCount("SELECT COUNT(*) AS count FROM provider_profiles WHERE status='pending'"),
-    firstCount("SELECT COUNT(*) AS count FROM provider_profiles WHERE status='approved'"),
+    firstCount("SELECT COUNT(*) AS count FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='approved' AND u.profile_visibility='public'"),
     firstCount("SELECT COUNT(*) AS count FROM booking_requests WHERE status IN ('received','reviewing')"),
     firstCount("SELECT COUNT(*) AS count FROM coach_blog_posts WHERE status='pending'"),
     firstCount("SELECT COUNT(*) AS count FROM users u WHERE role='provider' AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id)"),
     firstCount("SELECT COUNT(*) AS count FROM athlete_programs_v2 WHERE athlete_user_id IS NULL"),
     firstCount("SELECT COUNT(*) AS count FROM training_teams"),
     firstCount("SELECT COUNT(*) AS count FROM community_posts WHERE status='pending'"),
-    firstCount("SELECT COUNT(*) AS count FROM community_posts WHERE status='published'"),
+    firstCount("SELECT COUNT(*) AS count FROM community_posts c JOIN users u ON u.id=c.author_user_id WHERE c.status='published' AND u.profile_visibility='public'"),
     firstCount("SELECT COUNT(*) AS count FROM community_comments c JOIN community_posts p ON p.id=c.post_id WHERE c.status='published' AND p.status='pending'"),
     firstCount("SELECT COUNT(*) AS count FROM community_posts WHERE kind='challenge' AND status='published' AND created_at>=datetime('now','-7 days')"),
   ]);
@@ -397,8 +403,8 @@ async function runOwnerAnalysis(env, task, prompt, source, taskId=randomId()) {
 async function publicBlogPosts(request, env) {
   const slug = text(new URL(request.url).searchParams.get("slug") || "", 80).replace(/^coach-/, "");
   const query = `SELECT b.id,b.title,b.summary,b.body,b.language,b.created_at,b.published_at,p.display_name AS coach_name
-    FROM coach_blog_posts b JOIN provider_profiles p ON p.id=b.provider_id
-    WHERE b.status='published' AND (?='' OR b.id=?) ORDER BY b.published_at DESC LIMIT 100`;
+    FROM coach_blog_posts b JOIN provider_profiles p ON p.id=b.provider_id JOIN users u ON u.id=p.user_id
+    WHERE b.status='published' AND ${publicVisibility("u")} AND (?='' OR b.id=?) ORDER BY b.published_at DESC LIMIT 100`;
   const result = await env.DB.prepare(query).bind(slug,slug).all();
   return reply(request, env, { posts: result.results || [] });
 }
@@ -831,7 +837,8 @@ async function runMomoCoachFollowUps(env) {
   const rows = await env.DB.prepare(`SELECT p.id,p.provider_type,p.display_name,p.city,p.country,p.bio,p.specialties_json,p.languages_json,p.qualifications,p.services_json,p.license_number,p.license_issuer,p.experience_years,p.whatsapp_number,p.social_links_json,
     CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,
     CASE WHEN EXISTS(SELECT 1 FROM provider_covers c WHERE c.provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,
-    u.email FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='approved' ORDER BY p.updated_at DESC LIMIT 200`).all();
+    u.email FROM provider_profiles p JOIN users u ON u.id=p.user_id
+    WHERE p.status='approved' AND u.profile_visibility='public' ORDER BY p.updated_at DESC LIMIT 200`).all();
   const now = new Date().toISOString();
   let created = 0, resolved = 0;
   for (const row of rows.results || []) {
@@ -1035,7 +1042,7 @@ async function publicProviders(url, request, env, id = null) {
   const viewer = await currentUser(request, env);
   const rows = await env.DB.prepare(`SELECT id,user_id,verified,qualifications,services_json,coaching_mode,certificate_name,certificate_issuer,license_number,license_issuer,license_expires_on,license_status,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=provider_profiles.id) AS gallery_slots,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json
     FROM provider_profiles WHERE status='approved'
-    AND NOT EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND (u.account_status IS NULL OR u.account_status<>'active'))
+    AND NOT EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND (u.profile_visibility<>'public' OR u.account_status IS NULL OR u.account_status<>'active'))
     AND (provider_type NOT IN ('nutritionist','physiotherapist','sports_massage_therapist') OR (license_status='verified' AND (license_expires_on IS NULL OR license_expires_on>=date('now'))))
     AND (? IS NULL OR id=?) AND (?='' OR provider_type=?) AND (?='' OR city LIKE ?)
     AND (?='' OR display_name LIKE ? OR bio LIKE ? OR specialties_json LIKE ? OR qualifications LIKE ? OR services_json LIKE ? OR certificate_name LIKE ?) ORDER BY display_name LIMIT 50`)
@@ -1604,15 +1611,17 @@ async function ownerCv(request, env, user, method) {
 }
 
 async function publicProfilePhoto(id, request, env) {
-  const row = await env.DB.prepare("SELECT profile_photo_bytes,profile_photo_content_type,public_fields_json FROM provider_profiles WHERE id=? AND status='approved'").bind(id).first();
+  const row = await env.DB.prepare(`SELECT profile_photo_bytes,profile_photo_content_type,public_fields_json FROM provider_profiles
+    WHERE id=? AND status='approved' AND NOT EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND u.profile_visibility<>'public')`).bind(id).first();
   if (!row?.profile_photo_bytes || !row.profile_photo_content_type || !cleanPublicFields(safeParse(row.public_fields_json)).includes("profile_photo")) return reply(request, env, { error: "photo_not_found" }, 404);
   return binaryReply(request, env, row.profile_photo_bytes, row.profile_photo_content_type, "private, no-cache");
 }
 
 async function galleryImage(id, slot, request, env, approvedOnly) {
   const row = await env.DB.prepare(`SELECT g.bytes,g.content_type FROM provider_gallery g
-    JOIN provider_profiles p ON p.id=g.provider_id WHERE p.id=? AND g.slot=? AND (?=0 OR p.status='approved')`)
-    .bind(id,slot,Number(approvedOnly)).first();
+    JOIN provider_profiles p ON p.id=g.provider_id WHERE p.id=? AND g.slot=? AND (?=0 OR p.status='approved')
+    AND (?=0 OR NOT EXISTS(SELECT 1 FROM users u WHERE u.id=p.user_id AND u.profile_visibility<>'public'))`)
+    .bind(id,slot,Number(approvedOnly),Number(approvedOnly)).first();
   return row ? binaryReply(request, env, row.bytes, row.content_type, "private, no-store")
     : reply(request, env, { error: "photo_not_found" }, 404);
 }
@@ -1712,7 +1721,7 @@ async function createBooking(request, env) {
   if (!body || !/^\+?[\d\s()-]{7,40}$/.test(phone) || !name || !city || !goal || !sessionType || body.consent !== true) return reply(request, env, { error: "invalid_booking_request" }, 400);
   let providerId = text(body.provider_id,36) || null, programDuration = Number(body.program_duration_months) || null;
   if (providerId) {
-    const provider = await env.DB.prepare("SELECT id,display_name,provider_type,services_json,public_fields_json,program_durations_json,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS public_whatsapp FROM provider_profiles WHERE id=? AND status='approved' AND NOT EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND (u.account_status IS NULL OR u.account_status<>'active')) AND (provider_type NOT IN ('nutritionist','physiotherapist','sports_massage_therapist') OR (license_status='verified' AND (license_expires_on IS NULL OR license_expires_on>=date('now'))))").bind(providerId).first();
+    const provider = await env.DB.prepare("SELECT id,display_name,provider_type,services_json,public_fields_json,program_durations_json,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS public_whatsapp FROM provider_profiles WHERE id=? AND status='approved' AND NOT EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND (u.profile_visibility<>'public' OR u.account_status IS NULL OR u.account_status<>'active')) AND (provider_type NOT IN ('nutritionist','physiotherapist','sports_massage_therapist') OR (license_status='verified' AND (license_expires_on IS NULL OR license_expires_on>=date('now'))))").bind(providerId).first();
     if (!provider) return reply(request, env, { error: "provider_unavailable" }, 404);
     const visibility = cleanPublicFields(safeParse(provider.public_fields_json));
     const offeredServices = cleanList(safeParse(provider.services_json),12,120);
@@ -2482,6 +2491,7 @@ async function athleteCrmRecommendations(request, env, manager, athlete) {
   const coaches = await env.DB.prepare(`SELECT p.id,p.user_id,p.display_name,p.city,p.specialties_json,p.languages_json,
       p.bio,p.services_json,p.coaching_mode,p.provider_type,p.experience_years
     FROM provider_profiles p WHERE p.status='approved' AND p.provider_type='coach' AND p.user_id<>?
+      AND EXISTS(SELECT 1 FROM users u WHERE u.id=p.user_id AND ${publicVisibility("u")})
       AND NOT EXISTS(SELECT 1 FROM coach_connections c WHERE c.athlete_user_id=? AND c.coach_user_id=p.user_id AND c.status IN ('pending','accepted'))
       AND NOT EXISTS(SELECT 1 FROM athlete_crm_invitations i WHERE i.athlete_user_id=? AND i.coach_user_id=p.user_id AND i.status='pending')
     ORDER BY p.display_name LIMIT 100`).bind(athlete.id, athlete.id, athlete.id).all();
@@ -2684,6 +2694,7 @@ function accountForViewer(row, user) {
     ...row,
     email: "[restricted]",
     whatsapp_number: null,
+    profile_hidden_reason: null,
     identity_restricted: true,
   };
 }
@@ -2736,7 +2747,7 @@ async function adminApplications(request, env, user) {
   // Account management is deliberately separated from the public athlete
   // profile. Viewing needs management.view; every state change needs a full
   // administrator session so a scoped manager cannot escalate roles.
-  const accountFields = `u.id,u.email,u.role,u.is_super_admin,u.account_status,u.status_reason,u.deleted_at,u.created_at,
+  const accountFields = `u.id,u.email,u.role,u.is_super_admin,u.account_status,u.status_reason,u.deleted_at,u.created_at,u.profile_visibility,u.profile_hidden_at,u.profile_hidden_reason,
     p.id AS profile_id,p.status AS profile_status,p.submission_state,p.provider_type,
     COALESCE(p.display_name,(SELECT ms.display_name FROM member_sports_profiles ms WHERE ms.user_id=u.id)) AS display_name,
     COALESCE(p.city,(SELECT ms.city FROM member_sports_profiles ms WHERE ms.user_id=u.id)) AS city,
@@ -2756,6 +2767,7 @@ async function adminApplications(request, env, user) {
       members: all.filter(a => !a.profile_id).length,
       coaches: all.filter(a => Boolean(a.profile_id)).length,
       suspended: all.filter(a => a.account_status === "suspended").length,
+      hidden: all.filter(a => a.profile_visibility === "hidden").length,
       deleted: all.filter(a => a.account_status === "deleted").length,
       mismatch: all.filter(a => a.role_mismatch).length,
     };
@@ -2763,6 +2775,7 @@ async function adminApplications(request, env, user) {
       if (filter === "members") return !a.profile_id;
       if (filter === "coaches") return Boolean(a.profile_id);
       if (filter === "suspended") return a.account_status === "suspended";
+      if (filter === "hidden") return a.profile_visibility === "hidden";
       if (filter === "deleted") return a.account_status === "deleted";
       if (filter === "mismatch") return a.role_mismatch;
       return true;
@@ -2772,7 +2785,7 @@ async function adminApplications(request, env, user) {
       .map((row) => accountForViewer(row, user));
     return reply(request, env, { accounts, counts });
   }
-  const accountMatch = /^\/api\/admin\/accounts\/([\w-]{36})(?:\/(coach-application|suspend|reactivate|delete|update|role))?$/.exec(path);
+  const accountMatch = /^\/api\/admin\/accounts\/([\w-]{36})(?:\/(coach-application|suspend|reactivate|delete|update|role|hide-profile|restore-profile))?$/.exec(path);
   if (accountMatch && request.method === "GET" && !accountMatch[2]) {
     const row = await env.DB.prepare(`SELECT ${accountFields} FROM users u LEFT JOIN provider_profiles p ON p.user_id=u.id WHERE u.id=?`).bind(accountMatch[1]).first();
     if (!row) return reply(request, env, { error: "account_not_found" }, 404);
@@ -2784,7 +2797,7 @@ async function adminApplications(request, env, user) {
   }
   if (accountMatch && request.method === "POST" && accountMatch[2]) {
     if (!isSuperAdmin(user)) return reply(request, env, { error: "admin_required" }, 403);
-    const target = await env.DB.prepare("SELECT id,email,role,is_super_admin,account_status FROM users WHERE id=?").bind(accountMatch[1]).first();
+    const target = await env.DB.prepare("SELECT id,email,role,is_super_admin,account_status,profile_visibility,profile_hidden_reason FROM users WHERE id=?").bind(accountMatch[1]).first();
     if (!target) return reply(request, env, { error: "account_not_found" }, 404);
     const action = accountMatch[2], body = await readJson(request), now = new Date().toISOString();
 
@@ -2889,10 +2902,24 @@ async function adminApplications(request, env, user) {
       await recordAccountEvent(env, user.id, target.id, "coach_application_opened", { provider_type: type });
       return reply(request, env, { ok: true, profile_id: profileId, submission_state: "draft" });
     }
+    if (action === "hide-profile" || action === "restore-profile") {
+      const hiding = action === "hide-profile";
+      if (isSuperAdmin(target) || target.id === user.id) return reply(request, env, { error: "account_protected" }, 409);
+      if (target.account_status === "deleted") return reply(request, env, { error: "account_not_active" }, 409);
+      const reason = text(body?.reason, 300);
+      if (!reason) return reply(request, env, { error: "reason_required" }, 400);
+      if (hiding && target.profile_visibility === "hidden") return reply(request, env, { error: "profile_already_hidden" }, 409);
+      if (!hiding && target.profile_visibility !== "hidden") return reply(request, env, { error: "profile_not_hidden" }, 409);
+      await env.DB.prepare("UPDATE users SET profile_visibility=?,profile_hidden_at=?,profile_hidden_reason=? WHERE id=?")
+        .bind(hiding ? "hidden" : "public", hiding ? now : null, hiding ? reason : null, target.id).run();
+      await recordAccountEvent(env, user.id, target.id, hiding ? "profile_hidden" : "profile_restored", { reason });
+      return reply(request, env, { ok: true, profile_visibility: hiding ? "hidden" : "public", sessions_revoked: false });
+    }
     if (action === "suspend") {
       if (isSuperAdmin(target) || target.id === user.id) return reply(request, env, { error: "account_protected" }, 409);
       if (!accountActive(target.account_status)) return reply(request, env, { error: "account_not_active" }, 409);
-      const reason = text(body?.reason, 300) || "Suspended by administrator";
+      const reason = text(body?.reason, 300);
+      if (!reason) return reply(request, env, { error: "reason_required" }, 400);
       await env.DB.batch([
         env.DB.prepare("UPDATE users SET account_status='suspended',status_reason=? WHERE id=?").bind(reason, target.id),
         env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id),
@@ -2902,28 +2929,32 @@ async function adminApplications(request, env, user) {
     }
     if (action === "reactivate") {
       if (target.account_status !== "suspended") return reply(request, env, { error: "account_not_suspended" }, 409);
+      const reason = text(body?.reason, 300);
+      if (!reason) return reply(request, env, { error: "reason_required" }, 400);
       await env.DB.batch([
         env.DB.prepare("UPDATE users SET account_status='active',status_reason=NULL WHERE id=?").bind(target.id),
         env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id),
       ]);
-      await recordAccountEvent(env, user.id, target.id, "account_reactivated", {});
+      await recordAccountEvent(env, user.id, target.id, "account_reactivated", { reason });
       return reply(request, env, { ok: true, account_status: "active" });
     }
     if (action === "delete") {
       if (isSuperAdmin(target) || target.id === user.id) return reply(request, env, { error: "account_protected" }, 409);
       if (target.account_status === "deleted") return reply(request, env, { error: "account_already_deleted" }, 409);
       const confirmedEmail = emailValue(body?.confirm_email), phrase = text(body?.confirm_phrase, 40);
+      const reason = text(body?.reason, 300);
       if (confirmedEmail !== target.email.toLowerCase() || phrase !== "DELETE") return reply(request, env, { error: "confirmation_required" }, 400);
+      if (!reason) return reply(request, env, { error: "reason_required" }, 400);
       const profile = await env.DB.prepare("SELECT id FROM provider_profiles WHERE user_id=?").bind(target.id).first();
       const statements = [
-        env.DB.prepare("UPDATE users SET account_status='deleted',status_reason=NULL,deleted_at=?,anonymized_at=?,email=?,password_hash=? WHERE id=?")
-          .bind(now, now, `deleted+${target.id}@invalid`, await hashPassword("deleted-" + randomId()), target.id),
+        env.DB.prepare("UPDATE users SET account_status='deleted',status_reason=NULL,profile_visibility='hidden',profile_hidden_at=?,profile_hidden_reason=?,deleted_at=?,anonymized_at=?,email=?,password_hash=? WHERE id=?")
+          .bind(now, `Account deleted: ${reason}`, now, now, `deleted+${target.id}@invalid`, await hashPassword("deleted-" + randomId()), target.id),
         env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id),
         env.DB.prepare("DELETE FROM password_reset_tokens WHERE user_id=?").bind(target.id),
       ];
       if (profile) statements.push(env.DB.prepare(`UPDATE provider_profiles SET display_name='Deleted account',country='',city='',specialties_json='[]',languages_json='[]',bio='',qualifications='',services_json='[]',coaching_mode='',whatsapp_number=NULL,whatsapp_public=0,social_links_json='[]',public_fields_json='[]',certificate_name='',certificate_issuer='',certificate_number='',license_number='',license_issuer='',license_country='',license_expires_on=NULL,license_status='not_submitted',license_review_note='',status='rejected',review_note='Removed by owner',profile_photo_url='',profile_photo_bytes=NULL,profile_photo_content_type=NULL,profile_photo_updated_at=NULL,cv_bytes=NULL,cv_content_type=NULL,cv_file_name=NULL,cv_byte_size=NULL,cv_updated_at=NULL,verified=0,updated_at=? WHERE id=?`).bind(now, profile.id));
       await env.DB.batch(statements);
-      await recordAccountEvent(env, user.id, target.id, "account_deleted", { profile_anonymized: Boolean(profile), bookings_preserved: true });
+      await recordAccountEvent(env, user.id, target.id, "account_deleted", { reason, profile_anonymized: Boolean(profile), bookings_preserved: true });
       return reply(request, env, { ok: true, anonymized: true, bookings_preserved: true });
     }
     return reply(request, env, { error: "unknown_account_action" }, 400);
@@ -3408,6 +3439,11 @@ async function loadPost(env, id) {
 // Posts inside private communities are never public, including their media and
 // comments. Legacy routes predate communities, so enforce the group audience here.
 async function postVisibleToViewer(env, post, viewer) {
+  if (!post) return false;
+  if (!isSuperAdmin(viewer) && viewer?.id !== post.author_user_id) {
+    const author = await env.DB.prepare("SELECT profile_visibility FROM users WHERE id=?").bind(post.author_user_id).first();
+    if (author?.profile_visibility !== "public") return false;
+  }
   if (!post?.community_id) return true;
   if (isSuperAdmin(viewer)) return true;
   const community = await env.DB.prepare("SELECT status,visibility FROM communities WHERE id=?")
@@ -3434,7 +3470,8 @@ async function handleCommunityApi(request, env, url) {
   let match = /^\/api\/providers\/([\w-]{36})\/cover$/.exec(path);
   if (match && method === "GET") {
     const row = await env.DB.prepare(`SELECT c.bytes,c.content_type FROM provider_covers c
-      JOIN provider_profiles p ON p.id=c.provider_id WHERE c.provider_id=? AND p.status='approved'`).bind(match[1]).first();
+      JOIN provider_profiles p ON p.id=c.provider_id JOIN users u ON u.id=p.user_id
+      WHERE c.provider_id=? AND p.status='approved' AND ${publicVisibility("u")}`).bind(match[1]).first();
     return row ? binaryReply(request, env, row.bytes, row.content_type, "public, max-age=3600")
       : reply(request, env, { error: "photo_not_found" }, 404);
   }
@@ -3469,7 +3506,8 @@ async function handleCommunityApi(request, env, url) {
   match = /^\/api\/providers\/([\w-]{36})\/achievements$/.exec(path);
   if (match && method === "GET") {
     const rows = await env.DB.prepare(`SELECT a.id,a.title,a.details,a.awarded_year FROM provider_achievements a
-      JOIN provider_profiles p ON p.id=a.provider_id WHERE a.provider_id=? AND a.status='published' AND p.status='approved'
+      JOIN provider_profiles p ON p.id=a.provider_id JOIN users u ON u.id=p.user_id
+      WHERE a.provider_id=? AND a.status='published' AND p.status='approved' AND ${publicVisibility("u")}
       ORDER BY a.awarded_year DESC,a.created_at DESC LIMIT 12`).bind(match[1]).all();
     return reply(request, env, { achievements: rows.results || [] });
   }
@@ -3557,7 +3595,8 @@ async function handleCommunityApi(request, env, url) {
   if (follow && ["POST", "DELETE"].includes(method)) {
     const auth = await authenticated(request, env);
     if (auth.response) return auth.response;
-    const target = await env.DB.prepare("SELECT id,user_id FROM provider_profiles WHERE id=? AND status='approved' AND provider_type='coach'").bind(follow[1]).first();
+    const target = await env.DB.prepare(`SELECT id,user_id FROM provider_profiles WHERE id=? AND status='approved' AND provider_type='coach'
+      AND NOT EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND u.profile_visibility<>'public')`).bind(follow[1]).first();
     if (!target) return reply(request, env, { error: "coach_unavailable" }, 404);
     if (target.user_id === auth.user.id) return reply(request, env, { error: "cannot_follow_self" }, 400);
     if (method === "POST") {
@@ -3572,11 +3611,12 @@ async function handleCommunityApi(request, env, url) {
   }
   match = /^\/api\/(?:coaches|providers)\/([\w-]{36})\/followers$/.exec(path);
   if (match && method === "GET") {
-    const target = await env.DB.prepare("SELECT user_id FROM provider_profiles WHERE id=? AND status='approved'").bind(match[1]).first();
+    const target = await env.DB.prepare(`SELECT user_id FROM provider_profiles WHERE id=? AND status='approved'
+      AND NOT EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND u.profile_visibility<>'public')`).bind(match[1]).first();
     if (!target) return reply(request, env, { error: "coach_unavailable" }, 404);
     const rows = await env.DB.prepare(`SELECT f.follower_user_id,msp.display_name,f.created_at FROM user_follows f
       JOIN users u ON u.id=f.follower_user_id LEFT JOIN member_sports_profiles msp ON msp.user_id=f.follower_user_id
-      WHERE f.coach_user_id=? ORDER BY f.created_at DESC LIMIT 100`).bind(target.user_id).all();
+      WHERE f.coach_user_id=? AND u.profile_visibility='public' ORDER BY f.created_at DESC LIMIT 100`).bind(target.user_id).all();
     const followers = (rows.results || []).map((row) => ({
       follower_user_id: row.follower_user_id,
       display_name: row.display_name || "MZ Active member",
@@ -3594,7 +3634,7 @@ async function handleCommunityApi(request, env, url) {
       let coachUser = "";
       if (coachId) coachUser = (await env.DB.prepare("SELECT user_id FROM provider_profiles WHERE id=? AND status='approved'").bind(coachId).first())?.user_id || "";
       const rows = await env.DB.prepare(`${POST_SELECT}
-        WHERE p.status='published' AND (p.community_id IS NULL OR EXISTS(
+        WHERE p.status='published' AND ${publicVisibility("u")} AND (p.community_id IS NULL OR EXISTS(
           SELECT 1 FROM communities c WHERE c.id=p.community_id AND c.status='active' AND c.visibility='public'))
         AND (?='' OR p.kind=?) AND (?='' OR p.sport=?) AND (?='' OR p.author_user_id=?)
         ORDER BY COALESCE(p.published_at,p.created_at) DESC LIMIT 100`)
@@ -3637,7 +3677,7 @@ async function handleCommunityApi(request, env, url) {
         FROM community_comments c JOIN users u ON u.id=c.user_id
         LEFT JOIN member_sports_profiles msp ON msp.user_id=c.user_id
         LEFT JOIN provider_profiles pp ON pp.user_id=c.user_id
-        WHERE c.post_id=? AND (?=1 OR c.status='published') ORDER BY c.created_at LIMIT 200`)
+        WHERE c.post_id=? AND (?=1 OR c.status='published') AND u.profile_visibility='public' ORDER BY c.created_at LIMIT 200`)
         .bind(post.id, isSuperAdmin(viewer) || viewer?.id === post.author_user_id ? 1 : 0).all();
       const safeComments = (comments.results || []).map((row) => ({
         id: row.id, user_id: row.user_id, body: row.body, status: row.status, created_at: row.created_at,
@@ -3712,7 +3752,7 @@ async function handleCommunityApi(request, env, url) {
       const rows = await env.DB.prepare(`SELECT c.id,c.user_id,c.body,c.created_at,msp.display_name,pp.display_name AS coach_name
         FROM community_comments c JOIN users u ON u.id=c.user_id
         LEFT JOIN member_sports_profiles msp ON msp.user_id=c.user_id LEFT JOIN provider_profiles pp ON pp.user_id=c.user_id
-        WHERE c.post_id=? AND c.status='published' ORDER BY c.created_at LIMIT 200`).bind(post.id).all();
+        WHERE c.post_id=? AND c.status='published' AND u.profile_visibility='public' ORDER BY c.created_at LIMIT 200`).bind(post.id).all();
       const comments = (rows.results || []).map((row) => ({
         id: row.id, user_id: row.user_id, body: row.body, created_at: row.created_at, author_name: displayName(row),
       }));

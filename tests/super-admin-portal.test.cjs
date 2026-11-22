@@ -10,6 +10,7 @@ const js = read('assets/js/admin.js');
 const css = read('assets/css/admin.css');
 const worker = read('backend/worker.js');
 const migration = read('backend/migrations/0027_super_admin.sql');
+const visibilityMigration = read('backend/migrations/0028_profile_visibility.sql');
 
 test('sidebar exposes the requested management sections', () => {
   for (const tab of ['athletes:', 'coaches:', 'bookings:', 'programs:', 'messages:', 'community:', 'ai:', 'reports:', 'settings:']) {
@@ -31,6 +32,11 @@ test('account management includes editing, role changes and audited permission g
   assert.match(js, /managementIsAdmin\)\{root\.append/);
   assert.match(css, /\.permission-options/);
   assert.match(css, /\.account-actions \.account-edit/);
+  assert.match(js, /account-visibility/);
+  assert.match(js, /hide-profile/);
+  assert.match(js, /restore-profile/);
+  assert.match(js, /account-danger-zone/);
+  assert.match(css, /\.account-danger-zone/);
 });
 
 test('Training Programs and Reports read only backend records', () => {
@@ -52,4 +58,13 @@ test('super-admin migration is additive and preserves existing administrator acc
   assert.match(worker, /Existing admins are marked super admins by migration 0027/);
   assert.match(worker, /admins are limited until a super admin explicitly elevates them/);
   assert.match(worker, /last_super_admin/);
+});
+
+test('profile visibility migration is additive and default public', () => {
+  assert.match(visibilityMigration, /ALTER TABLE users ADD COLUMN profile_visibility TEXT NOT NULL DEFAULT 'public'/);
+  assert.match(visibilityMigration, /CHECK \(profile_visibility IN \('public','hidden'\)\)/);
+  assert.match(visibilityMigration, /ALTER TABLE users ADD COLUMN profile_hidden_at TEXT/);
+  assert.match(visibilityMigration, /ALTER TABLE users ADD COLUMN profile_hidden_reason TEXT/);
+  assert.match(visibilityMigration, /CREATE INDEX IF NOT EXISTS users_profile_visibility/);
+  assert.doesNotMatch(visibilityMigration, /DROP TABLE|DELETE FROM/);
 });

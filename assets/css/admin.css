@@ -103,11 +103,13 @@ html[dir="rtl"] .sidebar-toggle span{transform:rotate(180deg)}
 .momo-list .card{display:grid;gap:.35rem}
 .momo-state,.momo-missing{display:block;color:var(--muted);font-size:.76rem}
 .account-actions{display:grid;gap:.55rem;margin-top:.6rem}
-.account-actions .account-convert,.account-actions .account-edit,.account-actions .account-role,.account-actions .account-danger{padding:.7rem;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.account-actions .account-convert,.account-actions .account-edit,.account-actions .account-role,.account-actions .account-visibility,.account-actions .account-danger{padding:.7rem;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
 .account-actions h4{margin:.1rem 0;font-size:.85rem;color:var(--gold)}
 .account-actions label{margin:.45rem 0}
 .account-actions input,.account-actions select{min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text)}
 .account-actions .crm-action,.account-actions .account-cancel{min-height:44px}
+.account-actions .account-danger-zone{border-color:#8b4444;background:rgba(93,36,36,.18)}
+.account-actions .account-danger-zone summary{color:#ffb4b4;font-weight:800}
 .account-actions .danger-action{border-color:#8b4444;color:#ffdada}
 .account-actions .danger-action:hover{background:#5d2424}
 .account-events h4{margin:.7rem 0 .25rem;color:var(--gold)}
