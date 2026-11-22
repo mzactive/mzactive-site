@@ -276,9 +276,9 @@ test("profile edits accept optional details and normalize Qatar WhatsApp numbers
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).warnings, ["social_links_skipped"]);
   assert.equal(saved[1], ""); // preserve the existing display name
-  assert.equal(saved[11], "97400000000");
-  assert.equal(saved[12], 1);
-  assert.equal(saved[13], "[]"); // unsafe links are skipped, not rendered
+  assert.equal(saved[12], "97400000000");
+  assert.equal(saved[13], 1);
+  assert.equal(saved[14], "[]"); // unsafe links are skipped, not rendered
 });
 
 test("AI chat is bounded, uses the assistant binding, and does not persist chat text", async () => {

@@ -1,6 +1,6 @@
 (() => {
   const common = {
-    'Home':'الرئيسية','Find a Coach':'ابحث عن مدرب','Join as a Coach':'انضم كمدرب','Join as a Coach or Pacer':'انضم كمدرب أو مرافق جري','Explore':'استكشف','Training programs':'البرامج التدريبية','Articles':'المقالات','Events':'الفعاليات','Champion Pacers':'مرافقو السباقات','Log In':'تسجيل الدخول','Sign Up':'إنشاء حساب','Search articles':'ابحث في المقالات',
+    'Home':'الرئيسية','Find a Coach':'ابحث عن مدرب','Pacers':'المرافقون','Join as a Coach':'انضم كمدرب','Join as a Coach or Pacer':'انضم كمدرب أو مرافق جري','Explore':'استكشف','Training programs':'البرامج التدريبية','Articles':'المقالات','Events':'الفعاليات','Champion Pacers':'مرافقو السباقات','Log In':'تسجيل الدخول','Sign Up':'إنشاء حساب','Search articles':'ابحث في المقالات',
     'Coaching · التدريب':'التدريب','Find Your Coach · اعثر على مدربك':'اعثر على مدربك','Events & Team · الفعاليات والفريق':'الفعاليات والفريق','Join Us · انضم إلينا':'انضم إلينا','My Profile · ملفي':'ملفي',
     'Coaching':'التدريب','Find Your Coach':'اعثر على مدربك','Events & Team':'الفعاليات والفريق','Join Us':'انضم إلينا','My Profile':'ملفي','Admin Portal':'بوابة الإدارة','Management Portal':'بوابة الإدارة',
     'Want to sponsor MZ Active or support an athlete, event or new idea?':'هل ترغب في رعاية MZ Active أو دعم رياضي أو فعالية أو فكرة جديدة؟',
