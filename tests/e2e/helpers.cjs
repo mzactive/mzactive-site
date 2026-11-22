@@ -423,6 +423,7 @@ function defaultApiHandler(ctx, state) {
   if (urlPath === '/api/dashboard/notifications') return json({ notifications: [], unread: 0 });
   if (urlPath === '/api/dashboard/feedback') return json({ feedback: [] });
   if (urlPath === '/api/dashboard/bookings') return json({ bookings: [] });
+  if (/^\/api\/dashboard\/bookings\/[^/]+$/.test(urlPath) && method === 'PATCH') return json({ updated: true, status: ctx.body?.status });
   if (urlPath === '/api/dashboard/analytics') return json({ analytics: {} });
   if (urlPath === '/api/me/achievements') return json({ achievements: [] });
   if (urlPath === '/api/me/sports-profile') {

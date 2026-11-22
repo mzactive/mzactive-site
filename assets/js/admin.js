@@ -3,12 +3,13 @@
   const lang = window.MZActiveLanguage, t = (en,ar) => lang.get()==='ar'?ar:en;
   const key = 'mzactive-provider-session';
   const base = window.MZACTIVE_API_BASE;
-  const tabs = {overview:['Overview','نظرة عامة'],athletes:['Athletes','الرياضيون'],coaches:['Coaches','المدربون'],bookings:['Bookings','الحجوزات'],programs:['Training Programs','برامج التدريب'],messages:['Messages','الرسائل'],community:['Community','المجتمع'],articles:['Articles','المقالات'],ai:['AI Brain','المساعد الذكي'],reports:['Reports & Activity','التقارير والنشاط'],settings:['Settings','الإعدادات']};
-  const TAB_PERMISSIONS = {athletes:'management.coaches',coaches:'management.coaches',bookings:'management.bookings',programs:'management.coaches',messages:'management.coaches',community:'management.community',articles:'management.articles',ai:'management.ai',reports:'management.audit',settings:'super_admin'};
-  const tabIcons = {overview:'◈',athletes:'♙',coaches:'◎',bookings:'▣',programs:'▤',messages:'✉',community:'◍',articles:'▤',ai:'✦',reports:'↺',settings:'⚙'};
+  const tabs = {overview:['Overview','نظرة عامة'],athletes:['Athletes','الرياضيون'],coaches:['Coaches','المدربون'],pacers:['Pacers','المرافقون'],bookings:['Bookings','الحجوزات'],programs:['Training Programs','برامج التدريب'],messages:['Messages','الرسائل'],community:['Community','المجتمع'],articles:['Articles','المقالات'],ai:['AI Brain','المساعد الذكي'],reports:['Reports & Activity','التقارير والنشاط'],settings:['Settings','الإعدادات']};
+  const TAB_PERMISSIONS = {athletes:'management.coaches',coaches:'management.coaches',pacers:'management.coaches',bookings:'management.bookings',programs:'management.coaches',messages:'management.coaches',community:'management.community',articles:'management.articles',ai:'management.ai',reports:'management.audit',settings:'super_admin'};
+  const tabIcons = {overview:'◈',athletes:'♙',coaches:'◎',pacers:'↗',bookings:'▣',programs:'▤',messages:'✉',community:'◍',articles:'▤',ai:'✦',reports:'↺',settings:'⚙'};
   const tabSubtitles = {
     overview:['Live records and decisions across your permitted areas.','سجلات وقرارات مباشرة ضمن صلاحياتك.'],
     coaches:['Review applications and verified professional credentials.','مراجعة الطلبات وبيانات الاعتماد الموثقة.'],
+    pacers:['Review running and cycling Pacer applications and race support requests.','مراجعة طلبات مرافقي الجري وركوب الدراجات وطلبات مرافقة السباقات.'],
     bookings:['Triage requests and confirm approved sessions.','فرز الطلبات وتأكيد الجلسات المعتمدة.'],
     messages:['Conversation metadata only; private message bodies stay protected.','بيانات المحادثات فقط؛ تبقى نصوص الرسائل الخاصة محمية.'],
     athletes:['Searchable athlete CRM with consent-based coaching actions.','دليل رياضي قابل للبحث مع إجراءات تدريب قائمة على الموافقة.'],
@@ -454,7 +455,21 @@
     if(p.has_cover)photo(c,p.id,'cover',p.display_name);
     if(status==='pending'){
       const credentialLines=[p.certificate_name?t('certificate','شهادة')+': '+p.certificate_name:'',p.certificate_issuer?t('issuer','الجهة المصدرة')+': '+p.certificate_issuer:'',p.certificate_number?t('number','الرقم')+': '+p.certificate_number:'',p.license_number?t('license_number','رقم الترخيص')+': '+p.license_number:'',p.license_issuer?t('license_issuer','جهة الترخيص')+': '+p.license_issuer:'',p.license_country?t('country','الدولة')+': '+p.license_country:'',p.license_expires_on?t('expiry','الانتهاء')+': '+p.license_expires_on:'',p.license_review_note?t('previous_note','ملاحظة المراجعة السابقة')+': '+p.license_review_note:''];
-      const parts=[p.bio,...(parse(p.specialties_json)||[]),...(parse(p.languages_json)||[]),p.qualifications,...(parse(p.services_json)||[]),p.coaching_mode,p.experience_years? p.experience_years+' '+t('years','سنوات'):'',p.indicative_rate_qar? p.indicative_rate_qar+' QAR':'',p.whatsapp_public?p.whatsapp_number:'',...(parse(p.social_links_json)||[]),...credentialLines];
+      const pacer=p.pacer_details||{};
+      const pacerLines=p.provider_type==='pacer'?[
+        pacer.sports?.length?t('Sports','الرياضات')+': '+pacer.sports.map(name).join(', '):'',
+        pacer.services?.length?t('Services','الخدمات')+': '+pacer.services.map(name).join(', '):'',
+        pacer.distances?.length?t('Distances','المسافات')+': '+pacer.distances.join(', '):'',
+        pacer.running_pace?t('Running pace','وتيرة الجري')+': '+pacer.running_pace:'',
+        pacer.cycling_speed?t('Cycling speed','سرعة الدراجات')+': '+pacer.cycling_speed:'',
+        pacer.achievements?t('Achievements','الإنجازات')+': '+pacer.achievements:'',
+        pacer.personal_bests?t('Personal bests','الأرقام القياسية الشخصية')+': '+pacer.personal_bests:'',
+        pacer.hourly_rate_qar?pacer.hourly_rate_qar+' '+t('QAR/hour','ريال/ساعة'):'',
+        pacer.race_rate_qar?pacer.race_rate_qar+' '+t('QAR/race','ريال/سباق'):'',
+        pacer.service_areas?t('Service areas','مناطق الخدمة')+': '+pacer.service_areas:'',
+        pacer.availability?t('Availability','التوفر')+': '+pacer.availability:'',
+      ]:[];
+      const parts=[p.bio,...(parse(p.specialties_json)||[]),...(parse(p.languages_json)||[]),p.qualifications,...(parse(p.services_json)||[]),p.coaching_mode,p.experience_years? p.experience_years+' '+t('years','سنوات'):'',p.indicative_rate_qar? p.indicative_rate_qar+' QAR':'',p.whatsapp_public?p.whatsapp_number:'',...(parse(p.social_links_json)||[]),...pacerLines,...credentialLines];
       c.append(node('p',parts.filter(Boolean).join('\n')||t('No details submitted yet.','لم يُرسل أي تفاصيل بعد.')));
       if(!p.profile_complete)c.append(node('small',t('Incomplete application: the coach can finish the profile after approval.','طلب غير مكتمل: يمكن للمدرب إكمال ملفه بعد الاعتماد.'),'incomplete-note'));
       for(const slot of parse(p.gallery_slots)||[])photo(c,p.id,'gallery/'+slot,p.display_name);
@@ -477,7 +492,8 @@
       }));
     }
     if(status==='approved'){
-      const publicLink=link(t('Public profile','الملف العام'),'coach.html?id='+encodeURIComponent(p.id));publicLink.target='_blank';publicLink.rel='noopener noreferrer';c.append(publicLink);
+      const profilePath=p.provider_type==='pacer'?'pacer.html?provider='+encodeURIComponent(p.id):'coach.html?id='+encodeURIComponent(p.id);
+      const publicLink=link(t('Public profile','الملف العام'),profilePath);publicLink.target='_blank';publicLink.rel='noopener noreferrer';c.append(publicLink);
       const line=emailStatusLine(p);if(line)c.append(line);
     }
     if(status==='rejected'||status==='removed'){
@@ -526,9 +542,10 @@
     }
     root.append(row);
   }
-  function renderCoaches(root){
+  function renderCoaches(root,onlyType){
     if(!applications){root.append(node('p',t('Loading applications…','جارٍ تحميل الطلبات…')));return}
-    const all={pending:(applications.providers||[]).filter(p=>p.profile_complete),incomplete:(applications.providers||[]).filter(p=>!p.profile_complete),approved:applications.approved_providers||[],rejected:[...(applications.rejected_providers||[]),...(applications.suspended_providers||[])]};
+    const matching=list=>(list||[]).filter(p=>!onlyType||p.provider_type===onlyType);
+    const all={pending:matching(applications.providers).filter(p=>p.profile_complete),incomplete:matching(applications.providers).filter(p=>!p.profile_complete),approved:matching(applications.approved_providers),rejected:[...matching(applications.rejected_providers),...matching(applications.suspended_providers)]};
     coachFilters(root,{pending:all.pending.length,incomplete:all.incomplete.length,approved:all.approved.length,rejected:all.rejected.length});
     const search=node('input',null,'coach-search');search.type='search';search.maxLength=80;
     search.placeholder=t('Search coaches by name, email or city','ابحث عن المدربين بالاسم أو البريد أو المدينة');
@@ -550,7 +567,7 @@
     if(coachQuery)search.oninput();
     if(rows.length>coachVisible)root.append(button(t('Show more','عرض المزيد')+' ('+(rows.length-coachVisible)+')',()=>{coachVisible+=12;render()}));
   }
-  function booking(root,b){const c=card(root,b.customer_name,[name(b.status),b.coach_name,b.city,b.preferred_date,b.customer_phone,b.customer_email,b.session_type,b.service_name,b.distance,b.target_pace,b.program_duration_months?b.program_duration_months+' '+t('months','أشهر'):'',b.goal_summary].filter(Boolean).join(' · '),b.id);const actions={reviewing:['Review','بدء المراجعة'],accepted:['Confirm booking','تأكيد الحجز'],declined:['Decline','رفض'],cancelled:['Cancel booking','إلغاء الحجز']};for(const status of ({received:['reviewing','accepted','declined','cancelled'],reviewing:['accepted','declined','cancelled'],accepted:['cancelled']}[b.status]||[])){c.append(button(t(...actions[status]),()=>{if(status!=='reviewing'&&!confirm(t(...actions[status])+'؟'))return;return save('admin/bookings/'+b.id,{status})}))}  const rawPhone=String(b.customer_phone||'').replace(/[\s().-]/g,'');
+  function booking(root,b){const c=card(root,b.customer_name,[name(b.status),b.provider_type?name(b.provider_type):'',b.coach_name,b.city,b.preferred_date,b.customer_phone,b.customer_email,b.session_type,b.service_name,b.distance,b.target_pace,b.program_duration_months?b.program_duration_months+' '+t('months','أشهر'):'',b.goal_summary].filter(Boolean).join(' · '),b.id);const actions={reviewing:['Review','بدء المراجعة'],accepted:['Confirm booking','تأكيد الحجز'],declined:['Decline','رفض'],cancelled:['Cancel booking','إلغاء الحجز']};for(const status of ({received:['reviewing','accepted','declined','cancelled'],reviewing:['accepted','declined','cancelled'],accepted:['cancelled']}[b.status]||[])){c.append(button(t(...actions[status]),()=>{if(status!=='reviewing'&&!confirm(t(...actions[status])+'؟'))return;return save('admin/bookings/'+b.id,{status})}))}  const rawPhone=String(b.customer_phone||'').replace(/[\s().-]/g,'');
     const phone=/^\+[1-9]\d{7,14}$/.test(rawPhone)?rawPhone.slice(1):/^\d{8}$/.test(rawPhone)?'974'+rawPhone:'';
     const messages={
       accepted:['Hello, your MZActive booking has been confirmed.','مرحباً، تم تأكيد حجزك لدى MZActive.'],
@@ -1336,6 +1353,14 @@
     if(tab==='reports'){await reportsSection(root);return}
     if(tab==='settings'){await settingsSection(root);return}
     if(tab==='bookings'){const d=await api('admin/applications');group(root,t('Recent and open requests','الطلبات المفتوحة والأخيرة'),d.bookings,booking);return}
+    if(tab==='pacers'){
+      if(!applications)applications=await api('admin/applications');
+      root.append(node('p',t('Review Pacer applications and the real booking requests linked to them. Private contact details stay with the approved profile.','راجع طلبات المرافقين وطلبات الحجز المرتبطة بها. تبقى بيانات التواصل الخاصة مع الملف المعتمد.'),'muted'));
+      renderCoaches(root,'pacer');
+      const d=applications;
+      group(root,t('Pacer booking requests','طلبات حجز المرافقين'),(d.bookings||[]).filter(b=>b.provider_type==='pacer'),booking);
+      return;
+    }
     if(tab==='messages'){const d=await api('admin/messages');root.append(node('p',t('Message previews stay private. This view shows only conversation metadata for moderation.','تبقى معاينات الرسائل خاصة. تعرض هذه الشاشة بيانات المحادثة فقط للإشراف.'),'muted'));group(root,t('Unread and recent messages','الرسائل غير المقروءة والأخيرة'),d.messages,messageCard);return}
     if(tab==='coaches'){if(!applications)applications=await api('admin/applications');renderCoaches(root);return}
     if(tab==='community'){
