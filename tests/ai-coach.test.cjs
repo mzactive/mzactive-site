@@ -85,6 +85,23 @@ test('athlete page is mobile-first, bilingual and uses the existing calendar', (
   assert.match(dashboard, /href="ai-coach\.html"/);
 });
 
+test('athlete page distinguishes logged-out, disabled, unauthorized and service states', () => {
+  assert.match(html, /id="authGate"/);
+  assert.match(html, /href="dashboard\.html\?next=\/ai-coach\.html#loginForm"/);
+  assert.match(html, /id="retryInit"/);
+  assert.match(html, /id="roleGate"/);
+  assert.match(dashboard, /next==='\/ai-coach\.html'/);
+  assert.match(ui, /error\?\.status === 401/);
+  assert.match(ui, /ai_feature_disabled/);
+  assert.match(ui, /reportError\(/);
+  assert.match(ui, /COPY\.unavailable/);
+  assert.match(ui, /localize\(\$\('aiStatus'\)/);
+  assert.match(ui, /mzactive:language-change/);
+  for (const copy of ['signIn', 'disabled', 'unavailable', 'verifyFailed', 'memberOnly', 'coachOnly', 'coachManaged']) {
+    assert.match(ui, new RegExp(`${copy}:`));
+  }
+});
+
 test('coach planner requires a linked athlete and explicit approval in the dashboard', () => {
   assert.match(dashboard, /id="coachPlanAiPanel"/);
   assert.match(dashboard, /id="coachPlanAthlete"/);

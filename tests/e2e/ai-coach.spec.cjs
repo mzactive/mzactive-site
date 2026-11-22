@@ -122,3 +122,60 @@ test('coach accounts are redirected to the coach dashboard instead of the athlet
   expect(mock.calls.some(call => call.path === '/api/ai-coach/draft')).toBe(false);
   assertOfflineSafe(mock);
 });
+
+test('logged-out visitors get a sign-in action instead of a generic unavailable message', async ({ page }) => {
+  const mock = await installApiMock(page, {
+    overrides: { 'GET /api/ai-coach/config': json({ error: 'unauthorized' }, 401) },
+  });
+  await page.goto('/ai-coach.html');
+  await expect(page.locator('#authGate')).toBeVisible();
+  await expect(page.locator('#authGate a')).toHaveAttribute('href', /next=\/ai-coach\.html/);
+  await expect(page.locator('#planner')).toBeHidden();
+  await expect(page.locator('#aiStatus')).toHaveText('');
+  assertOfflineSafe(mock);
+});
+
+test('disabled and service-unavailable states are clearly separated', async ({ page }) => {
+  const disabled = await installApiMock(page, {
+    dashboard: dashboardData({ role: 'member' }),
+    overrides: { 'GET /api/ai-coach/config': json({ error: 'ai_feature_disabled' }, 403) },
+  });
+  await seedSession(page, { storage: 'local' });
+  await page.goto('/ai-coach.html');
+  await expect(page.locator('#aiStatus')).toContainText('currently disabled');
+  await expect(page.locator('#authGate')).toBeHidden();
+  await expect(page.locator('#retryInit')).toBeHidden();
+  assertOfflineSafe(disabled);
+});
+
+test('service failures offer a retry and translated status text follows manual language changes', async ({ page }) => {
+  await page.addInitScript(() => {
+    try { localStorage.setItem('mzactive-language-manual', 'ar'); } catch { /* storage unavailable */ }
+  });
+  const mock = await installApiMock(page, {
+    dashboard: dashboardData({ role: 'member' }),
+    overrides: { 'GET /api/ai-coach/config': json({ error: 'service_unavailable' }, 503) },
+  });
+  await seedSession(page, { storage: 'local' });
+  await page.goto('/ai-coach.html');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await expect(page.locator('#aiStatus')).toContainText('غير متاحة مؤقتاً');
+  await expect(page.locator('#retryInit')).toBeVisible();
+  await page.locator('.lang-toggle').click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  await expect(page.locator('#aiStatus')).toContainText('temporarily unavailable');
+  assertOfflineSafe(mock);
+});
+
+test('admin accounts see a role gate instead of the athlete or coach planner', async ({ page }) => {
+  const mock = await installApiMock(page, {
+    dashboard: dashboardData({ role: 'admin' }),
+    overrides: overrides(),
+  });
+  await seedSession(page, { storage: 'local' });
+  await page.goto('/ai-coach.html');
+  await expect(page.locator('#roleGate')).toBeVisible();
+  await expect(page.locator('#coachRedirect')).toBeHidden();
+  await expect(page.locator('#planner')).toBeHidden();
+  assertOfflineSafe(mock);
+});

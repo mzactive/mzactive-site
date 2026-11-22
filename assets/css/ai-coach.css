@@ -12,7 +12,9 @@
 .ai-panel{background:#103538cc;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 12px 30px #0002}
 .ai-panel h2{margin:0 0 10px;font-size:19px}
 .ai-panel h3{margin:18px 0 8px;font-size:15px}
+.ai-status-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
 .ai-status{min-height:20px;margin:0;color:var(--gold);font-size:14px}
+.ai-status-row .button{min-height:36px;padding:.25rem .7rem;font-size:.8rem}.ai-status-row [hidden]{display:none!important}
 .field{display:grid;gap:6px;margin-bottom:12px}
 .field-row{display:grid;grid-template-columns:1fr;gap:12px}
 .field label,.days-field legend{font-size:13px;color:var(--muted);font-weight:700}
