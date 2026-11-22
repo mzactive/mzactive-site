@@ -10,6 +10,7 @@ const ADMIN_PASSWORD_RESET_TTL_SECONDS = 5 * 60;
 const RESET_EMAIL_SUBJECT = "Reset your MZ Active password / إعادة تعيين كلمة مرور MZ Active";
 const WELCOME_EMAIL_SUBJECT = "Welcome to the MZActive Family! 💛";
 const COACH_PROFILE_URL = "https://mzactive.com/dashboard.html#editCoachProfile";
+const MOMO_PROFILE_BASE = "https://mzactive.com/coach.html?id=";
 const WELCOME_MAX_ATTEMPTS = 5;
 // Cloudflare Workers Web Crypto caps PBKDF2 at 100,000 iterations.
 const PASSWORD_ITERATIONS = 100_000;
@@ -216,18 +217,143 @@ async function reserveAssistantRequest(env, surface = "public") {
   return Boolean(row);
 }
 
+const MOMO_STOP_WORDS = new Set([
+  "a", "an", "and", "any", "are", "available", "can", "coach", "coaches", "could", "do", "does", "find",
+  "for", "from", "get", "give", "have", "help", "how", "i", "in", "is", "it", "me", "my", "need", "of",
+  "on", "or", "please", "recommend", "show", "some", "that", "the", "there", "to", "want", "who", "with",
+  "ابحث", "ابغى", "اريد", "أريد", "اي", "أي", "about", "من", "في", "على", "عن", "مع", "هل", "لي", "ليس", "هذا", "هذه", "مدرب", "مدربين", "مدربة", "درب", "المدرب", "المدربين",
+]);
+const MOMO_SEARCH_ALIASES = [
+  { key: "running", terms: ["running", "runner", "jogging", "جري", "عدو", "عداء"] },
+  { key: "fitness", terms: ["fitness", "gym", "workout", "لياقة", "بدنية", "تمرين"] },
+  { key: "swimming", terms: ["swimming", "swim", "سباحة", "سبح"] },
+  { key: "cycling", terms: ["cycling", "bike", "bicycle", "دراجات", "دراجة"] },
+  { key: "triathlon", terms: ["triathlon", "ثلاثي"] },
+  { key: "hyrox", terms: ["hyrox", "هايروكس"] },
+  { key: "crossfit", terms: ["crossfit", "كروسفيت", "كروس فيت"] },
+  { key: "boxing", terms: ["boxing", "boxer", "ملاكمة", "ملاكم"] },
+  { key: "kickboxing", terms: ["kickboxing", "muay", "thai", "كيك", "بوكس", "كيكبوكس", "مواب", "تايلاند"] },
+  { key: "padel", terms: ["padel", "بادل"] },
+  { key: "doha", terms: ["doha", "الدوحة", "دوحة"] },
+  { key: "lusail", terms: ["lusail", "لوسيل"] },
+  { key: "qatar", terms: ["qatar", "قطر", "القطر"] },
+];
+
+function momoIsArabic(message) {
+  return /[\u0600-\u06FF]/.test(String(message || ""));
+}
+
+function momoSearchTokens(message) {
+  const tokens = new Set();
+  for (const piece of String(message || "").toLowerCase().match(/[\p{L}\p{N}]+/gu) || []) {
+    if (piece.length < 2 || MOMO_STOP_WORDS.has(piece)) continue;
+    tokens.add(piece);
+    for (const alias of MOMO_SEARCH_ALIASES) {
+      if (alias.terms.some(term => piece.includes(term) || term.includes(piece))) tokens.add(alias.key);
+    }
+  }
+  return [...tokens];
+}
+
+function momoProviderSummary(row) {
+  return {
+    id: text(row.id, 80),
+    display_name: text(row.display_name, 100),
+    city: text(row.city, 80),
+    country: text(row.country, 80),
+    provider_type: text(row.provider_type, 40),
+    specialties: cleanList(safeParse(row.specialties_json), 8, 80),
+    services: cleanList(safeParse(row.services_json), 8, 80),
+    profile_url: `${MOMO_PROFILE_BASE}${encodeURIComponent(text(row.id, 80))}`,
+  };
+}
+
+function momoProviderScore(provider, tokens) {
+  const haystack = [
+    provider.display_name, provider.city, provider.country, provider.provider_type,
+    professionalLabel(provider.provider_type, "en"), professionalLabel(provider.provider_type, "ar"),
+    provider.specialties.join(" "), provider.services.join(" "),
+  ].join(" ").toLowerCase();
+  return tokens.reduce((score, token) => score + (haystack.includes(token) ? 1 : 0), 0);
+}
+
+async function momoApprovedProviders(env, message) {
+  let rows;
+  try {
+    rows = await env.DB.prepare(`SELECT id,display_name,city,country,provider_type,specialties_json,services_json
+      FROM provider_profiles WHERE status='approved'
+      AND NOT EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND (u.profile_visibility<>'public' OR u.account_status IS NULL OR u.account_status<>'active'))
+      AND (provider_type NOT IN ('nutritionist','physiotherapist','sports_massage_therapist') OR (license_status='verified' AND (license_expires_on IS NULL OR license_expires_on>=date('now'))))
+      ORDER BY display_name LIMIT 50`).all();
+  } catch {
+    return null;
+  }
+  const providers = (rows.results || []).map(momoProviderSummary).filter(provider => provider.id && provider.display_name);
+  const tokens = momoSearchTokens(message);
+  const scored = providers.map(provider => ({ provider, score: momoProviderScore(provider, tokens) }));
+  const matches = scored.filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.provider.display_name.localeCompare(b.provider.display_name))
+    .map(item => item.provider);
+  return { providers, matches, tokens };
+}
+
+function momoDirectoryResult(message, directory) {
+  const arabic = momoIsArabic(message);
+  if (!directory) {
+    return {
+      answer: arabic
+        ? `تعذر الوصول إلى الدليل الحالي. يمكنك تصفح الملفات المعتمدة هنا: https://mzactive.com/coaches.html`
+        : `I could not reach the live directory right now. You can browse approved profiles here: https://mzactive.com/coaches.html`,
+      providers: [],
+      source: "directory-unavailable",
+    };
+  }
+  const selected = (directory.matches.length ? directory.matches : directory.providers).slice(0, 5);
+  if (!selected.length) {
+    return {
+      answer: arabic
+        ? `لا توجد ملفات معتمدة حالياً. تصفح دليل المدربين: https://mzactive.com/coaches.html`
+        : `There are no approved profiles right now. Browse the coach directory: https://mzactive.com/coaches.html`,
+      providers: [],
+      source: "directory-empty",
+    };
+  }
+  const intro = arabic
+    ? (directory.matches.length ? "وجدت ملفات معتمدة حقيقية من دليل MZ Active:" : "إليك ملفات معتمدة حقيقية من دليل MZ Active:")
+    : (directory.matches.length ? "I found real approved profiles in the MZ Active directory:" : "Here are real approved profiles from the MZ Active directory:");
+  const lines = selected.map(provider => {
+    const details = [provider.city, provider.specialties.slice(0, 2).join(" · ")].filter(Boolean).join(" · ");
+    return `${provider.display_name}${details ? ` — ${details}` : ""}\n${provider.profile_url}`;
+  });
+  return {
+    answer: `${intro}\n\n${lines.join("\n\n")}\n\nhttps://mzactive.com/coaches.html`,
+    providers: selected.map(({ id, display_name, city, specialties, profile_url }) => ({
+      id, display_name, city, specialties, profile_url,
+    })),
+    source: "directory",
+  };
+}
+
 async function assistantChat(request, env) {
-  if (!env.AI || typeof env.AI.run !== "function") return reply(request, env, { error: "assistant_unavailable" }, 503);
-  if (!await rateLimit(request, env, "assistant-chat", 8)) return reply(request, env, { error: "rate_limited" }, 429);
   const body = await readJson(request), message = text(body?.message, 1000);
   if (!body || !message) return reply(request, env, { error: "message_required" }, 400);
+  if (!await rateLimit(request, env, "assistant-chat", 8)) return reply(request, env, { error: "rate_limited" }, 429);
   const history = Array.isArray(body.history) ? body.history.slice(-4).flatMap((item) => {
     const role = item?.role === "assistant" ? "assistant" : item?.role === "user" ? "user" : "";
     const content = text(item?.content, 400);
     return role && content ? [{ role, content }] : [];
   }) : [];
   if (!await reserveAssistantRequest(env, "public")) return reply(request, env, { error: "daily_limit_reached" }, 429);
-  const system = `You are the MZ Active website assistant for athletes and coaches. Be brief, kind, and practical. Reply in the language of the user's message (English or Arabic). Use only these verified facts: MZ Active helps people find coaches and pacers in Qatar; only profiles approved by MZ Active appear publicly; coaches can create or update a profile at https://mzactive.com/providers.html; profile photo uploads accept JPG, PNG, or WebP up to 1 MB, and Qatar local WhatsApp numbers can be entered as 8 digits; a coach's profile remains private until Admin approval. Clients can browse https://mzactive.com/coaches.html and send a request at https://mzactive.com/pacer.html. A request is not a confirmed booking, the site does not collect payments, and payment/availability must be coordinated separately. Do not promise a coach's availability, rates, approval, booking, payment, medical result, or reply time. Do not claim to have accessed a user's account or contacted MZ Active. Never make approval or rejection decisions. Do not ask for passwords, payment credentials, identity documents, health records, or other sensitive details. For information you cannot verify, say so plainly and offer the relevant page link. Do not send routine questions to the site owner when the self-service pages can help.`;
+  const directory = await momoApprovedProviders(env, message);
+  if (!env.AI || typeof env.AI.run !== "function") {
+    const fallback = momoDirectoryResult(message, directory);
+    return reply(request, env, fallback);
+  }
+  const verifiedProfiles = directory?.matches.slice(0, 5) || [];
+  const verifiedContext = verifiedProfiles.length
+    ? `\n\nVerified approved profiles currently in the public directory (if you mention a profile, use only these names and URLs):\n${verifiedProfiles.map(provider => `- ${provider.display_name} — ${[provider.city, provider.specialties.slice(0, 2).join(" · ")].filter(Boolean).join(" · ")} — ${provider.profile_url}`).join("\n")}`
+    : "";
+  const system = `You are the MZ Active website assistant for athletes and coaches. Be brief, kind, and practical. Reply in the language of the user's message (English or Arabic). Use only these verified facts: MZ Active helps people find coaches and pacers in Qatar; only profiles approved by MZ Active appear publicly; coaches can create or update a profile at https://mzactive.com/providers.html; profile photo uploads accept JPG, PNG, or WebP up to 1 MB, and Qatar local WhatsApp numbers can be entered as 8 digits; a coach's profile remains private until Admin approval. Clients can browse https://mzactive.com/coaches.html and send a request at https://mzactive.com/pacer.html. A request is not a confirmed booking, the site does not collect payments, and payment/availability must be coordinated separately. Never invent a coach name or profile URL. Do not promise a coach's availability, rates, approval, booking, payment, medical result, or reply time. Do not claim to have accessed a user's account or contacted MZ Active. Never make approval or rejection decisions. Do not ask for passwords, payment credentials, identity documents, health records, or other sensitive details. For information you cannot verify, say so plainly and offer the relevant page link. Do not send routine questions to the site owner when the self-service pages can help.${verifiedContext}`;
   try {
     const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
       messages: [{ role: "system", content: system }, ...history, { role: "user", content: message }],
@@ -235,10 +361,16 @@ async function assistantChat(request, env) {
       temperature: 0.2,
     });
     const answer = text(result?.response, 3000);
-    if (!answer) return reply(request, env, { error: "assistant_unavailable" }, 503);
-    return reply(request, env, { answer });
-  } catch {
-    return reply(request, env, { error: "assistant_unavailable" }, 503);
+    if (!answer) return reply(request, env, momoDirectoryResult(message, directory));
+    if (!verifiedProfiles.length) return reply(request, env, { answer });
+    return reply(request, env, {
+      answer,
+      providers: verifiedProfiles.map(({ id, display_name, city, specialties, profile_url }) => ({ id, display_name, city, specialties, profile_url })),
+      source: "ai-with-directory",
+    });
+  } catch (error) {
+    console.error("Momo AI provider failed; using approved directory fallback:", error);
+    return reply(request, env, momoDirectoryResult(message, directory));
   }
 }
 

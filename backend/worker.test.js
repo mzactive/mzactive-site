@@ -301,6 +301,62 @@ test("AI chat is bounded, uses the assistant binding, and does not persist chat 
   assert.ok(queries.every((sql) => !sql.includes("Hello") && !sql.includes("How do I find a coach?")));
 });
 
+function momoDirectoryEnv({ ai } = {}) {
+  const approvedRow = {
+    id: "11111111-2222-4333-8444-555555555555",
+    display_name: "Approved Test Runner",
+    city: "Doha",
+    country: "Qatar",
+    provider_type: "coach",
+    specialties_json: JSON.stringify(["Fitness and running"]),
+    services_json: JSON.stringify([]),
+  };
+  return {
+    DB: {
+      prepare(sql) {
+        if (sql.includes("FROM provider_profiles")) return {
+          bind() { return this; },
+          async all() { return { results: [approvedRow] }; },
+        };
+        return {
+          bind() { return this; },
+          async first() { return { request_count: 1 }; },
+          async run() { return { meta: { changes: 0 } }; },
+        };
+      },
+    },
+    ...(ai ? { AI: ai } : {}),
+  };
+}
+
+test("Momo falls back to the approved coach directory when no AI binding exists", async () => {
+  const response = await worker.fetch(new Request("https://api.example.test/api/assistant/chat", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message: "Find me an approved running coach in Doha", history: [] }),
+  }), momoDirectoryEnv());
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.source, "directory");
+  assert.equal(data.providers.length, 1);
+  assert.equal(data.providers[0].display_name, "Approved Test Runner");
+  assert.equal(data.providers[0].profile_url, "https://mzactive.com/coach.html?id=11111111-2222-4333-8444-555555555555");
+  assert.match(data.answer, /Approved Test Runner/);
+  assert.match(data.answer, /https:\/\/mzactive\.com\/coach\.html\?id=/);
+  assert.doesNotMatch(data.answer, /unavailable/i);
+});
+
+test("Momo uses the same real-profile fallback when the AI provider throws", async () => {
+  const response = await worker.fetch(new Request("https://api.example.test/api/assistant/chat", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message: "أريد مدرب جري في الدوحة", history: [] }),
+  }), momoDirectoryEnv({ AI: { async run() { throw new Error("provider_down"); } } }));
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.source, "directory");
+  assert.equal(data.providers[0].display_name, "Approved Test Runner");
+  assert.match(data.answer, /ملفات معتمدة/);
+});
+
 test("Owner AI Brain requires an Admin session and uses a bounded specialist prompt", async () => {
   const token = "a".repeat(40);
   let inputSeen;
