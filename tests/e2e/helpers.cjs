@@ -204,6 +204,17 @@ function defaultApiHandler(ctx, state) {
       anonymized: action === 'delete', bookings_preserved: action === 'delete',
     });
   }
+  if (urlPath === '/api/admin/ai/settings' && method === 'PATCH') return json({ updated: ctx.body || {} });
+  if (urlPath === '/api/admin/ai/settings') {
+    return json({
+      settings: [
+        { key: 'athlete_coach_enabled', value: 'true', updated_at: '2026-11-22T00:00:00.000Z' },
+        { key: 'coach_planner_enabled', value: 'true', updated_at: '2026-11-22T00:00:00.000Z' },
+      ],
+      usage: [],
+      drafts: [],
+    });
+  }
   if (urlPath === '/api/admin/agents') {
     return json({
       snapshot: {

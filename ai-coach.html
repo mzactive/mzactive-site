@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#091d21">
+  <title>MZA AI Coach | MZ Active</title>
+  <link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA">
+  <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h">
+  <link rel="stylesheet" href="assets/css/account-menu.css?v=20261120h">
+  <link rel="stylesheet" href="assets/css/ai-coach.css?v=20261122a">
+  <script src="assets/js/api-base.js?v=20261120f"></script>
+  <script src="assets/js/language-preference.js?v=20261120h"></script>
+  <script src="assets/js/auth-session.js?v=20261120h"></script>
+</head>
+<body>
+  <header class="ai-coach-header">
+    <a class="brand" href="index.html" aria-label="MZ Active home"><img src="assets/brand/mzactive-logo.webp" alt="MZ Active"></a>
+    <div class="header-copy">
+      <p class="eyebrow" data-en="MZA AI COACH" data-ar="مدرب MZA الذكي">MZA AI COACH</p>
+      <h1 data-en="Your week, planned with purpose." data-ar="أسبوعك، مخطط بهدف.">Your week, planned with purpose.</h1>
+      <p class="muted" data-en="Choose your goal. Review the draft. Nothing is saved until you approve it." data-ar="اختر هدفك. راجع المسودة. لا يُحفظ شيء قبل موافقتك.">Choose your goal. Review the draft. Nothing is saved until you approve it.</p>
+    </div>
+    <button class="lang-toggle" type="button" data-en="العربية" data-ar="English" aria-label="Change language">العربية</button>
+  </header>
+
+  <main class="ai-coach-main">
+    <section id="authGate" class="panel ai-panel" hidden>
+      <h2 data-en="Sign in to build your plan" data-ar="سجّل الدخول لإعداد خطتك">Sign in to build your plan</h2>
+      <p class="muted" data-en="MZA AI Coach is available to signed-in athlete accounts. Your plan stays private to your account." data-ar="مساعد MZA الذكي متاح لحسابات الرياضيين المسجلين. تبقى خطتك خاصة بحسابك.">MZA AI Coach is available to signed-in athlete accounts. Your plan stays private to your account.</p>
+      <a class="button" href="dashboard.html#loginForm" data-en="Sign in" data-ar="تسجيل الدخول">Sign in</a>
+    </section>
+
+    <p id="aiStatus" class="ai-status" role="status" aria-live="polite"></p>
+
+    <section id="planner" class="ai-grid" hidden>
+      <form id="planForm" class="panel ai-panel" novalidate>
+        <h2 data-en="1. Build your week" data-ar="١. أعد أسبوعك">1. Build your week</h2>
+        <div class="field">
+          <label for="sport" data-en="Sport" data-ar="الرياضة">Sport</label>
+          <select id="sport" name="sport">
+            <option value="run" data-en="Running" data-ar="الجري">Running</option>
+            <option value="bike" data-en="Cycling" data-ar="الدراجات">Cycling</option>
+            <option value="swim" data-en="Swimming" data-ar="السباحة">Swimming</option>
+            <option value="strength" data-en="Strength and fitness" data-ar="القوة واللياقة">Strength and fitness</option>
+            <option value="multi" data-en="Multi-sport" data-ar="رياضات متعددة">Multi-sport</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="level" data-en="Fitness level" data-ar="مستوى اللياقة">Fitness level</label>
+            <select id="level" name="level">
+              <option value="beginner" data-en="Beginner" data-ar="مبتدئ">Beginner</option>
+              <option value="intermediate" data-en="Intermediate" data-ar="متوسط">Intermediate</option>
+              <option value="advanced" data-en="Advanced" data-ar="متقدم">Advanced</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="goal" data-en="Goal" data-ar="الهدف">Goal</label>
+            <select id="goal" name="goal">
+              <option value="general" data-en="General fitness" data-ar="لياقة عامة">General fitness</option>
+              <option value="consistency" data-en="Train consistently" data-ar="الانتظام في التدريب">Train consistently</option>
+              <option value="endurance" data-en="Build endurance" data-ar="بناء التحمل">Build endurance</option>
+              <option value="strength" data-en="Build strength" data-ar="بناء القوة">Build strength</option>
+              <option value="race" data-en="Prepare for an event" data-ar="الاستعداد لسباق">Prepare for an event</option>
+            </select>
+          </div>
+        </div>
+        <fieldset class="field days-field">
+          <legend data-en="Training days" data-ar="أيام التدريب">Training days</legend>
+          <div class="day-options" id="dayOptions"></div>
+        </fieldset>
+        <div class="field-row">
+          <div class="field">
+            <label for="duration" data-en="Minutes per session" data-ar="دقائق كل حصة">Minutes per session</label>
+            <input id="duration" name="duration" type="range" min="20" max="90" step="5" value="40">
+            <output id="durationOutput" for="duration">40</output>
+          </div>
+          <div class="field">
+            <label for="weekStart" data-en="Week beginning (Monday)" data-ar="بداية الأسبوع (الاثنين)">Week beginning (Monday)</label>
+            <input id="weekStart" name="week_start" type="date" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="language" data-en="Plan language" data-ar="لغة الخطة">Plan language</label>
+          <select id="language" name="language">
+            <option value="en">English</option>
+            <option value="ar">العربية</option>
+          </select>
+        </div>
+        <button id="generatePlan" type="submit" data-en="Generate weekly plan" data-ar="أنشئ خطة أسبوعية">Generate weekly plan</button>
+        <p class="fine" data-en="Safety first: the plan is general training guidance, not a medical diagnosis. Start easy and stop if something hurts." data-ar="السلامة أولاً: الخطة إرشادات تدريب عامة وليست تشخيصاً طبياً. ابدأ بسهولة وتوقف عند أي ألم.">Safety first: the plan is general training guidance, not a medical diagnosis. Start easy and stop if something hurts.</p>
+      </form>
+
+      <section id="reviewPanel" class="panel ai-panel" hidden>
+        <h2 data-en="2. Review and approve" data-ar="٢. راجع واعتمد">2. Review and approve</h2>
+        <div id="planPreview" class="plan-preview"></div>
+        <div class="actions">
+          <button id="approvePlan" type="button" class="primary" data-en="Approve and save to my calendar" data-ar="اعتماد وحفظ في تقويمي">Approve and save to my calendar</button>
+          <a class="button secondary" href="dashboard.html#athleteProgramHistory" data-en="Open my calendar" data-ar="افتح تقويمي">Open my calendar</a>
+        </div>
+      </section>
+    </section>
+
+    <section id="chatSection" class="panel ai-panel" hidden>
+      <h2 data-en="3. Ask for an adjustment" data-ar="٣. اطلب تعديلاً">3. Ask for an adjustment</h2>
+      <p class="muted" data-en="Tell MZA AI Coach what changed. Adjusted plans are drafts until you approve them. If a coach manages this week, the draft needs their approval instead." data-ar="أخبر مدرب MZA الذكي بما تغيّر. تبقى الخطط المعدّلة مسودات حتى تعتمدها. وإذا كان مدربك يدير هذا الأسبوع، فستحتاج مسودته إلى موافقته.">Tell MZA AI Coach what changed. Adjusted plans are drafts until you approve them. If a coach manages this week, the draft needs their approval instead.</p>
+      <form id="chatForm" class="chat-form">
+        <label class="sr-only" for="chatMessage" data-en="Message to MZA AI Coach" data-ar="رسالة إلى مدرب MZA الذكي">Message to MZA AI Coach</label>
+        <textarea id="chatMessage" maxlength="500" rows="3" required placeholder="I felt tired after the last session…" data-en-placeholder="I felt tired after the last session…" data-ar-placeholder="شعرت بالتعب بعد الحصة الأخيرة…"></textarea>
+        <button type="submit" data-en="Request adjustment" data-ar="اطلب تعديلاً">Request adjustment</button>
+      </form>
+    </section>
+
+    <section id="progressSection" class="panel ai-panel" hidden>
+      <h2 data-en="Your training progress" data-ar="تقدمك التدريبي">Your training progress</h2>
+      <div id="progressView" class="progress-grid"></div>
+    </section>
+
+    <section id="coachRedirect" class="panel ai-panel" hidden>
+      <h2 data-en="You are signed in as a coach" data-ar="أنت مسجل الدخول كمدرب">You are signed in as a coach</h2>
+      <p class="muted" data-en="Use the AI planner in your Coach Dashboard to draft programs for your athletes." data-ar="استخدم مخطط الذكاء الاصطناعي في لوحة المدرب لإعداد برامج رياضيك.">Use the AI planner in your Coach Dashboard to draft programs for your athletes.</p>
+      <a class="button" href="dashboard.html" data-en="Open Coach Dashboard" data-ar="افتح لوحة المدرب">Open Coach Dashboard</a>
+    </section>
+  </main>
+
+  <nav class="ai-bottom-nav" aria-label="Primary">
+    <a href="index.html"><span aria-hidden="true">⌂</span><small data-en="Home" data-ar="الرئيسية">Home</small></a>
+    <a href="dashboard.html#athleteProgramHistory"><span aria-hidden="true">▦</span><small data-en="Plan" data-ar="الخطة">Plan</small></a>
+    <a href="ai-coach.html" aria-current="page"><span aria-hidden="true">✦</span><small data-en="AI Coach" data-ar="المدرب الذكي">AI Coach</small></a>
+    <a href="community.html"><span aria-hidden="true">◍</span><small data-en="Community" data-ar="المجتمع">Community</small></a>
+    <a href="community.html#sportsProfileSection"><span aria-hidden="true">◯</span><small data-en="Profile" data-ar="الملف">Profile</small></a>
+  </nav>
+
+  <script src="assets/js/site-language.js?v=20261120h"></script>
+  <script>
+    (() => {
+      const title = lang => lang === 'ar' ? 'مدرب MZA الذكي | MZ Active' : 'MZA AI Coach | MZ Active';
+      document.title = title(window.MZActiveLanguage?.get());
+      document.addEventListener('mzactive:language-change', event => { document.title = title(event.detail.lang); });
+    })();
+  </script>
+  <script src="assets/js/account-menu.js?v=20261120h" defer></script>
+  <script src="assets/js/pwa-register.js?v=20261121b" defer></script>
+  <script src="assets/js/ai-coach.js?v=20261122a" defer></script>
+</body>
+</html>

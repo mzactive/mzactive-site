@@ -268,6 +268,24 @@
       c.append(button(t('Dismiss','تجاهل'),()=>save('admin/momo-followups/'+encodeURIComponent(f.id)+'/dismiss',{})));
     }
   }
+  async function aiCoachSettings(root){
+    const data=await api('admin/ai/settings').catch(()=>null);
+    if(!data)return;
+    const box=node('section','ai-coach-settings');
+    box.append(node('h3',t('MZA AI Coach controls','ضوابط مساعد MZA الذكي')));
+    box.append(node('p',t('AI drafts are never saved automatically. Athletes approve their own plans; coach-managed plans always require the coach. Local mode makes no paid or third-party AI calls.','لا تُحفظ مسودات الذكاء الاصطناعي تلقائياً. يعتمد الرياضيون خططهم بأنفسهم، بينما تتطلب خطط المدرب موافقته دائماً. لا يُجري الوضع المحلي مكالمات ذكاء اصطناعي مدفوعة أو خارجية.'),'muted'));
+    const settings=Object.fromEntries((data.settings||[]).map(item=>[item.key,item]));
+    for(const [code,label] of [['athlete_coach_enabled',['Athlete AI Coach','مساعد الرياضي الذكي']],['coach_planner_enabled',['Coach AI planner','مخطط المدرب الذكي']]]){
+      const wrap=node('label','ai-coach-toggle'),input=document.createElement('input');
+      input.type='checkbox';input.checked=settings[code]?.value==='true';input.dataset.aiSetting=code;
+      input.addEventListener('change',async()=>{try{await api('admin/ai/settings',{method:'PATCH',body:{[code]:input.checked}});notice(t('AI setting updated.','تم تحديث إعداد الذكاء الاصطناعي.'),'success')}catch(error){input.checked=!input.checked;notice(error.message)}});
+      wrap.append(input,document.createTextNode(' '+t(...label)));box.append(wrap);
+    }
+    const drafts=(data.drafts||[]).map(item=>name(item.status)+': '+item.count).join(' · ');
+    box.append(node('p',t('Draft status: ','حالة المسودات: ')+(drafts||'—'),'muted'));
+    box.append(node('p',t('Recent AI usage: ','الاستخدام الأخير: ')+(data.usage||[]).slice(0,3).map(item=>item.usage_date+' ('+item.request_count+')').join(' · ')||'—','muted'));
+    root.append(box);
+  }
   function applyReview(p,next,result){
     for(const list of [applications?.providers,applications?.approved_providers,applications?.rejected_providers,applications?.suspended_providers]){
       if(!list)continue;const i=list.indexOf(p);if(i>=0)list.splice(i,1);
@@ -1291,6 +1309,7 @@
       for(const code of ['operations','monitoring','analytics','marketing','growth','community','support']){const o=node('option',name(code));o.value=code;select.append(o)}
       const l=node('label',t('Agent','الوكيل')),q=node('label',t('Question or objective','السؤال أو الهدف'));l.append(select);q.append(prompt);root.append(l,q,button(t('Run analysis','تنفيذ التحليل'),async()=>{if(!prompt.value.trim()){prompt.focus();return}try{await api('admin/assistant',{method:'POST',body:{task:select.value,prompt:prompt.value.trim()}});agentsOverview=null;notice(t('Draft saved for review.','حُفظت المسودة للمراجعة.'))}finally{await render()}}));
       group(root,t('Recent runs','آخر عمليات التنفيذ'),tasks.slice(0,30),taskCard);
+      await aiCoachSettings(root);
       root.append(node('h3',t('Momo follow-ups','متابعات Momo')));
       await momoFollowups(root);return;
     }

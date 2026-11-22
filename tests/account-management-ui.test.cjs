@@ -104,7 +104,7 @@ test('account controls are bilingual, RTL-aware and mobile-sized', () => {
 });
 
 test('account controls are cache-busted and no production identity is hard-coded', () => {
-  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261123b/);
+  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261124a/);
   assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261123b/);
   assert.doesNotMatch(adminJs + worker + migration, /Tamim/i);
 });

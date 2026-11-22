@@ -35,6 +35,19 @@ Bind a new, dedicated D1 database as `DB`. Configure Worker variables/secrets ou
 
 Never bind the existing `mz-ai-trader-ledger` database to this application. Apply migrations in numeric order, including `0018_password_recovery.sql`, to the dedicated database before deploying the Worker. No payment credentials or payment endpoints exist.
 
+## MZA AI Coach
+
+Apply `migrations/0029_ai_coach.sql` before enabling the athlete or coach planner. The migration is additive: it creates AI settings/draft tables and marks saved programs with `source`; it does not change existing programs or accounts.
+
+The adapter in `ai-provider.js` defaults to `local`: a deterministic, offline planner with no API key, no network call, no third-party transfer and no cost. No founder action is required for local mode. Optional provider values are read only from Worker configuration:
+
+- `AI_PROVIDER=local|mock`: offline planner (default).
+- `AI_PROVIDER=workers`: uses the existing Cloudflare Workers AI binding; no new key.
+- `AI_PROVIDER=deepseek`: requires founder-configured `DEEPSEEK_API_KEY` (and optionally `DEEPSEEK_MODEL`, default `deepseek-flash`). This is a paid option; do not set it or call it without explicit approval.
+- `AI_PROVIDER=openai-compatible`: requires founder-configured `AI_BASE_URL` (and optionally `AI_COMPATIBLE_KEY`, `AI_MODEL`) for an approved local or hosted OpenAI-compatible endpoint.
+
+Super admins can disable `athlete_coach_enabled` and `coach_planner_enabled` in the AI Brain admin tab. Athletes approve their own drafts; coach-linked drafts always require the approved coach. See `docs/ai-provider-research.md` for the official-source DeepSeek and Linger findings.
+
 ## Owner agents
 
 Apply `migrations/0011_owner_agents.sql` and `migrations/0016_owner_agent_task_types.sql` before enabling

@@ -1,5 +1,6 @@
 import { ATHLETE_INVITATION_TTL_DAYS, onboardingIncomplete, lastActivityAt, isActive, coachMatches, invitationEmail } from "./athlete-crm.js";
 import { handleCommunityGroupsApi } from "./community-groups.js";
+import { handleAiCoachApi } from "./ai-coach.js";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
 const PASSWORD_RESET_TTL_SECONDS = 15 * 60;
@@ -4162,6 +4163,11 @@ export default {
     if (communityGroupsResponse) return communityGroupsResponse;
     const workspaceResponse = await handleWorkspaceApi(request, env, url);
     if (workspaceResponse) return workspaceResponse;
+    const aiCoachResponse = await handleAiCoachApi(request, env, url, {
+      text, randomId, reply, readJson, currentUser, isSuperAdmin, isApprovedCoach, isMemberAccount,
+      rateLimitScoped, reserveAssistantRequest, recordAccountEvent,
+    });
+    if (aiCoachResponse) return aiCoachResponse;
     if (request.method === "GET" && url.pathname === "/api/auth/setup-status") {
       const existing = await env.DB.prepare("SELECT id FROM users WHERE role='admin' LIMIT 1").first();
       return reply(request,env,{setup_available:!existing && Boolean(env.ADMIN_EMAILS && env.ADMIN_SETUP_KEY)});
