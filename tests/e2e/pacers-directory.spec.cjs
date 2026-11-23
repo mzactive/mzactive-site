@@ -40,6 +40,8 @@ test('the professional empty state appears when no Pacers are approved', async (
   await expect(page.locator('#pacerGrid .pacer-card')).toHaveCount(0);
   await expect(page.locator('#pacerEmpty')).toContainText('The first pacer profiles are being reviewed.');
   await expect(page.locator('#pacerEmpty')).not.toContainText('ملفات أول المرافقين قيد المراجعة.');
+  await expect(page.locator('#pacerEmpty strong')).toContainText('No approved Pacers yet.');
+  await expect(page.locator('#pacerEmpty a.btn')).toHaveAttribute('href', 'providers.html?type=pacer#provider-portal');
   assertOfflineSafe(mock);
 });
 
@@ -51,6 +53,7 @@ test('directory failures show an accurate unavailable state', async ({ page }) =
 
   await expect(page.locator('#pacerEmpty')).toContainText('Pacer listings are temporarily unavailable.');
   await expect(page.locator('#pacerEmpty')).not.toContainText('الدليل غير متاح مؤقتاً.');
+  await expect(page.locator('#pacerEmpty a.btn')).toBeVisible();
   assertOfflineSafe(mock);
 });
 
