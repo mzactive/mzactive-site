@@ -3937,7 +3937,7 @@ async function handleRunIqApi(request, env, url) {
     if (!share) return reply(request, env, { error: "consent_required" }, 403);
     const [record, progress, results, advice] = await Promise.all([
       env.DB.prepare("SELECT assessment_json,preview_json FROM run_iq_assessments WHERE user_id=?").bind(sharedMatch[1]).first(),
-      env.DB.prepare(`SELECT COUNT(*) AS planned, SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS completed
+      env.DB.prepare(`SELECT COUNT(*) AS planned, SUM(CASE WHEN c.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS completed
         FROM athlete_program_sessions_v2 s JOIN athlete_programs_v2 p ON p.id=s.program_id
         LEFT JOIN athlete_program_completions_v2 c ON c.session_id=s.id AND c.athlete_user_id=p.athlete_user_id
         WHERE p.athlete_user_id=? AND p.source='ai_self'`).bind(sharedMatch[1]).first(),
@@ -4032,10 +4032,11 @@ async function handleRunIqApi(request, env, url) {
   if (path === "/api/run-iq/race-result" && method === "POST") {
     if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
     const body = await readJson(request);
-    const result = analyzeRaceResult({ distance: body?.distance, time: body?.time, effort: body?.effort }, Number(body?.target_pace) || null);
-    if (!result) return reply(request, env, { error: "invalid_race_result" }, 400);
     const record = await env.DB.prepare("SELECT preview_json FROM run_iq_assessments WHERE user_id=?").bind(user.id).first();
-    const target = safeParse(record?.preview_json)?.paces?.targetPace || null;
+    const storedTarget = safeParse(record?.preview_json)?.paces?.targetPace || null;
+    const target = Number(body?.target_pace) || storedTarget || null;
+    const result = analyzeRaceResult({ distance: body?.distance, time: body?.time, effort: body?.effort }, target);
+    if (!result) return reply(request, env, { error: "invalid_race_result" }, 400);
     await env.DB.prepare(`INSERT INTO run_iq_race_results(id,user_id,distance_km,time_seconds,pace_label,target_pace_label,effort,notes,result_json,created_at)
       VALUES(?,?,?,?,?,?,?,?,?,?)`).bind(randomId(), user.id, result.distance_km, result.time_seconds,
       result.pace_label, target ? formatPace(target) : "", result.effort, text(body?.notes, 500), JSON.stringify(result), new Date().toISOString()).run();

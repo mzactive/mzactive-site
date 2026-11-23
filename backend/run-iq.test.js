@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
+import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import worker from './worker.js';
 import { cleanAssessment, analyzeAssessment, parseDuration, distanceKm, calculatePaces, buildRaceCard, analyzeRaceResult, formatPace, buildAdvice } from './run-iq.js';
@@ -154,4 +155,60 @@ test('advice history keeps valid advice when circumstances are unchanged', () =>
   const again = buildAdvice(a, preview, [{ fingerprint: first.fingerprint, advice: first.advice }]);
   assert.equal(again.reused, true);
   assert.deepEqual(again.advice, first.advice);
+});
+
+test('coach insight view works with active consent and reports real progress', async () => {
+  const { db, env } = makeEnv();
+  const athleteId = '11111111-1111-4111-8111-111111111111';
+  const coachId = '22222222-2222-4222-8222-222222222222';
+  const profileId = '33333333-3333-4333-8333-333333333333';
+  const now = new Date().toISOString();
+  db.prepare('INSERT INTO users(id,email,password_hash,role,created_at) VALUES(?,?,?,?,?)').run(athleteId, 'view-athlete@example.test', 'hash', 'provider', now);
+  db.prepare('INSERT INTO users(id,email,password_hash,role,created_at) VALUES(?,?,?,?,?)').run(coachId, 'view-coach@example.test', 'hash', 'provider', now);
+  db.prepare(`INSERT INTO provider_profiles(id,user_id,provider_type,display_name,city,bio,status,specialties_json,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,?,?)`).run(profileId, coachId, 'coach', 'View Coach', 'Doha', 'Real bio', 'approved', '["Running"]', now, now);
+  db.prepare('INSERT INTO run_iq_assessments(user_id,assessment_json,preview_json,updated_at) VALUES(?,?,?,?)')
+    .run(athleteId, JSON.stringify({ weekly_km: 30 }), JSON.stringify({ level: 'intermediate', target: '10K', paces: { currentPace: 330 } }), now);
+  db.prepare('INSERT INTO run_iq_shares(id,user_id,coach_user_id,status,created_at) VALUES(?,?,?,?,?)').run('share-1', athleteId, coachId, 'active', now);
+  db.prepare(`INSERT INTO athlete_programs_v2(id,coach_user_id,athlete_user_id,athlete_name,athlete_phone,athlete_type,week_start,created_at,source)
+    VALUES(?,?,?,?,?,?,?,?,'ai_self')`).run('program-1', athleteId, athleteId, 'Athlete', '', 'runner', '2026-11-23', now);
+  db.prepare(`INSERT INTO athlete_program_sessions_v2(id,program_id,session_code,day_key,sport_type,details,sort_order)
+    VALUES(?,?,?,?,?,?,?)`).run('session-1', 'program-1', 'RIQ-01', 'monday', 'run', 'Easy run', 0);
+  db.prepare(`INSERT INTO athlete_program_completions_v2(session_id,athlete_user_id,completed_at,actual_km,duration_minutes)
+    VALUES(?,?,?,?,?)`).run('session-1', athleteId, now, 5, 30);
+  const token = 'qa-coach-token-12345678901234567890';
+  db.prepare('INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)')
+    .run(createHash('sha256').update(token).digest('base64url'), coachId, Math.floor(Date.now() / 1000) + 600, now);
+  const view = await call(env, 'run-iq/shared/' + athleteId, 'GET', undefined, token);
+  assert.equal(view.athlete.level, 'intermediate');
+  assert.equal(view.progress.planned, 1);
+  assert.equal(view.progress.completed, 1);
+  assert.match(view.note, /No private notes/);
+  db.prepare("UPDATE run_iq_shares SET status='revoked',revoked_at=? WHERE user_id=?").run(now, athleteId);
+  await call(env, 'run-iq/shared/' + athleteId, 'GET', undefined, token, 403);
+});
+
+test('race result comparison uses the stored target pace when none is supplied', async () => {
+  const { db, env } = makeEnv();
+  const registered = await member(env, 'target-compare@example.test');
+  const token = registered.token, userId = registered.user.id;
+  const saved = await call(env, 'run-iq/save', 'POST', {
+    assessment: { ...assessment, goal: 'time', target_time: '50:00', comfortable_pace: '5:30/km' },
+  }, token, 201);
+  const logged = await call(env, 'run-iq/race-result', 'POST', { distance: '10K', time: '52:30', effort: 'hard' }, token, 201);
+  assert.match(logged.result.summary, /slower than your target 5:00\/km/);
+  const row = db.prepare('SELECT target_pace_label FROM run_iq_race_results WHERE user_id=?').get(userId);
+  assert.equal(row.target_pace_label, '5:00/km');
+  assert.ok(saved.program_id);
+});
+
+test('intermediate and advanced athletes receive materially different advice', () => {
+  const base = { ...assessment, goal: 'time', target_time: '50:00' };
+  const intermediate = analyzeAssessment(cleanAssessment({ ...base, experience: 'intermediate', weekly_km: 30, comfortable_pace: '5:30/km' }));
+  const advanced = analyzeAssessment(cleanAssessment({ ...base, experience: 'advanced', weekly_km: 55, comfortable_pace: '4:10/km', target_time: '40:00' }));
+  const first = buildAdvice(cleanAssessment({ ...base, experience: 'intermediate' }), intermediate, []).advice.map(a => a.text).join(' ');
+  const second = buildAdvice(cleanAssessment({ ...base, experience: 'advanced', weekly_km: 55 }), advanced, []).advice.map(a => a.text).join(' ');
+  assert.notEqual(first, second);
+  assert.match(first, /weekly rhythm|steady weekly/i);
+  assert.match(second, /recovery|focused session/i);
 });
