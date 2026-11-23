@@ -35,6 +35,7 @@ test('RunIQ 2.0 keeps guest results free and uses existing infrastructure', () =
     'api/auth/register', 'account_type:\'member\'', 'id="nextButton"', 'id="saveForm"', 'id="paceCards"', 'id="raceCard"', 'id="revealSave"',
     'data-en="MZA Run IQ"', 'id="privacyTitle"',
   ]) assert.ok(html.includes(marker), marker);
+  assert.match(html, /key==='target'&&!p\.paces\.targetPace/);
   assert.match(html, /window\.MZACTIVE_API_BASE/);
   assert.match(html, /assets\/js\/site-language\.js/);
   assert.doesNotMatch(html, /stripe|paypal|checkout|payment\.intent/i);

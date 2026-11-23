@@ -190,7 +190,7 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
     dashboard.append(card('privacyTitle',`<p>${p.assumptions[2]}</p>`));
     const paces=$('paceCards'); paces.replaceChildren();
     for(const [key,pair,note] of [['easy',p.paces.easy,'talk'],['long',p.paces.long,'talk'],['tempo',p.paces.tempo,'talk'],['intervals',p.paces.interval,'talk'],['target',[p.paces.targetPace,p.paces.targetPace],'target']]){
-      if(!pair)continue; const el=document.createElement('div');el.className='pace';
+      if(!pair||pair[0]==null||(key==='target'&&!p.paces.targetPace))continue; const el=document.createElement('div');el.className='pace';
       el.append(Object.assign(document.createElement('b'),{textContent:t(key)}),Object.assign(document.createElement('strong'),{textContent:p.paces.targetPace&&key==='target'?fmtPace(p.paces.targetPace):range(pair)}),Object.assign(document.createElement('small'),{textContent:key==='target'?'Calculated from your target time. Desired pace, not validated ability.':t(note)}));paces.append(el);
     }
     $('weekTitle').textContent=t('week'); const week=$('weekPlan');week.replaceChildren();

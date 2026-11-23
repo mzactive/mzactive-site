@@ -195,14 +195,27 @@ export function buildAdvice(a, analysis, history = []) {
     return { fingerprint, advice: previous[0].advice, reused: true };
   }
   const used = new Set(previous.slice(0, 3).flatMap((row) => (row.advice || []).map((item) => item.key)));
-  const pool = [
-    { key: "consistent-base", title: "Your Priority", text: analysis.level === "beginner" ? "Build a consistent easy-run base before adding speed work." : "Keep one controlled quality session and protect your easy days." },
-    { key: "avoid-goal-pace", title: "Avoid This", text: analysis.goalAssessment?.status === "ambitious" || analysis.goalAssessment?.status === "short-window" ? "Do not run your target race pace in training just because it is your goal." : "Avoid stacking hard days; recovery is part of the plan." },
-    { key: "weekly-step", title: "Next Step", text: a.frequency < 4 ? "Add one short easy run or mobility session this week." : "Review your weekly easy-run distance and keep the long run unhurried." },
-    { key: "race-taper", title: "Next Step", text: "As the race approaches, reduce volume gradually and arrive fresh." },
-    { key: "hr-effort", title: "Your Priority", text: "Use the talk test on easy runs; pace numbers are planning references only." },
-  ];
-  if (analysis.paces?.targetPace && a.race_date && a.weeks != null && a.weeks <= 6) pool.push(pool[3]);
+  const status = analysis.goalAssessment?.status;
+  const priority = analysis.level === "beginner"
+    ? { key: "consistent-base", title: "Your Priority", text: "Build a consistent easy-run base before adding speed work." }
+    : analysis.level === "advanced"
+      ? { key: "advanced-quality", title: "Your Priority", text: "With your current volume, protect recovery and keep quality to one focused session per week." }
+      : { key: "intermediate-rhythm", title: "Your Priority", text: "Build a steady weekly rhythm with one controlled quality session and protected easy days." };
+  const avoid = status === "ambitious" || status === "short-window"
+    ? { key: "avoid-goal-pace", title: "Avoid This", text: "Do not run your target race pace in training just because it is your goal." }
+    : analysis.level === "advanced"
+      ? { key: "avoid-second-hard", title: "Avoid This", text: "Avoid adding a second hard day; your recent 10K evidence already shows meaningful intensity." }
+      : analysis.level === "intermediate"
+        ? { key: "avoid-every-run-fast", title: "Avoid This", text: "Avoid turning every run into a tempo run; most sessions should stay conversational." }
+        : { key: "avoid-hard-early", title: "Avoid This", text: "Avoid stacking hard days; recovery is part of the plan." };
+  const next = a.race_date && a.weeks != null && a.weeks <= 6
+    ? { key: "race-taper", title: "Next Step", text: "In the final weeks, reduce volume gradually, keep familiar short sessions and arrive fresh." }
+    : analysis.level === "advanced"
+      ? { key: "advanced-sharpen", title: "Next Step", text: "Keep one short, controlled faster session after a full warm-up, then reassess recovery before adding anything." }
+      : a.frequency < 4
+        ? { key: "weekly-step", title: "Next Step", text: "Add one short easy run or mobility session this week." }
+        : { key: "weekly-review", title: "Next Step", text: "Hold weekly volume steady and keep the long run unhurried for two consistent weeks." };
+  const pool = [priority, avoid, next, { key: "hr-effort", title: "Your Priority", text: "Use the talk test on easy runs; pace numbers are planning references only." }];
   const advice = pool.filter((item) => !used.has(item.key)).slice(0, 3);
   return { fingerprint, advice: advice.length ? advice : pool.slice(0, 3), reused: false };
 }
