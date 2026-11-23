@@ -29,7 +29,7 @@ test('account management is an additive migration with an audit trail', () => {
 test('admin account endpoints are separate from public athlete profile data', () => {
   assert.match(worker, /path === "\/api\/admin\/accounts"/);
   assert.match(worker, /accountMatch && request\.method === "GET" && !accountMatch\[2\]/);
-  assert.match(worker, /\(coach-application\|suspend\|reactivate\|delete\|update\|role\|hide-profile\|restore-profile\)/);
+  assert.match(worker, /\(coach-application\|suspend\|reactivate\|delete\|trash\|restore\|update\|role\|hide-profile\|restore-profile\)/);
   assert.match(worker, /if \(action === "coach-application"\)/);
   assert.match(worker, /if \(action === "hide-profile" \|\| action === "restore-profile"\)/);
   assert.match(worker, /if \(action === "suspend"\)/);
@@ -115,7 +115,7 @@ test('manage account is a spacious workspace with the required section order', (
 });
 
 test('account controls are cache-busted and no production identity is hard-coded', () => {
-  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261122e/);
-  assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261122e/);
+  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261123a/);
+  assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261123a/);
   assert.doesNotMatch(adminJs + worker + migration, /Tamim/i);
 });

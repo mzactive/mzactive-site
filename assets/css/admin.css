@@ -134,3 +134,16 @@ html[dir="rtl"] .sidebar-toggle span{transform:rotate(180deg)}
 .program-row .crm-fields{width:100%}
 .program-row input,.program-row select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text)}
 @media(max-width:760px){.account-actions{grid-template-columns:minmax(0,1fr)}.account-actions .crm-action,.account-actions .account-cancel{width:100%}.permission-options{grid-template-columns:minmax(0,1fr)}}
+
+/* Reversible Trash quick actions */
+.quick-menu{position:relative;display:inline-flex;flex-shrink:0}
+.quick-menu-trigger{min-width:36px;min-height:36px;padding:.15rem .45rem;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--gold);font-size:1.1rem;line-height:1;cursor:pointer}
+.quick-menu-trigger:hover,.quick-menu-trigger:focus-visible{border-color:var(--gold)}
+.quick-menu-list{position:absolute;z-index:40;inset-inline-end:0;top:calc(100% + 4px);min-width:170px;padding:.3rem;border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:0 12px 30px #0008}
+.quick-menu-item{display:block;width:100%;min-height:36px;padding:.35rem .55rem;border:0;border-radius:8px;background:transparent;color:var(--text);text-align:start;font:inherit;font-size:.82rem;cursor:pointer}
+.quick-menu-item:hover,.quick-menu-item:focus-visible{background:var(--gold);color:var(--bg)}
+.trash-dialog{padding:1rem;max-width:420px}.trash-dialog h3{margin:0 0 .5rem;color:var(--gold)}.trash-dialog p{margin:.3rem 0;color:var(--muted);font-size:.88rem}.trash-dialog-name{color:var(--text)!important;font-weight:800!important;font-size:1rem!important}.trash-dialog input{width:100%;min-height:42px;margin-top:.35rem;padding:.45rem .6rem;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);font:inherit}
+.admin-toast{position:fixed;z-index:80;inset-block-end:1rem;inset-inline-end:1rem;display:flex;align-items:center;gap:.7rem;max-width:min(420px,calc(100vw - 24px));padding:.7rem .8rem;border:1px solid var(--gold);border-radius:14px;background:var(--bg);color:var(--text);box-shadow:0 14px 40px #000a;font-size:.86rem}
+.admin-toast .btn{min-height:34px;padding:.25rem .6rem;font-size:.78rem}
+.trash-row .athlete-meta{flex:1 1 240px}
+body.rtl .quick-menu-list{inset-inline-start:0;inset-inline-end:auto}

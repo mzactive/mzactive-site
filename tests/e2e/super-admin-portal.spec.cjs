@@ -46,8 +46,8 @@ test('a super admin sees every management tab and live training programs', async
   }, 'programs');
 
   const nav = page.locator('#nav button[data-nav-tab]');
-  await expect(nav).toHaveCount(12);
-  for (const tab of ['athletes', 'coaches', 'pacers', 'bookings', 'programs', 'messages', 'community', 'ai', 'reports', 'settings']) {
+  await expect(nav).toHaveCount(13);
+  for (const tab of ['athletes', 'coaches', 'pacers', 'bookings', 'programs', 'messages', 'community', 'ai', 'reports', 'trash', 'settings']) {
     await expect(page.locator('#nav button[data-nav-tab="' + tab + '"]')).toBeVisible();
   }
   const row = page.locator('.program-row[data-record-id="program-e2e"]');

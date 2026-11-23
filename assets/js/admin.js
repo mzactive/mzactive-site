@@ -3,9 +3,9 @@
   const lang = window.MZActiveLanguage, t = (en,ar) => lang.get()==='ar'?ar:en;
   const key = 'mzactive-provider-session';
   const base = window.MZACTIVE_API_BASE;
-  const tabs = {overview:['Overview','نظرة عامة'],athletes:['Athletes','الرياضيون'],coaches:['Coaches','المدربون'],pacers:['Pacers','المرافقون'],bookings:['Bookings','الحجوزات'],programs:['Training Programs','برامج التدريب'],messages:['Messages','الرسائل'],community:['Community','المجتمع'],articles:['Articles','المقالات'],ai:['AI Brain','المساعد الذكي'],reports:['Reports & Activity','التقارير والنشاط'],settings:['Settings','الإعدادات']};
-  const TAB_PERMISSIONS = {athletes:'management.coaches',coaches:'management.coaches',pacers:'management.coaches',bookings:'management.bookings',programs:'management.coaches',messages:'management.coaches',community:'management.community',articles:'management.articles',ai:'management.ai',reports:'management.audit',settings:'super_admin'};
-  const tabIcons = {overview:'◈',athletes:'♙',coaches:'◎',pacers:'↗',bookings:'▣',programs:'▤',messages:'✉',community:'◍',articles:'▤',ai:'✦',reports:'↺',settings:'⚙'};
+  const tabs = {overview:['Overview','نظرة عامة'],athletes:['Athletes','الرياضيون'],coaches:['Coaches','المدربون'],pacers:['Pacers','المرافقون'],bookings:['Bookings','الحجوزات'],programs:['Training Programs','برامج التدريب'],messages:['Messages','الرسائل'],community:['Community','المجتمع'],articles:['Articles','المقالات'],trash:['Trash','المهملات'],ai:['AI Brain','المساعد الذكي'],reports:['Reports & Activity','التقارير والنشاط'],settings:['Settings','الإعدادات']};
+  const TAB_PERMISSIONS = {athletes:'management.coaches',coaches:'management.coaches',pacers:'management.coaches',bookings:'management.bookings',programs:'management.coaches',messages:'management.coaches',community:'management.community',articles:'management.articles',trash:'management.view',ai:'management.ai',reports:'management.audit',settings:'super_admin'};
+  const tabIcons = {overview:'◈',athletes:'♙',coaches:'◎',pacers:'↗',bookings:'▣',programs:'▤',messages:'✉',community:'◍',articles:'▤',trash:'♲',ai:'✦',reports:'↺',settings:'⚙'};
   const tabSubtitles = {
     overview:['Live records and decisions across your permitted areas.','سجلات وقرارات مباشرة ضمن صلاحياتك.'],
     coaches:['Review applications and verified professional credentials.','مراجعة الطلبات وبيانات الاعتماد الموثقة.'],
@@ -17,6 +17,7 @@
     community:['Moderate groups, reports, posts, comments and achievements.','مراجعة المجتمعات والبلاغات والمنشورات والتعليقات والإنجازات.'],
     articles:['Publish or return coach-written articles.','نشر مقالات المدربين أو إعادتها للتعديل.'],
     ai:['Review assistive drafts before any decision takes effect.','راجع المسودات المساعدة قبل تنفيذ أي قرار.'],
+    trash:['Recover accounts moved to Trash. No data is permanently erased.','استعادة الحسابات المنقولة إلى المهملات. لا تُحذف البيانات نهائياً.'],
     reports:['Audit trails, authentication events and management decisions.','سجلات التدقيق وأحداث الدخول وقرارات الإدارة.'],
     settings:['Super-admin controls for delegated management permissions.','أدوات المسؤول الأعلى لصلاحيات الإدارة المفوّضة.'],
   };
@@ -35,7 +36,7 @@
   let tab=tabs[requestedTab]?requestedTab:'overview', sequence=0, managementPermissions=[], managementIsAdmin=false;
   let applications=null, coachFilter='pending', coachVisible=12, refreshing=false;
   let dashboard=null, notificationRefreshing=false, notificationPoll=null;
-  let athleteDirectory=null, athleteFilter='all', athleteSort='recent', athleteTimer=null, athleteDialog=null, openedAthleteRecord='';
+  let trashFilter='all', athleteDirectory=null, athleteFilter='all', athleteSort='recent', athleteTimer=null, athleteDialog=null, openedAthleteRecord='';
   let agentsOverview=null, coachQuery='';
   const inFlight=new Set();
   let recordId = new URLSearchParams(location.search).get('record') || '';
@@ -62,6 +63,55 @@
   }
   function errorMessage(err){const code=err?.message||'',messages={service_unavailable:['The service is temporarily unavailable. Please try again shortly.','الخدمة غير متاحة مؤقتاً. يرجى المحاولة بعد قليل.'],invalid_credentials:['That email or password is incorrect. Use the administrator email registered for this portal.','البريد أو كلمة المرور غير صحيحة. استخدم بريد المسؤول المسجل لهذه البوابة.'],unauthorized:['Your session has expired. Please sign in again.','انتهت جلستك. يرجى تسجيل الدخول مجدداً.'],forbidden:['An administrator account is required for this action.','يلزم حساب مسؤول لتنفيذ هذا الإجراء.'],rate_limited:['Too many attempts. Wait a minute and try again.','محاولات كثيرة. انتظر دقيقة ثم حاول مجدداً.'],origin_not_allowed:['This site address is not authorized. Open the portal from https://mzactive.com.','عنوان الموقع هذا غير مصرح به. افتح البوابة من https://mzactive.com.'],request_failed:['The service returned an unexpected response. Try again shortly.','عادت الخدمة باستجابة غير متوقعة. حاول بعد قليل.'],athlete_not_found:['This athlete account was not found. Refresh the directory.','لم يتم العثور على حساب الرياضي. حدّث دليل الرياضيين.'],coach_unavailable:['That approved coach is no longer available. Review the suggestions again.','لم يعد المدرب المعتمد متاحاً. راجع الاقتراحات مجدداً.'],invitation_exists:['A pending invitation already exists for this coach.','توجد دعوة معلقة بالفعل لهذا المدرب.'],assignment_exists:['This athlete already has an active coach. Revoke or reassign first.','لدى هذا الرياضي مدرب نشط بالفعل. ألغِ التعيين أو غيّره أولاً.'],no_active_assignment:['There is no active assignment to revoke.','لا يوجد تعيين نشط لإلغائه.'],active_assignment_exists:['The athlete already accepted another active workspace.','قبل الرياضي مساحة نشطة أخرى بالفعل.'],invitation_unavailable:['This invitation can no longer be changed.','لم يعد ممكناً تعديل هذه الدعوة.'],invitation_expired:['This invitation link has expired.','انتهت صلاحية رابط الدعوة.'],invitation_not_pending:['Only a pending invitation can be resent.','يمكن إعادة إرسال الدعوات المعلقة فقط.'],email_unavailable:['The invitation was saved but email delivery is unavailable. Retry after checking delivery.','حُفظت الدعوة لكن إرسال البريد غير متاح. أعد المحاولة بعد التحقق من الإرسال.'],connection_error:['Could not reach the service. Check your connection and try again.','تعذر الاتصال بالخدمة. تحقق من اتصالك وحاول مجدداً.'],invalid_recovery:['The email or recovery key is incorrect, or no administrator account matches it.','البريد أو مفتاح الاستعادة غير صحيح، أو لا يوجد حساب مسؤول مطابق.'],recovery_unavailable:['Password recovery is not configured. Contact the account owner.','استعادة كلمة المرور غير مهيأة. تواصل مع صاحب الحساب.'],photo_too_large:['Use a JPG, PNG or WebP image up to 1 MB.','استخدم صورة JPG أو PNG أو WebP بحجم أقصى ١ ميغابايت.'],invalid_photo:['Choose a valid JPG, PNG or WebP image. The existing photo was kept.','اختر صورة JPG أو PNG أو WebP صالحة. تم الاحتفاظ بالصورة الحالية.'],photo_not_found:['No photo has been uploaded for this coach.','لم يتم رفع صورة لهذا المدرب بعد.'],invalid_password:['Use a new password of at least 12 characters.','استخدم كلمة مرور جديدة من ١٢ حرفاً على الأقل.'],current_password_incorrect:['Your current password is incorrect.','كلمة المرور الحالية غير صحيحة.'],admin_setup_required:['The setup key is missing or incorrect.','مفتاح الإعداد مفقود أو غير صحيح.'],admin_already_exists:['An administrator account already exists.','يوجد بالفعل حساب مسؤول.'],admin_setup_unavailable:['This email is not authorized for setup.','هذا البريد غير مصرح له بالإعداد.'],invalid_registration:['Check the email, password and consent, then try again.','تحقق من البريد وكلمة المرور والموافقة ثم حاول مجدداً.'],provider_removed_by_owner:['This account has been suspended by the owner.','تم تعليق هذا الحساب من قِبل المالك.'],intake_paused:['Registration is paused.','التسجيل متوقف مؤقتاً.'],account_already_exists_or_storage_error:['The account could not be saved. Try a different email.','تعذر حفظ الحساب. جرّب بريداً مختلفاً.'],daily_limit_reached:['Daily AI allowance reached.','تم بلوغ الحد اليومي للتحليل.'],assistant_unavailable:['AI analysis failed. Check the task history.','تعذر التحليل. راجع سجل المهام.'],assistant_format_error:['The AI draft could not be formatted. Try again.','تعذر تنسيق المسودة الذكية. حاول مجدداً.'],profile_changed_reload_review:['This profile changed. Refresh before reviewing.','تغير الملف. حدّث البيانات قبل المراجعة.'],coach_profile_incomplete:['The coach must complete their biography and specialties first.','يجب إكمال النبذة والتخصصات أولاً.'],professional_license_incomplete:['Provide qualifications, services and license details, then confirm verification.','أدخل المؤهلات والخدمات وبيانات الترخيص، ثم أكد التحقق.'],invalid_session_for_provider:['This session type is not available for the selected professional.','نوع الجلسة غير متاح لهذا المختص.'],service_required:['Choose a service offered by this professional.','اختر خدمة يقدمها هذا المختص.'],account_not_found:['This account was not found. Refresh the list.','لم يتم العثور على هذا الحساب. حدّث القائمة.'],account_not_eligible:['This account cannot be changed to a coach application.','لا يمكن تحويل هذا الحساب إلى طلب مدرب.'],coach_application_exists:['This account already has a professional profile.','لدى هذا الحساب ملف مهني بالفعل.'],invalid_profile_type:['Choose a valid professional category.','اختر فئة مهنية صحيحة.'],account_protected:['Administrator accounts cannot be suspended or deleted here.','لا يمكن تعليق حسابات المسؤولين أو حذفها من هنا.'],account_not_active:['The account is not active. Reactivate it first.','الحساب غير نشط. أعد تفعيله أولاً.'],account_not_suspended:['Only a suspended account can be reactivated.','يمكن إعادة تفعيل الحسابات المعلقة فقط.'],account_already_deleted:['This account has already been deleted.','تم حذف هذا الحساب بالفعل.'],confirmation_required:['Type the account email and DELETE to confirm.','اكتب بريد الحساب وكلمة DELETE للتأكيد.'],admin_required:['A full administrator account is required for account changes.','يلزم حساب مسؤول كامل لإجراء تغييرات الحساب.'],account_unavailable:['This account is not available. Contact the administrator.','هذا الحساب غير متاح. تواصل مع المسؤول.'],unknown_account_action:['That account action is not supported.','هذا الإجراء غير مدعوم للحساب.'],reason_required:['A moderation reason is required for this action.','يلزم سبب للرقابة لتنفيذ هذا الإجراء.'],profile_already_hidden:['This public profile is already hidden.','هذا الملف العام مخفي بالفعل.'],profile_not_hidden:['This profile is already public.','هذا الملف عام بالفعل.']};const detail=err?.detail?' · '+err.detail:'';
   if(!code||/fetch|network|load failed/i.test(code))return t(...messages.connection_error)+detail;return t(...(messages[code]||['The request could not be completed. Refresh and try again.','تعذر إتمام الطلب. حدّث الصفحة وحاول مجدداً.']))+detail}
+  function confirmTrash(name) {
+    return new Promise(resolve => {
+      const dialog=node('dialog');dialog.className='crm-dialog trash-dialog';
+      dialog.append(node('h3',t('Move to Trash','نقل إلى المهملات')));
+      dialog.append(node('p',t('Move this account to Trash? You can undo or restore it later.','نقل هذا الحساب إلى المهملات؟ يمكنك التراجع أو استعادته لاحقاً.')));
+      dialog.append(node('p',name,'trash-dialog-name'));
+      const reason=node('input');reason.type='text';reason.maxLength=300;
+      reason.placeholder=t('Reason (optional)','السبب (اختياري)');reason.setAttribute('aria-label',reason.placeholder);
+      const label=node('label',t('Deletion reason','سبب الحذف'));label.append(reason);
+      const actions=node('div',null,'crm-actions');
+      const cancel=button(t('Cancel','إلغاء'),()=>{dialog.close();resolve(null)});
+      cancel.className='btn ghost';
+      const confirm=button(t('Move to Trash','نقل إلى المهملات'),()=>{dialog.close();resolve({reason:reason.value.trim()})});
+      actions.append(cancel,confirm);dialog.append(label,actions);
+      dialog.addEventListener('cancel',()=>resolve(null));
+      document.body.append(dialog);dialog.showModal();dialog.addEventListener('close',()=>dialog.remove());
+    });
+  }
+  function undoToast(message, undo) {
+    const toast=node('div',null,'admin-toast');toast.setAttribute('role','status');
+    toast.append(node('span',message));
+    const btn=button(t('Undo','تراجع'),async()=>{await undo();toast.remove()});
+    btn.className='btn ghost';toast.append(btn);
+    document.body.append(toast);
+    setTimeout(()=>toast.remove(),9000);
+  }
+  function quickMenu(items) {
+    const wrap=node('span',null,'quick-menu');
+    const trigger=node('button','⋯','quick-menu-trigger');trigger.type='button';
+    trigger.setAttribute('aria-label',t('Quick actions','إجراءات سريعة'));trigger.setAttribute('aria-expanded','false');
+    const list=node('span',null,'quick-menu-list');list.hidden=true;
+    trigger.onclick=e=>{e.stopPropagation();list.hidden=!list.hidden;trigger.setAttribute('aria-expanded',String(!list.hidden))};
+    for(const item of items){
+      const b=node('button',item.label,'quick-menu-item');b.type='button';
+      b.onclick=e=>{e.stopPropagation();list.hidden=true;item.onClick()};list.append(b);
+    }
+    document.addEventListener('click',()=>{list.hidden=true;trigger.setAttribute('aria-expanded','false')},{once:true});
+    wrap.append(trigger,list);return wrap;
+  }
+  async function trashAccount(id, name, after) {
+    const choice=await confirmTrash(name);if(!choice)return;
+    await api('admin/accounts/'+encodeURIComponent(id)+'/trash',{method:'POST',body:{reason:choice.reason}});
+    undoToast(t('Moved to Trash.','تم النقل إلى المهملات.'),async()=>{
+      await api('admin/accounts/'+encodeURIComponent(id)+'/restore',{method:'POST',body:{undo:true}});
+      await after();
+    });
+    await after();
+  }
+
   function button(text,fn){const b=node('button',text);b.type='button';b.dataset.label=text;b.onclick=async()=>{
     if(b.disabled)return;b.disabled=true;b.setAttribute('aria-busy','true');b.textContent=t('Working…','جارٍ التنفيذ…');
     try{await fn()}catch(e){notice(errorMessage(e),'error')}finally{b.disabled=false;b.removeAttribute('aria-busy');b.textContent=b.dataset.label}
@@ -519,6 +569,10 @@
     const details=node('details',null,'coach-card'),summary=node('summary',null,'coach-summary');
     details.dataset.recordId=p.id;
     summary.append(avatar(p.display_name),node('span',p.display_name,'coach-name'));
+    if(p.user_id&&managementIsAdmin)summary.append(quickMenu([
+      {label:t('View profile','عرض الملف'),onClick:()=>{details.open=true}},
+      {label:t('Move to Trash','نقل إلى المهملات'),onClick:()=>trashAccount(p.user_id,p.display_name,()=>{applications=null;return render()})},
+    ]));
     const meta=node('span',[name(p.provider_type),[p.city,p.country].filter(Boolean).join(', '),p.email].filter(Boolean).join(' · '),'coach-meta');
     summary.append(meta,badge(status==='removed'?'suspended':status,status==='pending'&&!p.profile_complete?'incomplete':''));
     if(status==='pending'&&!p.profile_complete)summary.append(node('small',t('Incomplete','غير مكتمل'),'incomplete-tag'));
@@ -1155,15 +1209,20 @@
     const list=node('div',null,'athlete-list');
     if(!data.athletes?.length)list.append(crmEmpty(['No athletes match these filters. Clear the search or choose another status.','لا يوجد رياضيون يطابقون هذه العوامل. امسح البحث أو اختر حالة أخرى.']));
     for(const a of data.athletes||[]){
-      const b=node('button',null,'athlete-card');b.type='button';b.dataset.recordId=a.id;
-      b.setAttribute('aria-label',t('View profile for ','عرض ملف ')+(a.name||a.email));
+      const b=node('article',null,'athlete-card');b.dataset.recordId=a.id;b.tabIndex=0;
+      b.setAttribute('role','button');b.setAttribute('aria-label',t('View profile for ','عرض ملف ')+(a.name||a.email));
       const head=node('span',null,'athlete-card-head');head.append(avatar(a.name));
       const who=node('span',null,'athlete-who');who.append(node('strong',a.name||a.email,'athlete-name'),node('small',a.email||'','athlete-email'));head.append(who);
       const badges=node('span',null,'athlete-badges');badges.append(badge(a.assignment_status),badge(a.active?'active':'inactive'));
       if(a.onboarding_incomplete)badges.append(badge('onboarding_incomplete'));
       const meta=[(a.sports||[]).join(', '),a.city,a.assigned_coach_name?t(...labels.assigned_coaches)+': '+a.assigned_coach_name:'',a.last_activity_at?t(...labels.last_activity)+': '+date(a.last_activity_at):''].filter(Boolean).join(' · ');
+      head.append(quickMenu([
+        {label:t('View profile','عرض الملف'),onClick:()=>openAthleteDetail(a.id)},
+        {label:t('Move to Trash','نقل إلى المهملات'),onClick:()=>trashAccount(a.id,a.name||a.email,()=>loadAthleteDirectory(root))},
+      ]));
       b.append(head,badges,node('span',meta||t(...labels.not_provided),'athlete-meta'),node('span',t('View profile →','عرض الملف ←'),'athlete-card-more'));
       b.onclick=()=>openAthleteDetail(a.id);
+      b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openAthleteDetail(a.id)}};
       list.append(b);
     }
     root.append(list);
@@ -1433,6 +1492,37 @@
     for(const grant of data.grants||[]){const row=node('article',null,'crm-row');row.append(node('strong',grant.email),node('span',permissionName(grant.permission_code)),node('small',[grant.role==='admin'?t('Administrator','مسؤول'):t('Member','عضو'),date(grant.granted_at)].join(' · ')));grants.append(row)}
     panel.append(grants);root.append(panel);
   }
+  async function renderTrash(root) {
+    const wrap=node('div',null,'trash-panel');root.append(wrap);
+    const bar=node('div',null,'athlete-toolbar');
+    const filters=node('div',null,'athlete-filters');filters.setAttribute('role','group');filters.setAttribute('aria-label',t('Filter trash','تصفية المهملات'));
+    const status=crmStatus();
+    for(const [code,label] of [['all',['All','الكل']],['athletes',[t(...labels.all_athletes),t(...labels.all_athletes)]],['coaches',[t('Coaches','المدربون'),t('Coaches','المدربون')]],['pacers',[t('Pacers','المرافقون'),t('Pacers','المرافقون')]]]){
+      const b=node('button',t(...label),'athlete-filter');b.type='button';b.dataset.trashFilter=code;
+      if(code===trashFilter)b.classList.add('active');
+      b.onclick=()=>{trashFilter=code;renderTrash(wrap)};filters.append(b);
+    }
+    bar.append(filters,status);wrap.append(bar);
+    try{
+      const data=await api('admin/trash?type='+encodeURIComponent(trashFilter));
+      const counts=data.counts||{};wrap.append(node('p',t('Showing ','عرض ')+data.accounts.length+' / '+Number(counts[trashFilter]||0)+' · '+t('Trash','المهملات'),'athlete-summary'));
+      const list=node('div',null,'athlete-list');
+      if(!data.accounts.length)list.append(crmEmpty(['Nothing in Trash.','لا يوجد شيء في المهملات.']));
+      for(const a of data.accounts||[]){
+        const card=node('article',null,'crm-row trash-row');card.dataset.recordId=a.id;
+        card.append(node('strong',a.display_name||a.email));
+        const info=[name(a.account_type),a.deleted_at?date(a.deleted_at):'',a.deleted_by_email?t('Removed by ','حذف بواسطة ')+a.deleted_by_email:'',a.status_reason||''].filter(Boolean).join(' · ');
+        card.append(node('span',info,'athlete-meta'));
+        card.append(crmAction(t('Restore','استعادة'),status,async()=>{
+          await api('admin/accounts/'+encodeURIComponent(a.id)+'/restore',{method:'POST',body:{}});
+          applications=null;athleteDirectory=null;dashboard=null;await renderTrash(wrap);
+        },['Account restored.','تمت استعادة الحساب.']));
+        list.append(card);
+      }
+      wrap.append(list);
+    }catch(e){wrap.replaceChildren(node('p',errorMessage(e),'crm-error'))}
+  }
+
   async function paint(root){
     if(tab==='overview'){
       const data=dashboard||await api('admin/dashboard');dashboard=data;
@@ -1480,6 +1570,7 @@
     }
     if(tab==='articles'){const d=await api('admin/blog');group(root,t('Awaiting moderation','بانتظار المراجعة'),d.posts,(r,p)=>{const c=card(r,p.title,[p.coach_name,p.summary,p.body].join('\n'),p.id);for(const a of ['publish','return'])c.append(button(a==='publish'?t('Publish article','نشر المقال'):t('Return for edits','إعادة للتعديل'),()=>{if(a==='publish'&&!confirm(t('Publish this article?','نشر هذا المقال؟')))return;return save('admin/blog/'+p.id,{action:a})}))});return}
     if(tab==='athletes'){if(managementIsAdmin)root.append(link(t('Open training dashboard','فتح لوحة التدريب'),'dashboard.html'));await renderAthletes(root);return}
+    if(tab==='trash'){await renderTrash(root);return}
     const [h,ai]=await Promise.all([api('admin/history'),api('admin/agents')]);const events=[...h.events,...ai.activity].sort((a,b)=>b.created_at.localeCompare(a.created_at));
     group(root,t('Recent decisions and activity','آخر القرارات والأنشطة'),events.slice(0,100),(r,e)=>card(r,e.action?name(e.action):e.entity_type==='provider_profile'?t('Coach profile','ملف المدرب'):e.entity_type==='registration'?t('New registration','تسجيل جديد'):t('Booking','حجز'),[date(e.created_at),e.action?name(e.agent_type):name(e.from_status),e.to_status?name(e.to_status):''].filter(Boolean).join(' · ')));
   }

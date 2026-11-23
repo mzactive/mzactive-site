@@ -237,6 +237,12 @@ function defaultApiHandler(ctx, state) {
       last_execution: null, latest_report: null, reports: [], errors: [],
     });
   }
+  if (urlPath === '/api/admin/trash') {
+    return json({
+      accounts: [], type: 'all',
+      counts: { all: 0, athletes: 0, coaches: 0, pacers: 0 },
+    });
+  }
   if (urlPath === '/api/admin/run-iq-metrics') {
     return json({
       days: 30, from: '2026-10-24T00:00:00.000Z', to: '2026-11-23T00:00:00.000Z',
