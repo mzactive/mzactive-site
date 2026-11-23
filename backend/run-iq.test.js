@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import worker from './worker.js';
+import { cleanAssessment, analyzeAssessment, parseDuration, distanceKm, calculatePaces, buildRaceCard, analyzeRaceResult, formatPace, buildAdvice } from './run-iq.js';
 
 function makeEnv() {
   const db = new DatabaseSync(':memory:');
@@ -56,7 +57,7 @@ test('Run IQ preview is public, deterministic and rejects invalid input', async 
   await call(env, 'run-iq/preview', 'POST', { experience: 'unknown' }, null, 400);
   const result = await call(env, 'run-iq/preview', 'POST', assessment);
   assert.equal(result.preview.level, 'beginner');
-  assert.ok(result.preview.pace > 5 && result.preview.pace < 6);
+  assert.ok(result.preview.paces.currentPace > 300 && result.preview.paces.currentPace < 360);
   assert.ok(result.preview.recommendations.length >= 3);
   assert.match(result.preview.assumptions.join(' '), /self-reported/i);
 });
@@ -116,4 +117,41 @@ test('assessment data never leaks to another member', async () => {
   const other = await call(env, 'run-iq/me', 'GET', undefined, second);
   assert.equal(other.assessment, null);
   assert.equal(other.program, null);
+});
+
+test('pace maths use tested time and distance formats', () => {
+  assert.equal(parseDuration('50:00'), 3000);
+  assert.equal(parseDuration('2:05:00'), 7500);
+  assert.equal(parseDuration('1h30'), 5400);
+  assert.equal(parseDuration('not a time'), null);
+  assert.equal(distanceKm('10K'), 10);
+  assert.equal(distanceKm('half'), 21.0975);
+  assert.equal(distanceKm('custom', '15 km'), 15);
+  const paces = calculatePaces({ target_distance: '10K', target_time: '50:00', comfortable_pace: '5:30/km' }, 'intermediate');
+  assert.equal(paces.targetPace, 300);
+  assert.equal(formatPace(paces.targetPace), '5:00/km');
+  assert.ok(paces.easy[0] > paces.targetPace);
+  assert.ok(paces.tempo[0] < paces.currentPace);
+});
+
+test('race card splits and post-race analysis are conservative and exact', () => {
+  const a = cleanAssessment({ experience: 'intermediate', goal: 'time', target_distance: '10K', target_time: '50:00', days: [] });
+  const paces = calculatePaces(a, 'intermediate');
+  const card = buildRaceCard(a, paces);
+  assert.equal(card.splits.length, 10);
+  assert.equal(card.splits[0].time, '5:00');
+  assert.equal(card.splits[9].cumulative, '50:00');
+  const result = analyzeRaceResult({ distance: '10K', time: '52:30', effort: 'hard' }, 300);
+  assert.equal(result.pace_label, '5:15/km');
+  assert.match(result.summary, /slower than your target/);
+  assert.match(result.recovery, /3-5 lighter days|3–5 lighter days/);
+});
+
+test('advice history keeps valid advice when circumstances are unchanged', () => {
+  const a = cleanAssessment(assessment);
+  const preview = analyzeAssessment(a);
+  const first = buildAdvice(a, preview, []);
+  const again = buildAdvice(a, preview, [{ fingerprint: first.fingerprint, advice: first.advice }]);
+  assert.equal(again.reused, true);
+  assert.deepEqual(again.advice, first.advice);
 });
