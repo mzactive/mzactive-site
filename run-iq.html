@@ -17,7 +17,7 @@ header{position:sticky;top:0;z-index:30;background:#010c15f2;border-bottom:1px s
 .hero{background:linear-gradient(90deg,#001321f5,#001321b8),url("assets/images/qatar-finish-line.jpg") center/cover no-repeat;border-bottom:1px solid #1d3040}.hero-inner{padding:56px 0}.eyebrow{color:var(--gold);font-size:11px;letter-spacing:3px;font-weight:800}.hero h1{font-size:clamp(42px,7vw,78px);line-height:1;margin:14px 0}.hero p{color:#ccd5da;max-width:640px;font-size:17px}.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;background:var(--gold);color:#10110e;font-weight:900;padding:12px 18px;border:0;cursor:pointer;text-decoration:none}.btn.ghost{background:transparent;color:#fff;border:1px solid #547080}.btn:disabled{opacity:.5;cursor:not-allowed}
 .section{padding:46px 0}.section.alt{background:#02121d;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.section h2{font-size:clamp(26px,4vw,40px);line-height:1.1;margin:0 0 8px}.lead{color:var(--muted);max-width:720px}
 .progress{height:6px;background:#0f2230;margin:20px 0;border:1px solid #2b4658}.progress span{display:block;height:100%;background:var(--gold);transition:width .25s}.step-head{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-bottom:14px}
-.options{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.opt{display:block;border:1px solid var(--line);background:linear-gradient(145deg,#0d1a24,#06131f);padding:20px;cursor:pointer;min-height:130px}.opt:hover,.opt.on{border-color:var(--gold)}.opt .icon{font-size:26px}.opt b{display:block;font-size:18px;margin:8px 0 4px}.opt span{color:var(--muted);font-size:13px}.opt.small{min-height:96px}
+.options{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.options.levels{grid-template-columns:repeat(2,1fr)}.level-helper{margin-top:18px;padding:18px;border:1px solid var(--line);background:#07151f}.level-helper h3{margin:0 0 12px;font-size:18px}.helper-group{margin:12px 0}.helper-group>span{display:block;font-size:12px;font-weight:800;color:#e3ebf0;margin-bottom:7px}.helper-choices{display:flex;gap:7px;flex-wrap:wrap}.helper-choice{background:#0f2230;border:1px solid #2b4658;color:#d9e4ea;padding:9px 12px;min-height:40px;cursor:pointer;font-size:12px}.helper-choice.on{border-color:var(--gold);color:var(--gold)}.helper-result{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}.helper-result h4{margin:0 0 6px;color:var(--gold)}.helper-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.helper-actions .btn{min-height:42px}.opt{display:block;border:1px solid var(--line);background:linear-gradient(145deg,#0d1a24,#06131f);padding:20px;cursor:pointer;min-height:130px}.opt:hover,.opt.on{border-color:var(--gold)}.opt .icon{font-size:26px}.opt b{display:block;font-size:18px;margin:8px 0 4px}.opt span{color:var(--muted);font-size:13px}.opt.small{min-height:96px}
 .panel{background:linear-gradient(145deg,#0d1a24,#06131f);border:1px solid var(--line);padding:22px;display:none}.panel.on{display:block}.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:12px;font-weight:800;color:#e3ebf0}.field input,.field select,.field textarea{width:100%;background:#07151f;color:#fff;border:1px solid #2b4658;padding:11px;min-height:46px}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold);outline:none}.days{display:flex;gap:6px;flex-wrap:wrap}.days label{font-size:11px;background:#0f2230;border:1px solid #2b4658;padding:8px 10px;cursor:pointer}.days input{margin-inline-end:5px;width:auto;min-height:0}
 .nav-buttons{display:flex;justify-content:space-between;gap:12px;margin-top:18px}.status{color:var(--gold);font-size:13px;min-height:20px}
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.card{background:linear-gradient(145deg,#0d1a24,#06131f);border:1px solid var(--line);padding:18px}.card h3{margin:0 0 8px;font-size:14px;color:var(--gold);letter-spacing:1px}.card p,.card li{color:var(--muted);font-size:13px}.card ul{padding-inline-start:18px;margin:0}.pace-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.pace{border:1px solid var(--line);background:#07151f;padding:14px}.pace b{display:block;color:var(--gold);font-size:11px;letter-spacing:1px}.pace strong{display:block;font-size:20px;margin:4px 0}.pace small{color:var(--muted)}
@@ -36,7 +36,7 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
 <section class="section" id="assessment"><div class="wrap">
   <div class="progress"><span id="progressBar"></span></div>
   <div class="step-head"><span id="stepLabel"></span><span id="stepCount"></span></div>
-  <div class="panel on" id="step0"><h2 id="qLevel"></h2><div class="options" id="levelOptions"></div></div>
+  <div class="panel on" id="step0"><h2 id="qLevel"></h2><div class="options levels" id="levelOptions"></div><div class="level-helper" id="levelHelper" hidden></div></div>
   <div class="panel" id="step1"><h2 id="qGoal"></h2><div class="options" id="goalOptions"></div><div class="fields" style="margin-top:16px"><div class="field" id="distanceField"><label id="distanceLabel"></label><select id="targetDistance"></select></div><div class="field"><label id="targetTimeLabel"></label><input id="targetTime" placeholder="e.g. 50:00 or 2:05:00"></div><div class="field"><label id="raceDateLabel"></label><input id="raceDate" type="date"></div><div class="field full"><label id="customGoalLabel"></label><input id="customGoal" maxlength="300"></div></div></div>
   <div class="panel" id="step2"><h2 id="qAbility"></h2><div class="fields"><div class="field"><label id="freqLabel"></label><select id="frequency"></select></div><div class="field"><label id="kmLabel"></label><input id="weeklyKm" type="number" min="0" max="300" value="15"></div><div class="field"><label id="recentDistanceLabel"></label><input id="recentDistance" placeholder="e.g. 10K"></div><div class="field"><label id="recentTimeLabel"></label><input id="recentTime" placeholder="e.g. 55:00"></div><div class="field"><label id="recentWhenLabel"></label><select id="recentWhen"></select></div><div class="field"><label id="comfortableLabel"></label><input id="comfortablePace" placeholder="e.g. 5:30/km"></div></div><p class="status" id="unknownNote"></p></div>
   <div class="panel" id="step3"><h2 id="qPrefs"></h2><div class="fields"><div class="field full"><label id="daysLabel"></label><div class="days" id="days"></div></div><div class="field"><label id="restHrLabel"></label><input id="restingHr" type="number" min="30" max="120"></div><div class="field"><label id="maxHrLabel"></label><input id="maxHr" type="number" min="120" max="230"></div><div class="field"><label id="cityLabel"></label><input id="city" placeholder="Doha"></div><div class="field full"><label id="limitLabel"></label><textarea id="limitations" maxlength="500"></textarea></div></div></div>
@@ -73,6 +73,21 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
     beginner:['Beginner','مبتدئ'], beginnerDesc:['I’m just starting, returning, or not running consistently.','أبدأ للتو، أو أعود للجري، أو لا أجري بانتظام.'],
     intermediate:['Intermediate','متوسط'], intermediateDesc:['I run regularly and want to improve fitness or race performance.','أجري بانتظام وأريد تحسين اللياقة أو أداء السباق.'],
     advanced:['Advanced','متقدم'], advancedDesc:['I train consistently, follow structured workouts, or have race experience.','أتدرب باستمرار، وأتبع تمارين منظمة، أو لدي خبرة سباقات.'],
+    help:['Help Me Choose','ساعدني في الاختيار'], helpDesc:["I'm not sure what my running level is.",'لست متأكداً ما مستواي في الجري.'],
+    helperQ:['Three quick questions','ثلاثة أسئلة قصيرة'],
+    helperFreq:['How often do you run?','كم مرة تجري أسبوعياً؟'],
+    helperFreqLow:['1–2 times','١–٢ مرة'], helperFreqMedium:['3–4 times','٣–٤ مرات'], helperFreqHigh:['5+ times','٥ مرات أو أكثر'],
+    helperDistance:['What distance do you usually run?','ما المسافة التي تجريها عادةً؟'],
+    helperDistShort:['Under 5 km','أقل من ٥ كلم'], helperDistMedium:['5–10 km','٥–١٠ كلم'], helperDistLong:['Half marathon or more','نصف ماراثون أو أكثر'], helperDistUnknown:['Not sure','لست متأكداً'],
+    helperExperience:['What best describes your training?','أي وصف يناسب تدريبك؟'],
+    helperExpNew:['New or returning','جديد أو عائد'], helperExpSome:['I follow simple plans','أتبع خططاً بسيطة'], helperExpStructured:['Structured workouts or races','تمارين منظمة أو سباقات'],
+    suggested:['We suggest','نقترح'],
+    reasonBeginner:['Because your answers suggest a light or inconsistent running base.','لأن إجاباتك تشير إلى أساس خفيف أو غير منتظم للجري.'],
+    reasonIntermediate:['Because you run regularly and have some distance or plan experience.','لأنك تجري بانتظام ولديك بعض الخبرة في المسافات أو الخطط.'],
+    reasonAdvanced:['Because you train frequently and have longer-distance or structured-session experience.','لأنك تتدرب بكثافة ولديك خبرة في المسافات الطويلة أو الجلسات المنظمة.'],
+    conservativeNote:['This is a conservative starting point. You can change it anytime.','هذه نقطة بداية محافظة. يمكنك تغييرها في أي وقت.'],
+    useSuggestion:['Use this level','استخدم هذا المستوى'], changeSuggestion:['Change my answers','تغيير إجابتي'],
+    needHelper:['Answer the three questions to get a suggested level.','أجب عن الأسئلة الثلاثة للحصول على مستوى مقترح.'],
     goalQ:['What would you like to achieve?','ماذا تريد أن تحقق؟'],
     start:['Start running','البدء في الجري'], fitness:['Improve fitness','تحسين اللياقة'], distance:['Run farther','الجري لمسافة أبعد'],
     finish:['Finish a race','إكمال سباق'], time:['Improve my race time','تحسين زمن السباق'], custom:['Create my own goal','هدف خاص بي'],
@@ -148,7 +163,7 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
       if (response.ok) { try { sessionStorage.setItem(flag, '1'); } catch {} }
     } catch {}
   }
-  const state = { step:0, level:'', goal:'', assessment:null, preview:null, saveRevealed:false, mine:null };
+  const state = { step:0, level:'', helpMode:false, helper:{freq:'', distance:'', experience:''}, suggestion:null, goal:'' , assessment:null, preview:null, saveRevealed:false, mine:null };
   const DAYS = [['monday','Mon','إثنين'],['tuesday','Tue','ثلاثاء'],['wednesday','Wed','أربعاء'],['thursday','Thu','خميس'],['friday','Fri','جمعة'],['saturday','Sat','سبت'],['sunday','Sun','أحد']];
   const GOALS = ['start','fitness','distance','finish','time','custom'];
   const fmtPace = s => s ? `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}/km` : '—';
@@ -160,6 +175,51 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
     el.children[1].textContent=t(title); el.children[2].textContent=t(desc);
     el.onclick=()=>{ onSelect(value); renderSteps(); }; return el;
   }
+  function suggestLevel(a) {
+    const high = a.freq === 'high', medium = a.freq === 'medium';
+    const long = a.distance === 'long', mid = a.distance === 'medium';
+    const structured = a.experience === 'structured', some = a.experience === 'some';
+    if (high && (long || structured)) return { level: 'advanced', reason: 'reasonAdvanced' };
+    if ((medium || high) && (mid || long || some || structured)) return { level: 'intermediate', reason: 'reasonIntermediate' };
+    return { level: 'beginner', reason: 'reasonBeginner' };
+  }
+  function renderLevelHelper() {
+    const host = $('levelHelper');
+    if (!state.helpMode) { host.hidden = true; host.replaceChildren(); return; }
+    host.hidden = false; host.replaceChildren();
+    host.append(Object.assign(document.createElement('h3'), { textContent: t('helperQ') }));
+    const groups = [
+      ['freq', 'helperFreq', [['low','helperFreqLow'],['medium','helperFreqMedium'],['high','helperFreqHigh']]],
+      ['distance', 'helperDistance', [['short','helperDistShort'],['medium','helperDistMedium'],['long','helperDistLong'],['unknown','helperDistUnknown']]],
+      ['experience', 'helperExperience', [['new','helperExpNew'],['some','helperExpSome'],['structured','helperExpStructured']]],
+    ];
+    for (const [key, label, choices] of groups) {
+      const wrap = document.createElement('div'); wrap.className = 'helper-group';
+      wrap.append(Object.assign(document.createElement('span'), { textContent: t(label) }));
+      const row = document.createElement('div'); row.className = 'helper-choices';
+      for (const [value, textKey] of choices) {
+        const button = document.createElement('button'); button.type = 'button';
+        button.className = 'helper-choice' + (state.helper[key] === value ? ' on' : '');
+        button.dataset.group = key; button.dataset.value = value; button.textContent = t(textKey);
+        button.onclick = () => { state.helper[key] = value; renderLevelHelper(); };
+        row.append(button);
+      }
+      wrap.append(row); host.append(wrap);
+    }
+    const complete = Object.values(state.helper).every(Boolean);
+    if (!complete) return;
+    state.suggestion = suggestLevel(state.helper);
+    const result = document.createElement('div'); result.className = 'helper-result';
+    result.append(Object.assign(document.createElement('h4'), { textContent: `${t('suggested')}: ${t(state.suggestion.level)}` }));
+    result.append(Object.assign(document.createElement('p'), { textContent: `${t(state.suggestion.reason)} ${t('conservativeNote')}` }));
+    const actions = document.createElement('div'); actions.className = 'helper-actions';
+    const accept = Object.assign(document.createElement('button'), { type:'button', className:'btn', textContent:t('useSuggestion') });
+    accept.onclick = () => { state.level = state.suggestion.level; state.helpMode = false; state.suggestion = null; track('assessment_started','accepted'); renderSteps(); };
+    const change = Object.assign(document.createElement('button'), { type:'button', className:'btn ghost', textContent:t('changeSuggestion') });
+    change.onclick = () => { state.helper = { freq:'', distance:'', experience:'' }; state.suggestion = null; renderLevelHelper(); };
+    actions.append(accept, change); result.append(actions); host.append(result);
+  }
+
   function renderSteps() {
     $('progressBar').style.width = ((state.step+1)/4*100)+'%';
     $('stepLabel').textContent=t('step')+' '+(state.step+1); $('stepCount').textContent=t('of')+' 4';
@@ -167,9 +227,17 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
     $('backButton').textContent=t('back'); $('backButton').disabled=state.step===0;
     $('nextButton').textContent=state.step===3?t('results'):t('next');
     const levelHost=$('levelOptions'); levelHost.replaceChildren();
-    for(const [value,icon,title,desc] of [['beginner','🌱','beginner','beginnerDesc'],['intermediate','🏃','intermediate','intermediateDesc'],['advanced','⚡','advanced','advancedDesc']]){
-      const el=option('level',value,icon,title,desc,v=>{track('assessment_started','start');state.level=v;}); if(state.level===value)el.classList.add('on'); levelHost.append(el);
+    for(const [value,icon,title,desc] of [
+      ['beginner','🌱','beginner','beginnerDesc'],['intermediate','🏃','intermediate','intermediateDesc'],
+      ['advanced','⚡','advanced','advancedDesc'],['help','❓','help','helpDesc'],
+    ]){
+      const el=option('level',value,icon,title,desc,v=>{
+        track('assessment_started',v==='help'?'help':'start');
+        state.helpMode=v==='help'; state.level=state.helpMode?'':v; state.suggestion=null;
+      });
+      if(state.helpMode?value==='help':state.level===value)el.classList.add('on'); levelHost.append(el);
     }
+    renderLevelHelper();
     const goalHost=$('goalOptions'); goalHost.replaceChildren();
     for(const [value,icon] of [['start','🌱'],['fitness','💪'],['distance','📏'],['finish','🏁'],['time','⏱️'],['custom','✍️']]){
       const el=option('goal',value,icon,value,value+'Desc',v=>state.goal=v,true);
@@ -282,7 +350,7 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
     }catch{host.textContent=t('error');}}
   async function loadMine(){if(!token())return;try{const d=await apiCall('/api/run-iq/me');state.mine=d;if(d.assessment)renderPlan(d);}catch{}}
   $('nextButton').onclick=async()=>{
-    if(state.step===0&&!state.level){$('assessmentStatus').textContent=t('needLevel');return;}
+    if(state.step===0&&(state.helpMode||!state.level)){$('assessmentStatus').textContent=t(state.helpMode?'needHelper':'needLevel');return;}
     if(state.step===1&&(!state.goal||(['finish','time','custom'].includes(state.goal)&&!$('targetDistance').value))){$('assessmentStatus').textContent=t(state.goal?'needRace':'needGoal');return;}
     if(state.step<3){state.step++;renderSteps();return;}
     $('assessmentStatus').textContent=t('results');

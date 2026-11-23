@@ -77,6 +77,36 @@ test('guest assessment shows full results before optional account creation', asy
   assertOfflineSafe(mock);
 });
 
+test('Help Me Choose suggests a conservative level and can be accepted', async ({ page }) => {
+  const mock = await installApiMock(page, {
+    overrides: {
+      'POST /api/run-iq/preview': json({ assessment: {}, preview: { level: 'advanced', target: '10K', summary: 'Advanced preview', assumptions: [], paces: {}, heart: {}, goalAssessment: { text: '' }, weekPlan: [], advice: [], raceCard: null } }),
+      'GET /api/run-iq/coaches': json({ coaches: [] }),
+    },
+  });
+  await page.goto('/run-iq.html');
+  await page.locator('#levelOptions button[data-value="help"]').click();
+  await expect(page.locator('#levelHelper')).toBeVisible();
+  await page.locator('.helper-choice[data-group="freq"][data-value="low"]').click();
+  await page.locator('.helper-choice[data-group="distance"][data-value="short"]').click();
+  await page.locator('.helper-choice[data-group="experience"][data-value="new"]').click();
+  await expect(page.locator('.helper-result')).toContainText('Beginner');
+  await page.getByRole('button', { name: 'Change my answers' }).click();
+  await page.locator('.helper-choice[data-group="freq"][data-value="high"]').click();
+  await page.locator('.helper-choice[data-group="distance"][data-value="long"]').click();
+  await page.locator('.helper-choice[data-group="experience"][data-value="structured"]').click();
+  await expect(page.locator('.helper-result')).toContainText('Advanced');
+  await page.getByRole('button', { name: 'Use this level' }).click();
+  await expect(page.locator('#levelOptions button[data-value="advanced"]')).toHaveClass(/on/);
+  await page.locator('#nextButton').click();
+  await page.locator('#goalOptions button[data-value="fitness"]').click();
+  await page.locator('#nextButton').click();
+  await page.locator('#nextButton').click();
+  await page.locator('#nextButton').click();
+  await expect.poll(() => mock.calls.some(call => call.method === 'POST' && call.path === '/api/run-iq/preview' && call.body?.experience === 'advanced')).toBe(true);
+  assertOfflineSafe(mock);
+});
+
 test('Arabic Run IQ renders RTL with translated step cards', async ({ page }) => {
   const mock = await installApiMock(page, { overrides: { 'GET /api/run-iq/coaches': json({ coaches: [] }) } });
   await page.addInitScript(() => { try { localStorage.setItem('mzactive-language-manual', 'ar'); } catch {} });
@@ -84,5 +114,8 @@ test('Arabic Run IQ renders RTL with translated step cards', async ({ page }) =>
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.locator('body')).toHaveClass(/rtl/);
   await expect(page.locator('#levelOptions')).toContainText('مبتدئ');
+  await expect(page.locator('#levelOptions')).toContainText('ساعدني في الاختيار');
+  await page.locator('#levelOptions button[data-value="help"]').click();
+  await expect(page.locator('#levelHelper')).toContainText('ثلاثة أسئلة قصيرة');
   assertOfflineSafe(mock);
 });
