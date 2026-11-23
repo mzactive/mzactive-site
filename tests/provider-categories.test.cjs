@@ -7,7 +7,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('registration exposes all professional categories and private license verification fields', () => {
   const html = read('providers.html');
-  for (const type of ['coach', 'pacer', 'nutritionist', 'physiotherapist', 'sports_massage_therapist']) {
+  for (const type of ['coach', 'bodybuilding_coach', 'pacer', 'nutritionist', 'physiotherapist', 'sports_massage_therapist']) {
     assert.match(html, new RegExp(`<option value="${type}">`), type);
   }
   assert.match(html, /name="qualifications"/);
@@ -22,7 +22,7 @@ test('registration exposes all professional categories and private license verif
 
 test('directory and homepage render category labels and verified credentials safely', () => {
   const directory = read('coaches.html');
-  for (const type of ['coach', 'pacer', 'nutritionist', 'physiotherapist', 'sports_massage_therapist']) {
+  for (const type of ['coach', 'bodybuilding_coach', 'pacer', 'nutritionist', 'physiotherapist', 'sports_massage_therapist']) {
     assert.match(directory, new RegExp(`<option value="${type}"`), type);
   }
   assert.match(directory, /id="searchForm"/);
