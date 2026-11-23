@@ -106,3 +106,17 @@ test('Pacers cards use readable dark surfaces and a compact premium layout', () 
   assert.match(html, /join\.href='providers\.html\?type=pacer#provider-portal'/);
   assert.match(html, /\.main-nav\{flex-wrap:nowrap;overflow-x:auto/);
 });
+
+test('Pacers promotes Run IQ near the top without altering discovery', () => {
+  const html = read('pacer.html');
+  for (const marker of [
+    'id="runiqPromo"',
+    "What's Your Running Pace?",
+    'Not sure which Pacer is right for you? Discover your running pace and find someone who matches your goals.',
+    'Free assessment. No signup required to see your results.',
+    'href="https://mzactive.com/run-iq.html">Discover My Pace</a>',
+    '"Discover My Pace":"اكتشف وتيرتي"',
+  ]) assert.ok(html.includes(marker), marker);
+  const hero = html.indexOf('class="hero"'), promo = html.indexOf('id="runiqPromo"'), choose = html.indexOf('id="choose"');
+  assert.ok(hero > -1 && promo > hero && choose > promo, 'promo must sit between hero and Pacer discovery');
+});
