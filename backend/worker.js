@@ -43,6 +43,7 @@ const MANAGEMENT_NOTIFICATION_CATEGORIES = {
 
 const PROFESSIONAL_CATEGORIES = {
   coach: { en: "Sports Coach", ar: "مدرب رياضي", sessions: ["training", "race"] },
+  bodybuilding_coach: { en: "Bodybuilding Coach", ar: "مدرب كمال الأجسام", sessions: ["training", "assessment"] },
   pacer: { en: "Champion Pacer", ar: "مرافق جري", sessions: ["training", "race"] },
   nutritionist: { en: "Nutritionist", ar: "أخصائي تغذية رياضية", sessions: ["nutrition", "consultation"] },
   physiotherapist: { en: "Physiotherapist", ar: "أخصائي علاج طبيعي رياضي", sessions: ["assessment", "therapy"] },
