@@ -237,6 +237,16 @@ function defaultApiHandler(ctx, state) {
       last_execution: null, latest_report: null, reports: [], errors: [],
     });
   }
+  if (urlPath === '/api/admin/run-iq-metrics') {
+    return json({
+      days: 30, from: '2026-10-24T00:00:00.000Z', to: '2026-11-23T00:00:00.000Z',
+      visitors: 0, anonymous_visitors: 0, registered_visitors: 0,
+      events: {}, completion_rate: 0, feedback: {},
+      note: 'Aggregate first-party events only. No names, answers, race results or contact details are collected.',
+    });
+  }
+  if (urlPath === '/api/run-iq/events') return json({ recorded: true });
+  if (urlPath === '/api/run-iq/feedback') return json({ saved: true });
   if (urlPath === '/api/me/access') {
     return json({
       user: { id: 'e2e-coach', email: 'coach@example.invalid', role: 'provider' },

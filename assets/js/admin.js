@@ -807,6 +807,39 @@
     root.append(panel);
   }
 
+  async function runIQLaunchPanel(root) {
+    const panel = node('section', null, 'command-panel');
+    const head = node('div', null, 'panel-head');
+    head.append(node('h3', t('Run IQ launch metrics', 'مؤشرات إطلاق Run IQ')));
+    panel.append(head);
+    let data;
+    try { data = await api('admin/run-iq-metrics?days=30'); }
+    catch (error) { panel.append(node('p', errorMessage(error), 'empty-state')); root.append(panel); return; }
+    const e = data.events || {};
+    const rows = [
+      [t('Date range', 'المدة'), `${data.from?.slice(0, 10) || '—'} → ${data.to?.slice(0, 10) || '—'} (${data.days} ${t('days', 'يوم')})`],
+      [t('Visitors', 'الزوار'), `${data.visitors || 0} · ${t('Anonymous', 'مجهول')}: ${data.anonymous_visitors || 0} · ${t('Registered', 'مسجل')}: ${data.registered_visitors || 0}`],
+      [t('Assessment starts', 'بدايات التقييم'), e.assessment_started?.count || 0],
+      [t('Completed assessments', 'تقييمات مكتملة'), e.assessment_completed?.count || 0],
+      [t('Completion rate', 'معدل الإكمال'), `${data.completion_rate || 0}%`],
+      [t('Results viewed', 'تم عرض النتائج'), e.results_viewed?.count || 0],
+      [t('Save My Plan clicks', 'نقرات حفظ الخطة'), e.save_plan_clicked?.count || 0],
+      [t('Registrations', 'التسجيلات'), e.registration_completed?.count || 0],
+      [t('Plans saved', 'الخطط المحفوظة'), e.plan_saved?.count || 0],
+      [t('Coach referrals', 'إحالات المدربين'), e.coach_profile_clicked?.count || 0],
+      [t('Feedback', 'الآراء'), `${t('Yes', 'نعم')}: ${data.feedback?.yes || 0} · ${t('Somewhat', 'إلى حد ما')}: ${data.feedback?.somewhat || 0} · ${t('Not yet', 'ليس بعد')}: ${data.feedback?.not_yet || 0}`],
+    ];
+    const list = node('div', null, 'ai-list');
+    for (const [label, value] of rows) {
+      const row = node('article', null, 'action-row');
+      row.append(node('span', label), node('strong', String(value)));
+      list.append(row);
+    }
+    panel.append(list);
+    panel.append(node('small', data.note || ''));
+    root.append(panel);
+  }
+
   function businessSnapshot(root,snapshot){
     const panel=node('section',null,'command-panel');
     const head=node('div',null,'panel-head');head.append(node('h3',t('Business snapshot','لمحة عن العمل')));panel.append(head);
@@ -1410,6 +1443,7 @@
       const data=await api('admin/agents'),tasks=data.tasks;
       root.append(node('p',t('An agent analyzes current business data every hour. Six specialist agents take turns; all seven modes are available for manual analysis. Drafts require your decision.','يحلل وكيل بيانات المنصة كل ساعة، ويتناوب ستة وكلاء متخصصون. تتوفر الأوضاع السبعة للتحليل اليدوي، وتتطلب المسودات قرارك.')));
       await aiBrainPanel(root);
+      await runIQLaunchPanel(root);
       const select=node('select'),prompt=node('textarea');prompt.maxLength=1600;
       for(const code of ['operations','monitoring','analytics','marketing','growth','community','support']){const o=node('option',name(code));o.value=code;select.append(o)}
       const l=node('label',t('Agent','الوكيل')),q=node('label',t('Question or objective','السؤال أو الهدف'));l.append(select);q.append(prompt);root.append(l,q,button(t('Run analysis','تنفيذ التحليل'),async()=>{if(!prompt.value.trim()){prompt.focus();return}try{await api('admin/assistant',{method:'POST',body:{task:select.value,prompt:prompt.value.trim()}});agentsOverview=null;notice(t('Draft saved for review.','حُفظت المسودة للمراجعة.'))}finally{await render()}}));

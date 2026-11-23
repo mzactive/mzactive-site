@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="MZA Run IQ — simple, private running assessment with explainable pace and goal guidance.">
+<meta property="og:type" content="website"><meta property="og:title" content="MZA Run IQ | MZ Active"><meta property="og:description" content="Free, private running assessment with explainable pace and goal guidance. Run Smarter. Get Faster."><meta property="og:url" content="https://mzactive.com/run-iq.html"><meta property="og:image" content="https://mzactive.com/assets/brand/mzactive-logo.webp"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="MZA Run IQ | MZ Active"><meta name="twitter:description" content="Free, private running assessment with explainable pace and goal guidance. Run Smarter. Get Faster."><link rel="canonical" href="https://mzactive.com/run-iq.html">
 <title>MZA Run IQ | MZ Active</title>
 <link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
 <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h">
@@ -50,6 +51,7 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
   <div class="card" id="racePrep" style="margin-top:22px"></div>
   <div class="card" id="raceCard" style="margin-top:22px"></div>
   <div class="card" id="postRace" style="margin-top:22px"><h3 id="postRaceTitle"></h3><div class="fields"><div class="field"><label id="actualDistanceLabel"></label><input id="actualDistance" placeholder="10K"></div><div class="field"><label id="actualTimeLabel"></label><input id="actualTime" placeholder="52:30"></div><div class="field"><label id="actualEffortLabel"></label><select id="actualEffort"></select></div><div class="field full"><label id="actualNotesLabel"></label><textarea id="actualNotes" maxlength="500"></textarea></div></div><p class="status" id="raceStatus"></p><button class="btn ghost" id="raceButton" type="button"></button><div id="raceOutcome"></div></div>
+  <div class="card" id="feedbackCard" style="margin-top:22px"><h3 id="feedbackTitle"></h3><p class="lead" id="feedbackCopy"></p><div class="options" id="feedbackOptions"></div><div class="fields" style="margin-top:14px"><div class="field full"><label id="feedbackCommentLabel"></label><textarea id="feedbackComment" maxlength="500"></textarea></div></div><label style="display:block;margin:12px 0"><input id="feedbackIdentify" type="checkbox"> <span id="feedbackIdentifyLabel"></span></label><button class="btn ghost" id="feedbackSend" type="button" hidden></button><p class="status" id="feedbackStatus"></p></div>
 </div></section>
 
 <section class="section result" id="signupSection"><div class="wrap"><div class="marketing"><h2 id="savePitchTitle"></h2><p id="savePitchCopy"></p><button class="btn" id="revealSave" type="button"></button>
@@ -110,6 +112,13 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
     privacyTitle:['Privacy and safety','الخصوصية والسلامة'],
     privacyCopy:['Your data stays private by default. Nothing is shared with a coach unless you explicitly consent, and you can revoke access anytime. This is educational guidance, not a medical assessment or a replacement for a qualified coach.',
       'تبقى بياناتك خاصة افتراضياً. لا تتم المشاركة إلا بموافقتك الصريحة، ويمكنك إلغاء الوصول في أي وقت. هذا توجيه تعليمي وليس تقييماً طبياً أو بديلاً عن مدرب مؤهل.'],
+    feedbackQ:['Was this running assessment useful?','هل كان هذا التقييم مفيداً؟'],
+    feedbackCopy:['Optional — your answer helps us improve. No assessment details are attached.','اختياري — يساعدنا رأيك على التحسين. لا تُرفق أي تفاصيل من تقييمك.'],
+    yes:['Yes','نعم'], somewhat:['Somewhat','إلى حد ما'], notYet:['Not yet','ليس بعد'],
+    feedbackComment:['Optional short comment (max 500 characters)','تعليق قصير اختياري (٥٠٠ حرف كحد أقصى)'],
+    feedbackIdentify:['Include my MZActive account (optional)','تضمين حساب MZ Active الخاص بي (اختياري)'],
+    sendFeedback:['Send feedback','إرسال الرأي'],
+    feedbackThanks:['Thank you — feedback saved.','شكراً لك — تم حفظ رأيك.'],
     error:['The service is temporarily unavailable. Please try again.','الخدمة غير متاحة مؤقتاً. يرجى المحاولة مجدداً.'],
     needGoal:['Choose a goal to continue.','اختر هدفاً للمتابعة.'], needLevel:['Choose a running level to continue.','اختر مستوى جري للمتابعة.'],
     needRace:['Choose a target distance for this goal.','اختر مسافة مستهدفة لهذا الهدف.'],
@@ -118,6 +127,25 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
   const t = key => L[key]?.[ar() ? 1 : 0] || key;
   const tokenKey = 'mzactive-provider-session';
   const token = () => localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey);
+  const visitorKey = (() => {
+    try {
+      let key = sessionStorage.getItem('run-iq-visitor');
+      if (!key) { key = crypto.randomUUID ? crypto.randomUUID() : 'v' + Date.now() + Math.random().toString(16).slice(2); sessionStorage.setItem('run-iq-visitor', key); }
+      return key;
+    } catch { return 'anonymous'; }
+  })();
+  async function track(eventName, suffix = 'once') {
+    const eventKey = `${visitorKey}:${eventName}:${suffix}`;
+    try {
+      if (sessionStorage.getItem('run-iq-event:' + eventKey)) return;
+      sessionStorage.setItem('run-iq-event:' + eventKey, '1');
+    } catch {}
+    try {
+      const headers = { 'content-type': 'application/json' };
+      if (token()) headers.authorization = 'Bearer ' + token();
+      await fetch(api + '/api/run-iq/events', { method: 'POST', headers, body: JSON.stringify({ event_name: eventName, visitor_key: visitorKey, event_key: eventKey }) });
+    } catch {}
+  }
   const state = { step:0, level:'', goal:'', assessment:null, preview:null, saveRevealed:false, mine:null };
   const DAYS = [['monday','Mon','إثنين'],['tuesday','Tue','ثلاثاء'],['wednesday','Wed','أربعاء'],['thursday','Thu','خميس'],['friday','Fri','جمعة'],['saturday','Sat','سبت'],['sunday','Sun','أحد']];
   const GOALS = ['start','fitness','distance','finish','time','custom'];
@@ -138,7 +166,7 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
     $('nextButton').textContent=state.step===3?t('results'):t('next');
     const levelHost=$('levelOptions'); levelHost.replaceChildren();
     for(const [value,icon,title,desc] of [['beginner','🌱','beginner','beginnerDesc'],['intermediate','🏃','intermediate','intermediateDesc'],['advanced','⚡','advanced','advancedDesc']]){
-      const el=option('level',value,icon,title,desc,v=>state.level=v); if(state.level===value)el.classList.add('on'); levelHost.append(el);
+      const el=option('level',value,icon,title,desc,v=>{track('assessment_started','start');state.level=v;}); if(state.level===value)el.classList.add('on'); levelHost.append(el);
     }
     const goalHost=$('goalOptions'); goalHost.replaceChildren();
     for(const [value,icon] of [['start','🌱'],['fitness','💪'],['distance','📏'],['finish','🏁'],['time','⏱️'],['custom','✍️']]){
@@ -216,10 +244,36 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
     if(!(mine.shares||[]).length)shares.textContent=t('noShare');
     for(const s of mine.shares||[]){const row=document.createElement('div');row.className='week-row';row.append(Object.assign(document.createElement('b'),{textContent:s.coach_name+' · '+(s.status==='active'?t('shared'):t('revoke'))}));if(s.status==='active'){const b=Object.assign(document.createElement('button'),{type:'button',className:'btn ghost',textContent:t('revoke')});b.onclick=async()=>{await apiCall('/api/run-iq/share/'+s.coach_user_id,{method:'DELETE'});await loadMine();};row.append(b);}shares.append(row);}
   }
+  let feedbackRating = '';
+  function renderFeedback() {
+    $('feedbackTitle').textContent = t('feedbackQ');
+    $('feedbackCopy').textContent = t('feedbackCopy');
+    $('feedbackCommentLabel').textContent = t('feedbackComment');
+    $('feedbackIdentifyLabel').textContent = t('feedbackIdentify');
+    $('feedbackSend').textContent = t('sendFeedback');
+    const host = $('feedbackOptions'); host.replaceChildren();
+    for (const [value, label] of [['yes','yes'],['somewhat','somewhat'],['not_yet','notYet']]) {
+      const b = document.createElement('button'); b.type='button'; b.className='opt small'+(feedbackRating===value?' on':'');
+      b.textContent = t(label); b.dataset.rating = value;
+      b.onclick = () => { feedbackRating = value; $('feedbackSend').hidden=false; renderFeedback(); };
+      host.append(b);
+    }
+    $('feedbackSend').onclick = async () => {
+      if (!feedbackRating) return;
+      try {
+        const headers={'content-type':'application/json'};
+        if($('feedbackIdentify').checked && token())headers.authorization='Bearer '+token();
+        await fetch(api+'/api/run-iq/feedback',{method:'POST',headers,body:JSON.stringify({
+          rating:feedbackRating,comment:$('feedbackComment').value,visitor_key:visitorKey,identify:$('feedbackIdentify').checked,
+        })});
+        $('feedbackStatus').textContent=t('feedbackThanks');$('feedbackSend').hidden=true;host.replaceChildren();
+      } catch { $('feedbackStatus').textContent=t('error'); }
+    };
+  }
   async function renderCoaches(){const host=$('coachGrid');host.replaceChildren();$('coachTitle').textContent=t('coachTitle');$('coachCopy').textContent=t('coachCopy');
     try{const d=await apiCall('/api/run-iq/coaches?city='+encodeURIComponent($('city').value||''));if(!d.coaches.length){host.textContent=t('noCoaches');return;}
       for(const c of d.coaches){const el=document.createElement('article');el.className='coach';el.append(Object.assign(document.createElement('h3'),{textContent:c.display_name}),Object.assign(document.createElement('p'),{textContent:[c.city,c.country].filter(Boolean).join(', ')}),Object.assign(document.createElement('p'),{textContent:(c.specialties||[]).join(' · ')}));
-        const a=Object.assign(document.createElement('a'),{href:c.profile_url,textContent:t('profile')});a.target='_blank';a.rel='noopener noreferrer';
+        const a=Object.assign(document.createElement('a'),{href:c.profile_url,textContent:t('profile')});a.target='_blank';a.rel='noopener noreferrer';a.onclick=()=>track('coach_profile_clicked',c.id);
         const b=Object.assign(document.createElement('a'),{href:'pacer.html?provider='+encodeURIComponent(c.id)+'#request',textContent:t('request')});
         const share=Object.assign(document.createElement('button'),{type:'button',className:'btn ghost',textContent:t('share')});share.onclick=async()=>{if(!token()){$('revealSave').click();return;}if(!window.confirm(t('share')))return;await apiCall('/api/run-iq/share',{method:'POST',body:JSON.stringify({coach_user_id:c.id,consent:true})});await loadMine();};
         el.append(a,b,document.createElement('br'),share);host.append(el);}
@@ -230,19 +284,19 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
     if(state.step===1&&(!state.goal||(['finish','time','custom'].includes(state.goal)&&!$('targetDistance').value))){$('assessmentStatus').textContent=t(state.goal?'needRace':'needGoal');return;}
     if(state.step<3){state.step++;renderSteps();return;}
     $('assessmentStatus').textContent=t('results');
-    try{state.assessment=collect();const d=await apiCall('/api/run-iq/preview',{method:'POST',body:JSON.stringify(state.assessment)});state.preview=d.preview;sessionStorage.setItem('run-iq-assessment',JSON.stringify(state.assessment));renderResults();renderCoaches();$('assessmentStatus').textContent='';}
+    try{state.assessment=collect();const d=await apiCall('/api/run-iq/preview',{method:'POST',body:JSON.stringify(state.assessment)});state.preview=d.preview;sessionStorage.setItem('run-iq-assessment',JSON.stringify(state.assessment));track('assessment_completed','complete');track('results_viewed','complete');renderResults();renderCoaches();$('assessmentStatus').textContent='';}
     catch{$('assessmentStatus').textContent=t('error');}
   };
   $('backButton').onclick=()=>{if(state.step>0){state.step--;renderSteps();}};
-  $('revealSave').onclick=()=>{state.saveRevealed=true;$('saveForm').classList.add('on');$('saveEmail').focus();};
+  $('revealSave').onclick=()=>{track('save_plan_clicked','click');state.saveRevealed=true;$('saveForm').classList.add('on');$('saveEmail').focus();};
   $('saveForm').onsubmit=async e=>{e.preventDefault();$('saveStatus').textContent=t('results');
-    try{if(!token()){const a=await apiCall('/api/auth/register',{method:'POST',body:JSON.stringify({account_type:'member',email:$('saveEmail').value,password:$('savePassword').value,consent:$('saveConsent').checked,display_name:$('saveName').value})});localStorage.setItem(tokenKey,a.token);}
-      await apiCall('/api/run-iq/save',{method:'POST',body:JSON.stringify({assessment:state.assessment,name:$('saveName').value,phone:$('savePhone').value})});$('saveStatus').textContent=t('done');await loadMine();}
+    try{if(!token()){const a=await apiCall('/api/auth/register',{method:'POST',body:JSON.stringify({account_type:'member',email:$('saveEmail').value,password:$('savePassword').value,consent:$('saveConsent').checked,display_name:$('saveName').value})});localStorage.setItem(tokenKey,a.token);track('registration_completed','account');}
+      await apiCall('/api/run-iq/save',{method:'POST',body:JSON.stringify({assessment:state.assessment,name:$('saveName').value,phone:$('savePhone').value})});track('plan_saved','plan');$('saveStatus').textContent=t('done');await loadMine();}
     catch(err){if(err.status===409)await loadMine();else $('saveStatus').textContent=t('error');}};
   $('raceButton').onclick=async()=>{$('raceStatus').textContent=t('results');try{const d=await apiCall('/api/run-iq/race-result',{method:'POST',body:JSON.stringify({distance:$('actualDistance').value,time:$('actualTime').value,effort:$('actualEffort').value,notes:$('actualNotes').value,target_pace:state.preview?.paces?.targetPace})});$('raceStatus').textContent=t('logged');$('raceOutcome').textContent=d.result.summary+' '+d.result.recovery;}catch{$('raceStatus').textContent=t('error');}};
-  document.addEventListener('mzactive:language-change',()=>{renderSteps();if(state.preview)renderResults();renderPlan(state.mine||{shares:[],program:null});renderCoaches();});
+  document.addEventListener('mzactive:language-change',()=>{renderSteps();if(state.preview)renderResults();renderPlan(state.mine||{shares:[],program:null});renderCoaches();renderFeedback();});
   $('privacyTitle').textContent=t('privacyTitle');$('privacyCopy').textContent=t('privacyCopy');
-  renderSteps();renderCoaches();loadMine();
+  renderSteps();renderFeedback();renderCoaches();loadMine();track('page_view',location.pathname);
 })();
 </script>
 </body>
