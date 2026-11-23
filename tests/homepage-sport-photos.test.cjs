@@ -101,3 +101,16 @@ test('Explore Sports icon links include Bodybuilding Coach', () => {
   assert.match(links, /href="coaches\.html\?type=bodybuilding_coach"/);
   assert.match(links, /data-en="Bodybuilding Coach" data-ar="مدرب كمال الأجسام">Bodybuilding Coach<\/span>/);
 });
+
+test('Fitness and Bodybuilding Coach use distinct licensed local photos', () => {
+  const fitness = sportCards().find((card) => card.includes('href="coaches.html?sport=fitness"'));
+  const bodybuilding = sportCards().find((card) => card.includes('href="coaches.html?type=bodybuilding_coach"'));
+  assert.ok(fitness, 'fitness card is present');
+  assert.ok(bodybuilding, 'bodybuilding card is present');
+  assert.match(fitness, /women-fitness\.jpg/);
+  assert.match(bodybuilding, /assets\/images\/sports\/bodybuilding\.jpg/);
+  assert.match(bodybuilding, /bodybuilding-960w\.webp/);
+  assert.doesNotMatch(bodybuilding, /women-fitness/);
+  const license = fs.readFileSync(path.join(root, 'docs/image-licenses.md'), 'utf8');
+  assert.match(license, /CC BY-SA 4\.0/);
+});
