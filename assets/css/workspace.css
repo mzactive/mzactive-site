@@ -50,3 +50,19 @@ html[dir="rtl"] #communityWorkspace .ws-notice { border-radius: 12px 0 0 12px; }
 @media (min-width: 760px) {
   #communityWorkspace .ws-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Coach My Athletes quick management */
+.my-athletes .panel-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.my-athletes h3{margin:0 0 4px}
+.my-athletes .badge{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 10px;border:1px solid var(--gold);border-radius:999px;color:var(--gold);font-weight:800}
+.athlete-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 14px;align-items:center}
+.athlete-row .athlete-meta{grid-column:1/-1}
+.athlete-row .actions{grid-column:1/-1;justify-content:flex-start}
+.athlete-row .actions .btn,.athlete-row .actions button{min-height:42px}
+.my-athletes .athlete-toolbar{display:grid;gap:8px}
+#sendProgramDialog{width:min(560px,calc(100vw - 24px));padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--text)}
+#sendProgramDialog h3{margin:0 0 12px;color:var(--gold)}
+#sendProgramDialog .athlete-search{width:100%;min-height:44px;margin-bottom:10px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text)}
+#sendProgramDialog .btn{width:100%;margin-top:10px}
+html[dir=rtl] .athlete-row{text-align:right}
+@media(max-width:600px){.athlete-row{grid-template-columns:1fr}.athlete-row .actions .btn,.athlete-row .actions button{flex:1 1 46%}}
