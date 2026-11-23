@@ -10,6 +10,7 @@ const homepageCss = fs.readFileSync(path.join(root, 'assets/css/homepage.css'), 
 const expectedSports = [
   ['running', 'Running'],
   ['fitness', 'Fitness'],
+  ['bodybuilding_coach', 'Bodybuilding Coach'],
   ['swimming', 'Swimming'],
   ['cycling', 'Cycling'],
   ['triathlon', 'Triathlon'],
@@ -32,15 +33,15 @@ function sportCards() {
   return sportGrid().match(/<a class="sport-card"[^>]*>[\s\S]*?<\/a>/g) ?? [];
 }
 
-test('all ten sport cards are clickable photo cards with no placeholder icons', () => {
+test('all eleven sport cards are clickable photo cards with no placeholder icons', () => {
   const grid = sportGrid();
   const cards = sportCards();
-  assert.equal(cards.length, 10, 'every expected sport card is present');
+  assert.equal(cards.length, 11, 'every expected sport card is present');
   assert.doesNotMatch(grid, /<svg\b/i, 'sport cards no longer contain placeholder icons');
 
   cards.forEach((card, index) => {
     const [sport, label] = expectedSports[index];
-    assert.match(card, new RegExp(`^<a class="sport-card" href="coaches\\.html\\?sport=${sport}">`), `${sport} keeps its working coaches link`);
+    assert.match(card, new RegExp(`^<a class="sport-card" href="coaches\\.html\\?(?:sport|type)=${sport}">`), `${sport} keeps its working coaches link`);
     assert.match(card, /<span class="sport-card-art(?: sport-card-art-[a-z]+)?">/, `${sport} uses the shared art container`);
     assert.match(card, /<picture class="responsive-photo" style="display:contents">/, `${sport} uses the shared responsive photo wrapper`);
     assert.match(card, /<source data-responsive-webp type="image\/webp"/, `${sport} has a format-gated WebP source`);
@@ -90,4 +91,13 @@ test('sport card styling continues to provide shared cropping, overlays and resp
   assert.match(homepageCss, /\.sport-card::before\s*\{[^}]*linear-gradient\(145deg,\s*rgb\(9 29 33 \/ 15%\),\s*rgb\(9 29 33 \/ 28%\)\)/);
   assert.match(homepageCss, /\.sport-card::after\s*\{[^}]*inset:\s*25% 0 0;[^}]*linear-gradient\(0deg,\s*#04191de8,\s*transparent\)/);
   assert.doesNotMatch(homepageCss, /\.sport-card-art-(?:boxing|kickboxing)\b/, 'no new per-sport crop overrides were added');
+});
+
+test('Explore Sports icon links include Bodybuilding Coach', () => {
+  const start = html.indexOf('<div class="sport-links">');
+  assert.ok(start >= 0, 'icon links section is present');
+  const end = html.indexOf('</div>', start);
+  const links = html.slice(start, end);
+  assert.match(links, /href="coaches\.html\?type=bodybuilding_coach"/);
+  assert.match(links, /data-en="Bodybuilding Coach" data-ar="مدرب كمال الأجسام">Bodybuilding Coach<\/span>/);
 });

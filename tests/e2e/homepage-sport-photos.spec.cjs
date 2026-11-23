@@ -5,6 +5,7 @@ const { test, expect } = require('./pw.cjs');
 const SPORTS = [
   ['running', 'Running'],
   ['fitness', 'Fitness'],
+  ['bodybuilding_coach', 'Bodybuilding Coach'],
   ['swimming', 'Swimming'],
   ['cycling', 'Cycling'],
   ['triathlon', 'Triathlon'],
@@ -39,7 +40,7 @@ test('explore-by-sport cards load local photos and keep the shared card design',
   await openHomepage(page);
 
   const cards = page.locator('.sport-card');
-  await expect(cards).toHaveCount(10);
+  await expect(cards).toHaveCount(11);
 
   const details = await cards.evaluateAll((elements) => elements.map((card) => {
     const img = card.querySelector('img');
@@ -64,7 +65,7 @@ test('explore-by-sport cards load local photos and keep the shared card design',
 
   details.forEach((card, index) => {
     const [sport, label] = SPORTS[index];
-    expect(card.href, `${sport} link`).toBe(`coaches.html?sport=${sport}`);
+    expect(card.href, `${sport} link`).toBe(`coaches.html?${sport === 'bodybuilding_coach' ? 'type' : 'sport'}=${sport}`);
     expect(card.label, `${sport} label`).toBe(label);
     expect(card.hasSvg, `${sport} has no placeholder icon`).toBe(false);
     expect(card.hasWebpSource, `${sport} has a WebP source`).toBe(true);
@@ -77,8 +78,8 @@ test('explore-by-sport cards load local photos and keep the shared card design',
     expect(card.artPosition, `${sport} uses the shared art container`).toBe('absolute');
   });
 
-  const boxing = details[8];
-  const kickboxing = details[9];
+  const boxing = details[9];
+  const kickboxing = details[10];
   expect(boxing.src).toContain('assets/images/sports/boxing.webp');
   expect(kickboxing.src).toContain('assets/images/sports/kickboxing.webp');
   expect(boxing.currentSrc).toContain('assets/images/responsive/sports/boxing-');
@@ -89,8 +90,9 @@ test('every explore-by-sport card remains clickable', async ({ page }) => {
   await openHomepage(page);
 
   for (const [sport] of SPORTS) {
-    await page.locator(`.sport-card[href="coaches.html?sport=${sport}"]`).click();
-    await expect(page).toHaveURL(new RegExp(`coaches\\.html\\?sport=${sport}$`));
+    const key = sport === 'bodybuilding_coach' ? 'type' : 'sport';
+    await page.locator(`.sport-card[href="coaches.html?${key}=${sport}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`coaches\\.html\\?${key}=${sport}$`));
     await page.goBack();
     await expect(page.locator('.sport-grid')).toBeVisible();
   }
