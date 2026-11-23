@@ -50,6 +50,14 @@ test('guest assessment shows full results before optional account creation', asy
   await expect(page.locator('#signupSection')).toBeVisible();
   await expect(page.locator('#saveForm')).toBeHidden();
   await expect(page.locator('#coachGrid')).toContainText('E2E Running Coach');
+  await expect(page.locator('#feedbackCard')).toBeVisible();
+  await expect(page.locator('#feedbackOptions')).toContainText('Yes');
+  await page.locator('#feedbackOptions button[data-rating="yes"]').click();
+  await page.locator('#feedbackComment').fill('Clear results');
+  await page.locator('#feedbackSend').click();
+  await expect(page.locator('#feedbackStatus')).toContainText('Thank you');
+  await expect.poll(() => mock.calls.some(call => call.method === 'POST' && call.path === '/api/run-iq/feedback' && call.body?.rating === 'yes')).toBe(true);
+  await expect.poll(() => mock.calls.some(call => call.method === 'POST' && call.path === '/api/run-iq/events' && call.body?.event_name === 'page_view')).toBe(true);
 
   await page.locator('#revealSave').click();
   await expect(page.locator('#saveForm')).toBeVisible();

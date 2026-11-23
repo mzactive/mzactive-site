@@ -3487,6 +3487,34 @@ async function adminApplications(request, env, user) {
       ORDER BY (m.read_at IS NULL) DESC, m.created_at DESC LIMIT 100`).all();
     return reply(request, env, { messages: rows.results || [] });
   }
+  if (request.method === "GET" && path === "/api/admin/run-iq-metrics") {
+    const requestedDays = Number(requestUrl.searchParams.get("days") || 30);
+    const days = Number.isFinite(requestedDays) ? Math.min(90, Math.max(1, Math.round(requestedDays))) : 30;
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    const [rows, totals, feedback] = await Promise.all([
+      env.DB.prepare(`SELECT event_name,COUNT(*) AS count,COUNT(DISTINCT visitor_key) AS visitors,
+        COUNT(DISTINCT user_id) AS registered FROM run_iq_events WHERE created_at>=? GROUP BY event_name`).bind(since).all(),
+      env.DB.prepare(`SELECT COUNT(DISTINCT visitor_key) AS visitors,
+        COUNT(DISTINCT CASE WHEN user_id IS NULL THEN visitor_key END) AS anonymous,
+        COUNT(DISTINCT user_id) AS registered FROM run_iq_events WHERE created_at>=?`).bind(since).first(),
+      env.DB.prepare(`SELECT rating,COUNT(*) AS count FROM run_iq_feedback WHERE created_at>=? GROUP BY rating`).bind(since).all(),
+    ]);
+    const events = {};
+    for (const row of rows.results || []) events[row.event_name] = {
+      count: Number(row.count || 0), visitors: Number(row.visitors || 0), registered: Number(row.registered || 0),
+    };
+    const starts = events.assessment_started?.count || 0;
+    return reply(request, env, {
+      days, from: since, to: new Date().toISOString(),
+      visitors: Number(totals?.visitors || 0),
+      anonymous_visitors: Number(totals?.anonymous || 0),
+      registered_visitors: Number(totals?.registered || 0),
+      events,
+      completion_rate: starts ? Math.round((events.assessment_completed?.count || 0) / starts * 100) : 0,
+      feedback: Object.fromEntries((feedback.results || []).map((row) => [row.rating, Number(row.count || 0)])),
+      note: "Aggregate first-party events only. No names, answers, race results or contact details are collected.",
+    });
+  }
   if (request.method === "GET" && path === "/api/admin/ai-brain") {
     return reply(request, env, await aiBrainOverview(env));
   }
@@ -3922,6 +3950,30 @@ async function handleRunIqApi(request, env, url) {
       specialties: safeParse(row.specialties_json) || [], services: safeParse(row.services_json) || [],
       languages: safeParse(row.languages_json) || [], profile_url: MOMO_PROFILE_BASE + encodeURIComponent(row.id),
     })) });
+  }
+
+  if (path === "/api/run-iq/events" && method === "POST") {
+    if (!await rateLimit(request, env, "run-iq-events", 60)) return reply(request, env, { error: "rate_limited" }, 429);
+    const body = await readJson(request);
+    const names = ["page_view", "assessment_started", "assessment_completed", "results_viewed", "save_plan_clicked", "registration_completed", "plan_saved", "coach_profile_clicked"];
+    if (!body || !names.includes(body.event_name) || !text(body.visitor_key, 80) || !text(body.event_key, 180)) {
+      return reply(request, env, { error: "invalid_event" }, 400);
+    }
+    const viewer = await currentUser(request, env);
+    const claim = await env.DB.prepare(`INSERT OR IGNORE INTO run_iq_events(id,event_key,event_name,visitor_key,user_id,created_at)
+      VALUES(?,?,?,?,?,?)`).bind(randomId(), text(body.event_key, 180), body.event_name,
+      text(body.visitor_key, 80), viewer?.id || null, new Date().toISOString()).run();
+    return reply(request, env, { recorded: Boolean(claim.meta.changes) });
+  }
+  if (path === "/api/run-iq/feedback" && method === "POST") {
+    if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
+    const body = await readJson(request);
+    const ratings = ["yes", "somewhat", "not_yet"];
+    if (!body || !ratings.includes(body.rating) || !text(body.visitor_key, 80)) return reply(request, env, { error: "invalid_feedback" }, 400);
+    const viewer = body.identify === true ? await currentUser(request, env) : null;
+    await env.DB.prepare(`INSERT INTO run_iq_feedback(id,visitor_key,user_id,rating,comment,created_at) VALUES(?,?,?,?,?,?)`)
+      .bind(randomId(), text(body.visitor_key, 80), viewer?.id || null, body.rating, text(body.comment, 500), new Date().toISOString()).run();
+    return reply(request, env, { saved: true });
   }
 
   const sharedMatch = /^\/api\/run-iq\/shared\/([\w-]{36})$/.exec(path);

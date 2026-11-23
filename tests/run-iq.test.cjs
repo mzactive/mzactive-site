@@ -36,6 +36,11 @@ test('RunIQ 2.0 keeps guest results free and uses existing infrastructure', () =
     'data-en="MZA Run IQ"', 'id="privacyTitle"',
   ]) assert.ok(html.includes(marker), marker);
   assert.match(html, /key==='target'&&!p\.paces\.targetPace/);
+  assert.match(html, /property="og:title" content="MZA Run IQ \| MZ Active"/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/mzactive\.com\/run-iq\.html">/);
+  assert.match(html, /id="feedbackCard"/);
+  assert.match(html, /api\/run-iq\/feedback/);
+  assert.match(html, /api\/run-iq\/events/);
   assert.match(html, /window\.MZACTIVE_API_BASE/);
   assert.match(html, /assets\/js\/site-language\.js/);
   assert.doesNotMatch(html, /stripe|paypal|checkout|payment\.intent/i);

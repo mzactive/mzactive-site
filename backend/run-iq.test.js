@@ -41,6 +41,7 @@ async function call(env, path, method = 'GET', body, token, expected = 200) {
   return raw ? JSON.parse(raw) : {};
 }
 
+const PASSWORD = 'local-run-iq-test-password';
 const assessment = {
   experience: 'beginner', frequency: 3, weekly_km: 15, recent_result: '10K 55:00',
   target_distance: '10K', goal: 'complete', days: ['monday', 'wednesday', 'saturday'],
@@ -211,4 +212,48 @@ test('intermediate and advanced athletes receive materially different advice', (
   assert.notEqual(first, second);
   assert.match(first, /weekly rhythm|steady weekly/i);
   assert.match(second, /recovery|focused session/i);
+});
+
+async function launchAdminToken(env) {
+  const response = await worker.fetch(new Request('https://example.test/api/auth/register', {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-admin-setup-key': env.ADMIN_SETUP_KEY },
+    body: JSON.stringify({ email: env.ADMIN_EMAILS, password: PASSWORD, consent: true }),
+  }), env);
+  assert.equal(response.status, 201);
+  return (await response.json()).token;
+}
+
+test('launch events are deduplicated and never store personal answers', async () => {
+  const { db, env } = makeEnv();
+  const event = { event_name: 'page_view', visitor_key: 'visitor-1', event_key: 'visitor-1:page_view:home' };
+  const first = await call(env, 'run-iq/events', 'POST', event, null);
+  const duplicate = await call(env, 'run-iq/events', 'POST', event, null);
+  assert.equal(first.recorded, true);
+  assert.equal(duplicate.recorded, false);
+  await call(env, 'run-iq/events', 'POST', { event_name: 'assessment_started', visitor_key: 'visitor-1', event_key: 'visitor-1:start' }, null);
+  await call(env, 'run-iq/events', 'POST', { event_name: 'assessment_completed', visitor_key: 'visitor-1', event_key: 'visitor-1:complete' }, null);
+  const row = db.prepare('SELECT * FROM run_iq_events LIMIT 1').get();
+  assert.deepEqual(Object.keys(row).sort(), ['created_at', 'event_key', 'event_name', 'id', 'user_id', 'visitor_key'].sort());
+  assert.equal(row.user_id, null);
+});
+
+test('feedback is anonymous by default and metrics are aggregate only', async () => {
+  const { db, env } = makeEnv();
+  await call(env, 'run-iq/feedback', 'POST', {
+    rating: 'somewhat', comment: 'Clear enough', visitor_key: 'visitor-2',
+  }, null);
+  const anon = db.prepare('SELECT user_id FROM run_iq_feedback').get();
+  assert.equal(anon.user_id, null);
+  const token = (await member(env, 'feedback-user@example.test')).token;
+  const identified = await call(env, 'run-iq/feedback', 'POST', {
+    rating: 'yes', comment: 'Helpful', visitor_key: 'visitor-3', identify: true,
+  }, token);
+  assert.equal(identified.saved, true);
+  const admin = await launchAdminToken(env);
+  const metrics = await call(env, 'admin/run-iq-metrics?days=7', 'GET', undefined, admin);
+  assert.equal(metrics.days, 7);
+  assert.equal(metrics.feedback.somewhat, 1);
+  assert.equal(metrics.feedback.yes, 1);
+  assert.equal(metrics.visitors, 0);
+  assert.match(metrics.note, /No names/);
 });
