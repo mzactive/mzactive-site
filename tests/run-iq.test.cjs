@@ -41,6 +41,12 @@ test('RunIQ 2.0 keeps guest results free and uses existing infrastructure', () =
   assert.match(html, /id="feedbackCard"/);
   assert.match(html, /api\/run-iq\/feedback/);
   assert.match(html, /api\/run-iq\/events/);
+  assert.match(html, /id="levelHelper"/);
+  assert.match(html, /'help','❓','help','helpDesc'/);
+  assert.match(html, /function suggestLevel\(a\)/);
+  assert.match(html, /function renderLevelHelper\(\)/);
+  assert.match(html, /\.options\.levels\{grid-template-columns:repeat\(2,1fr\)\}/);
+  assert.match(html, /useSuggestion: \[|useSuggestion:/);
   assert.match(html, /window\.MZACTIVE_API_BASE/);
   assert.match(html, /assets\/js\/site-language\.js/);
   assert.doesNotMatch(html, /stripe|paypal|checkout|payment\.intent/i);
