@@ -428,3 +428,73 @@ test('program and report views expose only stored records to permitted managers'
     assert.equal(redacted.authentication.every((event) => event.detail === null), true);
   } finally { db.close(); }
 });
+
+test('athlete quick trash is reversible and preserves identity, history and relationships', async () => {
+  const { db, env } = makeEnv();
+  try {
+    const { admin, member, coach } = await registerAccounts(env);
+    const related = seedRelated(db, member.user.id, coach.user.id);
+    const before = db.prepare('SELECT email,password_hash,created_at FROM users WHERE id=?').get(member.user.id);
+
+    const trashed = await call(env, 'admin/accounts/' + member.user.id + '/trash', 'POST',
+      { reason: 'Mistaken import' }, admin.token);
+    assert.equal(trashed.undoable, true);
+    const deleted = db.prepare('SELECT * FROM users WHERE id=?').get(member.user.id);
+    assert.equal(deleted.account_status, 'deleted');
+    assert.equal(deleted.deleted_by, admin.user.id);
+    assert.equal(deleted.email, before.email, 'email is preserved for restore');
+    assert.equal(deleted.password_hash, before.password_hash, 'password is preserved');
+    assert.equal(deleted.previous_account_status, 'active');
+
+    await call(env, 'auth/login', 'POST', { email: 'athlete@example.test', password }, null, 403);
+    const directory = await call(env, 'admin/athletes', 'GET', undefined, admin.token);
+    assert.equal(directory.athletes.some((a) => a.id === member.user.id), false, 'trashed athlete leaves active list');
+    const trash = await call(env, 'admin/trash?type=athletes', 'GET', undefined, admin.token);
+    assert.equal(trash.accounts.some((a) => a.id === member.user.id), true);
+    assert.equal(trash.accounts.find((a) => a.id === member.user.id).status_reason, 'Mistaken import');
+
+    const restored = await call(env, 'admin/accounts/' + member.user.id + '/restore', 'POST', { undo: true }, admin.token);
+    assert.equal(restored.ok, true);
+    const after = db.prepare('SELECT * FROM users WHERE id=?').get(member.user.id);
+    assert.equal(after.id, member.user.id, 'same account id, no duplicate');
+    assert.equal(after.account_status, 'active');
+    assert.equal(after.email, before.email);
+    assert.equal(after.deleted_at, null);
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM athlete_programs_v2 WHERE id=?').get(related.programId).count, 1);
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM booking_requests WHERE id=?').get(related.bookingId).count, 1);
+    const events = await call(env, 'admin/reports', 'GET', undefined, admin.token);
+    assert.equal(events.accounts.some((e) => e.action === 'account_trashed'), true);
+    assert.equal(events.accounts.some((e) => e.action === 'account_restored'), true);
+  } finally { db.close(); }
+});
+
+test('trash permissions are server-side and admins cannot trash themselves', async () => {
+  const { db, env } = makeEnv();
+  try {
+    const { admin, member, coach } = await registerAccounts(env);
+    const self = await call(env, 'admin/accounts/' + admin.user.id + '/trash', 'POST', {}, admin.token, 409);
+    assert.equal(self.error, 'account_protected');
+    await call(env, 'admin/management/permissions', 'PUT', {
+      email: 'coach@example.test', permissions: ['management.view'],
+    }, admin.token);
+    const manager = await call(env, 'auth/login', 'POST', { email: 'coach@example.test', password });
+    await call(env, 'admin/trash', 'GET', undefined, manager.token);
+    const denied = await call(env, 'admin/accounts/' + member.user.id + '/trash', 'POST', {}, manager.token, 403);
+    assert.equal(denied.error, 'forbidden');
+    const deniedRestore = await call(env, 'admin/accounts/' + member.user.id + '/restore', 'POST', {}, manager.token, 403);
+    assert.equal(deniedRestore.error, 'forbidden');
+  } finally { db.close(); }
+});
+
+test('trashing a coach preserves linked athlete programs', async () => {
+  const { db, env } = makeEnv();
+  try {
+    const { admin, member, coach } = await registerAccounts(env);
+    const related = seedRelated(db, member.user.id, coach.user.id);
+    await call(env, 'admin/accounts/' + coach.user.id + '/trash', 'POST', { reason: 'Role review' }, admin.token);
+    assert.equal(db.prepare('SELECT account_status FROM users WHERE id=?').get(coach.user.id).account_status, 'deleted');
+    assert.equal(db.prepare('SELECT athlete_user_id FROM athlete_programs_v2 WHERE id=?').get(related.programId).athlete_user_id, member.user.id);
+    const trash = await call(env, 'admin/trash?type=coaches', 'GET', undefined, admin.token);
+    assert.equal(trash.accounts.some((a) => a.id === coach.user.id), true);
+  } finally { db.close(); }
+});

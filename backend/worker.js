@@ -2678,7 +2678,8 @@ const ATHLETE_CRM_SELECT = `SELECT u.id,u.email,u.created_at AS registered_at,
     WHERE c.athlete_user_id=u.id AND c.status='accepted' AND c.workspace_status='active'
       AND cp.status='approved' AND cp.provider_type='coach' ORDER BY c.updated_at DESC LIMIT 1) AS assigned_coach_name
   FROM users u LEFT JOIN member_sports_profiles ms ON ms.user_id=u.id
-  WHERE u.role='provider' AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id)`;
+  WHERE u.role='provider' AND (u.account_status IS NULL OR u.account_status<>'deleted')
+    AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id)`;
 
 function shapeAthleteRow(row) {
   const sports = safeParse(row.sports_json);
@@ -3174,7 +3175,7 @@ async function adminApplications(request, env, user) {
       .map((row) => accountForViewer(row, user));
     return reply(request, env, { accounts, counts });
   }
-  const accountMatch = /^\/api\/admin\/accounts\/([\w-]{36})(?:\/(coach-application|suspend|reactivate|delete|update|role|hide-profile|restore-profile))?$/.exec(path);
+  const accountMatch = /^\/api\/admin\/accounts\/([\w-]{36})(?:\/(coach-application|suspend|reactivate|delete|trash|restore|update|role|hide-profile|restore-profile))?$/.exec(path);
   if (accountMatch && request.method === "GET" && !accountMatch[2]) {
     const row = await env.DB.prepare(`SELECT ${accountFields} FROM users u LEFT JOIN provider_profiles p ON p.user_id=u.id WHERE u.id=?`).bind(accountMatch[1]).first();
     if (!row) return reply(request, env, { error: "account_not_found" }, 404);
@@ -3183,6 +3184,28 @@ async function adminApplications(request, env, user) {
       ? events.results || []
       : (events.results || []).map((event) => ({ ...event, detail: null }));
     return reply(request, env, { account: accountForViewer(withMismatch(row), user), events: visibleEvents });
+  }
+  if (request.method === "GET" && path === "/api/admin/trash") {
+    const type = ["all", "athletes", "coaches", "pacers"].includes(requestUrl.searchParams.get("type") || "")
+      ? requestUrl.searchParams.get("type") : "all";
+    const rows = await env.DB.prepare(`SELECT u.id,u.email,u.role,u.account_status,u.status_reason,u.deleted_at,u.deleted_by,
+        COALESCE(p.display_name,ms.display_name,SUBSTR(u.email,1,INSTR(u.email,'@')-1)) AS display_name,
+        COALESCE(p.provider_type,'athlete') AS account_type,
+        (SELECT m.email FROM users m WHERE m.id=u.deleted_by) AS deleted_by_email
+      FROM users u LEFT JOIN provider_profiles p ON p.user_id=u.id
+      LEFT JOIN member_sports_profiles ms ON ms.user_id=u.id
+      WHERE u.account_status='deleted' ORDER BY u.deleted_at DESC LIMIT 200`).all();
+    const all = rows.results || [];
+    const filtered = type === "all" ? all : all.filter((row) => row.account_type === ({ athletes: "athlete", coaches: "coach", pacers: "pacer" })[type]);
+    return reply(request, env, {
+      accounts: filtered.map((row) => accountForViewer(row, user)), type,
+      counts: {
+        all: all.length,
+        athletes: all.filter((row) => row.account_type === "athlete").length,
+        coaches: all.filter((row) => row.account_type === "coach").length,
+        pacers: all.filter((row) => row.account_type === "pacer").length,
+      },
+    });
   }
   if (accountMatch && request.method === "POST" && accountMatch[2]) {
     if (!isSuperAdmin(user)) return reply(request, env, { error: "admin_required" }, 403);
@@ -3345,6 +3368,38 @@ async function adminApplications(request, env, user) {
       await env.DB.batch(statements);
       await recordAccountEvent(env, user.id, target.id, "account_deleted", { reason, profile_anonymized: Boolean(profile), bookings_preserved: true });
       return reply(request, env, { ok: true, anonymized: true, bookings_preserved: true });
+    }
+    if (action === "trash") {
+      if (isSuperAdmin(target) || target.id === user.id) return reply(request, env, { error: "account_protected" }, 409);
+      if (target.account_status === "deleted") return reply(request, env, { error: "account_already_deleted" }, 409);
+      const reason = text(body?.reason, 300);
+      const updated = await env.DB.prepare(`UPDATE users SET account_status='deleted',status_reason=?,
+        profile_visibility='hidden',profile_hidden_at=?,profile_hidden_reason=?,deleted_at=?,deleted_by=?,
+        previous_account_status=COALESCE(account_status,'active'),previous_profile_visibility=COALESCE(profile_visibility,'public')
+        WHERE id=? AND account_status<>'deleted'`)
+        .bind(reason || null, now, 'Moved to trash', now, user.id, target.id).run();
+      if (!updated.meta.changes) return reply(request, env, { error: "account_status_changed" }, 409);
+      await env.DB.batch([
+        env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id),
+        env.DB.prepare("DELETE FROM password_reset_tokens WHERE user_id=?").bind(target.id),
+      ]);
+      await recordAccountEvent(env, user.id, target.id, "account_trashed", { reason: reason || null, undoable: true });
+      return reply(request, env, { ok: true, account_status: "deleted", undoable: true });
+    }
+    if (action === "restore") {
+      if (!isSuperAdmin(user)) return reply(request, env, { error: "admin_required" }, 403);
+      if (isSuperAdmin(target) && target.id !== user.id) return reply(request, env, { error: "account_protected" }, 409);
+      if (target.account_status !== "deleted") return reply(request, env, { error: "account_not_deleted" }, 409);
+      const updated = await env.DB.prepare(`UPDATE users SET
+        account_status=COALESCE(previous_account_status,'active'),status_reason=NULL,
+        profile_visibility=COALESCE(previous_profile_visibility,'public'),profile_hidden_at=NULL,
+        profile_hidden_reason=NULL,deleted_at=NULL,deleted_by=NULL,
+        previous_account_status=NULL,previous_profile_visibility=NULL
+        WHERE id=? AND account_status='deleted'`).bind(target.id).run();
+      if (!updated.meta.changes) return reply(request, env, { error: "account_status_changed" }, 409);
+      await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id).run();
+      await recordAccountEvent(env, user.id, target.id, "account_restored", { undone: body?.undo === true });
+      return reply(request, env, { ok: true, account_status: "restored" });
     }
     return reply(request, env, { error: "unknown_account_action" }, 400);
   }
@@ -3753,15 +3808,15 @@ async function adminApplications(request, env, user) {
       WHEN p.provider_type IN ('nutritionist','physiotherapist','sports_massage_therapist') THEN (p.services_json NOT IN ('[]','') AND p.license_number<>'' AND p.license_issuer<>'')
       ELSE (p.bio NOT IN ('','Profile awaiting completion by the provider.')) END AS profile_complete`;
     const providers = await env.DB.prepare(`SELECT p.id,p.user_id,p.qualifications,p.services_json,p.coaching_mode,p.certificate_name,p.certificate_issuer,p.certificate_number,p.license_number,p.license_issuer,p.license_country,p.license_expires_on,p.license_status,p.license_review_note,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=p.id) AS gallery_slots,p.provider_type,p.display_name,p.country,p.city,p.specialties_json,p.languages_json,p.bio,p.experience_years,p.indicative_rate_qar,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.whatsapp_number,p.whatsapp_public,p.social_links_json,p.status,p.review_note,p.submission_state,p.submitted_at,p.pacer_details_json,CASE WHEN p.cv_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_cv,p.cv_file_name,p.cv_byte_size,p.cv_updated_at,p.updated_at,u.email,${completeness},${welcomeFields}
-      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='pending' AND COALESCE(p.submission_state,'submitted')<>'draft' ORDER BY p.created_at LIMIT 100`).all();
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE (u.account_status IS NULL OR u.account_status<>'deleted') AND p.status='pending' AND COALESCE(p.submission_state,'submitted')<>'draft' ORDER BY p.created_at LIMIT 100`).all();
     const draftProviders = await env.DB.prepare(`SELECT p.id,p.user_id,p.provider_type,p.display_name,p.country,p.city,p.submission_state,p.submitted_at,p.updated_at,u.email,${completeness}
-      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.status='pending' AND p.submission_state='draft' ORDER BY p.created_at LIMIT 100`).all();
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE (u.account_status IS NULL OR u.account_status<>'deleted') AND p.status='pending' AND p.submission_state='draft' ORDER BY p.created_at LIMIT 100`).all();
     const approvedProviders = await env.DB.prepare(`SELECT p.id,p.user_id,p.provider_type,p.display_name,p.country,p.city,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
-      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='approved' ORDER BY p.updated_at DESC LIMIT 100`).all();
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE (u.account_status IS NULL OR u.account_status<>'deleted') AND p.status='approved' ORDER BY p.updated_at DESC LIMIT 100`).all();
     const rejectedProviders = await env.DB.prepare(`SELECT p.id,p.user_id,p.provider_type,p.display_name,p.country,p.city,p.review_note,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
-      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='rejected' AND (p.review_note IS NULL OR p.review_note<>'Removed by owner') ORDER BY p.updated_at DESC LIMIT 100`).all();
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE (u.account_status IS NULL OR u.account_status<>'deleted') AND p.status='rejected' AND (p.review_note IS NULL OR p.review_note<>'Removed by owner') ORDER BY p.updated_at DESC LIMIT 100`).all();
     const suspendedProviders = await env.DB.prepare(`SELECT p.id,p.user_id,p.provider_type,p.display_name,p.country,p.city,p.review_note,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
-      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE p.status='rejected' AND p.review_note='Removed by owner' ORDER BY p.updated_at DESC LIMIT 100`).all();
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE (u.account_status IS NULL OR u.account_status<>'deleted') AND p.status='rejected' AND p.review_note='Removed by owner' ORDER BY p.updated_at DESC LIMIT 100`).all();
     const bookings = await env.DB.prepare(`SELECT id,provider_id,(SELECT display_name FROM provider_profiles WHERE id=booking_requests.provider_id) AS coach_name,(SELECT provider_type FROM provider_profiles WHERE id=booking_requests.provider_id) AS provider_type,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,status,payment_status,session_type,service_name,distance,target_pace,program_duration_months,created_at
       FROM booking_requests ORDER BY CASE WHEN status IN ('received','reviewing') THEN 0 ELSE 1 END, created_at DESC LIMIT 100`).all();
     return reply(request, env, {
