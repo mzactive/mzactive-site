@@ -74,6 +74,17 @@ test('preselected Pacer bookings use real services and pacing units', async ({ p
   assertOfflineSafe(mock);
 });
 
+test('Run IQ promo card is visible and links to the assessment', async ({ page }) => {
+  const mock = await installApiMock(page);
+  await page.goto('/pacer.html');
+  const promo = page.locator('#runiqPromo');
+  await expect(promo).toBeVisible();
+  await expect(promo).toContainText("What's Your Running Pace?");
+  await expect(promo).toContainText('Free assessment. No signup required to see your results.');
+  await expect(promo.locator('a.btn')).toHaveAttribute('href', 'https://mzactive.com/run-iq.html');
+  assertOfflineSafe(mock);
+});
+
 test('Arabic mode renders the Pacers page in RTL with translated copy', async ({ page }) => {
   await page.addInitScript(() => {
     try { window.localStorage.setItem('mzactive-language-manual', 'ar'); } catch { /* storage blocked */ }
@@ -84,6 +95,8 @@ test('Arabic mode renders the Pacers page in RTL with translated copy', async ({
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.locator('body')).toHaveClass(/rtl/);
   await expect(page.locator('header .main-nav')).toContainText('المرافقون');
+  await expect(page.locator('#runiqPromo')).toContainText('ما وتيرتك في الجري؟');
+  await expect(page.locator('#runiqPromo a.btn')).toHaveText('اكتشف وتيرتي');
   await expect(page.locator('#pacerEmpty')).toContainText('ملفات أول المرافقين قيد المراجعة.');
   await expect(page.locator('#bookingStatus')).toContainText('طلبك ليس حجزاً مؤكداً');
   assertOfflineSafe(mock);
