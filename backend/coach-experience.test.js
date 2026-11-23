@@ -127,3 +127,17 @@ test('program send confirms delivery, notifies the athlete and prevents duplicat
     assert.equal(completed.counts.completed, 1);
   } finally { restore(); db.close(); }
 });
+
+test('notification preferences can disable dashboard and email delivery', async () => {
+  const { db, call } = setup();
+  try {
+    const { coach, athlete } = await fixtures(db, call);
+    const request = await call('connections', 'POST', { coach_user_id: coach.user.id }, athlete.token, 201);
+    await call('dashboard/notification-preferences', 'PATCH', { dashboard_enabled: false, email_enabled: false }, coach.token);
+    const prefs = await call('dashboard/notification-preferences', 'GET', undefined, coach.token);
+    assert.equal(prefs.dashboard_enabled, false);
+    assert.equal(prefs.email_enabled, false);
+    const notices = db.prepare("SELECT COUNT(*) AS count FROM user_notifications WHERE user_id=? AND entity_id=?").get(coach.user.id, request.id).count;
+    assert.ok(notices >= 1, 'existing notice is preserved');
+  } finally { db.close(); }
+});
