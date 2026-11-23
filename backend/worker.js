@@ -1,6 +1,7 @@
 import { ATHLETE_INVITATION_TTL_DAYS, onboardingIncomplete, lastActivityAt, isActive, coachMatches, invitationEmail } from "./athlete-crm.js";
 import { handleCommunityGroupsApi } from "./community-groups.js";
 import { handleAiCoachApi } from "./ai-coach.js";
+import { cleanAssessment, analyzeAssessment, buildStarterPlan, mondayOf } from "./run-iq.js";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
 const PASSWORD_RESET_TTL_SECONDS = 15 * 60;
@@ -3897,6 +3898,140 @@ async function canModifyPost(env, user, post) {
   return false;
 }
 
+
+async function handleRunIqApi(request, env, url) {
+  const path = url.pathname, method = request.method;
+  if (path === "/api/run-iq/preview" && method === "POST") {
+    if (!await rateLimit(request, env, "run-iq-preview", 12)) return reply(request, env, { error: "rate_limited" }, 429);
+    const assessment = cleanAssessment(await readJson(request));
+    if (!assessment) return reply(request, env, { error: "invalid_assessment" }, 400);
+    return reply(request, env, { assessment, preview: analyzeAssessment(assessment) });
+  }
+  if (path === "/api/run-iq/coaches" && method === "GET") {
+    const city = text(url.searchParams.get("city") || "", 80).toLowerCase();
+    const rows = await env.DB.prepare(`SELECT p.id,p.display_name,p.city,p.country,p.specialties_json,p.services_json,p.languages_json
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id
+      WHERE p.status='approved' AND p.provider_type='coach' AND ${publicVisibility("u")}
+        AND lower(p.specialties_json) LIKE '%run%'
+      ORDER BY CASE WHEN lower(p.city)=? THEN 0 ELSE 1 END, p.display_name LIMIT 3`).bind(city).all();
+    return reply(request, env, { coaches: (rows.results || []).map(row => ({
+      id: row.id, display_name: row.display_name, city: row.city, country: row.country,
+      specialties: safeParse(row.specialties_json) || [], services: safeParse(row.services_json) || [],
+      languages: safeParse(row.languages_json) || [], profile_url: MOMO_PROFILE_BASE + encodeURIComponent(row.id),
+    })) });
+  }
+
+  const auth = await authenticated(request, env);
+  if (auth.response) return auth.response;
+  const user = auth.user;
+  if (!await isMemberAccount(env, user)) return reply(request, env, { error: "member_account_required" }, 403);
+
+  if (path === "/api/run-iq/save" && method === "POST") {
+    if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
+    const body = await readJson(request), assessment = cleanAssessment(body?.assessment);
+    if (!assessment) return reply(request, env, { error: "invalid_assessment" }, 400);
+    const preview = analyzeAssessment(assessment), weekStart = mondayOf();
+    const existing = await env.DB.prepare("SELECT program_id FROM run_iq_plans WHERE user_id=?").bind(user.id).first();
+    if (existing) return reply(request, env, { error: "plan_exists", program_id: existing.program_id }, 409);
+    const plan = buildStarterPlan(assessment, preview, weekStart);
+    const programId = randomId(), now = new Date().toISOString();
+    const statements = [
+      env.DB.prepare(`INSERT INTO run_iq_assessments(user_id,assessment_json,preview_json,updated_at) VALUES(?,?,?,?)
+        ON CONFLICT(user_id) DO UPDATE SET assessment_json=excluded.assessment_json,preview_json=excluded.preview_json,updated_at=excluded.updated_at`)
+        .bind(user.id, JSON.stringify(assessment), JSON.stringify(preview), now),
+      env.DB.prepare(`INSERT INTO athlete_programs_v2(id,coach_user_id,athlete_user_id,athlete_name,athlete_phone,athlete_type,week_start,coach_note,created_at,source)
+        VALUES(?,?,?,?,?, 'runner', ?,?,?,'ai_self')`)
+        .bind(programId, user.id, user.id, text(body?.name, 80) || "MZActive Athlete",
+          text(body?.phone, 40) || "", weekStart, plan.coach_note, now),
+    ];
+    plan.sessions.forEach((session, index) => {
+      statements.push(env.DB.prepare(`INSERT INTO athlete_program_sessions_v2(id,program_id,session_code,day_key,sport_type,details,sort_order)
+        VALUES(?,?,?,?,?,?,?)`).bind(randomId(), programId, `RIQ-${String(index + 1).padStart(2, "0")}`,
+          session.day_key, session.sport === "recovery" ? "recovery" : session.sport === "strength" ? "strength" : "run",
+          session.detail, index));
+    });
+    statements.push(env.DB.prepare("INSERT INTO run_iq_plans(user_id,assessment_id,program_id,created_at) VALUES(?,?,?,?)")
+      .bind(user.id, user.id, programId, now));
+    await env.DB.batch(statements);
+    return reply(request, env, { saved: true, program_id: programId, week_start: weekStart, sessions: plan.sessions.length }, 201);
+  }
+
+  if (path === "/api/run-iq/me" && method === "GET") {
+    const [assessment, planRow] = await Promise.all([
+      env.DB.prepare("SELECT * FROM run_iq_assessments WHERE user_id=?").bind(user.id).first(),
+      env.DB.prepare("SELECT * FROM run_iq_plans WHERE user_id=?").bind(user.id).first(),
+    ]);
+    if (!assessment) return reply(request, env, { assessment: null, preview: null, program: null, shares: [] });
+    let program = null;
+    if (planRow) {
+      const rows = await env.DB.prepare(`SELECT s.id,s.session_code,s.day_key,s.sport_type,s.details,s.sort_order,
+          c.completed_at,c.actual_km,c.duration_minutes,l.effort,l.notes,l.pace
+        FROM athlete_program_sessions_v2 s
+        LEFT JOIN athlete_program_completions_v2 c ON c.session_id=s.id AND c.athlete_user_id=?
+        LEFT JOIN run_iq_workout_logs l ON l.session_id=s.id AND l.user_id=?
+        WHERE s.program_id=? ORDER BY s.sort_order`).bind(user.id, user.id, planRow.program_id).all();
+      program = { id: planRow.program_id, sessions: rows.results || [] };
+    }
+    const shares = await env.DB.prepare(`SELECT s.id,s.coach_user_id,s.status,s.created_at,s.revoked_at,p.display_name AS coach_name,p.city
+      FROM run_iq_shares s JOIN provider_profiles p ON p.user_id=s.coach_user_id WHERE s.user_id=? ORDER BY s.created_at DESC`)
+      .bind(user.id).all();
+    return reply(request, env, {
+      assessment: safeParse(assessment.assessment_json), preview: safeParse(assessment.preview_json),
+      program, shares: shares.results || [],
+    });
+  }
+
+  const logMatch = /^\/api\/run-iq\/sessions\/([\w-]{36})\/log$/.exec(path);
+  if (logMatch && method === "POST") {
+    if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
+    const session = await env.DB.prepare(`SELECT s.id FROM athlete_program_sessions_v2 s
+      JOIN athlete_programs_v2 p ON p.id=s.program_id WHERE s.id=? AND p.athlete_user_id=?`)
+      .bind(logMatch[1], user.id).first();
+    if (!session) return reply(request, env, { error: "session_unavailable" }, 404);
+    const body = await readJson(request), km = Number(body?.actual_km), minutes = Number(body?.duration_minutes);
+    const effort = ["easy", "moderate", "hard"].includes(body?.effort) ? body.effort : "";
+    if (!Number.isFinite(km) || km < 0 || km > 500 || !Number.isInteger(minutes) || minutes < 0 || minutes > 720 || !effort) {
+      return reply(request, env, { error: "invalid_workout_log" }, 400);
+    }
+    const pace = km > 0 && minutes > 0
+      ? `${Math.floor(minutes / km)}:${String(Math.round((minutes / km - Math.floor(minutes / km)) * 60)).padStart(2, "0")}/km`
+      : null;
+    const now = new Date().toISOString();
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO athlete_program_completions_v2(session_id,athlete_user_id,completed_at,actual_km,duration_minutes)
+        VALUES(?,?,?,?,?) ON CONFLICT(session_id,athlete_user_id) DO UPDATE SET
+        completed_at=excluded.completed_at,actual_km=excluded.actual_km,duration_minutes=excluded.duration_minutes`)
+        .bind(session.id, user.id, now, km, minutes),
+      env.DB.prepare(`INSERT INTO run_iq_workout_logs(id,user_id,session_id,effort,notes,pace,created_at)
+        VALUES(?,?,?,?,?,?,?) ON CONFLICT(session_id) DO UPDATE SET effort=excluded.effort,notes=excluded.notes,pace=excluded.pace,created_at=excluded.created_at`)
+        .bind(randomId(), user.id, session.id, effort, text(body?.notes, 500), pace, now),
+    ]);
+    return reply(request, env, { logged: true, pace });
+  }
+
+  if (path === "/api/run-iq/share" && method === "POST") {
+    if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
+    const body = await readJson(request);
+    if (body?.consent !== true) return reply(request, env, { error: "consent_required" }, 400);
+    const coach = await env.DB.prepare(`SELECT p.id,p.user_id FROM provider_profiles p JOIN users u ON u.id=p.user_id
+      WHERE p.id=? AND p.status='approved' AND p.provider_type='coach' AND ${publicVisibility("u")}
+      AND lower(p.specialties_json) LIKE '%run%'`).bind(text(body?.coach_user_id, 36)).first();
+    if (!coach) return reply(request, env, { error: "coach_unavailable" }, 404);
+    const now = new Date().toISOString();
+    await env.DB.prepare(`INSERT INTO run_iq_shares(id,user_id,coach_user_id,status,created_at,revoked_at)
+      VALUES(?,?,?,'active',?,NULL) ON CONFLICT(user_id,coach_user_id) DO UPDATE SET status='active',revoked_at=NULL,created_at=excluded.created_at`)
+      .bind(randomId(), user.id, coach.user_id, now).run();
+    return reply(request, env, { shared: true, coach_user_id: coach.user_id });
+  }
+  const revokeMatch = /^\/api\/run-iq\/share\/([\w-]{36})$/.exec(path);
+  if (revokeMatch && method === "DELETE") {
+    const updated = await env.DB.prepare("UPDATE run_iq_shares SET status='revoked',revoked_at=? WHERE user_id=? AND coach_user_id=? AND status='active'")
+      .bind(new Date().toISOString(), user.id, revokeMatch[1]).run();
+    return updated.meta.changes ? reply(request, env, { revoked: true }) : reply(request, env, { error: "share_not_active" }, 404);
+  }
+  return reply(request, env, { error: "not_found" }, 404);
+}
+
 async function handleCommunityApi(request, env, url) {
   const path = url.pathname, method = request.method;
 
@@ -4636,6 +4771,7 @@ export default {
       const contact = managementContactConfig(env);
       return reply(request, env, { contact: { whatsapp: contact.whatsapp, whatsapp_configured: contact.whatsapp_configured } });
     }
+    if (url.pathname.startsWith("/api/run-iq")) return handleRunIqApi(request, env, url);
     if (request.method === "POST" && url.pathname === "/api/assistant/chat") return assistantChat(request, env);
     if (request.method === "GET" && url.pathname === "/api/blog/posts") return publicBlogPosts(request, env);
     if (request.method === "GET" && url.pathname === "/api/providers") return publicProviders(url, request, env);
