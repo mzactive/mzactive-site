@@ -84,6 +84,10 @@ test('explore-by-sport cards load local photos and keep the shared card design',
   expect(kickboxing.src).toContain('assets/images/sports/kickboxing.webp');
   expect(boxing.currentSrc).toContain('assets/images/responsive/sports/boxing-');
   expect(kickboxing.currentSrc).toContain('assets/images/responsive/sports/kickboxing-');
+  expect(details[1].src).toContain('women-fitness.jpg');
+  expect(details[2].src).toContain('assets/images/sports/bodybuilding.jpg');
+  expect(details[2].src).not.toContain('women-fitness');
+  expect(details[2].currentSrc).toContain('assets/images/responsive/sports/bodybuilding-');
 });
 
 test('every explore-by-sport card remains clickable', async ({ page }) => {
