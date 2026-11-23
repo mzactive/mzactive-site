@@ -18,7 +18,7 @@ test('coach dashboard has My Athletes and confirmed program delivery UI', () => 
   assert.match(html, /week\.dataset\.programId=p\.id/);
   const js = read('assets/js/coach-dashboard.js');
   for (const marker of [
-    'dashboard/athletes', 'data-connection-id', 'programs/\' + encodeURIComponent(programId) + \'/send',
+    'dashboard/athletes', 'data-connection-id', 'programs/\' + encodeURIComponent(state.programId) + \'/send',
     'athlete_user_id', 'record-focus', 'data-en="My Athletes"',
   ]) assert.ok(js.includes(marker), marker);
 });
@@ -36,4 +36,15 @@ test('additive migration is present and safe', () => {
   assert.match(sql, /ALTER TABLE user_notifications ADD COLUMN href TEXT/);
   assert.match(sql, /ALTER TABLE athlete_programs_v2 ADD COLUMN sent_at TEXT/);
   assert.match(sql, /CREATE TABLE IF NOT EXISTS coach_notification_outbox/);
+});
+
+test('coach quick actions, settings and athlete coach display are wired', () => {
+  const js = read('assets/js/coach-dashboard.js');
+  for (const marker of ['coachQuickActions', 'notification-preferences', 'memberCoaches', 'My Profile', 'Settings']) {
+    assert.ok(js.includes(marker), marker);
+  }
+  const worker = read('backend/worker.js');
+  assert.match(worker, /CREATE TABLE|user_notification_preferences/);
+  assert.match(worker, /connectedCoaches = rows\.results/);
+  assert.match(read('backend/migrations/0039_user_notification_preferences.sql'), /user_notification_preferences/);
 });

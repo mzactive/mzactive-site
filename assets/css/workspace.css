@@ -66,3 +66,13 @@ html[dir="rtl"] #communityWorkspace .ws-notice { border-radius: 12px 0 0 12px; }
 #sendProgramDialog .btn{width:100%;margin-top:10px}
 html[dir=rtl] .athlete-row{text-align:right}
 @media(max-width:600px){.athlete-row{grid-template-columns:1fr}.athlete-row .actions .btn,.athlete-row .actions button{flex:1 1 46%}}
+
+/* Coach one-tap actions and settings */
+.coach-quick-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.coach-quick-actions .quick-action{display:flex;align-items:center;justify-content:center;min-height:52px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--text);font-weight:800;text-align:center;text-decoration:none}
+.coach-quick-actions .quick-action:hover,.coach-quick-actions .quick-action:focus-visible{border-color:var(--gold);color:var(--gold)}
+#coachSettings{width:min(420px,calc(100vw - 24px));padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--text)}
+#coachSettings label{display:flex;gap:10px;align-items:center;margin:12px 0}
+#coachSettings .actions{margin-top:14px}
+#memberCoachList{margin-bottom:16px}
+@media(max-width:520px){.coach-quick-actions{grid-template-columns:1fr 1fr}.coach-quick-actions .quick-action{min-height:56px;font-size:.85rem}}

@@ -70,3 +70,36 @@ test('Arabic coach dashboard is RTL with translated My Athletes', async ({ page 
   await expect(page.locator('#coachMyAthletes h3')).toHaveText('رياضيون');
   assertOfflineSafe(mock);
 });
+
+test('coach quick actions open notification settings and save preferences', async ({ page }) => {
+  const mock = await installApiMock(page, {
+    overrides: {
+      'GET /api/me/access': coachAccess,
+      'GET /api/dashboard': () => json(dashboard),
+      'PATCH /api/dashboard/notification-preferences': json({ email_enabled: false, dashboard_enabled: true }),
+    },
+  });
+  await seedSession(page, { storage: 'session' });
+  await page.goto('/dashboard.html');
+  await expect(page.locator('#coachQuickActions')).toBeVisible();
+  await page.locator('#coachQuickActions a[href="#coachSettings"]').click();
+  const dialog = page.locator('#coachSettings');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('#prefEmail').uncheck();
+  await dialog.locator('#prefSave').click();
+  await expect.poll(() => mock.calls.some(call => call.method === 'PATCH' && call.path === '/api/dashboard/notification-preferences' && call.body?.email_enabled === false)).toBe(true);
+  assertOfflineSafe(mock);
+});
+
+test('athlete dashboard shows the connected coach', async ({ page }) => {
+  const mock = await installApiMock(page, {
+    overrides: {
+      'GET /api/me/access': json({ user: { id: 'e2e-member' }, account_type: 'member', dashboard_path: '/dashboard.html', management: { enabled: false, permissions: [] } }),
+      'GET /api/dashboard': () => json({ role: 'member', teams: [], programs: [], connectedCoaches: [{ id: 'c1', status: 'accepted', workspace_status: 'active', display_name: 'E2E Coach', city: 'Doha' }] }),
+    },
+  });
+  await seedSession(page, { storage: 'session' });
+  await page.goto('/dashboard.html');
+  await expect(page.locator('#memberCoachList')).toContainText('E2E Coach');
+  assertOfflineSafe(mock);
+});

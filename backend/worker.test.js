@@ -189,7 +189,7 @@ test("member dashboard reports the member role despite the legacy provider datab
     headers: { authorization: `Bearer ${token}` },
   }), env);
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { role: "member", teams: [], programs: [] });
+  assert.deepEqual(await response.json(), { role: "member", teams: [], programs: [], connectedCoaches: [] });
 });
 
 test("approved coaches can create teams with an eight-character share code", async () => {

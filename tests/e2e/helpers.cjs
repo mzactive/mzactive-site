@@ -466,6 +466,10 @@ function defaultApiHandler(ctx, state) {
     if (method === 'POST') return json({ id: 'conn-e2e-new', status: 'pending' }, 201);
     return json({ connections: state.connections });
   }
+  if (urlPath === '/api/dashboard/notification-preferences') {
+    if (method === 'PATCH') return json({ email_enabled: ctx.body?.email_enabled !== false, dashboard_enabled: ctx.body?.dashboard_enabled !== false });
+    return json({ email_enabled: true, dashboard_enabled: true });
+  }
   if (urlPath === '/api/dashboard/athletes') {
     return json({
       athletes: [

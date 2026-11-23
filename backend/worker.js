@@ -1174,6 +1174,11 @@ async function aiBrainOverview(env) {
 
 async function queueCoachEmail(env, { eventKey, to, subject, body }) {
   if (!emailDeliveryConfigured(env) || !to) return { ok: false, error: "email_unavailable" };
+  const recipient = await env.DB.prepare("SELECT id FROM users WHERE email=?").bind(to.toLowerCase()).first();
+  if (recipient) {
+    const prefs = await userNotificationPreferences(env, recipient.id);
+    if (!prefs.email_enabled) return { ok: false, error: "email_disabled" };
+  }
   const id = randomId(), now = new Date().toISOString();
   const claim = await env.DB.prepare(`INSERT OR IGNORE INTO coach_notification_outbox
     (id,event_key,recipient,subject,body,status,created_at) VALUES(?,?,?,?,?,'pending',?)`)
@@ -1551,8 +1556,18 @@ async function viewerKey(request, env, user) {
   return `ip:${await sha256(ip)}`;
 }
 
+async function userNotificationPreferences(env, userId) {
+  const row = await env.DB.prepare("SELECT email_enabled,dashboard_enabled FROM user_notification_preferences WHERE user_id=?").bind(userId).first();
+  if (row) return row;
+  await env.DB.prepare("INSERT OR IGNORE INTO user_notification_preferences(user_id,email_enabled,dashboard_enabled,updated_at) VALUES(?,1,1,?)")
+    .bind(userId, new Date().toISOString()).run();
+  return { email_enabled: 1, dashboard_enabled: 1 };
+}
+
 async function createNotification(env, userId, type, title, body = "", entityType = "", entityId = "", href = "") {
   if (!userId) return;
+  const prefs = await userNotificationPreferences(env, userId);
+  if (!prefs.dashboard_enabled) return;
   await env.DB.prepare(`INSERT INTO user_notifications(id,user_id,type,title,body,entity_type,entity_id,href,created_at)
     VALUES(?,?,?,?,?,?,?,?,?)`).bind(randomId(), userId, type, text(title, 160), text(body, 500),
     text(entityType, 40), text(entityId, 36), text(href, 240), new Date().toISOString()).run();
@@ -2496,7 +2511,14 @@ async function dashboardOverview(request, env, user) {
         ON c.session_id=s.id AND c.athlete_user_id=?
       WHERE s.program_id=? ORDER BY s.sort_order`).bind(program.athlete_user_id, program.id).all()));
   const programs = allPrograms.map((program, index) => ({ ...program, sessions: sessionRows[index].results || [] }));
-  return reply(request, env, { role: dashboardRole, teams, programs, ...(dashboardRole === "admin" ? { coaches } : {}) });
+  let connectedCoaches = [];
+  if (dashboardRole === "member") {
+    const rows = await env.DB.prepare(`SELECT c.id,c.status,c.workspace_status,p.display_name,p.city,p.provider_type
+      FROM coach_connections c JOIN provider_profiles p ON p.user_id=c.coach_user_id
+      WHERE c.athlete_user_id=? ORDER BY c.updated_at DESC LIMIT 20`).bind(user.id).all();
+    connectedCoaches = rows.results || [];
+  }
+  return reply(request, env, { role: dashboardRole, teams, programs, connectedCoaches, ...(dashboardRole === "admin" ? { coaches } : {}) });
 }
 
 async function canManageTeam(env, user, teamId) {
@@ -2508,6 +2530,19 @@ async function canManageTeam(env, user, teamId) {
 async function dashboardApi(request, env, user) {
   const url = new URL(request.url), path = url.pathname;
   if (request.method === "GET" && path === "/api/dashboard") return dashboardOverview(request, env, user);
+  if (path === "/api/dashboard/notification-preferences") {
+    const prefs = await userNotificationPreferences(env, user.id);
+    if (request.method === "PATCH") {
+      const body = await readJson(request);
+      const email = body?.email_enabled === undefined ? prefs.email_enabled : Number(body.email_enabled === true || body.email_enabled === 1);
+      const dashboard = body?.dashboard_enabled === undefined ? prefs.dashboard_enabled : Number(body.dashboard_enabled === true || body.dashboard_enabled === 1);
+      await env.DB.prepare(`INSERT INTO user_notification_preferences(user_id,email_enabled,dashboard_enabled,updated_at)
+        VALUES(?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET email_enabled=excluded.email_enabled,dashboard_enabled=excluded.dashboard_enabled,updated_at=excluded.updated_at`)
+        .bind(user.id, email, dashboard, new Date().toISOString()).run();
+      return reply(request, env, { email_enabled: Boolean(email), dashboard_enabled: Boolean(dashboard) });
+    }
+    return reply(request, env, { email_enabled: Boolean(prefs.email_enabled), dashboard_enabled: Boolean(prefs.dashboard_enabled) });
+  }
   if (path === "/api/dashboard/athletes" && request.method === "GET") {
     const rows = await env.DB.prepare(`SELECT c.id,c.status,c.workspace_status,c.created_at,c.updated_at,c.athlete_accepted_at,
         a.display_name,a.city,a.sports_json,a.preferred_language,a.photo_updated_at,

@@ -149,10 +149,65 @@
     });
   }
 
+  function quickActions() {
+    if ($('coachQuickActions') || !$('coachPanel')) return;
+    const nav = el('nav', 'coach-quick-actions'); nav.id = 'coachQuickActions';
+    const items = [
+      ['#coachProfilePanel', 'My Profile', 'ملفي'],
+      ['#coachMyAthletes', 'My Athletes', 'رياضيون'],
+      ['#whatsappTrainingForm', 'Training Programs', 'البرامج التدريبية'],
+      ['#communityWorkspace', 'Messages & Requests', 'الرسائل والطلبات'],
+      ['#coachCommunityPanel', 'My Posts', 'منشوراتي'],
+      ['#coachSettings', 'Settings', 'الإعدادات'],
+    ];
+    for (const [href, en, ar] of items) {
+      const a = el('a', 'quick-action', lang() === 'ar' ? ar : en); a.href = href; nav.append(a);
+    }
+    $('coachPanel').prepend(nav);
+  }
+  async function settingsDialog() {
+    let dialog = $('coachSettings');
+    if (!dialog) {
+      dialog = el('dialog', 'crm-dialog'); dialog.id = 'coachSettings';
+      dialog.innerHTML = `<h3>${lang() === 'ar' ? 'الإعدادات' : 'Settings'}</h3>
+        <label><input id="prefEmail" type="checkbox" checked> ${lang() === 'ar' ? 'إشعارات البريد' : 'Email notifications'}</label>
+        <label><input id="prefDashboard" type="checkbox" checked> ${lang() === 'ar' ? 'إشعارات لوحة التحكم' : 'Dashboard notifications'}</label>
+        <div class="actions"><button id="prefSave" class="btn" type="button">${lang() === 'ar' ? 'حفظ' : 'Save'}</button></div>`;
+      document.body.append(dialog);
+    }
+    try {
+      const prefs = await api('/api/dashboard/notification-preferences');
+      $('prefEmail').checked = Boolean(prefs.email_enabled);
+      $('prefDashboard').checked = Boolean(prefs.dashboard_enabled);
+    } catch {}
+    $('prefSave').onclick = async () => {
+      try {
+        await api('/api/dashboard/notification-preferences', { method: 'PATCH', body: JSON.stringify({ email_enabled: $('prefEmail').checked, dashboard_enabled: $('prefDashboard').checked }) });
+        ($('notice') || document.body).textContent = lang() === 'ar' ? 'تم حفظ الإعدادات.' : 'Settings saved.'; dialog.close();
+      } catch (error) { ($('notice') || document.body).textContent = error.message || t('failed'); }
+    };
+    if (!dialog.open) dialog.showModal();
+  }
+  function memberCoaches(data) {
+    if (!$('memberPanel') || $('memberCoachList')) return;
+    const section = el('section', 'panel'); section.id = 'memberCoachList';
+    section.append(el('h3', '', lang() === 'ar' ? 'مدربي' : 'My coaches'));
+    const list = el('div', 'cards');
+    for (const c of data.connectedCoaches || []) {
+      const row = el('article', 'crm-row');
+      row.append(el('strong', '', c.display_name || 'MZ Active coach'));
+      row.append(el('span', 'athlete-meta', [c.status, c.workspace_status, c.city].filter(Boolean).join(' · ')));
+      list.append(row);
+    }
+    if (!list.children.length) list.append(el('p', 'muted', lang() === 'ar' ? 'لا يوجد مدرب مرتبط بعد.' : 'No connected coach yet.'));
+    section.append(list); $('memberPanel').prepend(section);
+  }
+
   document.addEventListener('mzactive:dashboard-loaded', () => {
     const data = window.mzStudioDashboard;
-    if (!data || data.role !== 'provider') return;
-    mount(); load();
+    if (!data) return;
+    if (data.role === 'provider') { quickActions(); $('coachQuickActions')?.querySelector('[href="#coachSettings"]')?.addEventListener('click', event => { event.preventDefault(); settingsDialog(); }); mount(); load(); }
+    if (data.role === 'member') memberCoaches(data);
   });
   document.addEventListener('mzactive:language-change', () => { if ($('coachMyAthletes')) render(); });
 })();
