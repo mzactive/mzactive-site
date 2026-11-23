@@ -631,6 +631,10 @@
       root.querySelector('[data-count]').textContent = `${t('Unread', 'غير مقروء')}: ${data.unread || 0}`;
       for (const notice of data.notifications || []) {
         const card = item(notice.title, [notice.body, date(notice.created_at)].filter(Boolean).join(' · '));
+        if (notice.href) {
+          const link = document.createElement('a'); link.href = notice.href;
+          link.className = 'btn'; link.textContent = t('Open', 'فتح'); card.append(link);
+        }
         if (!notice.read_at) card.append(button(t('Mark read', 'تحديد كمقروء'), async () => {
           try { await api(`/dashboard/notifications/${encodeURIComponent(notice.id)}`, { method: 'PATCH' }); await loadNotifications(); }
           catch (error) { alert(error.message); }

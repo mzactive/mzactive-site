@@ -466,6 +466,19 @@ function defaultApiHandler(ctx, state) {
     if (method === 'POST') return json({ id: 'conn-e2e-new', status: 'pending' }, 201);
     return json({ connections: state.connections });
   }
+  if (urlPath === '/api/dashboard/athletes') {
+    return json({
+      athletes: [
+        { id: 'conn-e2e-1', display_name: 'E2E Pending Athlete', status: 'pending', workspace_status: 'pending', bucket: 'pending', sports: ['running'], city: 'Doha', program_count: 0 },
+        { id: 'conn-e2e-2', display_name: 'E2E Active Athlete', status: 'accepted', workspace_status: 'active', bucket: 'active', sports: ['running'], city: 'Doha', program_count: 1 },
+        { id: 'conn-e2e-3', display_name: 'E2E Past Athlete', status: 'accepted', workspace_status: 'closed', bucket: 'completed', sports: ['running'], city: 'Doha', program_count: 2 },
+      ],
+      counts: { pending: 1, active: 1, completed: 1 },
+    });
+  }
+  if (/^\/api\/connections\/[^/]+\/close$/.test(urlPath) && method === 'POST') return json({ closed: true });
+  if (/^\/api\/connections\/[^/]+$/.test(urlPath) && method === 'PATCH') return json({ updated: true, status: ctx.body?.status || 'accepted' });
+  if (/^\/api\/dashboard\/programs\/[^/]+\/send$/.test(urlPath) && method === 'POST') return json({ sent: true, program_id: urlPath.split('/')[4], sent_at: '2026-11-23T12:00:00.000Z', href: '/dashboard.html?program=e2e#athleteProgramHistory' });
   if (/^\/api\/connections\/[^/]+\/workspace$/.test(urlPath)) {
     const id = urlPath.split('/')[3];
     return json({

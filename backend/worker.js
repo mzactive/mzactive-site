@@ -1172,6 +1172,24 @@ async function aiBrainOverview(env) {
   };
 }
 
+async function queueCoachEmail(env, { eventKey, to, subject, body }) {
+  if (!emailDeliveryConfigured(env) || !to) return { ok: false, error: "email_unavailable" };
+  const id = randomId(), now = new Date().toISOString();
+  const claim = await env.DB.prepare(`INSERT OR IGNORE INTO coach_notification_outbox
+    (id,event_key,recipient,subject,body,status,created_at) VALUES(?,?,?,?,?,'pending',?)`)
+    .bind(id, text(eventKey, 180), to, text(subject, 180), text(body, 4000), now).run();
+  if (!claim.meta.changes) return { ok: true, duplicate: true };
+  const result = await sendManagementEmail(env, to, subject, body);
+  if (result.ok) {
+    await env.DB.prepare("UPDATE coach_notification_outbox SET status='sent',provider_id=?,sent_at=? WHERE id=?")
+      .bind(result.provider_id || "", new Date().toISOString(), id).run();
+    return { ok: true, provider_id: result.provider_id };
+  }
+  await env.DB.prepare("UPDATE coach_notification_outbox SET status='failed',error=? WHERE id=?")
+    .bind(result.error || "email_delivery_failed", id).run();
+  return { ok: false, error: result.error };
+}
+
 const COACH_CONTACT_PURPOSES = ["profile_support","bookings","programs","technical_issue","other"];
 const COACH_CONTACT_STATES = ["drafted","opened","confirmed_sent","completed","failed"];
 const MOMO_FIELD_LABELS = {
@@ -1533,10 +1551,11 @@ async function viewerKey(request, env, user) {
   return `ip:${await sha256(ip)}`;
 }
 
-async function createNotification(env, userId, type, title, body = "", entityType = "", entityId = "") {
+async function createNotification(env, userId, type, title, body = "", entityType = "", entityId = "", href = "") {
   if (!userId) return;
-  await env.DB.prepare(`INSERT INTO user_notifications(id,user_id,type,title,body,entity_type,entity_id,created_at)
-    VALUES(?,?,?,?,?,?,?,?)`).bind(randomId(), userId, type, text(title, 160), text(body, 500), text(entityType, 40), text(entityId, 36), new Date().toISOString()).run();
+  await env.DB.prepare(`INSERT INTO user_notifications(id,user_id,type,title,body,entity_type,entity_id,href,created_at)
+    VALUES(?,?,?,?,?,?,?,?,?)`).bind(randomId(), userId, type, text(title, 160), text(body, 500),
+    text(entityType, 40), text(entityId, 36), text(href, 240), new Date().toISOString()).run();
 }
 
 async function coachProfileForUser(env, userId) {
@@ -2388,7 +2407,7 @@ async function managementAccess(env, user) {
     dashboardPath = "/admin.html";
   } else if (await isApprovedCoach(env, user)) {
     accountType = "provider";
-    dashboardPath = "/providers.html";
+    dashboardPath = "/dashboard.html";
   } else if (user.role === "provider" && !await isMemberAccount(env, user)) {
     accountType = "provider";
     dashboardPath = "/providers.html";
@@ -2489,6 +2508,56 @@ async function canManageTeam(env, user, teamId) {
 async function dashboardApi(request, env, user) {
   const url = new URL(request.url), path = url.pathname;
   if (request.method === "GET" && path === "/api/dashboard") return dashboardOverview(request, env, user);
+  if (path === "/api/dashboard/athletes" && request.method === "GET") {
+    const rows = await env.DB.prepare(`SELECT c.id,c.status,c.workspace_status,c.created_at,c.updated_at,c.athlete_accepted_at,
+        a.display_name,a.city,a.sports_json,a.preferred_language,a.photo_updated_at,
+        (SELECT COUNT(*) FROM athlete_programs_v2 p WHERE p.athlete_user_id=c.athlete_user_id AND p.coach_user_id=c.coach_user_id) AS program_count,
+        (SELECT MAX(cp.completed_at) FROM athlete_program_completions_v2 cp
+          JOIN athlete_program_sessions_v2 s ON s.id=cp.session_id
+          JOIN athlete_programs_v2 p ON p.id=s.program_id AND p.coach_user_id=c.coach_user_id
+          WHERE cp.athlete_user_id=c.athlete_user_id) AS last_activity_at
+      FROM coach_connections c LEFT JOIN member_sports_profiles a ON a.user_id=c.athlete_user_id
+      WHERE c.coach_user_id=? ORDER BY c.updated_at DESC LIMIT 100`).bind(user.id).all();
+    const athletes = (rows.results || []).map(row => ({
+      ...row, sports: safeParse(row.sports_json) || [],
+      bucket: row.status === "pending" ? "pending" : row.workspace_status === "closed" ? "completed" : row.status === "accepted" ? "active" : "completed",
+    }));
+    return reply(request, env, {
+      athletes,
+      counts: {
+        pending: athletes.filter(a => a.bucket === "pending").length,
+        active: athletes.filter(a => a.bucket === "active").length,
+        completed: athletes.filter(a => a.bucket === "completed").length,
+      },
+    });
+  }
+  const programSendMatch = /^\/api\/dashboard\/programs\/([\w-]{36})\/send$/.exec(path);
+  if (programSendMatch && request.method === "POST") {
+    const sendAuth = await authenticated(request, env);
+    if (sendAuth.response) return sendAuth.response;
+    const body = await readJson(request);
+    const athleteId = text(body?.athlete_user_id, 36);
+    if (!athleteId) return reply(request, env, { error: "athlete_required" }, 400);
+    const allowed = await env.DB.prepare(`SELECT 1 FROM coach_connections
+      WHERE coach_user_id=? AND athlete_user_id=? AND status='accepted'`).bind(sendAuth.user.id, athleteId).first();
+    if (!allowed) return reply(request, env, { error: "athlete_not_connected" }, 403);
+    const now = new Date().toISOString();
+    const updated = await env.DB.prepare(`UPDATE athlete_programs_v2 SET athlete_user_id=?,sent_at=?,
+      athlete_name=COALESCE((SELECT display_name FROM member_sports_profiles WHERE user_id=?),athlete_name)
+      WHERE id=? AND coach_user_id=? AND sent_at IS NULL`)
+      .bind(athleteId, now, athleteId, programSendMatch[1], sendAuth.user.id).run();
+    if (!updated.meta.changes) return reply(request, env, { error: "program_already_sent_or_missing" }, 409);
+    const href = `/dashboard.html?program=${programSendMatch[1]}#athleteProgramHistory`;
+    await createNotification(env, athleteId, "program_assigned", "New training program", "Your coach sent you a training program.", "training_program", programSendMatch[1], href);
+    const athleteUser = await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(athleteId).first();
+    await queueCoachEmail(env, {
+      eventKey: `program_sent:${programSendMatch[1]}`,
+      to: athleteUser?.email || "",
+      subject: "New training program on MZ Active",
+      body: `Your coach sent you a training program on MZ Active.\n\nOpen it here: https://mzactive.com${href}`,
+    });
+    return reply(request, env, { sent: true, program_id: programSendMatch[1], sent_at: now, href });
+  }
   if (path === "/api/dashboard/programs" && request.method === "POST") {
     const admin=isSuperAdmin(user);
     if(!admin&&!await isApprovedCoach(env,user))return reply(request,env,{error:"approved_coach_required"},403);
@@ -4588,7 +4657,17 @@ async function handleCommunityApi(request, env, url) {
     const now = new Date().toISOString(), id = randomId();
     const result = await env.DB.prepare(`INSERT OR IGNORE INTO coach_connections(id,coach_user_id,athlete_user_id,status,created_at,updated_at)
       VALUES(?,?,?,'pending',?,?)`).bind(id, coach.user_id, auth.user.id, now, now).run();
-    if (result.meta?.changes) await createNotification(env, coach.user_id, "connection_request", "Connection request", "A member asked to connect with you.", "coach_connection", id);
+    if (result.meta?.changes) {
+      const href = `/dashboard.html?connection=${id}#myAthletes`;
+      await createNotification(env, coach.user_id, "connection_request", "New coaching request", "Open the request in My Athletes.", "coach_connection", id, href);
+      const coachUser = await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(coach.user_id).first();
+      await queueCoachEmail(env, {
+        eventKey: `connection_request:${id}`,
+        to: coachUser?.email || "",
+        subject: "New coaching request on MZ Active",
+        body: `A member sent you a coaching request on MZ Active.\n\nOpen the exact request: https://mzactive.com${href}`,
+      });
+    }
     const existing = result.meta?.changes ? null : await env.DB.prepare("SELECT id,status FROM coach_connections WHERE coach_user_id=? AND athlete_user_id=?").bind(coach.user_id, auth.user.id).first();
     return reply(request, env, { id: existing?.id || id, status: existing?.status || "pending" }, result.meta?.changes ? 201 : 200);
   }
@@ -4614,10 +4693,30 @@ async function handleCommunityApi(request, env, url) {
       .bind(decision, athleteAcceptedAt || null, activate ? "active" : decision === "declined" ? "none" : connection.workspace_status,
         activate ? connection.workspace_created_at || now : null, now, connection.id).run();
     const recipient = athleteDecision ? connection.coach_user_id : connection.athlete_user_id;
+    const decisionHref = coachDecision ? "/dashboard.html#myCoach" : `/dashboard.html?connection=${connection.id}#myAthletes`;
     await createNotification(env, recipient, decision === "accepted" && activate ? "workspace_ready" : "connection_reviewed",
       decision === "accepted" && activate ? "Private coaching workspace ready" : decision === "accepted" ? "Connection accepted" : "Connection declined",
-      "", "coach_connection", connection.id);
+      "", "coach_connection", connection.id, decisionHref);
+    if (coachDecision) {
+      const athleteUser = await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(connection.athlete_user_id).first();
+      await queueCoachEmail(env, {
+        eventKey: `connection_decision:${connection.id}:${decision}`,
+        to: athleteUser?.email || "",
+        subject: decision === "accepted" ? "Your coaching request was accepted" : "Your coaching request was declined",
+        body: `Your MZ Active coaching request was ${decision}.\n\nView your dashboard: https://mzactive.com${decisionHref}`,
+      });
+    }
     return reply(request, env, { updated: true, status: decision, workspace_active: Boolean(activate) });
+  }
+  const closeMatch = /^\/api\/connections\/([\w-]{36})\/close$/.exec(path);
+  if (closeMatch && method === "POST") {
+    const closeAuth = await authenticated(request, env);
+    if (closeAuth.response) return closeAuth.response;
+    const updated = await env.DB.prepare(`UPDATE coach_connections SET workspace_status='closed',updated_at=?
+      WHERE id=? AND coach_user_id=? AND status='accepted' AND workspace_status<>'closed'`)
+      .bind(new Date().toISOString(), closeMatch[1], closeAuth.user.id).run();
+    if (!updated.meta.changes) return reply(request, env, { error: "relationship_not_active" }, 409);
+    return reply(request, env, { closed: true });
   }
   match = /^\/api\/connections\/([\w-]{36})\/messages$/.exec(path);
   if (match && ["GET", "POST"].includes(method)) {
