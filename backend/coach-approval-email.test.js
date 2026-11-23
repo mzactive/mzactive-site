@@ -72,6 +72,7 @@ function mockResend(emails, fail = false) {
   return () => { globalThis.fetch = original; };
 }
 
+
 async function coachFixture(env, { languages = ['English'], edit = true } = {}) {
   const admin = await call(env, 'auth/register', 'POST', { email: env.ADMIN_EMAILS, password: PASSWORD, consent: true }, null, 201);
   const coachEmail = languages.includes('Arabic') ? 'arabic-coach@example.test' : 'coach@example.test';
@@ -105,6 +106,7 @@ async function approveCoach(env, fixture, extra = {}) {
 test('approval sends one exact bilingual welcome email and duplicate clicks are harmless', async () => {
   const { db, env } = makeEnv();
   const emails = [];
+  const welcomeEmails = () => emails.filter((item) => item.body.subject === SUBJECT);
   const restore = mockResend(emails);
   try {
     const fixture = await coachFixture(env);
@@ -112,11 +114,11 @@ test('approval sends one exact bilingual welcome email and duplicate clicks are 
     assert.equal(result.updated, true);
     assert.equal(result.status, 'approved');
     assert.deepEqual(result.welcome_email, { status: 'sent', attempts: 0, error: null });
-    assert.equal(emails.length, 1);
-    assert.equal(emails[0].url, 'https://api.resend.com/emails');
-    assert.equal(emails[0].body.from, env.EMAIL_FROM);
-    assert.deepEqual(emails[0].body.to, [fixture.coachEmail]);
-    assert.equal(emails[0].body.subject, SUBJECT);
+    assert.equal(welcomeEmails().length, 1);
+    assert.equal(welcomeEmails()[0].url, 'https://api.resend.com/emails');
+    assert.equal(welcomeEmails()[0].body.from, env.EMAIL_FROM);
+    assert.deepEqual(welcomeEmails()[0].body.to, [fixture.coachEmail]);
+    assert.equal(welcomeEmails()[0].body.subject, SUBJECT);
     for (const phrase of [
       'Hi Test Coach,',
       'Welcome to the MZActive family! 💛',
@@ -131,8 +133,8 @@ test('approval sends one exact bilingual welcome email and duplicate clicks are 
       'https://mzactive.com/assets/brand/mzactive-logo.webp',
       'lang="en" dir="ltr"',
       'lang="ar" dir="rtl"',
-    ]) assert.ok(emails[0].body.html.includes(phrase), phrase);
-    assert.equal(emails[0].body.text.includes(PROFILE_URL), true);
+    ]) assert.ok(welcomeEmails()[0].body.html.includes(phrase), phrase);
+    assert.equal(welcomeEmails()[0].body.text.includes(PROFILE_URL), true);
 
     const duplicate = await call(env, 'admin/providers/' + fixture.id, 'PATCH', {
       status: 'approved', verified: true,
@@ -141,7 +143,7 @@ test('approval sends one exact bilingual welcome email and duplicate clicks are 
       updated: false, already: true, status: 'approved',
       welcome_email: { status: 'sent', attempts: 0, error: null },
     });
-    assert.equal(emails.length, 1);
+    assert.equal(welcomeEmails().length, 1);
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM coach_welcome_emails').get().count, 1);
   } finally {
     restore();
@@ -152,13 +154,14 @@ test('approval sends one exact bilingual welcome email and duplicate clicks are 
 test('Arabic-speaking coaches receive Arabic as the primary email body', async () => {
   const { db, env } = makeEnv();
   const emails = [];
+  const welcomeEmails = () => emails.filter((item) => item.body.subject === SUBJECT);
   const restore = mockResend(emails);
   try {
     const fixture = await coachFixture(env, { languages: ['Arabic'] });
     await approveCoach(env, fixture);
-    assert.equal(emails.length, 1);
-    const html = emails[0].body.html;
-    assert.equal(emails[0].body.subject, SUBJECT);
+    assert.equal(welcomeEmails().length, 1);
+    const html = welcomeEmails()[0].body.html;
+    assert.equal(welcomeEmails()[0].body.subject, SUBJECT);
     assert.ok(html.indexOf('مرحباً بك في عائلة MZActive! 💛') < html.indexOf('Welcome to the MZActive family! 💛'));
     assert.ok(html.includes('أكمل ملف المدرب'));
     assert.ok(html.includes(PROFILE_URL));
@@ -172,6 +175,7 @@ test('Arabic-speaking coaches receive Arabic as the primary email body', async (
 test('a mail failure never blocks approval and the queued welcome email retries safely', async () => {
   const { db, env } = makeEnv();
   const emails = [];
+  const welcomeEmails = () => emails.filter((item) => item.body.subject === SUBJECT);
   let restore = mockResend(emails, true);
   try {
     const fixture = await coachFixture(env);
@@ -188,7 +192,7 @@ test('a mail failure never blocks approval and the queued welcome email retries 
     db.prepare("UPDATE coach_welcome_emails SET next_attempt_at='2020-01-01T00:00:00.000Z'").run();
     env.AI = { run: async () => ({ response: 'Test recommendation' }) };
     await worker.scheduled({ scheduledTime: 12 * 3600000 }, env);
-    assert.equal(emails.length, 1);
+    assert.equal(welcomeEmails().length, 1);
     assert.deepEqual({ ...db.prepare('SELECT status,error FROM coach_welcome_emails').get() }, { status: 'sent', error: null });
   } finally {
     restore();
@@ -199,6 +203,7 @@ test('a mail failure never blocks approval and the queued welcome email retries 
 test('incomplete coaches can be approved, but a missing name and unverified licenses cannot', async () => {
   const { db, env } = makeEnv();
   const emails = [];
+  const welcomeEmails = () => emails.filter((item) => item.body.subject === SUBJECT);
   const restore = mockResend(emails);
   try {
     const fixture = await coachFixture(env, { edit: false });
@@ -212,7 +217,7 @@ test('incomplete coaches can be approved, but a missing name and unverified lice
     db.prepare('UPDATE provider_profiles SET display_name=? WHERE id=?').run('Incomplete Coach', fixture.id);
     const approved = await approveCoach(env, { ...fixture, application: { ...fixture.application } });
     assert.equal(approved.status, 'approved');
-    assert.equal(emails.length, 1);
+    assert.equal(welcomeEmails().length, 1);
     assert.equal(db.prepare('SELECT status FROM provider_profiles WHERE id=?').get(fixture.id).status, 'approved');
   } finally {
     restore();

@@ -226,6 +226,17 @@ function defaultApiHandler(ctx, state) {
       tasks: [], pending: [], activity: [], status: 'available',
     });
   }
+  if (urlPath === '/api/admin/ai-brain') {
+    return json({
+      settings: {
+        notifications_enabled: true, report_time: '07:00', timezone: 'Asia/Qatar',
+        admin_email: 'mzactive@yahoo.com', last_report_at: null,
+        last_report_status: 'never_run', updated_at: '2026-11-23T00:00:00.000Z',
+      },
+      status: 'available', email: { configured: true, sent: 0, failed: 0, pending: 0 },
+      last_execution: null, latest_report: null, reports: [], errors: [],
+    });
+  }
   if (urlPath === '/api/me/access') {
     return json({
       user: { id: 'e2e-coach', email: 'coach@example.invalid', role: 'provider' },

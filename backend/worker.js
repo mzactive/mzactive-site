@@ -27,6 +27,7 @@ const ATHLETE_CRM_INVITE_LIMIT = 10;
 const MOMO_REMINDER_INTERVAL_DAYS = 7;
 const MOMO_ESCALATE_AFTER_DAYS = 14;
 const MOMO_MAX_ATTEMPTS = 3;
+const AI_BRAIN_ADMIN_EMAIL = "mzactive@yahoo.com";
 const MANAGEMENT_PERMISSION_CODES = ["management.view", "management.coaches", "management.bookings", "management.community", "management.articles", "management.ai", "management.audit"];
 // Each notification category maps to an existing least-privilege permission.
 // There is no new role and no broad "see everything" shortcut.
@@ -582,6 +583,10 @@ async function register(request, env) {
     return reply(request, env, { error: "account_already_exists_or_storage_error" }, 409);
   }
   if (isMember) await linkBookingsToUser(env, { id: userId, email, role });
+  if (!isAdminEmail) {
+    try { await notifyAiBrainRegistration(env, userId, isMember ? "Athlete" : professionalLabel(type, "en")); }
+    catch (error) { await recordAiBrainError(env, "registration_notification", error.message, { user_id: userId }, true); }
+  }
   return issueSession(request, env, userId, email, isAdminEmail ? "admin" : isMember ? "member" : role, 201);
 }
 
@@ -957,6 +962,212 @@ async function sendManagementEmail(env, to, subject, message) {
   } catch {
     return { ok: false, error: "email_delivery_failed" };
   }
+}
+
+
+async function aiBrainSettings(env) {
+  try {
+    const existing = await env.DB.prepare("SELECT * FROM ai_brain_settings WHERE id=1").first();
+    if (existing) return existing;
+    await env.DB.prepare("INSERT OR IGNORE INTO ai_brain_settings(id,updated_at) VALUES(1,?)").bind(new Date().toISOString()).run();
+    const created = await env.DB.prepare("SELECT * FROM ai_brain_settings WHERE id=1").first();
+    if (created) return created;
+  } catch { /* A lightweight test stub may not implement this table. */ }
+  return {
+    id: 1, notifications_enabled: 1, report_time: "07:00", timezone: "Asia/Qatar",
+    admin_email: AI_BRAIN_ADMIN_EMAIL, last_report_at: null,
+    last_report_status: "never_run", updated_at: new Date().toISOString(),
+  };
+}
+
+function qatarClock(value = Date.now()) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Qatar", hour: "2-digit", minute: "2-digit",
+    year: "numeric", month: "2-digit", day: "2-digit", hour12: false,
+  }).formatToParts(new Date(value));
+  const get = type => parts.find((part) => part.type === type)?.value || "";
+  return { time: `${get("hour")}:${get("minute")}`, date: `${get("year")}-${get("month")}-${get("day")}` };
+}
+
+async function recordAiBrainError(env, source, message, context = {}, notify = false) {
+  await env.DB.prepare("INSERT INTO ai_brain_errors(id,source,message,context_json,created_at) VALUES(?,?,?,?,?)")
+    .bind(randomId(), text(source, 60), text(message, 180), JSON.stringify(context), new Date().toISOString()).run();
+  if (notify) {
+    await queueAiBrainEmail(env, {
+      eventKey: `critical-error:${source}:${Math.floor(Date.now() / 3600000)}`,
+      subject: "MZ AI Brain critical error",
+      body: aiBrainEmailText("MZ AI Brain critical error", [
+        `Source: ${source}`,
+        `Time: ${new Date().toISOString()}`,
+        `Error: ${text(message, 180)}`,
+        "No personal data or payment action is included. Review the Admin Portal for details.",
+      ]),
+      kind: "critical_error",
+    });
+  }
+}
+
+async function deliverAiBrainEmail(env, id) {
+  const row = await env.DB.prepare("SELECT * FROM ai_brain_outbox WHERE id=?").bind(id).first();
+  if (!row) return { ok: false, error: "email_not_found" };
+  if (row.status === "sent") return { ok: true, status: "sent", provider_id: row.provider_id, duplicate: true };
+  if (!emailDeliveryConfigured(env)) {
+    await env.DB.prepare("UPDATE ai_brain_outbox SET status='failed',error='email_unavailable',attempts=attempts+1 WHERE id=?").bind(id).run();
+    return { ok: false, error: "email_unavailable" };
+  }
+  const result = await sendManagementEmail(env, row.recipient, row.subject, row.body);
+  const now = new Date().toISOString();
+  if (result.ok) {
+    await env.DB.prepare("UPDATE ai_brain_outbox SET status='sent',provider_id=?,error=NULL,sent_at=? WHERE id=?")
+      .bind(result.provider_id || "", now, id).run();
+    return { ok: true, status: "sent", provider_id: result.provider_id || "" };
+  }
+  await env.DB.prepare("UPDATE ai_brain_outbox SET status='failed',error=?,attempts=attempts+1 WHERE id=?")
+    .bind(result.error || "email_delivery_failed", id).run();
+  return { ok: false, status: "failed", error: result.error || "email_delivery_failed" };
+}
+
+async function queueAiBrainEmail(env, { eventKey, subject, body, kind = "ai_brain", recipient = AI_BRAIN_ADMIN_EMAIL }) {
+  const settings = await aiBrainSettings(env);
+  if (!settings.notifications_enabled) return { queued: false, reason: "disabled" };
+  const id = randomId(), now = new Date().toISOString();
+  const claim = await env.DB.prepare(`INSERT OR IGNORE INTO ai_brain_outbox
+    (id,event_key,recipient,kind,subject,body,status,attempts,created_at)
+    VALUES(?,?,?,?,?,?,'pending',0,?)`)
+    .bind(id, text(eventKey, 180), recipient, text(kind, 60), text(subject, 180), text(body, 8000), now).run();
+  if (!claim.meta.changes) return { queued: false, reason: "duplicate" };
+  const delivery = await deliverAiBrainEmail(env, id);
+  if (!delivery.ok) await recordAiBrainError(env, kind, delivery.error || "email_delivery_failed", { event_key: text(eventKey, 180) });
+  return { queued: true, ...delivery };
+}
+
+async function notifyAiBrainRegistration(env, userId, category) {
+  const now = new Date().toISOString();
+  const registrationBody = aiBrainEmailText("New MZ Active registration", [
+    `Account category: ${category}`,
+    `Registered at: ${now}`,
+    "No name, email address, phone number or document was included in this notice.",
+  ]);
+  await queueAiBrainEmail(env, {
+    eventKey: `registration:${userId}`,
+    subject: `MZ AI Brain: new ${category} registration`,
+    body: registrationBody,
+    kind: "registration",
+  });
+  if (category !== "Athlete") {
+    await queueAiBrainEmail(env, {
+      eventKey: `approval:${userId}`,
+      subject: "MZ AI Brain: application requires approval",
+      body: aiBrainEmailText("Application requires approval", [
+        `Category: ${category}`,
+        `Submitted at: ${now}`,
+        "Review it in the Admin Portal. No personal contact details are included here.",
+      ]),
+      kind: "approval",
+    });
+  }
+}
+
+function aiBrainEmailText(title, lines) {
+  return `${title}\n\n${lines.filter(Boolean).join("\n")}\n\nMZ AI Brain · MZ Active · Train Smart. Perform Strong.`;
+}
+
+async function runAiBrainDailyReport(env, scheduledTime = Date.now(), options = {}) {
+  const settings = await aiBrainSettings(env);
+  const clock = qatarClock(scheduledTime);
+  if (!options.force && clock.time !== settings.report_time) return { skipped: "not_due", time: clock.time };
+  const existing = await env.DB.prepare("SELECT id FROM ai_brain_reports WHERE report_date=?").bind(clock.date).first();
+  if (existing && !options.force) return { skipped: "already_sent", report_date: clock.date };
+  const since = settings.last_report_at || new Date(scheduledTime - 86400000).toISOString();
+  const count = async (sql, bindings = []) => Number((await env.DB.prepare(sql).bind(...bindings).first())?.count || 0);
+  const counts = {
+    new_registrations: await count("SELECT COUNT(*) AS count FROM users WHERE role!='admin' AND created_at>=?", [since]),
+    new_coaches: await count("SELECT COUNT(*) AS count FROM provider_profiles WHERE provider_type='coach' AND created_at>=?", [since]),
+    new_pacers: await count("SELECT COUNT(*) AS count FROM provider_profiles WHERE provider_type='pacer' AND created_at>=?", [since]),
+    new_athletes: await count("SELECT COUNT(*) AS count FROM users u WHERE u.role='provider' AND u.created_at>=? AND NOT EXISTS(SELECT 1 FROM provider_profiles p WHERE p.user_id=u.id)", [since]),
+    pending_approvals: await count("SELECT COUNT(*) AS count FROM provider_profiles WHERE status='pending' AND COALESCE(submission_state,'submitted')<>'draft'"),
+    booking_requests: await count("SELECT COUNT(*) AS count FROM booking_requests WHERE created_at>=?", [since]),
+    open_bookings: await count("SELECT COUNT(*) AS count FROM booking_requests WHERE status IN ('received','reviewing')"),
+    system_errors: await count("SELECT COUNT(*) AS count FROM ai_brain_errors WHERE created_at>=? AND resolved=0", [since]),
+    failed_emails: await count("SELECT COUNT(*) AS count FROM ai_brain_outbox WHERE status='failed'"),
+    ai_tasks: await count("SELECT COUNT(*) AS count FROM owner_agent_tasks WHERE created_at>=?", [since]),
+  };
+  const recommendations = [];
+  if (counts.pending_approvals) recommendations.push(`Review ${counts.pending_approvals} pending professional application(s) in the Admin Portal.`);
+  if (counts.open_bookings) recommendations.push(`Triage ${counts.open_bookings} open booking request(s) before confirming availability.`);
+  if (counts.failed_emails) recommendations.push(`Check ${counts.failed_emails} failed email delivery record(s); no personal data is included in the report.`);
+  if (counts.system_errors) recommendations.push(`Investigate ${counts.system_errors} unresolved AI Brain error(s) recorded since the last report.`);
+  if (!recommendations.length) recommendations.push("No urgent action is indicated by the current verified counts.");
+  const summary = aiBrainEmailText("MZ AI Brain daily report", [
+    `Date (Asia/Qatar): ${clock.date}`,
+    `Generated at: ${clock.time} Asia/Qatar`,
+    `New registrations: ${counts.new_registrations}`,
+    `New coaches: ${counts.new_coaches} · New pacers: ${counts.new_pacers} · New athletes: ${counts.new_athletes}`,
+    `Pending approvals: ${counts.pending_approvals}`,
+    `New booking requests: ${counts.booking_requests} · Open bookings: ${counts.open_bookings}`,
+    `System errors: ${counts.system_errors} · Failed emails: ${counts.failed_emails}`,
+    `AI tasks since last report: ${counts.ai_tasks}`,
+    "Recommendations:",
+    ...recommendations.map((item) => `- ${item}`),
+    "All figures come from live MZ Active database records. No payment or WhatsApp action was taken.",
+  ]);
+  const reportId = randomId(), now = new Date().toISOString();
+  await env.DB.prepare(`INSERT OR IGNORE INTO ai_brain_reports
+    (id,report_date,report_time,summary,counts_json,recommendations_json,email_status,created_at)
+    VALUES(?,?,?,?,?,?,'pending',?)`)
+    .bind(reportId, clock.date, settings.report_time, summary, JSON.stringify(counts), JSON.stringify(recommendations), now).run();
+  const delivery = await queueAiBrainEmail(env, {
+    eventKey: `daily-report:${clock.date}:${options.force ? "manual" : "scheduled"}`,
+    subject: `MZ AI Brain daily report — ${clock.date}`,
+    body: summary,
+    kind: "daily_report",
+  });
+  const emailStatus = delivery.reason === "disabled" ? "disabled" : delivery.ok ? "sent" : "failed";
+  await env.DB.prepare("UPDATE ai_brain_reports SET email_status=?,provider_id=?,error=? WHERE id=?")
+    .bind(emailStatus, delivery.provider_id || "", delivery.error || null, reportId).run();
+  await env.DB.prepare("UPDATE ai_brain_settings SET last_report_at=?,last_report_status=?,updated_at=? WHERE id=1")
+    .bind(now, emailStatus, now).run();
+  return { report_id: reportId, report_date: clock.date, counts, recommendations, email: delivery };
+}
+
+async function aiBrainOverview(env) {
+  const [settings, reports, outbox, errors, latestTask] = await Promise.all([
+    aiBrainSettings(env),
+    env.DB.prepare("SELECT * FROM ai_brain_reports ORDER BY created_at DESC LIMIT 10").all(),
+    env.DB.prepare("SELECT status,COUNT(*) AS count FROM ai_brain_outbox GROUP BY status").all(),
+    env.DB.prepare("SELECT id,source,message,created_at FROM ai_brain_errors WHERE resolved=0 ORDER BY created_at DESC LIMIT 10").all(),
+    env.DB.prepare("SELECT created_at FROM owner_agent_tasks ORDER BY created_at DESC LIMIT 1").first(),
+  ]);
+  const delivery = Object.fromEntries((outbox.results || []).map((row) => [row.status, Number(row.count || 0)]));
+  const latest = (reports.results || [])[0] || null;
+  return {
+    settings: {
+      notifications_enabled: Boolean(settings.notifications_enabled),
+      report_time: settings.report_time,
+      timezone: settings.timezone,
+      admin_email: settings.admin_email,
+      last_report_at: settings.last_report_at || null,
+      last_report_status: settings.last_report_status,
+      updated_at: settings.updated_at,
+    },
+    status: env.AI?.run ? "available" : "not_configured",
+    email: {
+      configured: emailDeliveryConfigured(env),
+      sent: Number(delivery.sent || 0), failed: Number(delivery.failed || 0), pending: Number(delivery.pending || 0),
+    },
+    last_execution: latest?.created_at || latestTask?.created_at || null,
+    latest_report: latest ? {
+      id: latest.id, report_date: latest.report_date, created_at: latest.created_at,
+      summary: latest.summary, counts: safeParse(latest.counts_json) || {},
+      recommendations: safeParse(latest.recommendations_json) || [],
+      email_status: latest.email_status, error: latest.error || null,
+    } : null,
+    reports: (reports.results || []).map((row) => ({
+      id: row.id, report_date: row.report_date, created_at: row.created_at,
+      email_status: row.email_status, error: row.error || null,
+    })),
+    errors: errors.results || [],
+  };
 }
 
 const COACH_CONTACT_PURPOSES = ["profile_support","bookings","programs","technical_issue","other"];
@@ -2834,6 +3045,7 @@ async function handleAthleteInvitationApi(request, env, url) {
 }
 
 function requiredManagementPermission(path) {
+  if (path.includes("/ai-brain")) return "management.ai";
   if (path.includes("/assistant") || path.includes("/agents") || path.includes("/momo")) return "management.ai";
   if (path.includes("/athletes/") && path.includes("/recommendations")) return "management.ai";
   if (path.includes("/auth-events") || path.includes("/reports")) return "management.audit";
@@ -3273,6 +3485,50 @@ async function adminApplications(request, env, user) {
       WHERE c.workspace_status IN ('pending','active')
       ORDER BY (m.read_at IS NULL) DESC, m.created_at DESC LIMIT 100`).all();
     return reply(request, env, { messages: rows.results || [] });
+  }
+  if (request.method === "GET" && path === "/api/admin/ai-brain") {
+    return reply(request, env, await aiBrainOverview(env));
+  }
+  if (request.method === "PATCH" && path === "/api/admin/ai-brain") {
+    if (!isSuperAdmin(user)) return reply(request, env, { error: "admin_required" }, 403);
+    const body = await readJson(request);
+    if (body?.confirm !== true) return reply(request, env, { error: "confirmation_required" }, 400);
+    const enabled = body.notifications_enabled;
+    const reportTime = body.report_time;
+    if (enabled !== undefined && typeof enabled !== "boolean") return reply(request, env, { error: "invalid_notification_setting" }, 400);
+    if (reportTime !== undefined && (typeof reportTime !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reportTime))) {
+      return reply(request, env, { error: "invalid_report_time" }, 400);
+    }
+    if (enabled === undefined && reportTime === undefined) return reply(request, env, { error: "no_settings_provided" }, 400);
+    const now = new Date().toISOString();
+    await env.DB.prepare("UPDATE ai_brain_settings SET notifications_enabled=COALESCE(?,notifications_enabled),report_time=COALESCE(?,report_time),updated_at=? WHERE id=1")
+      .bind(enabled === undefined ? null : Number(enabled), reportTime || null, now).run();
+    await env.DB.prepare("INSERT INTO owner_agent_activity(id,actor_user_id,agent_type,action,status,details_json,created_at) VALUES(?,?,'owner','ai_brain_settings_updated','completed',?,?)")
+      .bind(randomId(), user.id, JSON.stringify({ notifications_enabled: enabled, report_time: reportTime }), now).run();
+    return reply(request, env, { updated: true, settings: (await aiBrainOverview(env)).settings });
+  }
+  if (request.method === "POST" && path === "/api/admin/ai-brain/test-email") {
+    if (!isSuperAdmin(user)) return reply(request, env, { error: "admin_required" }, 403);
+    const body = await readJson(request);
+    if (body?.confirm !== true) return reply(request, env, { error: "confirmation_required" }, 400);
+    const delivery = await queueAiBrainEmail(env, {
+      eventKey: `test-email:${Date.now()}`,
+      subject: "MZ AI Brain test email",
+      body: aiBrainEmailText("MZ AI Brain test email", [
+        "This is a real delivery test from the MZ Active Admin Portal.",
+        "No personal data, payment action or WhatsApp action is included.",
+      ]),
+      kind: "test_email",
+    });
+    if (!delivery.queued || !delivery.ok) return reply(request, env, { error: delivery.error || delivery.reason || "email_delivery_failed" }, 502);
+    return reply(request, env, { delivered: true, provider_id: delivery.provider_id || "" });
+  }
+  if (request.method === "POST" && path === "/api/admin/ai-brain/run") {
+    if (!isSuperAdmin(user)) return reply(request, env, { error: "admin_required" }, 403);
+    const body = await readJson(request);
+    if (body?.confirm !== true) return reply(request, env, { error: "confirmation_required" }, 400);
+    const result = await runAiBrainDailyReport(env, Date.now(), { force: true });
+    return reply(request, env, result);
   }
   if (request.method === "POST" && path === "/api/admin/assistant") {
     return ownerAssistant(request, env);
@@ -4474,6 +4730,8 @@ export default {
     // Failed welcome deliveries retry safely; approval itself is never retried.
     try { await retryCoachWelcomeEmails(env); } catch { /* never block the scheduled analysis */ }
     try { await runMomoCoachFollowUps(env); } catch { /* never block the scheduled analysis */ }
+    try { await runAiBrainDailyReport(env, event.scheduledTime || Date.now()); }
+    catch (error) { try { await recordAiBrainError(env, "daily_report", error.message, {}, true); } catch { /* never block */ } }
     const hour = Math.floor((event.scheduledTime || Date.now()) / 3600000);
     const tasks = ["operations","monitoring","analytics","marketing","growth","community"];
     const task = tasks[hour % tasks.length];
