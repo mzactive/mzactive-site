@@ -83,6 +83,7 @@ function mockResend(emails, fail = false) {
   return () => { globalThis.fetch = original; };
 }
 
+
 function invitationToken(email) {
   const match = /[?&]token=([\w-]{20,120})/.exec(email.body.text);
   assert.ok(match, 'the invitation email must contain a token link');
@@ -271,6 +272,7 @@ test('AI recommendations use approved coaches, verified fields and an explicit d
 test('a profile invitation is consent-only, hashed, bilingual, and opens no workspace', async () => {
   const { db, env } = makeEnv();
   const emails = [];
+  const invitationEmails = () => emails.filter((item) => !String(item.body?.subject || "").startsWith("MZ AI Brain"));
   const restore = mockResend(emails);
   try {
     const users = await registerAccounts(env);
@@ -287,7 +289,7 @@ test('a profile invitation is consent-only, hashed, bilingual, and opens no work
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM athlete_crm_invitations WHERE token_hash=?').get(stored.token_hash).count, 1);
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM coach_connections WHERE athlete_user_id=?').get(users.athleteB.user.id).count, 0);
 
-    const token = invitationToken(emails[0]);
+    const token = invitationToken(invitationEmails()[0]);
     const view = await call(env, 'athlete-invitations/' + token, 'GET');
     assert.equal(view.invitation.kind, 'profile');
     assert.equal(view.invitation.status, 'pending');
@@ -308,6 +310,7 @@ test('a profile invitation is consent-only, hashed, bilingual, and opens no work
 test('coach workspace opens only on acceptance and can be revoked or reassigned with an audit trail', async () => {
   const { db, env } = makeEnv();
   const emails = [];
+  const invitationEmails = () => emails.filter((item) => !String(item.body?.subject || "").startsWith("MZ AI Brain"));
   const restore = mockResend(emails);
   try {
     const users = await registerAccounts(env);
@@ -322,14 +325,14 @@ test('coach workspace opens only on acceptance and can be revoked or reassigned 
     assert.equal(connectionId.workspace_status, 'none');
     await call(env, 'admin/athletes', 'GET', undefined, users.coachA.token, 403);
 
-    const declined = await call(env, 'athlete-invitations/' + invitationToken(emails[0]), 'POST', { action: 'decline' });
+    const declined = await call(env, 'athlete-invitations/' + invitationToken(invitationEmails()[0]), 'POST', { action: 'decline' });
     assert.equal(declined.status, 'declined');
     assert.equal(declined.workspace_active, false);
     assert.equal(db.prepare('SELECT workspace_status FROM coach_connections WHERE id=?').get(connectionId.id).workspace_status, 'closed');
 
     await call(env, `admin/athletes/${athleteId}/invitations/coach`, 'POST',
       { coach_id: profiles.coachAId, language: 'en' }, users.admin.token, 201);
-    const accepted = await call(env, 'athlete-invitations/' + invitationToken(emails[1]), 'POST', { action: 'accept' });
+    const accepted = await call(env, 'athlete-invitations/' + invitationToken(invitationEmails()[1]), 'POST', { action: 'accept' });
     assert.equal(accepted.status, 'accepted');
     assert.equal(accepted.workspace_active, true);
     assert.equal(db.prepare('SELECT status,workspace_status FROM coach_connections WHERE id=?').get(connectionId.id).workspace_status, 'active');
@@ -342,7 +345,7 @@ test('coach workspace opens only on acceptance and can be revoked or reassigned 
     const secondConnection = db.prepare("SELECT id FROM coach_connections WHERE athlete_user_id=? AND coach_user_id=?").get(athleteId, users.coachB.user.id);
     assert.ok(secondConnection);
     assert.equal(db.prepare('SELECT status FROM coach_connections WHERE id=?').get(secondConnection.id).status, 'pending');
-    await call(env, 'athlete-invitations/' + invitationToken(emails[2]), 'POST', { action: 'accept' });
+    await call(env, 'athlete-invitations/' + invitationToken(invitationEmails()[2]), 'POST', { action: 'accept' });
     assert.equal(db.prepare('SELECT workspace_status FROM coach_connections WHERE id=?').get(secondConnection.id).workspace_status, 'active');
 
     await call(env, `admin/athletes/${athleteId}/connections/${secondConnection.id}/revoke`, 'POST', {}, users.admin.token);
@@ -359,6 +362,7 @@ test('coach workspace opens only on acceptance and can be revoked or reassigned 
 test('reassignment requires an existing active workspace and invitations cannot duplicate pending coaches', async () => {
   const { db, env } = makeEnv();
   const emails = [];
+  const invitationEmails = () => emails.filter((item) => !String(item.body?.subject || "").startsWith("MZ AI Brain"));
   const restore = mockResend(emails);
   try {
     const users = await registerAccounts(env);
@@ -375,6 +379,7 @@ test('reassignment requires an existing active workspace and invitations cannot 
 test('failed invitation email is queued as email_failed and a resend rotates the token', async () => {
   const { db, env } = makeEnv();
   const emails = [];
+  const invitationEmails = () => emails.filter((item) => !String(item.body?.subject || "").startsWith("MZ AI Brain"));
   let fail = true;
   const restore = mockResend(emails, () => fail);
   try {

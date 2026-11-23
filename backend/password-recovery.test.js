@@ -64,6 +64,7 @@ function mockEmail(emails) {
   return () => { globalThis.fetch = original; };
 }
 
+
 function resetTokenFrom(email) {
   const match = email.body.text.match(/reset-password\.html\?token=([A-Za-z0-9_-]+)/);
   assert.ok(match, 'email must contain a signed-in reset link');
@@ -92,14 +93,15 @@ test('email recovery fails closed when no mail provider is configured', async ()
 test('unknown and known emails return the same generic confirmation without leaking accounts', async () => {
   const { db, env } = makeEnv();
   const emails = [];
+    const resetEmails = () => emails.filter((item) => /Reset your MZ Active password/.test(item.body?.subject || ""));
   const restore = mockEmail(emails);
   try {
     await call(env, 'auth/register', 'POST', ACCOUNTS[1].body, null, 201);
     const known = await call(env, 'auth/forgot-password', 'POST', { email: ACCOUNTS[1].email });
     const unknown = await call(env, 'auth/forgot-password', 'POST', { email: 'missing@example.test' });
     assert.deepEqual(known, unknown);
-    assert.equal(emails.length, 1);
-    assert.equal(emails[0].body.to[0], ACCOUNTS[1].email);
+    assert.equal(resetEmails().length, 1);
+    assert.equal(resetEmails()[0].body.to[0], ACCOUNTS[1].email);
   } finally {
     restore();
     db.close();
@@ -110,23 +112,24 @@ for (const account of ACCOUNTS) {
   test(`${account.label} completes centralized emailed password recovery`, async () => {
     const { db, env } = makeEnv();
     const emails = [];
+    const resetEmails = () => emails.filter((item) => /Reset your MZ Active password/.test(item.body?.subject || ""));
     const restore = mockEmail(emails);
     try {
       await call(env, 'auth/register', 'POST', account.body, null, 201);
       const oldSession = (await call(env, 'auth/login', 'POST', { email: account.email, password: account.body.password })).token;
       const requested = await call(env, 'auth/forgot-password', 'POST', { email: account.email });
       assert.equal(requested.ok, true);
-      assert.equal(emails.length, 1);
-      assert.equal(emails[0].url, 'https://api.resend.com/emails');
-      assert.equal(emails[0].body.to[0], account.email);
-      assert.match(emails[0].body.subject, /Reset your MZ Active password/);
-      assert.match(emails[0].body.subject, /إعادة تعيين/);
-      assert.match(emails[0].body.html, /lang="ar"/);
-      assert.match(emails[0].body.text, /إعادة تعيين/);
-      const rawToken = resetTokenFrom(emails[0]);
+      assert.equal(resetEmails().length, 1);
+      assert.equal(resetEmails()[0].url, 'https://api.resend.com/emails');
+      assert.equal(resetEmails()[0].body.to[0], account.email);
+      assert.match(resetEmails()[0].body.subject, /Reset your MZ Active password/);
+      assert.match(resetEmails()[0].body.subject, /إعادة تعيين/);
+      assert.match(resetEmails()[0].body.html, /lang="ar"/);
+      assert.match(resetEmails()[0].body.text, /إعادة تعيين/);
+      const rawToken = resetTokenFrom(resetEmails()[0]);
       const stored = db.prepare('SELECT token_hash,email_provider_id,user_id FROM password_reset_tokens').get();
       assert.notEqual(stored.token_hash, rawToken, 'only a hash may be stored');
-      assert.equal(stored.email_provider_id, 're_test_1');
+      assert.match(stored.email_provider_id, /^re_test_\d+$/);
       const ttl = db.prepare('SELECT expires_at FROM password_reset_tokens').get().expires_at - Math.floor(Date.now() / 1000);
       assert.ok(ttl > 0 && ttl <= (account.label === 'administrator' ? 300 : 900), 'privileged links expire sooner');
 
@@ -150,15 +153,16 @@ for (const account of ACCOUNTS) {
 test('a new reset request supersedes earlier unused links', async () => {
   const { db, env } = makeEnv();
   const emails = [];
+    const resetEmails = () => emails.filter((item) => /Reset your MZ Active password/.test(item.body?.subject || ""));
   const restore = mockEmail(emails);
   try {
     await call(env, 'auth/register', 'POST', ACCOUNTS[4].body, null, 201);
     await call(env, 'auth/forgot-password', 'POST', { email: ACCOUNTS[4].email });
-    const firstToken = resetTokenFrom(emails[0]);
+    const firstToken = resetTokenFrom(resetEmails()[0]);
     await call(env, 'auth/forgot-password', 'POST', { email: ACCOUNTS[4].email });
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM password_reset_tokens WHERE used_at IS NULL').get().count, 1);
     await call(env, 'auth/reset-password', 'POST', { token: firstToken, new_password: 'replacement-password-long' }, null, 400);
-    assert.deepEqual(await call(env, 'auth/reset-password', 'POST', { token: resetTokenFrom(emails[1]), new_password: 'replacement-password-long' }), { ok: true });
+    assert.deepEqual(await call(env, 'auth/reset-password', 'POST', { token: resetTokenFrom(resetEmails()[1]), new_password: 'replacement-password-long' }), { ok: true });
   } finally {
     restore();
     db.close();
@@ -168,12 +172,13 @@ test('a new reset request supersedes earlier unused links', async () => {
 test('expired and malformed reset links are rejected and rate limits apply', async () => {
   const { db, env } = makeEnv();
   const emails = [];
+    const resetEmails = () => emails.filter((item) => /Reset your MZ Active password/.test(item.body?.subject || ""));
   const restore = mockEmail(emails);
   try {
     await call(env, 'auth/register', 'POST', ACCOUNTS[2].body, null, 201);
     await call(env, 'auth/forgot-password', 'POST', { email: ACCOUNTS[2].email });
     db.prepare('UPDATE password_reset_tokens SET expires_at=?').run(Math.floor(Date.now() / 1000) - 1);
-    const rawToken = resetTokenFrom(emails[0]);
+    const rawToken = resetTokenFrom(resetEmails()[0]);
     assert.deepEqual(await call(env, 'auth/reset-password', 'POST', { token: rawToken, new_password: 'replacement-password-long' }, null, 400), { error: 'invalid_token' });
     assert.deepEqual(await call(env, 'auth/reset-password', 'POST', { token: 'bad', new_password: 'runner42' }, null, 400), { error: 'invalid_token' });
     await call(env, 'auth/forgot-password', 'POST', { email: 'a@example.test' });

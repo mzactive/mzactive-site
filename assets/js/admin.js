@@ -739,6 +739,74 @@
     }
     panel.append(list);root.append(panel);
   }
+  async function aiBrainPanel(root) {
+    const panel = node('section', null, 'command-panel');
+    const head = node('div', null, 'panel-head');
+    head.append(node('h3', t('MZ AI Brain notifications', 'إشعارات MZ AI Brain')));
+    panel.append(head);
+    let data;
+    try { data = await api('admin/ai-brain'); }
+    catch (error) { panel.append(node('p', errorMessage(error), 'empty-state')); root.append(panel); return; }
+    const facts = node('div', null, 'ai-list');
+    const settings = data.settings || {}, email = data.email || {};
+    const rows = [
+      [t('Status', 'الحالة'), name(data.status)],
+      [t('Last execution', 'آخر تنفيذ'), data.last_execution ? date(data.last_execution) : t('Never', 'لم يحدث')],
+      [t('Report time', 'وقت التقرير'), `${settings.report_time || '07:00'} ${t('Asia/Qatar', 'بتوقيت قطر')}`],
+      [t('Recipient', 'المستلم'), settings.admin_email || 'mzactive@yahoo.com'],
+      [t('Email delivery', 'تسليم البريد'), email.configured ? `${t('Configured', 'مهيأ')} · ${Number(email.sent || 0)} ${t('sent', 'مرسل')} / ${Number(email.failed || 0)} ${t('failed', 'فاشل')}` : t('Not configured', 'غير مهيأ')],
+      [t('Last report status', 'حالة آخر تقرير'), name(settings.last_report_status)],
+    ];
+    for (const [label, value] of rows) {
+      const row = node('article', null, 'action-row');
+      row.append(node('span', label), node('strong', String(value)));
+      facts.append(row);
+    }
+    panel.append(facts);
+    panel.append(node('h4', t('Latest recommendations', 'أحدث التوصيات')));
+    const recommendations = data.latest_report?.recommendations || [];
+    if (!recommendations.length) panel.append(node('p', t('No recommendations yet.', 'لا توجد توصيات بعد.'), 'empty-state'));
+    for (const item of recommendations) panel.append(node('p', String(item)));
+    panel.append(node('h4', t('Recent errors', 'الأخطاء الأخيرة')));
+    const errors = data.errors || [];
+    if (!errors.length) panel.append(node('p', t('No unresolved errors.', 'لا توجد أخطاء لم تُحل.'), 'empty-state'));
+    for (const item of errors) {
+      const row = node('article', null, 'action-row');
+      row.append(node('strong', name(item.source)), node('span', String(item.message || '')), node('small', date(item.created_at)));
+      panel.append(row);
+    }
+    const toggleLabel = node('label', t('Enable email notifications', 'تفعيل إشعارات البريد'));
+    const toggle = document.createElement('input'); toggle.type = 'checkbox'; toggle.checked = Boolean(settings.notifications_enabled);
+    toggleLabel.append(toggle);
+    const timeLabel = node('label', t('Daily report time (Asia/Qatar)', 'وقت التقرير اليومي (توقيت قطر)'));
+    const time = document.createElement('input'); time.type = 'time'; time.value = settings.report_time || '07:00';
+    timeLabel.append(time);
+    const controls = node('div', null, 'crm-actions');
+    controls.append(toggleLabel, timeLabel);
+    const save = button(t('Save notification settings', 'حفظ إعدادات الإشعارات'), async () => {
+      if (!window.confirm(t('Save AI Brain notification settings?', 'حفظ إعدادات إشعارات MZ AI Brain؟'))) return;
+      await api('admin/ai-brain', { method: 'PATCH', body: { notifications_enabled: toggle.checked, report_time: time.value, confirm: true } });
+      notice(t('AI Brain settings saved.', 'تم حفظ إعدادات MZ AI Brain.'), 'success');
+      await render();
+    });
+    const sendTest = button(t('Send test email', 'إرسال بريد تجريبي'), async () => {
+      if (!window.confirm(t('Send a real test email to the administrator?', 'إرسال بريد تجريبي حقيقي إلى المسؤول؟'))) return;
+      const result = await api('admin/ai-brain/test-email', { method: 'POST', body: { confirm: true } });
+      notice(t('Test email delivered.', 'تم تسليم البريد التجريبي.') + (result.provider_id ? ' · ' + result.provider_id : ''), 'success');
+      await render();
+    });
+    const runNow = button(t('Run report now', 'تنفيذ التقرير الآن'), async () => {
+      if (!window.confirm(t('Generate and email the AI Brain report now?', 'إنشاء وإرسال تقرير MZ AI Brain الآن؟'))) return;
+      const result = await api('admin/ai-brain/run', { method: 'POST', body: { confirm: true } });
+      notice(t('Report generated.', 'تم إنشاء التقرير.') + (result.email?.ok ? ' ' + t('Email delivered.', 'تم تسليم البريد.') : ''), 'success');
+      await render();
+    });
+    controls.append(save, sendTest, runNow);
+    panel.append(controls);
+    panel.append(node('small', t('Settings changes, test delivery and manual reports require explicit administrator confirmation. No payment or WhatsApp action is performed.', 'تتطلب تغييرات الإعدادات والتسليم التجريبي والتقارير اليدوية تأكيداً صريحاً من المسؤول. لا يتم تنفيذ أي دفع أو إجراء واتساب.')));
+    root.append(panel);
+  }
+
   function businessSnapshot(root,snapshot){
     const panel=node('section',null,'command-panel');
     const head=node('div',null,'panel-head');head.append(node('h3',t('Business snapshot','لمحة عن العمل')));panel.append(head);
@@ -1341,6 +1409,7 @@
     if(tab==='ai'){
       const data=await api('admin/agents'),tasks=data.tasks;
       root.append(node('p',t('An agent analyzes current business data every hour. Six specialist agents take turns; all seven modes are available for manual analysis. Drafts require your decision.','يحلل وكيل بيانات المنصة كل ساعة، ويتناوب ستة وكلاء متخصصون. تتوفر الأوضاع السبعة للتحليل اليدوي، وتتطلب المسودات قرارك.')));
+      await aiBrainPanel(root);
       const select=node('select'),prompt=node('textarea');prompt.maxLength=1600;
       for(const code of ['operations','monitoring','analytics','marketing','growth','community','support']){const o=node('option',name(code));o.value=code;select.append(o)}
       const l=node('label',t('Agent','الوكيل')),q=node('label',t('Question or objective','السؤال أو الهدف'));l.append(select);q.append(prompt);root.append(l,q,button(t('Run analysis','تنفيذ التحليل'),async()=>{if(!prompt.value.trim()){prompt.focus();return}try{await api('admin/assistant',{method:'POST',body:{task:select.value,prompt:prompt.value.trim()}});agentsOverview=null;notice(t('Draft saved for review.','حُفظت المسودة للمراجعة.'))}finally{await render()}}));
