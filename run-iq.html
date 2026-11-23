@@ -136,14 +136,16 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
   })();
   async function track(eventName, suffix = 'once') {
     const eventKey = `${visitorKey}:${eventName}:${suffix}`;
-    try {
-      if (sessionStorage.getItem('run-iq-event:' + eventKey)) return;
-      sessionStorage.setItem('run-iq-event:' + eventKey, '1');
-    } catch {}
+    const flag = 'run-iq-event:' + eventKey;
+    try { if (sessionStorage.getItem(flag)) return; } catch {}
     try {
       const headers = { 'content-type': 'application/json' };
       if (token()) headers.authorization = 'Bearer ' + token();
-      await fetch(api + '/api/run-iq/events', { method: 'POST', headers, body: JSON.stringify({ event_name: eventName, visitor_key: visitorKey, event_key: eventKey }) });
+      const response = await fetch(api + '/api/run-iq/events', {
+        method: 'POST', headers, keepalive: true,
+        body: JSON.stringify({ event_name: eventName, visitor_key: visitorKey, event_key: eventKey }),
+      });
+      if (response.ok) { try { sessionStorage.setItem(flag, '1'); } catch {} }
     } catch {}
   }
   const state = { step:0, level:'', goal:'', assessment:null, preview:null, saveRevealed:false, mine:null };
