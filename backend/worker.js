@@ -1,7 +1,7 @@
 import { ATHLETE_INVITATION_TTL_DAYS, onboardingIncomplete, lastActivityAt, isActive, coachMatches, invitationEmail } from "./athlete-crm.js";
 import { handleCommunityGroupsApi } from "./community-groups.js";
 import { handleAiCoachApi } from "./ai-coach.js";
-import { cleanAssessment, analyzeAssessment, buildStarterPlan, mondayOf } from "./run-iq.js";
+import { cleanAssessment, analyzeAssessment, buildStarterPlan, mondayOf, assessmentFingerprint, buildAdvice, analyzeRaceResult, formatPace } from "./run-iq.js";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
 const PASSWORD_RESET_TTL_SECONDS = 15 * 60;
@@ -3905,7 +3905,10 @@ async function handleRunIqApi(request, env, url) {
     if (!await rateLimit(request, env, "run-iq-preview", 12)) return reply(request, env, { error: "rate_limited" }, 429);
     const assessment = cleanAssessment(await readJson(request));
     if (!assessment) return reply(request, env, { error: "invalid_assessment" }, 400);
-    return reply(request, env, { assessment, preview: analyzeAssessment(assessment) });
+    const preview = analyzeAssessment(assessment);
+    const advice = buildAdvice(assessment, preview, []);
+    preview.advice = advice.advice;
+    return reply(request, env, { assessment, preview });
   }
   if (path === "/api/run-iq/coaches" && method === "GET") {
     const city = text(url.searchParams.get("city") || "", 80).toLowerCase();
@@ -3921,6 +3924,43 @@ async function handleRunIqApi(request, env, url) {
     })) });
   }
 
+  const sharedMatch = /^\/api\/run-iq\/shared\/([\w-]{36})$/.exec(path);
+  if (sharedMatch && method === "GET") {
+    const coachAuth = await authenticated(request, env);
+    if (coachAuth.response) return coachAuth.response;
+    const coach = await coachProfileForUser(env, coachAuth.user.id);
+    if (!coach || coach.status !== "approved" || coach.provider_type !== "coach") {
+      return reply(request, env, { error: "approved_coach_required" }, 403);
+    }
+    const share = await env.DB.prepare("SELECT id FROM run_iq_shares WHERE user_id=? AND coach_user_id=? AND status='active'")
+      .bind(sharedMatch[1], coachAuth.user.id).first();
+    if (!share) return reply(request, env, { error: "consent_required" }, 403);
+    const [record, progress, results, advice] = await Promise.all([
+      env.DB.prepare("SELECT assessment_json,preview_json FROM run_iq_assessments WHERE user_id=?").bind(sharedMatch[1]).first(),
+      env.DB.prepare(`SELECT COUNT(*) AS planned, SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS completed
+        FROM athlete_program_sessions_v2 s JOIN athlete_programs_v2 p ON p.id=s.program_id
+        LEFT JOIN athlete_program_completions_v2 c ON c.session_id=s.id AND c.athlete_user_id=p.athlete_user_id
+        WHERE p.athlete_user_id=? AND p.source='ai_self'`).bind(sharedMatch[1]).first(),
+      env.DB.prepare("SELECT distance_km,time_seconds,pace_label,effort,created_at FROM run_iq_race_results WHERE user_id=? ORDER BY created_at DESC LIMIT 10")
+        .bind(sharedMatch[1]).all(),
+      env.DB.prepare("SELECT advice_json,created_at FROM run_iq_advice_history WHERE user_id=? ORDER BY created_at DESC LIMIT 3")
+        .bind(sharedMatch[1]).all(),
+    ]);
+    if (!record) return reply(request, env, { error: "report_unavailable" }, 404);
+    const assessment = safeParse(record.assessment_json) || {}, preview = safeParse(record.preview_json) || {};
+    return reply(request, env, {
+      athlete: { level: preview.level || assessment.experience, goal: preview.target || assessment.custom_goal || "" },
+      training: { weekly_km: assessment.weekly_km || 0, frequency: assessment.frequency || 0, pace_guidance: preview.paces || null },
+      progress: { planned: Number(progress?.planned || 0), completed: Number(progress?.completed || 0) },
+      recent_results: (results.results || []).map(row => ({
+        distance_km: row.distance_km, time_seconds: row.time_seconds, pace_label: row.pace_label,
+        effort: row.effort, created_at: row.created_at,
+      })),
+      recommendations: (advice.results || []).map(row => ({ advice: safeParse(row.advice_json) || [], created_at: row.created_at })),
+      note: "Decision support only. No private notes, limitations, location or contact details are shared.",
+    });
+  }
+
   const auth = await authenticated(request, env);
   if (auth.response) return auth.response;
   const user = auth.user;
@@ -3931,6 +3971,8 @@ async function handleRunIqApi(request, env, url) {
     const body = await readJson(request), assessment = cleanAssessment(body?.assessment);
     if (!assessment) return reply(request, env, { error: "invalid_assessment" }, 400);
     const preview = analyzeAssessment(assessment), weekStart = mondayOf();
+    const advice = buildAdvice(assessment, preview, []);
+    preview.advice = advice.advice;
     const existing = await env.DB.prepare("SELECT program_id FROM run_iq_plans WHERE user_id=?").bind(user.id).first();
     if (existing) return reply(request, env, { error: "plan_exists", program_id: existing.program_id }, 409);
     const plan = buildStarterPlan(assessment, preview, weekStart);
@@ -3952,16 +3994,20 @@ async function handleRunIqApi(request, env, url) {
     });
     statements.push(env.DB.prepare("INSERT INTO run_iq_plans(user_id,assessment_id,program_id,created_at) VALUES(?,?,?,?)")
       .bind(user.id, user.id, programId, now));
+    statements.push(env.DB.prepare("INSERT INTO run_iq_advice_history(id,user_id,fingerprint,advice_json,created_at) VALUES(?,?,?,?,?)")
+      .bind(randomId(), user.id, advice.fingerprint, JSON.stringify(advice.advice), now));
     await env.DB.batch(statements);
     return reply(request, env, { saved: true, program_id: programId, week_start: weekStart, sessions: plan.sessions.length }, 201);
   }
 
   if (path === "/api/run-iq/me" && method === "GET") {
-    const [assessment, planRow] = await Promise.all([
+    const [assessment, planRow, adviceRows, raceRows] = await Promise.all([
       env.DB.prepare("SELECT * FROM run_iq_assessments WHERE user_id=?").bind(user.id).first(),
       env.DB.prepare("SELECT * FROM run_iq_plans WHERE user_id=?").bind(user.id).first(),
+      env.DB.prepare("SELECT advice_json,created_at FROM run_iq_advice_history WHERE user_id=? ORDER BY created_at DESC LIMIT 6").bind(user.id).all(),
+      env.DB.prepare("SELECT * FROM run_iq_race_results WHERE user_id=? ORDER BY created_at DESC LIMIT 10").bind(user.id).all(),
     ]);
-    if (!assessment) return reply(request, env, { assessment: null, preview: null, program: null, shares: [] });
+    if (!assessment) return reply(request, env, { assessment: null, preview: null, program: null, shares: [], advice: [], race_results: [] });
     let program = null;
     if (planRow) {
       const rows = await env.DB.prepare(`SELECT s.id,s.session_code,s.day_key,s.sport_type,s.details,s.sort_order,
@@ -3978,7 +4024,22 @@ async function handleRunIqApi(request, env, url) {
     return reply(request, env, {
       assessment: safeParse(assessment.assessment_json), preview: safeParse(assessment.preview_json),
       program, shares: shares.results || [],
+      advice: (adviceRows.results || []).map(row => ({ advice: safeParse(row.advice_json) || [], created_at: row.created_at })),
+      race_results: raceRows.results || [],
     });
+  }
+
+  if (path === "/api/run-iq/race-result" && method === "POST") {
+    if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
+    const body = await readJson(request);
+    const result = analyzeRaceResult({ distance: body?.distance, time: body?.time, effort: body?.effort }, Number(body?.target_pace) || null);
+    if (!result) return reply(request, env, { error: "invalid_race_result" }, 400);
+    const record = await env.DB.prepare("SELECT preview_json FROM run_iq_assessments WHERE user_id=?").bind(user.id).first();
+    const target = safeParse(record?.preview_json)?.paces?.targetPace || null;
+    await env.DB.prepare(`INSERT INTO run_iq_race_results(id,user_id,distance_km,time_seconds,pace_label,target_pace_label,effort,notes,result_json,created_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?)`).bind(randomId(), user.id, result.distance_km, result.time_seconds,
+      result.pace_label, target ? formatPace(target) : "", result.effort, text(body?.notes, 500), JSON.stringify(result), new Date().toISOString()).run();
+    return reply(request, env, { saved: true, result }, 201);
   }
 
   const logMatch = /^\/api\/run-iq\/sessions\/([\w-]{36})\/log$/.exec(path);
