@@ -1273,7 +1273,7 @@ html[dir="rtl"] .footer-install { text-align: right; }
         function hide(){banner.hidden=true;banner.setAttribute('aria-hidden','true')}
         function show(){banner.hidden=false;banner.removeAttribute('aria-hidden')}
         function check(){
-          const apiBase=window.MZACTIVE_API_BASE||'';
+          const apiBase=window.MZACTIVE_API_BASE||'https://mzactive-marketplace-api.mzactive5.workers.dev';
           fetch(apiBase+'/api/public/campaigns/samla',{cache:'no-store'})
             .then(r=>r.ok?r.json():null)
             .then(data=>{
