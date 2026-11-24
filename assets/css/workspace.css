@@ -76,3 +76,10 @@ html[dir=rtl] .athlete-row{text-align:right}
 #coachSettings .actions{margin-top:14px}
 #memberCoachList{margin-bottom:16px}
 @media(max-width:520px){.coach-quick-actions{grid-template-columns:1fr 1fr}.coach-quick-actions .quick-action{min-height:56px;font-size:.85rem}}
+
+/* Functional additions to the approved program editor */
+.program-week-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+.program-week-nav button{min-height:38px;padding:.25rem .7rem;font-size:.8rem}
+.program-week-nav strong{color:var(--gold);font-size:.82rem}
+.delivery-choice{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:.88rem}
+.studio-savebar #programEmailSend,.studio-savebar #programWhatsAppSend{min-height:42px}

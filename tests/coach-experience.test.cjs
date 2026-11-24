@@ -48,3 +48,21 @@ test('coach quick actions, settings and athlete coach display are wired', () => 
   assert.match(worker, /connectedCoaches = rows\.results/);
   assert.match(read('backend/migrations/0039_user_notification_preferences.sql'), /user_notification_preferences/);
 });
+
+test('program editor supports flexible duration, sports and channel choice', () => {
+  const html = read('dashboard.html');
+  assert.match(html, /assets\/js\/program-editor-enhancements\.js/);
+  const js = read('assets/js/program-editor-enhancements.js');
+  for (const marker of ['programDurationUnit', 'programDurationValue', 'programWeekLabel', 'programPrevWeek', 'programNextWeek', 'session_date', 'programEmailSend', 'programWhatsAppSend', 'program-draft', 'bodybuilding']) {
+    assert.ok(js.includes(marker), marker);
+  }
+  const admin = read('assets/js/coach-dashboard.js');
+  assert.match(admin, /sendChannel/);
+  assert.match(admin, /Edit program/);
+  const worker = read('backend/worker.js');
+  assert.match(worker, /duration_value/);
+  assert.match(worker, /session_date/);
+  assert.match(worker, /program-draft/);
+  assert.match(read('backend/migrations/0040_program_editor_functional.sql'), /duration_value/);
+  assert.match(read('backend/migrations/0041_program_drafts.sql'), /program_drafts/);
+});

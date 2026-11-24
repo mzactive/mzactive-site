@@ -111,7 +111,7 @@
     let dialog = $('sendProgramDialog');
     if (!dialog) {
       dialog = el('dialog', 'crm-dialog'); dialog.id = 'sendProgramDialog';
-      dialog.innerHTML = `<h3>${t('send')}</h3><select id="sendProgramSelect" aria-label="Program"></select><input id="sendProgramSearch" class="athlete-search" type="search" placeholder="${t('search')}"><div id="sendProgramList" class="cards"></div><button id="sendProgramConfirm" class="btn" type="button" disabled>${t('sendNow')}</button>`;
+      dialog.innerHTML = `<h3>${t('send')}</h3><select id="sendProgramSelect" aria-label="Program"></select><label class="delivery-choice"><input type="radio" name="sendChannel" value="email" checked> ${lang() === 'ar' ? 'بريد إلكتروني' : 'Email'}</label><label class="delivery-choice"><input type="radio" name="sendChannel" value="whatsapp"> WhatsApp</label><input id="sendProgramSearch" class="athlete-search" type="search" placeholder="${t('search')}"><div id="sendProgramList" class="cards"></div><button id="sendProgramConfirm" class="btn" type="button" disabled>${t('sendNow')}</button>`;
       document.body.append(dialog);
     }
     state.programId = programId || programs[0]?.id;
@@ -135,7 +135,7 @@
     confirm.onclick = async () => {
       if (!selected) return; confirm.disabled = true;
       try {
-        await api('/api/dashboard/programs/' + encodeURIComponent(state.programId) + '/send', { method: 'POST', body: JSON.stringify({ athlete_user_id: selected }) });
+        await api('/api/dashboard/programs/' + encodeURIComponent(state.programId) + '/send', { method: 'POST', body: JSON.stringify({ athlete_user_id: selected, channel: dialog.querySelector('input[name=sendChannel]:checked')?.value || 'email' }) });
         ($('notice') || document.body).textContent = t('sent'); dialog.close(); await load();
       } catch (error) { ($('notice') || document.body).textContent = error.message || t('failed'); confirm.disabled = false; }
     };
@@ -145,7 +145,10 @@
     document.querySelectorAll('#flexProgramHistory [data-program-id]').forEach(card => {
       if (card.querySelector('[data-send-program]')) return;
       const b = el('button', 'btn secondary', t('send')); b.type = 'button'; b.dataset.sendProgram = '1';
-      b.onclick = () => sendDialog(card.dataset.programId); card.append(b);
+      b.onclick = () => sendDialog(card.dataset.programId);
+      const edit = el('button', 'btn secondary', lang() === 'ar' ? 'تعديل البرنامج' : 'Edit program'); edit.type = 'button';
+      edit.onclick = () => { const program = (window.mzStudioDashboard?.programs || []).find(p => p.id === card.dataset.programId); if (program && window.MZActiveProgramEditor) window.MZActiveProgramEditor.loadProgram(program); };
+      card.append(b, edit);
     });
   }
 
