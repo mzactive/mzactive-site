@@ -453,6 +453,7 @@ function defaultApiHandler(ctx, state) {
   if (urlPath === '/api/dashboard/bookings') return json({ bookings: [] });
   if (/^\/api\/dashboard\/bookings\/[^/]+$/.test(urlPath) && method === 'PATCH') return json({ updated: true, status: ctx.body?.status });
   if (urlPath === '/api/dashboard/analytics') return json({ analytics: {} });
+  if (urlPath === '/api/me/following/count') return json({ following_count: 2 });
   if (urlPath === '/api/me/achievements') return json({ achievements: [] });
   if (urlPath === '/api/me/sports-profile') {
     if (method === 'PUT') return json({ saved: true });

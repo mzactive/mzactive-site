@@ -154,3 +154,5 @@ html[dir="rtl"] .coach-vertical-nav .quick-action::after{content:'‹'}
 .athlete-profile-panel .profile-social-tabs .social-tab{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:999px;min-height:40px;padding:.35rem .8rem;cursor:pointer;font:inherit;font-size:.82rem}
 .athlete-profile-panel .profile-social-tabs .social-tab[aria-selected="true"]{background:var(--gold);border-color:var(--gold);color:#091d21;font-weight:900}
 @media(max-width:760px){.athlete-profile-panel .athlete-identity{grid-template-columns:76px minmax(0,1fr);gap:10px;padding-inline:12px}.athlete-profile-panel .athlete-photo{width:76px;height:76px}.athlete-profile-panel .athlete-actions{grid-column:1/-1;max-width:none;justify-content:flex-start}.athlete-profile-panel .profile-social-tabs{overflow-x:auto;flex-wrap:nowrap}.athlete-profile-panel .profile-social-tabs .social-tab{white-space:nowrap}}
+
+.my-profile-panel .own-stats{grid-template-columns:repeat(auto-fit,minmax(82px,1fr))}
