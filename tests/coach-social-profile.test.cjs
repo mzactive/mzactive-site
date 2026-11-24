@@ -8,16 +8,38 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('coach discovery cards use vertical photos, real statistics and compact actions', () => {
+test('coach directory uses compact horizontal cards with real details and no emojis', () => {
   const html = read('coaches.html');
-  assert.match(html, /\.photo\{aspect-ratio:3\/4/);
-  assert.match(html, /object-position:center 18%/);
-  assert.match(html, /make\('div','stat-row'\)/);
-  assert.match(html, /addStat\(p\.follower_count/);
-  assert.match(html, /addStat\(visible\.has\('experience_years'\)\?p\.experience_years:null/);
+  assert.match(html, /\.grid\{display:grid;grid-template-columns:repeat\(3,/);
+  assert.match(html, /grid-template-columns:120px minmax\(0,1fr\)/);
+  assert.match(html, /\.photo\{width:120px;height:160px/);
+  assert.match(html, /grid-template-columns:90px minmax\(0,1fr\)/);
+  assert.match(html, /\.photo\{width:90px;height:120px\}/);
+  assert.match(html, /object-fit:cover;object-position:center top/);
+  assert.match(html, /verified-badge/);
+  assert.match(html, /addFact\('pin'/);
+  assert.match(html, /addFact\('clock'/);
+  assert.match(html, /addFact\('globe'/);
+  assert.match(html, /addFact\('list'/);
   assert.match(html, /'View Profile'/);
-  assert.match(html, /'Send Request ↗'/);
-  assert.doesNotMatch(html, /Math\.random/);
+  assert.match(html, /'Send Request'/);
+  assert.doesNotMatch(html, /🏃|🏁|📍|MZ ACTIVE APPROVED/);
+});
+
+test('homepage featured coaches use the same compact horizontal design', () => {
+  const html = read('index.html');
+  const js = read('assets/js/homepage.js');
+  assert.match(html, /\.coach-info\{display:grid/);
+  assert.match(html, /\.coach-verified\{display:inline-flex/);
+  assert.match(html, /\.coach-card-photo,\.coach-card-photo-placeholder\{width:88px!important;height:118px!important/);
+  assert.match(html, /width:72px!important;height:96px!important/);
+  assert.match(js, /const info = node\('div', 'coach-info'\)/);
+  assert.match(js, /icon\('pin'/);
+  assert.match(js, /icon\('clock'/);
+  assert.match(js, /icon\('globe'/);
+  assert.match(js, /icon\('list'/);
+  assert.match(html, /homepage\.js\?v=20261124a/);
+  assert.doesNotMatch(js, /⌖|🏃|🏁|📍/);
 });
 
 test('public coach profile exposes real stats, follow and social tabs', () => {
@@ -43,7 +65,7 @@ test('public coach profile exposes real stats, follow and social tabs', () => {
   assert.match(js, /\/api\/coaches\/\$\{encodeURIComponent\(id\)\}\/follow/);
   assert.match(css, /\.profile-stats\{/);
   assert.match(css, /\.profile-social-tabs \.social-tab\[aria-selected="true"\]/);
-  assert.match(html, /coach-profile\.css\?v=20261124a/);
+  assert.match(html, /coach-profile\.css\?v=20261124b/);
   assert.match(html, /coach-profile\.js\?v=20261124a/);
 });
 

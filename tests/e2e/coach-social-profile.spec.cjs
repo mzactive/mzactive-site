@@ -29,7 +29,7 @@ const COACH = {
   viewer: { authenticated: false, owner: false, can_message: false },
 };
 
-test('discovery cards show vertical real photos, statistics and compact actions', async ({ page }) => {
+test('discovery cards are compact horizontal cards with real details on every device', async ({ page }) => {
   const mock = await installApiMock(page, {
     overrides: {
       'GET /api/providers': json({
@@ -49,19 +49,62 @@ test('discovery cards show vertical real photos, statistics and compact actions'
   await page.goto('/coaches.html');
   const card = page.locator(`#coach-${COACH_ID}`);
   await expect(card).toBeVisible();
-  const photo = card.locator('.photo');
-  const shape = await photo.evaluate(el => {
-    const image = el.querySelector('img');
-    const style = getComputedStyle(image);
-    return { ratio: el.getBoundingClientRect().height / el.getBoundingClientRect().width, fit: style.objectFit };
+  const layout = await card.evaluate(el => {
+    const photo = el.querySelector('.photo').getBoundingClientRect();
+    const image = el.querySelector('.photo img');
+    const badge = el.querySelector('.verified-badge').getBoundingClientRect();
+    const columns = getComputedStyle(document.getElementById('grid')).gridTemplateColumns.split(' ').length;
+    return {
+      photoWidth: Math.round(photo.width), photoHeight: Math.round(photo.height),
+      fit: getComputedStyle(image).objectFit, badgeHeight: Math.round(badge.height), columns,
+      text: el.textContent, emoji: /[🏃🏁📍]/.test(el.textContent), tagCount: el.querySelectorAll('.tag').length,
+    };
   });
-  expect(shape.ratio).toBeGreaterThan(1);
-  expect(shape.fit).toBe('cover');
-  await expect(card.locator('.stat-row .stat')).toHaveCount(3);
-  await expect(card.locator('.stat-row')).toContainText('120');
-  await expect(card.locator('.stat-row')).toContainText('8');
+  const mobile = await page.evaluate(() => window.innerWidth <= 620);
+  expect(layout.photoWidth).toBe(mobile ? 90 : 120);
+  expect(layout.photoHeight).toBe(mobile ? 120 : 160);
+  expect(layout.fit).toBe('cover');
+  expect(layout.badgeHeight).toBeLessThan(24);
+  expect(layout.columns).toBe(mobile ? 1 : 3);
+  expect(layout.emoji).toBe(false);
+  expect(layout.tagCount).toBe(0);
+  await expect(card).toContainText('Doha, Qatar');
+  await expect(card).toContainText('8 years experience');
+  await expect(card).toContainText('Arabic · English');
+  await expect(card).toContainText('Running plans · Race preparation');
   await expect(card.getByRole('link', { name: 'View Profile' })).toHaveAttribute('href', `coach.html?id=${COACH_ID}`);
-  await expect(card.getByRole('link', { name: 'Send Request ↗' })).toHaveAttribute('href', `pacer.html?provider=${COACH_ID}#request`);
+  await expect(card.getByRole('link', { name: 'Send Request' })).toHaveAttribute('href', `pacer.html?provider=${COACH_ID}#request`);
+  assertOfflineSafe(mock);
+});
+
+test('homepage featured coaches use the compact horizontal card design', async ({ page }) => {
+  const mock = await installApiMock(page, {
+    overrides: {
+      'GET /api/providers': json({
+        providers: [{ ...COACH, has_profile_photo: false }],
+      }),
+    },
+  });
+  await page.goto('/index.html');
+  const card = page.locator('#featuredCoachGrid .coach-card').first();
+  await expect(card).toBeVisible();
+  const layout = await card.evaluate(el => {
+    const photo = el.querySelector('.coach-card-photo,.coach-card-photo-placeholder').getBoundingClientRect();
+    return {
+      width: Math.round(photo.width), height: Math.round(photo.height),
+      hasInfo: Boolean(el.querySelector('.coach-info')),
+      verified: Boolean(el.querySelector('.coach-verified')),
+      emoji: /[🏃🏁📍⌖]/.test(el.textContent),
+    };
+  });
+  const mobile = await page.evaluate(() => window.innerWidth <= 720);
+  expect(layout.width).toBe(mobile ? 72 : 88);
+  expect(layout.height).toBe(mobile ? 96 : 118);
+  expect(layout.hasInfo).toBe(true);
+  expect(layout.verified).toBe(true);
+  expect(layout.emoji).toBe(false);
+  await expect(card).toContainText('Akram Babanacer');
+  await expect(card).toContainText('Doha, Qatar');
   assertOfflineSafe(mock);
 });
 
@@ -84,6 +127,13 @@ test('public coach profile shows real stats, social tabs and a visible follow ac
   await expect(page.locator('#followPublic')).toBeVisible();
   await expect(page.locator('#book')).toBeVisible();
   await expect(page.locator('#share')).toBeVisible();
+  const header = await page.evaluate(() => {
+    const cover = document.querySelector('.cover-wrap').getBoundingClientRect();
+    const avatar = document.querySelector('.identity-photo-wrap').getBoundingClientRect();
+    return { coverHeight: Math.round(cover.height), overlap: Math.round(cover.bottom - avatar.top) };
+  });
+  expect(header.coverHeight).toBeLessThan(250);
+  expect(header.overlap, JSON.stringify(header)).toBeGreaterThan(20);
 
   await page.locator('#profileSocialTabs [data-social-tab="blogs"]').click();
   await expect(page.locator('#profileBlogsPanel')).toBeVisible();
@@ -94,5 +144,22 @@ test('public coach profile shows real stats, social tabs and a visible follow ac
   await page.locator('#profileSocialTabs [data-social-tab="programs"]').click();
   await expect(page.locator('#profileProgramsPanel')).toContainText('1 month');
   await expect(page.locator('#profileBlogsPanel')).toBeHidden();
+  assertOfflineSafe(mock);
+});
+
+test('Arabic directory cards keep the compact layout with RTL labels', async ({ page }) => {
+  const mock = await installApiMock(page, {
+    overrides: { 'GET /api/providers': json({ providers: [{ ...COACH, has_profile_photo: false }] }) },
+  });
+  await page.addInitScript(() => localStorage.setItem('mzactive-language-manual', 'ar'));
+  await page.goto('/coaches.html');
+  const card = page.locator(`#coach-${COACH_ID}`);
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('معتمد');
+  await expect(card).toContainText('عرض الملف');
+  await expect(card).toContainText('إرسال طلب');
+  await expect(card).toContainText('Doha, Qatar');
+  const direction = await card.evaluate(el => getComputedStyle(el).direction);
+  expect(direction).toBe('rtl');
   assertOfflineSafe(mock);
 });

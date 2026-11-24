@@ -20,3 +20,9 @@ html[dir="rtl"] .identity-copy,html[dir="rtl"] .surface,html[dir="rtl"] .create-
 .profile-actions{flex-wrap:wrap}
 .profile-actions .button{min-height:44px}
 @media(max-width:760px){.profile-stats{max-width:100%}.profile-social-tabs{padding-inline:14px;overflow-x:auto;flex-wrap:nowrap}.profile-social-tabs .social-tab{white-space:nowrap}}
+
+/* Keep the circular profile picture clearly overlapping the compact cover */
+.identity-row{align-items:start}
+.identity-photo-wrap{margin-top:-64px;align-self:start}
+@media(max-width:760px){.identity-photo-wrap{margin-top:-44px}}
+@media(max-width:520px){.identity-photo-wrap{margin-top:-30px}}
