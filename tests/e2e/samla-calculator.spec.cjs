@@ -36,7 +36,8 @@ test('SAMLA AI distribution and independent calculators work', async ({ page }) 
   await expect(page.locator('#aiStrategyButton')).toBeVisible();
   await page.locator('#shareCardButton').click();
   await expect(page.locator('#shareCardPreview')).toBeVisible();
-  await expect(page.locator('#shareCardPreview button')).toBeVisible();
+  await expect(page.locator('#shareCardClose')).toBeVisible();
+  await expect(page.locator('#shareActions')).toBeVisible();
   await page.locator('#aiStrategyButton').click();
   await expect(page.locator('#aiStrategyPanel')).toBeVisible();
   await expect(page.locator('#aiStrategyResult')).toContainText('Estimated strategy');
