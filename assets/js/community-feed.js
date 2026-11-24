@@ -231,6 +231,15 @@
     const actions = node('div', undefined, 'feed-actions');
     actions.append(actionButton(`${post.liked ? '♥' : '♡'} ${post.likes || 0}`, () => toggleLike(post), !token));
     actions.append(actionButton(`${t('Comments', 'التعليقات')} (${post.comments || 0})`, () => toggleComments(card, post)));
+    actions.append(actionButton(t('Share', 'مشاركة'), async () => {
+      const url = new URL('community.html', location.href);
+      url.hash = `post-${encodeURIComponent(post.id)}`;
+      try {
+        if (navigator.share) await navigator.share({ title: document.title, url: url.href });
+        else if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(url.href); notice(t('Post link copied.', 'تم نسخ رابط المنشور.')); }
+        else notice(url.href);
+      } catch (error) { if (error.name !== 'AbortError') notice(url.href); }
+    }));
     if (post.kind === 'event' || post.kind === 'group_session') {
       actions.append(actionButton(t('Going', 'مشارك'), () => setRsvp(post, 'going'), !token || Boolean(post.cancelled_at)));
       actions.append(actionButton(t('Interested', 'مهتم'), () => setRsvp(post, 'interested'), !token || Boolean(post.cancelled_at)));

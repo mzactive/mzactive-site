@@ -537,11 +537,15 @@ async function runOwnerAnalysis(env, task, prompt, source, taskId=randomId()) {
 }
 
 async function publicBlogPosts(request, env) {
-  const slug = text(new URL(request.url).searchParams.get("slug") || "", 80).replace(/^coach-/, "");
-  const query = `SELECT b.id,b.title,b.summary,b.body,b.language,b.created_at,b.published_at,p.display_name AS coach_name
+  const params = new URL(request.url).searchParams;
+  const slug = text(params.get("slug") || "", 80).replace(/^coach-/, "");
+  // A public coach profile can list only its own published articles. Existing
+  // callers that do not pass ?provider keep the full published feed.
+  const provider = text(params.get("provider") || "", 80);
+  const query = `SELECT b.id,b.title,b.summary,b.body,b.language,b.created_at,b.published_at,p.display_name AS coach_name,b.provider_id
     FROM coach_blog_posts b JOIN provider_profiles p ON p.id=b.provider_id JOIN users u ON u.id=p.user_id
-    WHERE b.status='published' AND ${publicVisibility("u")} AND (?='' OR b.id=?) ORDER BY b.published_at DESC LIMIT 100`;
-  const result = await env.DB.prepare(query).bind(slug,slug).all();
+    WHERE b.status='published' AND ${publicVisibility("u")} AND (?='' OR b.id=?) AND (?='' OR b.provider_id=?) ORDER BY b.published_at DESC LIMIT 100`;
+  const result = await env.DB.prepare(query).bind(slug,slug,provider,provider).all();
   return reply(request, env, { posts: result.results || [] });
 }
 
