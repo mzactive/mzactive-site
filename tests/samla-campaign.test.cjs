@@ -20,7 +20,7 @@ test('homepage has a removable SAMLA 200 campaign banner', () => {
 
 test('SAMLA calculator locks official stage distances and keeps tools independent', () => {
   const html = read('samla/index.html');
-  for (const distance of ['distance: 3', 'distance: 40', 'distance: 6', 'distance: 36', 'distance: 75']) {
+  for (const distance of ['distance: 3', 'distance: 50', 'distance: 6', 'distance: 33', 'distance: 75']) {
     assert.match(html, new RegExp(distance.replace(' ', '\\s*')));
   }
   assert.match(html, /44-hour cut-off|حد قطع 44 ساعة/);

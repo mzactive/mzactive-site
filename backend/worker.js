@@ -566,6 +566,61 @@ async function publicCampaign(request, env) {
   });
 }
 
+async function samlaAiStrategy(request, env) {
+  if (!await rateLimit(request, env, "samla-ai", 6)) return reply(request, env, { error: "rate_limited" }, 429);
+  if (!await reserveAssistantRequest(env, "public")) return reply(request, env, { error: "daily_limit_reached" }, 429);
+  const body = await readJson(request);
+  const results = body?.results && typeof body.results === "object" ? body.results : null;
+  if (!results || !Array.isArray(results.stages) || results.stages.length === 0) {
+    return reply(request, env, { error: "invalid_strategy_results" }, 400);
+  }
+  const language = body?.language === "ar" ? "ar" : "en";
+  const stageLines = results.stages.map((stage) => {
+    const name = text(stage?.name, 40) || "Stage";
+    const distance = Number(stage?.distance);
+    const duration = text(stage?.duration, 12);
+    const pace = text(stage?.pace, 24);
+    const speed = text(stage?.speed, 24);
+    return `${name}: ${Number.isFinite(distance) ? distance + " km" : "shooting"}, duration ${duration}, pace ${pace}, speed ${speed}`;
+  }).join("\n");
+  const total = text(results.total, 12);
+  const target = text(results.target, 12);
+  const transitions = text(results.transitions, 12);
+  const nutrition = text(results.nutrition, 240);
+  const gels = text(results.gels, 240);
+  const userMessage = `Validated SAMLA 200 calculator results:
+Finishing time: ${total}
+Target finishing time: ${target || "not provided"}
+Transitions: ${transitions} minutes
+Stages:
+${stageLines}
+Nutrition: ${nutrition || "not provided"}
+Gels: ${gels || "not provided"}
+
+Generate a concise professional race execution strategy for each stage.`;
+  const system = language === "ar"
+    ? "أنت مساعد MZ Active لاستراتيجية سباق صملة 200. استخدم فقط نتائج الحاسبة المُدخلة. اكتب استراتيجية مختصرة واحترافية لكل مرحلة: إدارة الوتيرة والجهد، تجنب البدء بسرعة، حفظ الطاقة، التعب التراكمي، إدارة الانتقالات، التغذية الآمنة، تنفيذ المرحلة الأخيرة، وتحذيرات من وتيرة غير واقعية. لا تضمن الأداء ولا تغير الأوقات المحسوبة. لا تختلق معلومات."
+    : "You are MZ Active Race Strategy. Use only the validated SAMLA 200 calculator results. Generate a concise professional race execution strategy for each stage: pace and effort management, avoiding starting too fast, energy conservation, accumulated fatigue, transition management, safe nutrition timing, final-stage execution, and warnings about potentially unrealistic pacing. Do not guarantee performance, do not change calculated times, and do not invent information.";
+  if (!env.AI || typeof env.AI.run !== "function") {
+    return reply(request, env, { answer: language === "ar"
+      ? "استراتيجية مقدّرة: ابدأ بوتيرة متحفظة، حافظ على وتيرة ثابتة، تغذّى بانتظام، وأبقِ الانتقالات قصيرة. هذه ليست ضمانة للأداء."
+      : "Estimated strategy: start conservatively, hold steady pacing, fuel regularly, and keep transitions short. This is not a guarantee." });
+  }
+  try {
+    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
+      messages: [{ role: "system", content: system }, { role: "user", content: userMessage }],
+      max_tokens: 700,
+      temperature: 0.2,
+    });
+    const answer = text(result?.response, 5000);
+    if (!answer) return reply(request, env, { error: "assistant_unavailable" }, 503);
+    return reply(request, env, { answer });
+  } catch (error) {
+    console.error("SAMLA AI strategy failed:", error);
+    return reply(request, env, { error: "assistant_unavailable" }, 503);
+  }
+}
+
 async function adminCampaign(request, env) {
   const user = await currentUser(request, env);
   if (!user) return reply(request, env, { error: "unauthorized" }, 401);
@@ -5234,6 +5289,7 @@ export default {
     if (request.method === "GET" && publicCampaignMatch) return publicCampaign(request, env);
     const adminCampaignMatch = /^\/api\/admin\/campaigns\/([\w-]{1,40})$/.exec(url.pathname);
     if (adminCampaignMatch && ["GET","PATCH"].includes(request.method)) return adminCampaign(request, env);
+    if (request.method === "POST" && url.pathname === "/api/samla/ai-strategy") return samlaAiStrategy(request, env);
     if (request.method === "GET" && url.pathname === "/api/providers") return publicProviders(url, request, env);
     const profileMatch = /^\/api\/providers\/([\w-]{36})$/.exec(url.pathname);
     if (request.method === "GET" && profileMatch) return publicProviders(url, request, env, profileMatch[1]);

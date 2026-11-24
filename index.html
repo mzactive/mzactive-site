@@ -1246,24 +1246,25 @@ html[dir="rtl"] .footer-install { text-align: right; }
       </div>
     </section>
 
-    <section id="samlaCampaignBanner" class="samla-campaign-banner" hidden aria-labelledby="samla-banner-title">
-      <div class="wrap samla-campaign-inner">
-        <div>
-          <p class="samla-campaign-eyebrow" data-en="MZ ACTIVE CAMPAIGN" data-ar="حملة MZ ACTIVE">MZ ACTIVE CAMPAIGN</p>
+    <a id="samlaCampaignBanner" class="samla-campaign-banner" href="/samla/" hidden aria-labelledby="samla-banner-title">
+      <span class="wrap samla-campaign-inner">
+        <span class="samla-campaign-copy">
           <h2 id="samla-banner-title" data-en="SAMLA 200 — Every Minute Counts" data-ar="صمله 200 — كل دقيقة تصنع الفرق">صمله 200 — كل دقيقة تصنع الفرق</h2>
           <p data-en="Plan your 200 km SAMLA strategy with realistic stage pacing." data-ar="خطط استراتيجية سباق صملة 200 كم بخطوات واقعية.">Plan your 200 km SAMLA strategy with realistic stage pacing.</p>
-        </div>
-        <a class="button" href="/samla/" data-en="Calculate your race strategy for free" data-ar="احسب استراتيجية سباقك مجاناً">احسب استراتيجية سباقك مجاناً</a>
-      </div>
-    </section>
+        </span>
+        <span class="samla-campaign-cta" data-en="Calculate My Race — FREE" data-ar="احسب استراتيجية سباقك مجاناً">Calculate My Race — FREE</span>
+      </span>
+    </a>
     <style>
       .samla-campaign-banner{background:linear-gradient(90deg,#091d21,#103538);border-bottom:1px solid #2e6567;padding:14px 0}
       .samla-campaign-inner{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
-      .samla-campaign-eyebrow{margin:0 0 2px;color:#f2b718;font-size:10px;font-weight:900;letter-spacing:.16em}
       .samla-campaign-banner h2{margin:0;font-size:clamp(18px,2.4vw,28px);color:#f2b718;line-height:1.2}
       .samla-campaign-banner p{margin:4px 0 0;color:#b8cbc6;font-size:13px}
-      .samla-campaign-banner .button{white-space:nowrap;min-height:44px}
-      @media(max-width:640px){.samla-campaign-inner{flex-direction:column;align-items:flex-start}.samla-campaign-banner .button{width:100%;text-align:center}}
+      .samla-campaign-banner{display:block;text-decoration:none;cursor:pointer;transition:filter .18s ease,transform .18s ease}
+      .samla-campaign-banner:hover{filter:brightness(1.06)}
+      .samla-campaign-banner:focus-visible{outline:3px solid #f2b718;outline-offset:3px}
+      .samla-campaign-cta{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 20px;border-radius:999px;background:#f2b718;color:#091d21;font-weight:900;white-space:nowrap;box-shadow:0 8px 20px #f2b71833}
+      @media(max-width:640px){.samla-campaign-inner{flex-direction:column;align-items:flex-start}.samla-campaign-cta{width:100%;text-align:center}}
     </style>
     <script>
       (function(){
