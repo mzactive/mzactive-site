@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#091d21">
+  <title>MZA Race IQ — SAMLA 200 Strategy Calculator</title>
+  <script src="../assets/js/language-preference.js?v=20261120c" defer></script>
+  <link rel="stylesheet" href="../assets/css/site-theme.css?v=20261120h">
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#091d21;color:#f0f5f3;font:16px/1.6 Arial,sans-serif}
+    a{color:#f2b718}
+    .wrap{width:min(1180px,94%);margin:auto}
+    header{position:sticky;top:0;z-index:5;background:#090b0bed;border-bottom:1px solid #2e6567;backdrop-filter:blur(12px)}
+    .nav{min-height:70px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:10px 0}
+    .brand img{width:150px;max-width:40vw;height:auto}
+    .hero{padding:34px 0 20px;border-bottom:1px solid #2e6567;background:linear-gradient(135deg,#091d21,#103538)}
+    .hero h1{margin:0;font-size:clamp(28px,5vw,46px);line-height:1.1}
+    .hero h1 span{color:#f2b718}
+    .hero p{max-width:760px;color:#b8cbc6;margin:10px 0 0}
+    .card{background:#103538;border:1px solid #2e6567;border-radius:16px;padding:18px;margin:18px 0;box-shadow:0 12px 30px #0004}
+    .card h2{margin:0 0 8px;font-size:22px;color:#f2b718}
+    .muted{color:#b8cbc6;font-size:13px}
+    .notice{border:1px dashed #75602e;padding:12px 14px;color:#d8c99e;border-radius:12px;margin:12px 0;font-size:13px}
+    .stage-table-wrap{overflow-x:auto;margin-top:12px}
+    table{width:100%;border-collapse:collapse;min-width:760px}
+    th,td{padding:10px 8px;border-bottom:1px solid #2e6567;vertical-align:middle}
+    th{color:#f2b718;font-size:12px;text-align:start}
+    td input,td select{width:100%;min-width:72px;padding:8px;background:#091d21;border:1px solid #3b7779;color:#f0f5f3;border-radius:8px}
+    .result{font-weight:800;color:#f2b718}
+    .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}
+    .metric{background:#091d21;border:1px solid #2e6567;border-radius:12px;padding:12px;text-align:center}
+    .metric b{display:block;color:#f2b718;font-size:20px}
+    .metric span{display:block;color:#b8cbc6;font-size:11px;margin-top:4px}
+    .button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 16px;border-radius:12px;background:#f2b718;color:#091d21;font-weight:900;border:0;cursor:pointer;text-decoration:none}
+    .button.secondary{background:#103538;color:#f0f5f3;border:1px solid #2e6567}
+    .button-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .collapsible{border:1px solid #2e6567;border-radius:16px;margin:18px 0;overflow:hidden}
+    .collapsible summary{cursor:pointer;padding:14px 18px;background:#103538;color:#f2b718;font-weight:900}
+    .collapsible[open] summary{border-bottom:1px solid #2e6567}
+    .collapsible .content{padding:18px}
+    .field{display:grid;gap:6px;margin:10px 0}
+    .field input,.field select{padding:10px;background:#091d21;border:1px solid #3b7779;color:#f0f5f3;border-radius:8px}
+    .share-card{margin-top:14px}
+    canvas{max-width:100%;border:1px solid #2e6567;border-radius:12px;background:#091d21}
+    footer{padding:24px 0;color:#838c85;font-size:12px;border-top:1px solid #2e6567;margin-top:28px}
+    @media(max-width:700px){table{min-width:680px}th,td{padding:8px 6px;font-size:12px}}
+  </style>
+</head>
+<body>
+<script src="../assets/js/language-preference.js?v=20261120c"></script>
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="../index.html"><img src="../assets/brand/mzactive-logo.webp" alt="MZ Active"></a>
+    <nav class="nav">
+      <a href="../index.html" data-en="Home" data-ar="الرئيسية">Home</a>
+      <a href="../coaches.html" data-en="Coaches" data-ar="المدربون">Coaches</a>
+      <a href="../community.html" data-en="Community" data-ar="المجتمع">Community</a>
+      <a href="../dashboard.html" data-en="Dashboard" data-ar="لوحة التحكم">Dashboard</a>
+    </nav>
+    <button class="lang" id="lang" type="button">العربية</button>
+  </div>
+</header>
+<main class="wrap">
+  <section class="hero">
+    <p class="eyebrow" data-en="MZ ACTIVE RACE IQ" data-ar="ذكاء MZ للسباقات">MZ ACTIVE RACE IQ</p>
+    <h1 data-en="SAMLA 200 strategy calculator" data-ar="حاسبة استراتيجية سباق صملة 200"><span data-en="SAMLA 200" data-ar="صمله 200">SAMLA 200</span> <span data-en="strategy calculator" data-ar="حاسبة الاستراتيجية">strategy calculator</span></h1>
+    <p data-en="Estimate stage times, transitions, shooting, cumulative progress and the 44-hour cut-off. Free and unofficial: verify all details with the official SAMLA race committee." data-ar="قدّر أوقات المراحل والانتقالات والرماية والتقدم التراكمي وحد قطع 44 ساعة. مجاني وغير رسمي: تحقق من جميع التفاصيل مع لجنة سباق صملة.">Estimate stage times, transitions, shooting, cumulative progress and the 44-hour cut-off. Free and unofficial: verify all details with the official SAMLA race committee.</p>
+  </section>
+
+  <section class="card">
+    <h2 data-en="Official SAMLA 200 stages" data-ar="مراحل صملة 200 الرسمية">Official SAMLA 200 stages</h2>
+    <p class="muted" data-en="Distances are locked to the published SAMLA 200 route: swim 3 km, run 40 km, kayak 6 km, run 36 km, shooting, cycling 75 km, run 40 km. Total 200 km. Cut-off 44 hours." data-ar="المسافات مثبتة وفق مسار صملة 200 المنشور: سباحة 3 كم، جري 40 كم، كاياك 6 كم، جري 36 كم، رماية، دراجة 75 كم، جري 40 كم. المجموع 200 كم. حد القطع 44 ساعة.">Distances are locked to the published SAMLA 200 route: swim 3 km, run 40 km, kayak 6 km, run 36 km, shooting, cycling 75 km, run 40 km. Total 200 km. Cut-off 44 hours.</p>
+    <div class="stage-table-wrap">
+      <table aria-label="SAMLA 200 stage calculator">
+        <thead><tr>
+          <th data-en="Stage" data-ar="المرحلة">Stage</th>
+          <th data-en="Distance km" data-ar="المسافة كم">Distance km</th>
+          <th data-en="Mode" data-ar="الوضع">Mode</th>
+          <th data-en="Value" data-ar="القيمة">Value</th>
+          <th data-en="Pace min/km" data-ar="الوتيرة د/كم">Pace min/km</th>
+          <th data-en="Speed km/h" data-ar="السرعة كم/س">Speed km/h</th>
+          <th data-en="Duration" data-ar="المدة">Duration</th>
+          <th data-en="Cumulative km" data-ar="التراكمي كم">Cumulative km</th>
+          <th data-en="Cumulative time" data-ar="الوقت التراكمي">Cumulative time</th>
+        </tr></thead>
+        <tbody id="stageRows"></tbody>
+      </table>
+    </div>
+    <div class="field" style="max-width:260px;margin-top:12px">
+      <label data-en="Transition time between stages (minutes each)" data-ar="وقت الانتقال بين المراحل (دقائق لكل انتقال)">Transition time between stages (minutes each)</label>
+      <input id="transitionMinutes" type="number" min="0" max="60" step="1" value="5">
+    </div>
+    <div id="validation" class="notice" hidden></div>
+    <div class="metric-grid" id="totals"></div>
+    <div class="button-row">
+      <button class="button" id="calculateButton" type="button" data-en="Calculate strategy" data-ar="احسب الاستراتيجية">Calculate strategy</button>
+      <button class="button secondary" id="shareCardButton" type="button" data-en="Create shareable strategy card" data-ar="أنشئ بطاقة استراتيجية قابلة للمشاركة">Create shareable strategy card</button>
+    </div>
+    <canvas id="strategyCanvas" width="1200" height="675" hidden></canvas>
+  </section>
+
+  <section class="card">
+    <h2 data-en="AI-assisted target time" data-ar="وقت مستهدف بمساعدة الذكاء الاصطناعي">AI-assisted target time</h2>
+    <p class="muted" data-en="Enter only your target total finishing time. MZA Race IQ distributes it across the locked SAMLA stages using realistic pacing assumptions. You can then adjust any stage and redistribute the remaining time." data-ar="أدخل فقط وقت الإنهاء المستهدف. سيوزع MZA Race IQ الوقت على مراحل صملة المثبتة باستخدام افتراضات واقعية للوتيرة. يمكنك ensuite تعديل أي مرحلة وإعادة توزيع الوقت المتبقي.">Enter only your target total finishing time. MZA Race IQ distributes it across the locked SAMLA stages using realistic pacing assumptions. You can then adjust any stage and redistribute the remaining time.</p>
+    <div class="field" style="max-width:260px">
+      <label data-en="Target total finishing time (minutes)" data-ar="وقت الإنهاء المستهدف (دقائق)">Target total finishing time (minutes)</label>
+      <input id="targetTotalMinutes" type="number" min="300" max="2640" step="1" value="900">
+    </div>
+    <div class="button-row">
+      <button class="button" id="distributeButton" type="button" data-en="Distribute target time" data-ar="وزّع الوقت المستهدف">Distribute target time</button>
+      <button class="button secondary" id="redistributeButton" type="button" data-en="Redistribute remaining time" data-ar="أعد توزيع الوقت المتبقي">Redistribute remaining time</button>
+    </div>
+    <div id="aiNotice" class="notice" hidden></div>
+    <div class="stage-table-wrap">
+      <table aria-label="AI target distribution">
+        <thead><tr>
+          <th data-en="Stage" data-ar="المرحلة">Stage</th>
+          <th data-en="Locked km" data-ar="كم مثبت">Locked km</th>
+          <th data-en="Duration (min)" data-ar="المدة (دقائق)">Duration (min)</th>
+          <th data-en="Locked" data-ar="مقفل">Locked</th>
+        </tr></thead>
+        <tbody id="aiRows"></tbody>
+      </table>
+    </div>
+    <div class="metric-grid" id="aiTotals"></div>
+  </section>
+
+  <details class="collapsible">
+    <summary data-en="Carbohydrate calculator" data-ar="حاسبة الكربوهيدرات">Carbohydrate calculator</summary>
+    <div class="content">
+      <div class="field"><label data-en="Body weight (kg)" data-ar="وزن الجسم (كغ)">Body weight (kg)</label><input id="carbWeight" type="number" min="30" max="150" step="0.1" value="70"></div>
+      <div class="field"><label data-en="Race duration (hours)" data-ar="مدة السباق (ساعات)">Race duration (hours)</label><input id="carbHours" type="number" min="1" max="50" step="0.5" value="15"></div>
+      <div class="field"><label data-en="Carbohydrate rate (g per kg per hour)" data-ar="معدل الكربوهيدرات (غ/كغ/س)">Carbohydrate rate (g per kg per hour)</label><input id="carbRate" type="number" min="0.3" max="1.2" step="0.1" value="0.8"></div>
+      <button class="button" id="carbButton" type="button" data-en="Calculate carbohydrates" data-ar="احسب الكربوهيدرات">Calculate carbohydrates</button>
+      <div class="metric-grid" id="carbResult"></div>
+    </div>
+  </details>
+
+  <details class="collapsible">
+    <summary data-en="Energy gel calculator" data-ar="حاسبة جل الطاقة">Energy gel calculator</summary>
+    <div class="content">
+      <div class="field"><label data-en="Total carbohydrates needed (g)" data-ar="إجمالي الكربوهيدرات المطلوبة (غ)">Total carbohydrates needed (g)</label><input id="gelCarbs" type="number" min="0" max="10000" step="1" value="700"></div>
+      <div class="field"><label data-en="Carbohydrates per gel (g)" data-ar="كربوهيدرات لكل جل (غ)">Carbohydrates per gel (g)</label><input id="gelPerGel" type="number" min="1" max="100" step="1" value="25"></div>
+      <div class="field"><label data-en="Gel interval (minutes)" data-ar="فاصل الجل (دقائق)">Gel interval (minutes)</label><input id="gelInterval" type="number" min="10" max="90" step="5" value="30"></div>
+      <button class="button" id="gelButton" type="button" data-en="Calculate gels" data-ar="احسب الجلات">Calculate gels</button>
+      <div class="metric-grid" id="gelResult"></div>
+    </div>
+  </details>
+
+  <p class="notice" data-en="This is an independent MZ Active planning tool. It is not affiliated with or endorsed by SAMLA or the Qatar Challenge Racing Club. Stage distances are based on published SAMLA 200 route information and may change. Always verify official rules, checkpoints, cut-offs, nutrition and medical guidance." data-ar="هذه أداة تخطيط مستقلة من MZ Active. ليست تابعة لصملة أو نادي تحدي قطر ولا معتمدة منها. المسافات مبنية على معلومات مسار صملة 200 المنشورة وقد تتغير. تحقق دائماً من القواعد والنقاط والحدود والغذاء والإرشادات الطبية الرسمية.">This is an independent MZ Active planning tool. It is not affiliated with or endorsed by SAMLA or the Qatar Challenge Racing Club. Stage distances are based on published SAMLA 200 route information and may change. Always verify official rules, checkpoints, cut-offs, nutrition and medical guidance.</p>
+</main>
+<footer class="wrap">
+  MZ Active · Train Smart. Perform Strong. · <a href="../index.html">mzactive.com</a>
+</footer>
+<script src="../assets/js/site-language.js?v=20261120h"></script>
+<script>
+  const stages = [
+    { id: 'swim', nameEn: 'Swim', nameAr: 'سباحة', distance: 3, type: 'water' },
+    { id: 'run1', nameEn: 'Run 1', nameAr: 'جري 1', distance: 40, type: 'run' },
+    { id: 'kayak', nameEn: 'Kayak', nameAr: 'كاياك', distance: 6, type: 'water' },
+    { id: 'run2', nameEn: 'Run 2', nameAr: 'جري 2', distance: 36, type: 'run' },
+    { id: 'shoot', nameEn: 'Shooting', nameAr: 'رماية', distance: 0, type: 'shoot' },
+    { id: 'bike', nameEn: 'Cycling', nameAr: 'دراجة', distance: 75, type: 'bike' },
+    { id: 'run3', nameEn: 'Run 3', nameAr: 'جري 3', distance: 40, type: 'run' },
+  ];
+  const baselineMinutes = { swim: 72, run1: 267, kayak: 51, run2: 240, shoot: 15, bike: 205, run3: 282 };
+  const baselineTotal = Object.values(baselineMinutes).reduce((a, b) => a + b, 0);
+  const lang = () => document.documentElement.lang === 'ar' ? 'ar' : 'en';
+  const t = (en, ar) => lang() === 'ar' ? ar : en;
+  const fmt = (value) => Number.isFinite(value) ? value.toFixed(1) : '—';
+  const rows = document.getElementById('stageRows');
+  const aiRows = document.getElementById('aiRows');
+  const transitionInput = document.getElementById('transitionMinutes');
+
+  function stageName(stage) { return lang() === 'ar' ? stage.nameAr : stage.nameEn; }
+  function paceFrom(duration, distance) { return distance > 0 ? duration / distance : 0; }
+  function speedFrom(duration, distance) { return distance > 0 && duration > 0 ? distance * 60 / duration : 0; }
+
+  function createStageRow(stage) {
+    const tr = document.createElement('tr');
+    tr.dataset.stage = stage.id;
+    const distanceCell = document.createElement('td');
+    distanceCell.textContent = stage.distance ? stage.distance : '—';
+    const modeCell = document.createElement('td');
+    const mode = document.createElement('select');
+    mode.innerHTML = stage.type === 'shoot'
+      ? '<option value="duration">Duration</option>'
+      : '<option value="pace">Pace</option><option value="speed">Speed</option><option value="duration">Duration</option>';
+    mode.value = stage.type === 'shoot' ? 'duration' : 'pace';
+    modeCell.append(mode);
+    const valueCell = document.createElement('td');
+    const value = document.createElement('input');
+    value.type = 'number'; value.step = '0.1'; value.min = '0';
+    value.value = stage.type === 'shoot' ? '15' : (stage.type === 'water' ? '2.5' : (stage.id === 'bike' ? '20' : '9'));
+    if (mode.value === 'pace') value.value = stage.type === 'water' ? '2.5' : '9';
+    if (mode.value === 'speed') value.value = stage.type === 'water' ? '2.5' : (stage.id === 'bike' ? '20' : '9');
+    if (mode.value === 'duration') value.value = stage.type === 'shoot' ? '15' : baselineMinutes[stage.id];
+    valueCell.append(value);
+    const paceCell = document.createElement('td'); paceCell.className = 'result';
+    const speedCell = document.createElement('td'); speedCell.className = 'result';
+    const durationCell = document.createElement('td'); durationCell.className = 'result';
+    const cumulativeDistanceCell = document.createElement('td'); cumulativeDistanceCell.className = 'result';
+    const cumulativeTimeCell = document.createElement('td'); cumulativeTimeCell.className = 'result';
+    tr.append(document.createElement('td'), distanceCell, modeCell, valueCell, paceCell, speedCell, durationCell, cumulativeDistanceCell, cumulativeTimeCell);
+    tr.children[0].textContent = stageName(stage);
+    function currentDuration() {
+      const v = Number(value.value);
+      if (mode.value === 'pace') return stage.distance * v;
+      if (mode.value === 'speed') return stage.distance * 60 / v;
+      return v;
+    }
+    function render() {
+      const duration = currentDuration();
+      const pace = paceFrom(duration, stage.distance);
+      const speed = speedFrom(duration, stage.distance);
+      paceCell.textContent = stage.distance ? fmt(pace) : '—';
+      speedCell.textContent = stage.distance ? fmt(speed) : '—';
+      durationCell.textContent = fmt(duration);
+      let cumulativeDistance = 0, cumulativeTime = 0;
+      for (const row of rows.children) {
+        const id = row.dataset.stage;
+        const s = stages.find(x => x.id === id);
+        const modeInput = row.children[2].querySelector('select');
+        const valueInput = row.children[3].querySelector('input');
+        const v = Number(valueInput.value);
+        const duration = modeInput.value === 'pace' ? s.distance * v : modeInput.value === 'speed' ? s.distance * 60 / v : v;
+        cumulativeDistance += s.distance;
+        cumulativeTime += duration;
+        row.children[7].textContent = cumulativeDistance.toFixed(1);
+        row.children[8].textContent = (cumulativeTime / 60).toFixed(2) + ' h';
+      }
+      const transitions = Number(transitionInput.value || 0) * 6;
+      const total = cumulativeTime + transitions;
+      document.getElementById('totals').innerHTML = '';
+      const metrics = [
+        [total, t('Total time (min)', 'إجمالي الوقت (دقائق)')],
+        [(total / 60).toFixed(2), t('Total time (hours)', 'إجمالي الوقت (ساعات)')],
+        [cumulativeDistance.toFixed(1), t('Total distance (km)', 'إجمالي المسافة (كم)')],
+        [transitions, t('Transitions (min)', 'الانتقالات (دقائق)')],
+      ];
+      for (const [value, label] of metrics) {
+        const cell = document.createElement('div'); cell.className = 'metric';
+        const b = document.createElement('b'); b.textContent = value;
+        const span = document.createElement('span'); span.textContent = label;
+        cell.append(b, span); document.getElementById('totals').append(cell);
+      }
+      const validation = document.getElementById('validation');
+      if (total > 2640) {
+        validation.hidden = false;
+        validation.textContent = t('This strategy exceeds the 44-hour SAMLA cut-off. Adjust pace, speed or durations.', 'هذه الاستراتيجية تتجاوز حد قطع 44 ساعة في صملة. عدّل الوتيرة أو السرعة أو المدد.');
+      } else {
+        validation.hidden = true;
+      }
+    }
+    mode.addEventListener('change', render);
+    value.addEventListener('input', render);
+    transitionInput.addEventListener('input', render);
+    render();
+    tr._controls = { currentDuration, mode, value };
+    return tr;
+  }
+
+  const stageControls = {};
+  for (const stage of stages) {
+    const row = createStageRow(stage);
+    rows.append(row);
+  }
+  transitionInput.dispatchEvent(new Event('input'));
+  // store controls by re-querying
+  for (const stage of stages) {
+    const row = [...rows.children].find(r => r.dataset.stage === stage.id);
+    const mode = row.children[2].querySelector('select');
+    const value = row.children[3].querySelector('input');
+    stageControls[stage.id] = { mode, value };
+  }
+
+  function collectDurations() {
+    const result = {};
+    for (const stage of stages) {
+      const { mode, value } = stageControls[stage.id];
+      const v = Number(value.value);
+      result[stage.id] = mode.value === 'pace' ? stage.distance * v : mode.value === 'speed' ? stage.distance * 60 / v : v;
+    }
+    return result;
+  }
+
+  function renderAi() {
+    const durations = collectDurationsForAi();
+    const transitions = Number(transitionInput.value || 0) * 6;
+    const total = Object.values(durations).reduce((a, b) => a + b, 0) + transitions;
+    aiRows.replaceChildren();
+    for (const stage of stages) {
+      const tr = document.createElement('tr');
+      const name = document.createElement('td'); name.textContent = stageName(stage);
+      const distance = document.createElement('td'); distance.textContent = stage.distance ? stage.distance : '—';
+      const durationCell = document.createElement('td');
+      const input = document.createElement('input');
+      input.type = 'number'; input.min = '1'; input.step = '1'; input.value = Math.round(durations[stage.id]);
+      input.dataset.stage = stage.id;
+      durationCell.append(input);
+      const lockCell = document.createElement('td');
+      const lock = document.createElement('input');
+      lock.type = 'checkbox'; lock.dataset.stage = stage.id;
+      lockCell.append(lock);
+      tr.append(name, distance, durationCell, lockCell);
+      aiRows.append(tr);
+    }
+    const aiTotals = document.getElementById('aiTotals');
+    aiTotals.replaceChildren();
+    for (const [value, label] of [[total, t('Estimated total (min)', 'الإجمالي المقدّر (دقائق)')], [(total / 60).toFixed(2), t('Estimated total (hours)', 'الإجمالي المقدّر (ساعات)')], [transitions, t('Transitions (min)', 'الانتقالات (دقائق)')]]) {
+      const cell = document.createElement('div'); cell.className = 'metric';
+      const b = document.createElement('b'); b.textContent = value;
+      const span = document.createElement('span'); span.textContent = label;
+      cell.append(b, span); aiTotals.append(cell);
+    }
+    const notice = document.getElementById('aiNotice');
+    const target = Number(document.getElementById('targetTotalMinutes').value || 0);
+    if (target > 0 && total > target + 5) {
+      notice.hidden = false;
+      notice.textContent = t('The current stages exceed the target. Use Redistribute or increase the target.', 'المراحل الحالية تتجاوز الهدف. استخدم إعادة التوزيع أو زد الهدف.');
+    } else if (target > 0 && total < target - 5) {
+      notice.hidden = false;
+      notice.textContent = t('There is remaining time. Use Redistribute to apply it.', 'يوجد وقت متبقي. استخدم إعادة التوزيع لتطبيقه.');
+    } else {
+      notice.hidden = true;
+    }
+  }
+
+  function collectDurationsForAi() {
+    const result = {};
+    for (const row of aiRows.children) {
+      const id = row.children[2].querySelector('input').dataset.stage;
+      result[id] = Number(row.children[2].querySelector('input').value || 0);
+    }
+    return result;
+  }
+
+  function distributeTarget() {
+    const target = Number(document.getElementById('targetTotalMinutes').value || 0);
+    const transitions = Number(transitionInput.value || 0) * 6;
+    const available = target - transitions;
+    if (!target || available <= 0) return;
+    const locked = {};
+    let lockedTotal = 0;
+    for (const row of aiRows.children) {
+      const id = row.children[2].querySelector('input').dataset.stage;
+      const lock = row.children[3].querySelector('input');
+      if (lock.checked) { locked[id] = Number(row.children[2].querySelector('input').value || 0); lockedTotal += locked[id]; }
+    }
+    const remaining = available - lockedTotal;
+    if (remaining <= 0) return;
+    const unlocked = stages.filter(s => !locked[s.id]);
+    const weightSum = unlocked.reduce((sum, s) => sum + (baselineMinutes[s.id] || 60), 0);
+    for (const row of aiRows.children) {
+      const id = row.children[2].querySelector('input').dataset.stage;
+      const input = row.children[2].querySelector('input');
+      if (locked[id] !== undefined) { input.value = Math.round(locked[id]); continue; }
+      const weight = baselineMinutes[id] || 60;
+      input.value = Math.max(1, Math.round(remaining * weight / weightSum));
+    }
+    renderAi();
+    // copy AI durations into the main calculator
+    for (const stage of stages) {
+      const aiInput = [...aiRows.children].find(r => r.children[2].querySelector('input').dataset.stage === stage.id)?.children[2].querySelector('input');
+      const main = stageControls[stage.id];
+      if (aiInput && main) {
+        const duration = Number(aiInput.value || 0);
+        if (stage.type === 'shoot') main.value.value = duration;
+        else { main.mode.value = 'duration'; main.value.value = duration; }
+      }
+    }
+    transitionInput.dispatchEvent(new Event('input'));
+  }
+
+  document.getElementById('calculateButton').addEventListener('click', () => {
+    for (const stage of stages) {
+      const { mode, value } = stageControls[stage.id];
+      const row = [...rows.children].find(r => r.dataset.stage === stage.id);
+      row.children[7].textContent = (stage.distance ? stage.distance : '—');
+    }
+    transitionInput.dispatchEvent(new Event('input'));
+  });
+  document.getElementById('distributeButton').addEventListener('click', distributeTarget);
+  document.getElementById('redistributeButton').addEventListener('click', distributeTarget);
+  document.getElementById('carbButton').addEventListener('click', () => {
+    const weight = Number(document.getElementById('carbWeight').value || 0);
+    const hours = Number(document.getElementById('carbHours').value || 0);
+    const rate = Number(document.getElementById('carbRate').value || 0);
+    const total = weight * hours * rate;
+    const result = document.getElementById('carbResult');
+    result.replaceChildren();
+    for (const [value, label] of [[total.toFixed(0), t('Total carbohydrates (g)', 'إجمالي الكربوهيدرات (غ)')], [(weight * rate).toFixed(0), t('Carbohydrates per hour (g)', 'كربوهيدرات في الساعة (غ)')], [hours, t('Race duration (hours)', 'مدة السباق (ساعات)')]]) {
+      const cell = document.createElement('div'); cell.className = 'metric';
+      const b = document.createElement('b'); b.textContent = value;
+      const span = document.createElement('span'); span.textContent = label;
+      cell.append(b, span); result.append(cell);
+    }
+  });
+  document.getElementById('gelButton').addEventListener('click', () => {
+    const total = Number(document.getElementById('gelCarbs').value || 0);
+    const perGel = Number(document.getElementById('gelPerGel').value || 1);
+    const interval = Number(document.getElementById('gelInterval').value || 30);
+    const count = Math.ceil(total / perGel);
+    const result = document.getElementById('gelResult');
+    result.replaceChildren();
+    for (const [value, label] of [[count, t('Gels needed', 'عدد الجلات')], [perGel, t('Carbs per gel (g)', 'كربوهيدرات لكل جل (غ)')], [interval, t('Interval (minutes)', 'الفواصل (دقائق)')]]) {
+      const cell = document.createElement('div'); cell.className = 'metric';
+      const b = document.createElement('b'); b.textContent = value;
+      const span = document.createElement('span'); span.textContent = label;
+      cell.append(b, span); result.append(cell);
+    }
+    const schedule = document.createElement('p');
+    schedule.className = 'muted';
+    const times = [];
+    for (let minute = interval; minute < Math.min(total * 0 + 2640, count * interval); minute += interval) times.push(minute);
+    schedule.textContent = t('Suggested timing: one gel every ' + interval + ' minutes, approximately ' + count + ' gels total.', 'التوقيت المقترح: جل كل ' + interval + ' دقائق، تقريباً ' + count + ' جلات إجمالاً.');
+    result.append(schedule);
+  });
+  document.getElementById('shareCardButton').addEventListener('click', () => {
+    const canvas = document.getElementById('strategyCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#091d21'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    gradient.addColorStop(0, '#091d21'); gradient.addColorStop(1, '#103538');
+    ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const logo = new Image();
+    logo.crossOrigin = 'anonymous';
+    logo.onload = () => {
+      ctx.drawImage(logo, 40, 34, 180, 56);
+      drawCard(ctx);
+    };
+    logo.onerror = () => drawCard(ctx);
+    logo.src = '../assets/brand/mzactive-logo.webp';
+    function drawCard(ctx) {
+      ctx.fillStyle = '#f2b718'; ctx.font = 'bold 34px Arial'; ctx.fillText('MZA Race IQ — SAMLA 200', 40, 135);
+      ctx.fillStyle = '#b8cbc6'; ctx.font = '18px Arial'; ctx.fillText('Estimated race strategy (not an official SAMLA plan)', 40, 165);
+      ctx.fillStyle = '#f0f5f3'; ctx.font = 'bold 20px Arial';
+      let y = 215;
+      const durations = collectDurationsForAi();
+      const transitions = Number(transitionInput.value || 0) * 6;
+      const total = Object.values(durations).reduce((a, b) => a + b, 0) + transitions;
+      for (const stage of stages) {
+        ctx.fillText(`${stageName(stage)}: ${stage.distance ? stage.distance + ' km' : 'shooting'} — ${Math.round(durations[stage.id])} min`, 40, y);
+        y += 34;
+      }
+      ctx.fillStyle = '#f2b718'; ctx.font = 'bold 24px Arial';
+      ctx.fillText(`Total: ${Math.round(total)} min (${(total / 60).toFixed(2)} h) · 200 km`, 40, y + 12);
+      ctx.fillStyle = '#b8cbc6'; ctx.font = '16px Arial';
+      ctx.fillText('mzactive.com/samla', 40, canvas.height - 34);
+      canvas.hidden = false;
+      canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      canvas.toBlob(blob => {
+        if (!blob) return;
+        const file = new File([blob], 'samla-200-strategy.png', { type: 'image/png' });
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ title: 'SAMLA 200 strategy', text: 'My SAMLA 200 estimated strategy from MZ Active.', files: [file] }).catch(() => {});
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = 'samla-200-strategy.png'; a.click();
+          URL.revokeObjectURL(url);
+        }
+      });
+    }
+  });
+  document.getElementById('carbButton').click();
+  document.getElementById('gelButton').click();
+  transitionInput.addEventListener('input', () => { for (const stage of stages) {} });
+</script>
+<script src="../assets/js/site-language.js?v=20261120h"></script>
+</body>
+</html>
+MD
+echo created
