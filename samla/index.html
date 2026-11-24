@@ -42,7 +42,8 @@
     .collapsible .content{padding:18px}
     .field{display:grid;gap:6px;margin:10px 0}
     .field input,.field select{padding:10px;background:#091d21;border:1px solid #3b7779;color:#f0f5f3;border-radius:8px}
-    .share-card{margin-top:14px}
+    .share-card{margin-top:14px;position:relative}
+    .share-card-close{position:absolute;inset-inline-end:8px;top:8px;z-index:2;min-width:36px;min-height:36px;border:1px solid #2e6567;border-radius:999px;background:#103538;color:#f0f5f3;font-size:1.1rem;line-height:1;cursor:pointer}
     canvas{max-width:100%;border:1px solid #2e6567;border-radius:12px;background:#091d21}
     footer{padding:24px 0;color:#838c85;font-size:12px;border-top:1px solid #2e6567;margin-top:28px}
     @media(max-width:700px){table{min-width:680px}th,td{padding:8px 6px;font-size:12px}}
@@ -71,7 +72,7 @@
 
   <section class="card">
     <h2 data-en="Official SAMLA 200 stages" data-ar="مراحل صملة 200 الرسمية">Official SAMLA 200 stages</h2>
-    <p class="muted" data-en="Distances are locked to the published SAMLA 200 route: swim 3 km, run 40 km, kayak 6 km, run 36 km, shooting, cycling 75 km, run 40 km. Total 200 km. Cut-off 44 hours." data-ar="المسافات مثبتة وفق مسار صملة 200 المنشور: سباحة 3 كم، جري 40 كم، كاياك 6 كم، جري 36 كم، رماية، دراجة 75 كم، جري 40 كم. المجموع 200 كم. حد القطع 44 ساعة.">Distances are locked to the published SAMLA 200 route: swim 3 km, run 40 km, kayak 6 km, run 36 km, shooting, cycling 75 km, run 40 km. Total 200 km. Cut-off 44 hours.</p>
+    <p class="muted" data-en="Distances are locked to the published SAMLA 200 route: swim 3 km, run 50 km, kayak 6 km, run 33 km, shooting, cycling 75 km, run 33 km. Total 200 km. Cut-off 44 hours." data-ar="المسافات مثبتة وفق مسار صملة 200 المنشور: سباحة 3 كم، جري 50 كم، كاياك 6 كم، جري 33 كم، رماية، دراجة 75 كم، جري 33 كم. المجموع 200 كم. حد القطع 44 ساعة.">Distances are locked to the published SAMLA 200 route: swim 3 km, run 50 km, kayak 6 km, run 33 km, shooting, cycling 75 km, run 33 km. Total 200 km. Cut-off 44 hours.</p>
     <div class="stage-table-wrap">
       <table aria-label="SAMLA 200 stage calculator">
         <thead><tr>
@@ -98,15 +99,40 @@
       <button class="button" id="calculateButton" type="button" data-en="Calculate strategy" data-ar="احسب الاستراتيجية">Calculate strategy</button>
       <button class="button secondary" id="shareCardButton" type="button" data-en="Create shareable strategy card" data-ar="أنشئ بطاقة استراتيجية قابلة للمشاركة">Create shareable strategy card</button>
     </div>
-    <canvas id="strategyCanvas" width="1200" height="675" hidden></canvas>
+    <button class="button" id="aiStrategyButton" type="button" hidden data-en="Get My AI Race Strategy" data-ar="احصل على استراتيجية سباقك بالذكاء الاصطناعي">Get My AI Race Strategy</button>
+    <section id="aiStrategyPanel" class="card" hidden>
+      <div class="send-dialog-head">
+        <h2 data-en="AI Race Strategy" data-ar="استراتيجية السباق بالذكاء الاصطناعي">AI Race Strategy</h2>
+        <button id="aiStrategyClose" type="button" class="send-dialog-close" aria-label="Close">×</button>
+      </div>
+      <p id="aiStrategyLoading" class="muted" hidden data-en="Preparing your race strategy…" data-ar="جارٍ إعداد استراتيجية سباقك…">Preparing your race strategy…</p>
+      <div id="aiStrategyResult" class="muted" data-user-content></div>
+      <p id="aiStrategyError" class="notice" hidden></p>
+      <div class="button-row">
+        <button class="button secondary" id="aiStrategyRetry" type="button" hidden data-en="Retry" data-ar="إعادة المحاولة">Retry</button>
+      </div>
+      <p class="muted" data-en="AI guidance is based only on the values you entered. It is not a guarantee of performance and does not change your calculated times." data-ar="إرشادات الذكاء الاصطناعي مبنية فقط على القيم التي أدخلتها. ليست ضماناً للأداء ولا تغير أوقاتك المحسوبة.">AI guidance is based only on the values you entered. It is not a guarantee of performance and does not change your calculated times.</p>
+    </section>
+    <div id="shareCardPreview" class="share-card" hidden>
+      <button id="shareCardClose" type="button" class="share-card-close" aria-label="Close">×</button>
+      <canvas id="strategyCanvas" width="1200" height="675"></canvas>
+      <p id="shareCardStatus" class="muted" role="status" aria-live="polite"></p>
+    </div>
   </section>
 
   <section class="card">
     <h2 data-en="AI-assisted target time" data-ar="وقت مستهدف بمساعدة الذكاء الاصطناعي">AI-assisted target time</h2>
     <p class="muted" data-en="Enter only your target total finishing time. MZA Race IQ distributes it across the locked SAMLA stages using realistic pacing assumptions. You can then adjust any stage and redistribute the remaining time." data-ar="أدخل فقط وقت الإنهاء المستهدف. سيوزع MZA Race IQ الوقت على مراحل صملة المثبتة باستخدام افتراضات واقعية للوتيرة. يمكنك ensuite تعديل أي مرحلة وإعادة توزيع الوقت المتبقي.">Enter only your target total finishing time. MZA Race IQ distributes it across the locked SAMLA stages using realistic pacing assumptions. You can then adjust any stage and redistribute the remaining time.</p>
     <div class="field" style="max-width:260px">
-      <label data-en="Target total finishing time (minutes)" data-ar="وقت الإنهاء المستهدف (دقائق)">Target total finishing time (minutes)</label>
-      <input id="targetTotalMinutes" type="number" min="300" max="2640" step="1" value="900">
+      <label data-en="Target total finishing time (hours)" data-ar="وقت الإنهاء المستهدف (ساعات)">Target total finishing time (hours)</label>
+      <input id="targetTotalHours" type="number" min="5" max="44" step="0.25" value="15">
+    </div>
+    <div class="field" style="max-width:260px">
+      <label data-en="Or separate hours and minutes" data-ar="أو ساعات ودقائق منفصلة">Or separate hours and minutes</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <input id="targetHours" type="number" min="0" max="44" step="1" value="15" aria-label="Hours">
+        <input id="targetMinutes" type="number" min="0" max="59" step="1" value="0" aria-label="Minutes">
+      </div>
     </div>
     <div class="button-row">
       <button class="button" id="distributeButton" type="button" data-en="Distribute target time" data-ar="وزّع الوقت المستهدف">Distribute target time</button>
@@ -158,14 +184,14 @@
 <script>
   const stages = [
     { id: 'swim', nameEn: 'Swim', nameAr: 'سباحة', distance: 3, type: 'water' },
-    { id: 'run1', nameEn: 'Run 1', nameAr: 'جري 1', distance: 40, type: 'run' },
+    { id: 'run1', nameEn: 'Run 1', nameAr: 'جري 1', distance: 50, type: 'run' },
     { id: 'kayak', nameEn: 'Kayak', nameAr: 'كاياك', distance: 6, type: 'water' },
-    { id: 'run2', nameEn: 'Run 2', nameAr: 'جري 2', distance: 36, type: 'run' },
+    { id: 'run2', nameEn: 'Run 2', nameAr: 'جري 2', distance: 33, type: 'run' },
     { id: 'shoot', nameEn: 'Shooting', nameAr: 'رماية', distance: 0, type: 'shoot' },
     { id: 'bike', nameEn: 'Cycling', nameAr: 'دراجة', distance: 75, type: 'bike' },
-    { id: 'run3', nameEn: 'Run 3', nameAr: 'جري 3', distance: 40, type: 'run' },
+    { id: 'run3', nameEn: 'Run 3', nameAr: 'جري 3', distance: 33, type: 'run' },
   ];
-  const baselineMinutes = { swim: 72, run1: 267, kayak: 51, run2: 240, shoot: 15, bike: 205, run3: 282 };
+  const baselineMinutes = { swim: 75, run1: 300, kayak: 72, run2: 198, shoot: 15, bike: 225, run3: 198 };
   const baselineTotal = Object.values(baselineMinutes).reduce((a, b) => a + b, 0);
   const lang = () => document.documentElement.lang === 'ar' ? 'ar' : 'en';
   const t = (en, ar) => lang() === 'ar' ? ar : en;
@@ -177,6 +203,32 @@
   function stageName(stage) { return lang() === 'ar' ? stage.nameAr : stage.nameEn; }
   function paceFrom(duration, distance) { return distance > 0 ? duration / distance : 0; }
   function speedFrom(duration, distance) { return distance > 0 && duration > 0 ? distance * 60 / duration : 0; }
+
+  function parseTimeToMinutes(value) {
+    const text = String(value || '').trim();
+    if (!text) return 0;
+    if (/^\d+(\.\d+)?$/.test(text)) return Number(text);
+    const parts = text.split(':').map((part) => Number(part));
+    if (parts.some((n) => !Number.isFinite(n))) return 0;
+    if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60;
+    if (parts.length === 2) return parts[0] + parts[1] / 60;
+    return parts[0] || 0;
+  }
+  function formatMinutes(value) {
+    if (!Number.isFinite(value) || value < 0) return '—';
+    const totalSeconds = Math.round(value * 60);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+  }
+  function formatPace(value) {
+    if (!Number.isFinite(value) || value <= 0) return '—';
+    const totalSeconds = Math.round(value * 60);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+  }
 
   function createStageRow(stage) {
     const tr = document.createElement('tr');
@@ -235,8 +287,7 @@
       const total = cumulativeTime + transitions;
       document.getElementById('totals').innerHTML = '';
       const metrics = [
-        [total, t('Total time (min)', 'إجمالي الوقت (دقائق)')],
-        [(total / 60).toFixed(2), t('Total time (hours)', 'إجمالي الوقت (ساعات)')],
+        [formatMinutes(total), t('Finishing time', 'وقت الإنهاء')],
         [cumulativeDistance.toFixed(1), t('Total distance (km)', 'إجمالي المسافة (كم)')],
         [transitions, t('Transitions (min)', 'الانتقالات (دقائق)')],
       ];
@@ -246,6 +297,8 @@
         const span = document.createElement('span'); span.textContent = label;
         cell.append(b, span); document.getElementById('totals').append(cell);
       }
+      const aiButton = document.getElementById('aiStrategyButton');
+      if (aiButton) aiButton.hidden = false;
       const validation = document.getElementById('validation');
       if (total > 2640) {
         validation.hidden = false;
@@ -316,7 +369,9 @@
       cell.append(b, span); aiTotals.append(cell);
     }
     const notice = document.getElementById('aiNotice');
-    const target = Number(document.getElementById('targetTotalMinutes').value || 0);
+    const hours = Number(document.getElementById('targetTotalHours').value || 0);
+    const extraMinutes = Number(document.getElementById('targetMinutes').value || 0);
+    const target = hours > 0 ? hours * 60 + extraMinutes : Number(document.getElementById('targetHours').value || 0) * 60 + extraMinutes;
     if (target > 0 && total > target + 5) {
       notice.hidden = false;
       notice.textContent = t('The current stages exceed the target. Use Redistribute or increase the target.', 'المراحل الحالية تتجاوز الهدف. استخدم إعادة التوزيع أو زد الهدف.');
@@ -338,7 +393,9 @@
   }
 
   function distributeTarget() {
-    const target = Number(document.getElementById('targetTotalMinutes').value || 0);
+    const hours = Number(document.getElementById('targetTotalHours').value || 0);
+    const extraMinutes = Number(document.getElementById('targetMinutes').value || 0);
+    const target = hours > 0 ? hours * 60 + extraMinutes : Number(document.getElementById('targetHours').value || 0) * 60 + extraMinutes;
     const transitions = Number(transitionInput.value || 0) * 6;
     const available = target - transitions;
     if (!target || available <= 0) return;
@@ -374,6 +431,10 @@
     transitionInput.dispatchEvent(new Event('input'));
   }
 
+  window.lastCarb = window.lastCarb || null;
+  window.lastGel = window.lastGel || null;
+  window.lastCarb = window.lastCarb || null;
+  window.lastGel = window.lastGel || null;
   document.getElementById('calculateButton').addEventListener('click', () => {
     for (const stage of stages) {
       const { mode, value } = stageControls[stage.id];
@@ -382,6 +443,7 @@
     }
     transitionInput.dispatchEvent(new Event('input'));
   });
+  document.getElementById('targetTotalHours').addEventListener('input', () => { document.getElementById('targetHours').value = Math.floor(Number(document.getElementById('targetTotalHours').value || 0)); document.getElementById('targetMinutes').value = Math.round((Number(document.getElementById('targetTotalHours').value || 0) % 1) * 60); });
   document.getElementById('distributeButton').addEventListener('click', distributeTarget);
   document.getElementById('redistributeButton').addEventListener('click', distributeTarget);
   document.getElementById('carbButton').addEventListener('click', () => {
@@ -397,6 +459,7 @@
       const span = document.createElement('span'); span.textContent = label;
       cell.append(b, span); result.append(cell);
     }
+    window.lastCarb = { total, perHour: weight * rate };
   });
   document.getElementById('gelButton').addEventListener('click', () => {
     const total = Number(document.getElementById('gelCarbs').value || 0);
@@ -417,42 +480,134 @@
     for (let minute = interval; minute < Math.min(total * 0 + 2640, count * interval); minute += interval) times.push(minute);
     schedule.textContent = t('Suggested timing: one gel every ' + interval + ' minutes, approximately ' + count + ' gels total.', 'التوقيت المقترح: جل كل ' + interval + ' دقائق، تقريباً ' + count + ' جلات إجمالاً.');
     result.append(schedule);
+    window.lastGel = { count, perGel, interval };
+  });
+  function collectMainDurations() {
+    const result = {};
+    for (const row of rows.children) {
+      const id = row.dataset.stage;
+      const stage = stages.find((x) => x.id === id);
+      const modeInput = row.children[2].querySelector('select');
+      const valueInput = row.children[3].querySelector('input');
+      const v = modeInput.value === 'speed' ? Number(valueInput.value) : parseTimeToMinutes(valueInput.value);
+      result[id] = modeInput.value === 'pace'
+        ? (stage.id === 'swim' ? stage.distance * 10 * v : stage.distance * v)
+        : modeInput.value === 'speed' ? stage.distance * 60 / v : v;
+    }
+    return result;
+  }
+  async function getAiStrategy() {
+    const panel = document.getElementById('aiStrategyPanel');
+    const loading = document.getElementById('aiStrategyLoading');
+    const result = document.getElementById('aiStrategyResult');
+    const error = document.getElementById('aiStrategyError');
+    const retry = document.getElementById('aiStrategyRetry');
+    if (!panel) return;
+    panel.hidden = false;
+    loading.hidden = false;
+    result.textContent = '';
+    result.dataset.languageSkip = 'true';
+    error.hidden = true;
+    retry.hidden = true;
+    const durations = collectMainDurations();
+    const transitions = Number(transitionInput.value || 0) * 6;
+    const total = Object.values(durations).reduce((a, b) => a + b, 0) + transitions;
+    const targetHours = Number(document.getElementById('targetTotalHours').value || 0);
+    const extraMinutes = Number(document.getElementById('targetMinutes').value || 0);
+    const target = targetHours > 0 ? targetHours * 60 + extraMinutes : Number(document.getElementById('targetHours').value || 0) * 60 + extraMinutes;
+    const stageLines = stages.map((stage) => {
+      const pace = stage.distance ? (stage.id === 'swim' ? formatPace(durations[stage.id] / (stage.distance * 10)) + ' per 100m' : formatPace(durations[stage.id] / stage.distance) + ' per km') : 'n/a';
+      const speed = stage.distance ? (stage.distance * 60 / durations[stage.id]).toFixed(1) + ' km/h' : 'n/a';
+      return `${stageName(stage)}: ${stage.distance ? stage.distance + ' km' : 'shooting'}, duration ${formatMinutes(durations[stage.id])}, pace ${pace}, speed ${speed}`;
+    }).join('\n');
+    const nutrition = window.lastCarb ? `Carbohydrates: ${Math.round(window.lastCarb.total)} g total, ${Math.round(window.lastCarb.perHour)} g/hour.` : 'No carbohydrate calculation provided.';
+    const gels = window.lastGel ? `Gels: ${window.lastGel.count} gels of ${window.lastGel.perGel} g every ${window.lastGel.interval} minutes.` : 'No gel calculation provided.';
+    const message = `You are MZ Active AI Race Strategy. Reply in ${lang() === 'ar' ? 'Arabic' : 'English'}. Use only the validated SAMLA 200 calculator results below and general endurance coaching principles. Do not guarantee performance, do not change the calculated times, and clearly state that pacing targets may be unrealistic.\n\nValidated results:\nFinishing time: ${formatMinutes(total)} (${(total / 60).toFixed(2)} hours)\nTarget finishing time: ${target ? (target / 60).toFixed(2) + ' hours' : 'not provided'}\nTransitions: ${transitions} minutes\nStages:\n${stageLines}\nNutrition: ${nutrition}\n${gels}\n\nProvide a concise professional race execution strategy for each stage: pace and effort management, avoiding starting too fast, energy conservation, accumulated fatigue, transition management, safe nutrition timing, final-stage execution, and warnings about potentially unrealistic pacing.`;
+    try {
+      const response = await fetch((window.MZACTIVE_API_BASE || 'https://mzactive-marketplace-api.mzactive5.workers.dev') + '/api/samla/ai-strategy', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          language: lang() === 'ar' ? 'ar' : 'en',
+          results: {
+            total: formatMinutes(total),
+            target: target ? (target / 60).toFixed(2) + ' hours' : '',
+            transitions,
+            nutrition: window.lastCarb ? `${Math.round(window.lastCarb.total)} g total, ${Math.round(window.lastCarb.perHour)} g/hour` : '',
+            gels: window.lastGel ? `${window.lastGel.count} gels of ${window.lastGel.perGel} g every ${window.lastGel.interval} minutes` : '',
+            stages: stages.map((stage) => ({
+              name: stageName(stage),
+              distance: stage.distance,
+              duration: formatMinutes(durations[stage.id]),
+              pace: stage.distance ? (stage.id === 'swim' ? formatPace(durations[stage.id] / (stage.distance * 10)) + ' per 100m' : formatPace(durations[stage.id] / stage.distance) + ' per km') : 'n/a',
+              speed: stage.distance ? (stage.distance * 60 / durations[stage.id]).toFixed(1) + ' km/h' : 'n/a',
+            })),
+          },
+        }),
+      });
+      if (!response.ok) throw new Error('assistant_unavailable');
+      const data = await response.json();
+      const answer = data.answer || data.draft || '';
+      if (!answer) throw new Error('assistant_unavailable');
+      result.textContent = answer;
+      result.dataset.languageSkip = 'true';
+    } catch (e) {
+      error.hidden = false;
+      error.textContent = t('The AI strategy could not be generated. Try again.', 'تعذر إنشاء استراتيجية الذكاء الاصطناعي. حاول مجدداً.');
+      retry.hidden = false;
+    } finally {
+      loading.hidden = true;
+    }
+  }
+  document.getElementById('aiStrategyButton').addEventListener('click', getAiStrategy);
+  document.getElementById('aiStrategyRetry').addEventListener('click', getAiStrategy);
+  document.getElementById('aiStrategyClose').addEventListener('click', () => {
+    document.getElementById('aiStrategyPanel').hidden = true;
+  });
+  document.getElementById('calculateButton').addEventListener('click', () => {
+    document.getElementById('aiStrategyPanel').hidden = true;
+    transitionInput.dispatchEvent(new Event('input'));
   });
   document.getElementById('shareCardButton').addEventListener('click', () => {
     const canvas = document.getElementById('strategyCanvas');
+    const preview = document.getElementById('shareCardPreview');
+    const status = document.getElementById('shareCardStatus');
     const ctx = canvas.getContext('2d');
+    const arabic = lang() === 'ar';
     ctx.fillStyle = '#091d21'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
     gradient.addColorStop(0, '#091d21'); gradient.addColorStop(1, '#103538');
     ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.direction = arabic ? 'rtl' : 'ltr';
+    ctx.textAlign = arabic ? 'right' : 'left';
+    const x = arabic ? canvas.width - 40 : 40;
     const logo = new Image();
     logo.crossOrigin = 'anonymous';
-    logo.onload = () => {
-      ctx.drawImage(logo, 40, 34, 180, 56);
-      drawCard(ctx);
-    };
+    logo.onload = () => { ctx.drawImage(logo, arabic ? canvas.width - 220 : 40, 34, 180, 56); drawCard(ctx); };
     logo.onerror = () => drawCard(ctx);
     logo.src = '../assets/brand/mzactive-logo.webp';
     function drawCard(ctx) {
-      ctx.fillStyle = '#f2b718'; ctx.font = 'bold 34px Arial'; ctx.fillText('MZA Race IQ — SAMLA 200', 40, 135);
-      ctx.fillStyle = '#b8cbc6'; ctx.font = '18px Arial'; ctx.fillText('Estimated race strategy (not an official SAMLA plan)', 40, 165);
+      ctx.fillStyle = '#f2b718'; ctx.font = 'bold 34px Arial';
+      ctx.fillText(t('MZA Race IQ — SAMLA 200', 'MZA Race IQ — صملة 200'), x, 135);
+      ctx.fillStyle = '#b8cbc6'; ctx.font = '18px Arial';
+      ctx.fillText(t('Estimated race strategy (not an official SAMLA plan)', 'استراتيجية سباق مقدّرة (ليست خطة صملة رسمية)'), x, 165);
       ctx.fillStyle = '#f0f5f3'; ctx.font = 'bold 20px Arial';
       let y = 215;
-      const durations = collectDurationsForAi();
+      const durations = collectMainDurations();
       const transitions = Number(transitionInput.value || 0) * 6;
       const total = Object.values(durations).reduce((a, b) => a + b, 0) + transitions;
       for (const stage of stages) {
-        ctx.fillText(`${stageName(stage)}: ${stage.distance ? stage.distance + ' km' : 'shooting'} — ${Math.round(durations[stage.id])} min`, 40, y);
+        const line = `${stageName(stage)}: ${stage.distance ? stage.distance + ' km' : t('shooting', 'رماية')} — ${formatMinutes(durations[stage.id])}`;
+        ctx.fillText(line, x, y);
         y += 34;
       }
       ctx.fillStyle = '#f2b718'; ctx.font = 'bold 24px Arial';
-      ctx.fillText(`Total: ${Math.round(total)} min (${(total / 60).toFixed(2)} h) · 200 km`, 40, y + 12);
+      ctx.fillText(t(`Total: ${formatMinutes(total)} · 200 km`, `الإجمالي: ${formatMinutes(total)} · 200 كم`), x, y + 12);
       ctx.fillStyle = '#b8cbc6'; ctx.font = '16px Arial';
-      ctx.fillText('mzactive.com/samla', 40, canvas.height - 34);
-      canvas.hidden = false;
+      ctx.fillText('mzactive.com/samla', x, canvas.height - 34);
+      preview.hidden = false;
       canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
       canvas.toBlob(blob => {
-        if (!blob) return;
+        if (!blob) { status.textContent = t('Could not create the card.', 'تعذر إنشاء البطاقة.'); return; }
         const file = new File([blob], 'samla-200-strategy.png', { type: 'image/png' });
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
           navigator.share({ title: 'SAMLA 200 strategy', text: 'My SAMLA 200 estimated strategy from MZ Active.', files: [file] }).catch(() => {});
@@ -462,8 +617,12 @@
           a.href = url; a.download = 'samla-200-strategy.png'; a.click();
           URL.revokeObjectURL(url);
         }
+        status.textContent = t('Strategy card ready. Close with X without losing your calculations.', 'بطاقة الاستراتيجية جاهزة. أغلقها بـ X دون فقدان حساباتك.');
       });
     }
+  });
+  document.getElementById('shareCardClose').addEventListener('click', () => {
+    document.getElementById('shareCardPreview').hidden = true;
   });
   document.getElementById('carbButton').click();
   document.getElementById('gelButton').click();

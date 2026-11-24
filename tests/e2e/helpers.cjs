@@ -152,6 +152,8 @@ function defaultApiHandler(ctx, state) {
   if (method === 'GET' && urlPath === '/api/public/contact-config') {
     return json({ contact: { whatsapp: '97400000000', whatsapp_configured: true } });
   }
+  if (urlPath === '/api/public/campaigns/samla') return json({ id: 'samla', enabled: true, starts_at: '2026-11-24T00:00:00.000Z', ends_at: '2026-12-03T06:00:00.000Z', updated_at: '2026-11-24T00:00:00.000Z', active: true });
+  if (urlPath === '/api/samla/ai-strategy' && method === 'POST') return json({ answer: 'Estimated strategy: start conservatively, hold steady pacing, fuel regularly, and keep transitions short. This is not a guarantee.' });
   if (urlPath === '/api/public/campaigns/samla') {
     return json({ id: 'samla', enabled: true, starts_at: '2026-11-24T00:00:00.000Z', ends_at: '2026-12-03T06:00:00.000Z', updated_at: '2026-11-24T00:00:00.000Z', active: true });
   }
@@ -456,6 +458,7 @@ function defaultApiHandler(ctx, state) {
   if (urlPath === '/api/dashboard/bookings') return json({ bookings: [] });
   if (/^\/api\/dashboard\/bookings\/[^/]+$/.test(urlPath) && method === 'PATCH') return json({ updated: true, status: ctx.body?.status });
   if (urlPath === '/api/dashboard/analytics') return json({ analytics: {} });
+  if (urlPath === '/api/assistant/chat' && method === 'POST') return json({ answer: 'Estimated strategy: start conservatively, hold steady pacing, fuel regularly, and keep transitions short. This is not a guarantee.' });
   if (urlPath === '/api/admin/campaigns/samla') return json({ id: 'samla', enabled: true, starts_at: '2026-11-24T00:00:00.000Z', ends_at: '2026-12-03T06:00:00.000Z', updated_at: '2026-11-24T00:00:00.000Z' });
   if (urlPath === '/api/me/following/count') return json({ following_count: 2 });
   if (urlPath === '/api/me/achievements') return json({ achievements: [] });

@@ -78,3 +78,19 @@ test('SAMLA campaign public state and admin updates are safe and scoped', async 
   const unauthorized = await call(env, 'admin/campaigns/samla', 'PATCH', { enabled: true });
   assert.equal(unauthorized.status, 401);
 });
+
+test('SAMLA AI strategy uses validated results and never requires payment', async () => {
+  const { env } = makeEnv();
+  const valid = await call(env, 'samla/ai-strategy', 'POST', {
+    language: 'en',
+    results: {
+      total: '30:54:00', target: '15.00 hours', transitions: 30,
+      nutrition: '840 g total, 56 g/hour', gels: '28 gels of 25 g every 30 minutes',
+      stages: [{ name: 'Swim', distance: 3, duration: '01:15:00', pace: '02:30 per 100m', speed: '2.4 km/h' }],
+    },
+  });
+  assert.equal(valid.status, 200);
+  assert.match(valid.data.answer, /Estimated strategy/);
+  const invalid = await call(env, 'samla/ai-strategy', 'POST', { language: 'en', results: { stages: [] } });
+  assert.equal(invalid.status, 400);
+});
