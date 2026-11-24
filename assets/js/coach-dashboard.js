@@ -110,26 +110,65 @@
     } catch {}
   }
 
-  function sendDialog(programId, channel = 'email', preselectedAthlete = '') {
+  function sendDialog(programId, channel = 'mzactive', preselectedAthlete = '') {
     const programs = window.mzStudioDashboard?.programs || [];
     if (!programId && !programs.length) { ($('notice') || document.body).textContent = t('saveFirst'); return; }
     let dialog = $('sendProgramDialog');
     if (!dialog) {
-      dialog = el('dialog', 'crm-dialog'); dialog.id = 'sendProgramDialog';
-      dialog.innerHTML = `<h3>${t('send')}</h3><select id="sendProgramSelect" aria-label="Program"></select><label class="delivery-choice"><input type="radio" name="sendChannel" value="mzactive" ${channel === 'mzactive' ? 'checked' : ''}> ${lang() === 'ar' ? 'رياضيي في MZ Active' : 'My Athlete (MZActive)'}</label><label class="delivery-choice"><input type="radio" name="sendChannel" value="email" ${channel === 'email' ? 'checked' : ''}> ${lang() === 'ar' ? 'بريد إلكتروني' : 'Email'}</label><label class="delivery-choice"><input type="radio" name="sendChannel" value="whatsapp" ${channel === 'whatsapp' ? 'checked' : ''}> WhatsApp</label><input id="sendProgramSearch" class="athlete-search" type="search" placeholder="${t('search')}"><div id="sendProgramList" class="cards"></div><button id="sendProgramConfirm" class="btn" type="button" disabled>${t('sendNow')}</button>`;
+      dialog = el('dialog', 'crm-dialog send-program-dialog'); dialog.id = 'sendProgramDialog';
+      dialog.innerHTML = `
+        <div class="send-dialog-head">
+          <h3>${t('send')}</h3>
+          <button id="sendProgramClose" class="send-dialog-close" type="button" aria-label="${t('Close','إغلاق')}">×</button>
+        </div>
+        <select id="sendProgramSelect" aria-label="Program"></select>
+        <div class="delivery-choice-row" role="radiogroup" aria-label="${t('Delivery method','طريقة الإرسال')}">
+          <label class="delivery-choice"><input type="radio" name="sendChannel" value="mzactive"> ${t('My Athlete (MZActive)','athlete MZActive')}</label>
+          <label class="delivery-choice"><input type="radio" name="sendChannel" value="email"> ${t('Email','بريد إلكتروني')}</label>
+          <label class="delivery-choice"><input type="radio" name="sendChannel" value="whatsapp"> WhatsApp</label>
+        </div>
+        <div id="sendAthleteSection">
+          <input id="sendProgramSearch" class="athlete-search" type="search" placeholder="${t('search')}">
+          <div id="sendProgramList" class="cards"></div>
+        </div>
+        <div id="sendEmailSection" hidden>
+          <label>${t('Recipient email','بريد المستلم')}<input id="sendProgramEmail" type="email" placeholder="name@example.com"></label>
+          <p class="muted">${t('You can send to an unregistered recipient. The program link requires an MZ Active account.','يمكن الإرسال إلى مستلم غير مسجل. يتطلب رابط البرنامج حساب MZ Active.')}</p>
+        </div>
+        <div id="sendPhoneSection" hidden>
+          <label>${t('Recipient WhatsApp number','رقم واتساب المستلم')}<input id="sendProgramPhone" type="tel" placeholder="+974 5555 5555"></label>
+        </div>
+        <div class="send-dialog-actions">
+          <button id="sendProgramCancel" class="secondary" type="button">${t('Cancel','إلغاء')}</button>
+          <button id="sendProgramConfirm" class="btn" type="button" disabled>${t('sendNow')}</button>
+        </div>`;
       document.body.append(dialog);
+      dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+      dialog.addEventListener('cancel', () => { dialog.close(); });
     }
     state.programId = programId || programs[0]?.id;
     const select = $('sendProgramSelect'); select.replaceChildren();
     for (const p of programs) { const option = document.createElement('option'); option.value = p.id; option.textContent = `${p.athlete_name || 'Program'} · ${p.week_start}`; select.append(option); }
     if (state.programId) select.value = state.programId;
     select.onchange = () => { state.programId = select.value; };
+    const channelInputs = [...dialog.querySelectorAll('input[name="sendChannel"]')];
+    const athleteSection = $('sendAthleteSection'), emailSection = $('sendEmailSection'), phoneSection = $('sendPhoneSection');
+    const search = $('sendProgramSearch'), list = $('sendProgramList'), confirm = $('sendProgramConfirm');
+    const emailInput = $('sendProgramEmail'), phoneInput = $('sendProgramPhone');
     let selected = preselectedAthlete || '';
-    const list = $('sendProgramList'), search = $('sendProgramSearch'), confirm = $('sendProgramConfirm');
-    confirm.disabled = !selected;
-    search.oninput = () => paint();
+    channelInputs.forEach(input => { input.checked = input.value === channel; });
+    function currentChannel() { return dialog.querySelector('input[name="sendChannel"]:checked')?.value || 'mzactive'; }
+    function updateSections() {
+      const c = currentChannel();
+      athleteSection.hidden = c !== 'mzactive';
+      emailSection.hidden = c !== 'email';
+      phoneSection.hidden = c !== 'whatsapp';
+      confirm.disabled = c === 'mzactive' ? !selected : (c === 'email' ? !emailInput.value.trim() : !phoneInput.value.trim());
+      paint();
+    }
     function paint() {
-      const q = search.value.toLowerCase(); list.replaceChildren();
+      if (currentChannel() !== 'mzactive') return;
+      const q = (search.value || '').toLowerCase(); list.replaceChildren();
       for (const a of state.athletes.filter(a => a.bucket === 'active' && (!q || String(a.display_name || '').toLowerCase().includes(q)))) {
         const card = el('article', 'crm-row'); card.append(el('strong', '', a.display_name || 'MZ Active athlete'));
         const pick = el('button', 'secondary', selected === a.id ? '✓' : t('chooseAthlete')); pick.type = 'button';
@@ -138,14 +177,33 @@
       }
       if (!list.children.length) list.append(el('p', 'muted', t('none')));
     }
+    search.oninput = () => paint();
+    channelInputs.forEach(input => input.addEventListener('change', updateSections));
+    emailInput.oninput = () => { confirm.disabled = !emailInput.value.trim(); };
+    phoneInput.oninput = () => { confirm.disabled = !phoneInput.value.trim(); };
+    updateSections();
     confirm.onclick = async () => {
-      if (!selected) return; confirm.disabled = true;
+      if (!state.programId) return;
+      const c = currentChannel();
+      if (c === 'mzactive' && !selected) return;
+      if (c === 'email' && !emailInput.value.trim()) return;
+      if (c === 'whatsapp' && !phoneInput.value.trim()) return;
+      confirm.disabled = true;
       try {
-        await api('/api/dashboard/programs/' + encodeURIComponent(state.programId) + '/send', { method: 'POST', body: JSON.stringify({ athlete_user_id: selected, channel: dialog.querySelector('input[name=sendChannel]:checked')?.value || 'email' }) });
-        ($('notice') || document.body).textContent = t('sent'); dialog.close(); await load();
+        const payload = { channel: c };
+        if (c === 'mzactive') payload.athlete_user_id = selected;
+        if (c === 'email') payload.recipient_email = emailInput.value.trim();
+        if (c === 'whatsapp') payload.recipient_phone = phoneInput.value.trim();
+        const result = await api('/api/dashboard/programs/' + encodeURIComponent(state.programId) + '/send', { method: 'POST', body: JSON.stringify(payload) });
+        if (c === 'whatsapp' && result.whatsapp_url) window.open(result.whatsapp_url, '_blank', 'noopener');
+        ($('notice') || document.body).textContent = t('sent', 'تم الإرسال.'); dialog.close(); await load();
       } catch (error) { ($('notice') || document.body).textContent = error.message || t('failed'); confirm.disabled = false; }
     };
+    $('sendProgramClose').onclick = () => dialog.close();
+    $('sendProgramCancel').onclick = () => dialog.close();
     paint(); if (!dialog.open) dialog.showModal();
+    // preserve the selected program when reopening
+    if (preselectedAthlete) { selected = preselectedAthlete; confirm.disabled = false; paint(); }
   }
   function decoratePrograms() {
     document.querySelectorAll('#flexProgramHistory [data-program-id]').forEach(card => {

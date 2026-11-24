@@ -2654,29 +2654,54 @@ async function dashboardApi(request, env, user) {
     const sendAuth = await authenticated(request, env);
     if (sendAuth.response) return sendAuth.response;
     const body = await readJson(request);
+    const channel = text(body?.channel, 20) || "mzactive";
     const athleteId = text(body?.athlete_user_id, 36);
-    if (!athleteId) return reply(request, env, { error: "athlete_required" }, 400);
-    const allowed = await env.DB.prepare(`SELECT 1 FROM coach_connections
-      WHERE coach_user_id=? AND athlete_user_id=? AND status='accepted'`).bind(sendAuth.user.id, athleteId).first();
-    if (!allowed) return reply(request, env, { error: "athlete_not_connected" }, 403);
+    const recipientEmail = emailValue(body?.recipient_email);
+    const recipientPhone = text(body?.recipient_phone, 32);
     const now = new Date().toISOString();
-    const updated = await env.DB.prepare(`UPDATE athlete_programs_v2 SET athlete_user_id=?,sent_at=?,
-      athlete_name=COALESCE((SELECT display_name FROM member_sports_profiles WHERE user_id=?),athlete_name)
-      WHERE id=? AND coach_user_id=? AND sent_at IS NULL`)
-      .bind(athleteId, now, athleteId, programSendMatch[1], sendAuth.user.id).run();
-    if (!updated.meta.changes) return reply(request, env, { error: "program_already_sent_or_missing" }, 409);
-    const href = `/dashboard.html?program=${programSendMatch[1]}#athleteProgramHistory`;
-    await createNotification(env, athleteId, "program_assigned", "New training program", "Your coach sent you a training program.", "training_program", programSendMatch[1], href);
-    if (text(body?.channel,20) !== "whatsapp") {
-      const athleteUser = await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(athleteId).first();
-      await queueCoachEmail(env, {
-        eventKey: `program_sent:${programSendMatch[1]}`,
-        to: athleteUser?.email || "",
-        subject: "New training program on MZ Active",
-        body: `Your coach sent you a training program on MZ Active.\n\nOpen it here: https://mzactive.com${href}`,
-      });
+    const programId = programSendMatch[1];
+    if (athleteId) {
+      const allowed = await env.DB.prepare(`SELECT 1 FROM coach_connections
+        WHERE coach_user_id=? AND athlete_user_id=? AND status='accepted'`).bind(sendAuth.user.id, athleteId).first();
+      if (!allowed) return reply(request, env, { error: "athlete_not_connected" }, 403);
+      const updated = await env.DB.prepare(`UPDATE athlete_programs_v2 SET athlete_user_id=?,sent_at=?,
+        athlete_name=COALESCE((SELECT display_name FROM member_sports_profiles WHERE user_id=?),athlete_name)
+        WHERE id=? AND coach_user_id=? AND sent_at IS NULL`)
+        .bind(athleteId, now, athleteId, programId, sendAuth.user.id).run();
+      if (!updated.meta.changes) return reply(request, env, { error: "program_already_sent_or_missing" }, 409);
+      const href = `/dashboard.html?program=${programId}#athleteProgramHistory`;
+      await createNotification(env, athleteId, "program_assigned", "New training program", "Your coach sent you a training program.", "training_program", programId, href);
+      if (channel !== "whatsapp") {
+        const athleteUser = await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(athleteId).first();
+        await queueCoachEmail(env, {
+          eventKey: `program_sent:${programId}`,
+          to: recipientEmail || athleteUser?.email || "",
+          subject: "New training program on MZ Active",
+          body: `Your coach sent you a training program on MZ Active.\n\nOpen it here: https://mzactive.com${href}`,
+        });
+      }
+      return reply(request, env, { sent: true, program_id: programId, sent_at: now, href, channel });
     }
-    return reply(request, env, { sent: true, program_id: programSendMatch[1], sent_at: now, href });
+    if (channel === "email" && recipientEmail) {
+      const updated = await env.DB.prepare(`UPDATE athlete_programs_v2 SET sent_at=?
+        WHERE id=? AND coach_user_id=? AND sent_at IS NULL`).bind(now, programId, sendAuth.user.id).run();
+      if (!updated.meta.changes) return reply(request, env, { error: "program_already_sent_or_missing" }, 409);
+      const href = `/dashboard.html?program=${programId}#athleteProgramHistory`;
+      await queueCoachEmail(env, {
+        eventKey: `program_sent_external:${programId}:${recipientEmail}`,
+        to: recipientEmail,
+        subject: "Training program from your MZ Active coach",
+        body: `Your coach sent you a training program on MZ Active.\n\nOpen MZ Active to view it: https://mzactive.com/dashboard.html#loginForm`,
+      });
+      return reply(request, env, { sent: true, program_id: programId, sent_at: now, href, channel, recipient_email: recipientEmail });
+    }
+    if (channel === "whatsapp" && recipientPhone) {
+      const updated = await env.DB.prepare(`UPDATE athlete_programs_v2 SET sent_at=?
+        WHERE id=? AND coach_user_id=? AND sent_at IS NULL`).bind(now, programId, sendAuth.user.id).run();
+      if (!updated.meta.changes) return reply(request, env, { error: "program_already_sent_or_missing" }, 409);
+      return reply(request, env, { sent: true, program_id: programId, sent_at: now, channel, recipient_phone: recipientPhone, whatsapp_url: `https://wa.me/${recipientPhone.replace(/\D/g, "")}?text=${encodeURIComponent("Training program from your MZ Active coach: https://mzactive.com/dashboard.html#loginForm")}` });
+    }
+    return reply(request, env, { error: "athlete_required" }, 400);
   }
 const PROGRAM_ATHLETE_TYPES = new Set(["runner","triathlon","running","cycling","swimming","fitness","strength","bodybuilding","hyrox","crossfit","general","running_strength","swim_bike"]);
 function addDays(iso, days) { const d=new Date(iso+"T00:00:00Z"); if(!Number.isFinite(d.getTime())) return null; d.setUTCDate(d.getUTCDate()+days); return d.toISOString().slice(0,10); }

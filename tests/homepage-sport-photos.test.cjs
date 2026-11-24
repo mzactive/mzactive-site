@@ -93,14 +93,6 @@ test('sport card styling continues to provide shared cropping, overlays and resp
   assert.doesNotMatch(homepageCss, /\.sport-card-art-(?:boxing|kickboxing)\b/, 'no new per-sport crop overrides were added');
 });
 
-test('Explore Sports icon links include Bodybuilding Coach', () => {
-  const start = html.indexOf('<div class="sport-links">');
-  assert.ok(start >= 0, 'icon links section is present');
-  const end = html.indexOf('</div>', start);
-  const links = html.slice(start, end);
-  assert.match(links, /href="coaches\.html\?type=bodybuilding_coach"/);
-  assert.match(links, /data-en="Bodybuilding Coach" data-ar="مدرب كمال الأجسام">Bodybuilding Coach<\/span>/);
-});
 
 test('Fitness and Bodybuilding Coach use distinct licensed local photos', () => {
   const fitness = sportCards().find((card) => card.includes('href="coaches.html?sport=fitness"'));

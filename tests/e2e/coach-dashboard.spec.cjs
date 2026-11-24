@@ -46,8 +46,8 @@ test('approved coach sees the team tools and an active private workspace', async
   await expect(page.locator('#auth')).toBeHidden();
   await expect(page.locator('#dashboard')).toBeVisible();
   await expect(page.locator('#coachPanel')).toBeVisible();
-  await expect(page.locator('#writeProgramJump')).toBeVisible();
-  await expect(page.locator('#editCoachProfile')).toBeVisible();
+  await expect(page.locator('#writeProgramJump')).toBeHidden();
+  await expect(page.locator('#editCoachProfile')).toBeHidden();
   await expect(page.locator('#coachAssignment')).toBeHidden();
   await expect(page.locator('#notice')).toBeEmpty();
   await expect(page.locator('#profileShareStatus')).toContainText('Share this link');
