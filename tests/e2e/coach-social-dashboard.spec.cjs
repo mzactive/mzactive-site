@@ -46,6 +46,8 @@ test('a signed-in coach sees their own FB-style profile with real stats and a Cr
   await expect(page.locator('#ownRole')).toContainText('Sports Coach');
   await expect(page.locator('#ownBio')).toHaveText('Running and endurance coach.');
   await expect(page.locator('#ownStats')).toContainText('24');
+  await expect(page.locator('#ownStats')).toContainText('Following');
+  await expect(page.locator('#ownStats')).toContainText('2');
   await expect(page.locator('#ownStats')).toContainText('1');
   await expect(page.locator('#ownVerified')).toBeVisible();
   await expect(page.locator('#ownPublicProfileLink')).toHaveAttribute('href', 'coach.html?id=profile-e2e');

@@ -30,6 +30,7 @@
     const programs = (data?.programs || []).length;
     const cells = [
       [ownProfile?.follower_count, t('Followers', 'متابعون')],
+      [ownProfile?.following_count, t('Following', 'متابَعون')],
       [data?.athleteCount, t('Athletes', 'رياضيون')],
       [programs, t('Programs', 'برامج')],
     ].filter(([value]) => value !== undefined && value !== null && Number(value) > 0);
@@ -78,6 +79,10 @@
       const analytics = await api('/api/dashboard/analytics');
       ownProfile.follower_count = analytics?.analytics?.followers ?? analytics?.followers ?? 0;
     } catch { /* the profile stays usable without analytics */ }
+    try {
+      const following = await api('/api/me/following/count');
+      ownProfile.following_count = following.following_count || 0;
+    } catch { /* the profile stays usable without the following count */ }
     renderStats({ programs: data?.programs || [], athleteCount: (data?.teams || []).length });
     try {
       const athletes = await api('/api/dashboard/athletes');

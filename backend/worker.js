@@ -4574,6 +4574,14 @@ async function handleCommunityApi(request, env, url) {
     return reply(request, env, { followers, follower_count: followers.length });
   }
 
+  // The signed-in member's real following count, used by the private profile.
+  if (path === "/api/me/following/count" && method === "GET") {
+    const auth = await authenticated(request, env);
+    if (auth.response) return auth.response;
+    const row = await env.DB.prepare("SELECT COUNT(*) AS count FROM user_follows WHERE follower_user_id=?").bind(auth.user.id).first();
+    return reply(request, env, { following_count: Number(row?.count || 0) });
+  }
+
   // Community feed, posts and media.
   if (path === "/api/community/posts" && ["GET", "POST"].includes(method)) {
     const viewer = await currentUser(request, env);
