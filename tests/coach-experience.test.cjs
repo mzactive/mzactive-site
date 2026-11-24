@@ -27,7 +27,7 @@ test('notifications and manual WhatsApp handoff carry exact deep links', () => {
   const worker = read('backend/worker.js');
   assert.match(worker, /INSERT INTO user_notifications\(id,user_id,type,title,body,entity_type,entity_id,href,created_at\)/);
   assert.match(worker, /dashboard\.html\?connection=\$\{id\}#myAthletes/);
-  assert.match(worker, /dashboard\.html\?program=\$\{programSendMatch\[1\]\}#athleteProgramHistory/);
+  assert.match(worker, /dashboard\.html\?program=\$\{programId\}#athleteProgramHistory/);
   assert.match(read('dashboard.html'), /dashboard\.html\?program='\+encodeURIComponent\(saved\.id\|\|''\)\+'#athleteProgramHistory/);
 });
 

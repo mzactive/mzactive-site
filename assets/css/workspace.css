@@ -230,3 +230,15 @@ body.coach-light [data-account-menu]{display:none!important}
 .my-profile-panel .profile-social-tabs .social-tab{background:#ffffff;border:1px solid #b7cbc6;color:#35504b;border-radius:999px;min-height:40px;padding:.35rem .8rem;cursor:pointer;font:inherit;font-size:.82rem}
 .my-profile-panel .profile-social-tabs .social-tab[aria-selected="true"]{background:#091d21;border-color:#091d21;color:#f2b718;font-weight:900}
 @media(max-width:760px){.my-profile-panel .own-identity{grid-template-columns:88px minmax(0,1fr);gap:12px;padding-inline:13px}.my-profile-panel .own-photo{width:88px;height:88px}.my-profile-panel .own-actions{grid-column:1/-1;max-width:none;justify-content:flex-start;padding-top:34px}.my-profile-panel .profile-social-tabs{overflow-x:auto;flex-wrap:nowrap}.my-profile-panel .profile-social-tabs .social-tab{white-space:nowrap}}
+
+/* Send Program dialog */
+.send-program-dialog{width:min(560px,calc(100vw - 24px));padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--text)}
+.send-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.send-dialog-head h3{margin:0;color:var(--gold)}
+.send-dialog-close{min-width:40px;min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);font-size:1.2rem;line-height:1;cursor:pointer}
+.send-dialog-actions{display:flex;gap:10px;margin-top:14px}
+.send-dialog-actions .btn,.send-dialog-actions .secondary{flex:1 1 0;min-height:44px}
+#sendEmailSection label,#sendPhoneSection label{display:grid;gap:6px;margin:10px 0;font-size:.85rem;font-weight:800;color:var(--muted)}
+#sendEmailSection input,#sendPhoneSection input{min-height:44px;padding:.45rem .6rem;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text)}
+
+body.coach-light .dashboard-top,body.coach-light .hero{display:none!important}

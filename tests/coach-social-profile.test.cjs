@@ -114,7 +114,7 @@ test('program delivery can be started in one tap from an active athlete', () => 
   const js = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../assets/js/coach-dashboard.js'), 'utf8');
   assert.match(js, /sendDialog\(null, 'mzactive', a\.id\)/);
   assert.match(js, /let selected = preselectedAthlete \|\| ''/);
-  assert.match(js, /confirm\.disabled = !selected/);
+  assert.match(js, /confirm\.disabled = c === 'mzactive' \? !selected/);
 });
 
 test('private profile shows a real following count from the authenticated API', () => {

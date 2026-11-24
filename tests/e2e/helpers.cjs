@@ -152,6 +152,9 @@ function defaultApiHandler(ctx, state) {
   if (method === 'GET' && urlPath === '/api/public/contact-config') {
     return json({ contact: { whatsapp: '97400000000', whatsapp_configured: true } });
   }
+  if (urlPath === '/api/public/campaigns/samla') {
+    return json({ id: 'samla', enabled: true, starts_at: '2026-11-24T00:00:00.000Z', ends_at: '2026-12-03T06:00:00.000Z', updated_at: '2026-11-24T00:00:00.000Z', active: true });
+  }
   if (urlPath === '/api/auth/setup-status') return json({ setup_available: false });
   if (urlPath === '/api/auth/login') {
     return json({

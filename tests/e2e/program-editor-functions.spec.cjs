@@ -55,8 +55,9 @@ test('Send to My Athlete shows connected athletes immediately and supports Whats
   const dialog = page.locator('#sendProgramDialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('#sendProgramList')).toContainText('E2E Active Athlete');
-  await dialog.locator('input[name="sendChannel"][value="whatsapp"]').check();
   await dialog.getByRole('button', { name: 'Choose an athlete' }).click();
+  await dialog.locator('input[name="sendChannel"][value="whatsapp"]').check();
+  await dialog.locator('#sendProgramPhone').fill('+97455555555');
   await dialog.getByRole('button', { name: 'Send program' }).click();
   await expect.poll(() => mock.calls.some(call => call.method === 'POST' && call.path === '/api/dashboard/programs/prog-e2e/send' && call.body?.channel === 'whatsapp')).toBe(true);
   assertOfflineSafe(mock);
