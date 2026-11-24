@@ -32,6 +32,9 @@ test('booking form validates required fields and consent before saving', async (
   expect(saves[0].body.consent).toBe(true);
   expect(mock.whatsapp).toHaveLength(1);
   expect(mock.whatsapp[0]).toContain('wa.me/97400000000');
+  const handoff = decodeURIComponent(mock.whatsapp[0]);
+  expect(handoff).toContain('https://mzactive.com/dashboard.html?connection=E2E-CONNECTION-1#myAthletes');
+  expect(handoff).not.toContain('E2E-REQUEST-1');
   assertOfflineSafe(mock);
 });
 
