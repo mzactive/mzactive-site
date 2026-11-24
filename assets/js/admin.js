@@ -1491,6 +1491,28 @@
     if(!(data.grants||[]).length)grants.append(crmEmpty(['No delegated permissions are active.','لا توجد صلاحيات مفوّضة نشطة.']));
     for(const grant of data.grants||[]){const row=node('article',null,'crm-row');row.append(node('strong',grant.email),node('span',permissionName(grant.permission_code)),node('small',[grant.role==='admin'?t('Administrator','مسؤول'):t('Member','عضو'),date(grant.granted_at)].join(' · ')));grants.append(row)}
     panel.append(grants);root.append(panel);
+
+    const campaignPanel=node('section',null,'command-panel'),campaignHead=node('div',null,'panel-head');campaignHead.append(node('h3',t('SAMLA 200 campaign','حملة صملة 200')));campaignPanel.append(campaignHead);
+    campaignPanel.append(node('p',t('Control the homepage SAMLA 200 banner. Dates are Qatar time (Asia/Qatar).','تحكم في بانر صملة 200 في الصفحة الرئيسية. التواريخ بتوقيت قطر (Asia/Qatar).'),'crm-note'));
+    const campaignStatus=crmStatus();
+    const enabledWrap=node('label',null,'permission-option'),enabledBox=node('input');enabledBox.type='checkbox';enabledBox.checked=true;enabledWrap.append(enabledBox,node('span',t('Campaign enabled','الحملة مفعلة')));
+    const starts=node('input');starts.type='datetime-local';starts.setAttribute('aria-label',t('Starts at','تبدأ في'));
+    const ends=node('input');ends.type='datetime-local';ends.setAttribute('aria-label',t('Ends at','تنتهي في'));
+    const toLocal=(iso)=>{const d=new Date(iso);const q=new Date(d.getTime()+3*60*60*1000);return q.toISOString().slice(0,16)};
+    const fromLocal=(value)=>value?new Date(value+':00+03:00').toISOString():'';
+    try{
+      const current=await api('admin/campaigns/samla');
+      enabledBox.checked=current.enabled!==false;
+      starts.value=toLocal(current.starts_at);
+      ends.value=toLocal(current.ends_at);
+    }catch(err){campaignStatus.textContent=errorMessage(err)}
+    campaignPanel.append(enabledWrap,node('label',t('Starts at','تبدأ في'),starts),node('label',t('Ends at','تنتهي في'),ends),campaignStatus);
+    campaignPanel.append(adminAction(t('Save campaign','حفظ الحملة'),campaignStatus,async()=>{
+      const startsAt=fromLocal(starts.value),endsAt=fromLocal(ends.value);
+      if(!startsAt||!endsAt)throw Error('invalid_campaign_dates');
+      return api('admin/campaigns/samla',{method:'PATCH',body:{enabled:enabledBox.checked,starts_at:startsAt,ends_at:endsAt}});
+    },['Campaign saved and audited.','تم حفظ الحملة وتسجيلها.'],()=>settingsSection(root)));
+    root.append(campaignPanel);
   }
   async function renderTrash(root) {
     const wrap=node('div',null,'trash-panel');root.append(wrap);

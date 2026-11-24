@@ -549,6 +549,45 @@ async function publicBlogPosts(request, env) {
   return reply(request, env, { posts: result.results || [] });
 }
 
+function validCampaignDate(value) {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+}
+
+async function publicCampaign(request, env) {
+  const id = text(new URL(request.url).pathname.split("/").pop() || "samla", 40);
+  const row = await env.DB.prepare("SELECT enabled,starts_at,ends_at,updated_at FROM site_campaigns WHERE id=?").bind(id).first();
+  if (!row) return reply(request, env, { error: "campaign_not_found" }, 404);
+  const now = Date.now();
+  const active = row.enabled === 1 && Date.parse(row.starts_at) <= now && now < Date.parse(row.ends_at);
+  return reply(request, env, {
+    id, enabled: row.enabled === 1, starts_at: row.starts_at, ends_at: row.ends_at,
+    updated_at: row.updated_at, active,
+  });
+}
+
+async function adminCampaign(request, env) {
+  const user = await currentUser(request, env);
+  if (!user) return reply(request, env, { error: "unauthorized" }, 401);
+  if (user.role !== "admin") return reply(request, env, { error: "forbidden" }, 403);
+  const id = text(new URL(request.url).pathname.split("/").pop() || "samla", 40);
+  const row = await env.DB.prepare("SELECT enabled,starts_at,ends_at,updated_at FROM site_campaigns WHERE id=?").bind(id).first();
+  if (!row) return reply(request, env, { error: "campaign_not_found" }, 404);
+  if (request.method === "GET") {
+    return reply(request, env, { id, enabled: row.enabled === 1, starts_at: row.starts_at, ends_at: row.ends_at, updated_at: row.updated_at });
+  }
+  const body = await readJson(request);
+  const enabled = body?.enabled === undefined ? row.enabled === 1 : Boolean(body.enabled);
+  const startsAt = body?.starts_at === undefined ? row.starts_at : validCampaignDate(body.starts_at);
+  const endsAt = body?.ends_at === undefined ? row.ends_at : validCampaignDate(body.ends_at);
+  if (!startsAt || !endsAt) return reply(request, env, { error: "invalid_campaign_dates" }, 400);
+  if (Date.parse(endsAt) <= Date.parse(startsAt)) return reply(request, env, { error: "invalid_campaign_range" }, 400);
+  const now = new Date().toISOString();
+  await env.DB.prepare("UPDATE site_campaigns SET enabled=?,starts_at=?,ends_at=?,updated_at=? WHERE id=?")
+    .bind(enabled ? 1 : 0, startsAt, endsAt, now, id).run();
+  return reply(request, env, { id, enabled, starts_at: startsAt, ends_at: endsAt, updated_at: now });
+}
+
 async function register(request, env) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
   if (!await rateLimit(request, env, "register", 5)) return reply(request, env, { error: "rate_limited" }, 429);
@@ -5166,6 +5205,10 @@ export default {
     if (url.pathname.startsWith("/api/run-iq")) return handleRunIqApi(request, env, url);
     if (request.method === "POST" && url.pathname === "/api/assistant/chat") return assistantChat(request, env);
     if (request.method === "GET" && url.pathname === "/api/blog/posts") return publicBlogPosts(request, env);
+    const publicCampaignMatch = /^\/api\/public\/campaigns\/([\w-]{1,40})$/.exec(url.pathname);
+    if (request.method === "GET" && publicCampaignMatch) return publicCampaign(request, env);
+    const adminCampaignMatch = /^\/api\/admin\/campaigns\/([\w-]{1,40})$/.exec(url.pathname);
+    if (adminCampaignMatch && ["GET","PATCH"].includes(request.method)) return adminCampaign(request, env);
     if (request.method === "GET" && url.pathname === "/api/providers") return publicProviders(url, request, env);
     const profileMatch = /^\/api\/providers\/([\w-]{36})$/.exec(url.pathname);
     if (request.method === "GET" && profileMatch) return publicProviders(url, request, env, profileMatch[1]);
