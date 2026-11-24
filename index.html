@@ -1272,14 +1272,18 @@ html[dir="rtl"] .footer-install { text-align: right; }
         const fallbackEnd=new Date('2026-12-03T06:00:00.000Z');
         function hide(){banner.hidden=true;banner.setAttribute('aria-hidden','true')}
         function show(){banner.hidden=false;banner.removeAttribute('aria-hidden')}
-        const apiBase=window.MZACTIVE_API_BASE||'';
-        fetch(apiBase+'/api/public/campaigns/samla',{cache:'no-store'})
-          .then(r=>r.ok?r.json():null)
-          .then(data=>{
-            const active=!!data?.active && (!data.ends_at || Date.now()<Date.parse(data.ends_at));
-            active?show():hide();
-          })
-          .catch(()=>{Date.now()<fallbackEnd.getTime()?show():hide()});
+        function check(){
+          const apiBase=window.MZACTIVE_API_BASE||'';
+          fetch(apiBase+'/api/public/campaigns/samla',{cache:'no-store'})
+            .then(r=>r.ok?r.json():null)
+            .then(data=>{
+              const active=!!data?.active && (!data.ends_at || Date.now()<Date.parse(data.ends_at));
+              active?show():hide();
+            })
+            .catch(()=>{Date.now()<fallbackEnd.getTime()?show():hide()});
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', check, { once: true });
+        else check();
         const ms=fallbackEnd.getTime()-Date.now();
         if(ms>0)setTimeout(hide,ms);
       })();
