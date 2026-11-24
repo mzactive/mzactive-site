@@ -131,8 +131,7 @@
     </section>
     <div id="shareCardPreview" class="share-card" hidden>
       <button id="shareCardClose" type="button" class="share-card-close" aria-label="Close">×</button>
-      <canvas id="strategyCanvas" width="1080" height="1920"></canvas>
-      <p id="shareCardStatus" class="muted" role="status" aria-live="polite"></p>
+      <canvas id="strategyCanvas" width="1080" height="860"></canvas>
       <div id="shareActions" class="share-actions" hidden>
         <button id="shareStrategyButton" class="button" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
@@ -151,6 +150,7 @@
           <span data-en="Copy Link" data-ar="نسخ الرابط">Copy Link</span>
         </button>
       </div>
+      <p id="shareCardStatus" class="muted" role="status" aria-live="polite"></p>
     </div>
   </section>
 
@@ -606,49 +606,56 @@
     const preview = document.getElementById('shareCardPreview');
     const status = document.getElementById('shareCardStatus');
     const actions = document.getElementById('shareActions');
-    const ctx = canvas.getContext('2d');
     const arabic = lang() === 'ar';
-    ctx.fillStyle = '#091d21'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    const W = 1080;
+    const stageRow = 52;
+    const stagesTop = 390;
+    const durations = collectMainDurations();
+    const transitions = Number(transitionInput.value || 0) * 6;
+    const total = Object.values(durations).reduce((a, b) => a + b, 0) + transitions;
+    const stagesEnd = stagesTop + stages.length * stageRow;
+    const marketingY = stagesEnd + 18;
+    const urlY = marketingY + 44;
+    const H = urlY + 40;
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#091d21'; ctx.fillRect(0, 0, W, H);
+    const gradient = ctx.createLinearGradient(0, 0, W, 0);
     gradient.addColorStop(0, '#0b2427'); gradient.addColorStop(0.55, '#091d21'); gradient.addColorStop(1, '#123f3d');
-    ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = gradient; ctx.fillRect(0, 0, W, H);
     ctx.direction = arabic ? 'rtl' : 'ltr';
     ctx.textAlign = arabic ? 'right' : 'left';
-    const x = arabic ? canvas.width - 56 : 56;
+    const x = arabic ? W - 56 : 56;
     const logo = new Image();
     logo.crossOrigin = 'anonymous';
-    logo.onload = () => { ctx.drawImage(logo, arabic ? canvas.width - 250 : 56, 48, 194, 60); drawCard(ctx); };
-    logo.onerror = () => drawCard(ctx);
+    logo.onload = () => { ctx.drawImage(logo, arabic ? W - 250 : 56, 38, 194, 60); drawCard(); };
+    logo.onerror = () => drawCard();
     logo.src = '../assets/brand/mzactive-logo.webp';
-    function drawCard(ctx) {
+    function drawCard() {
       ctx.fillStyle = '#f2b718'; ctx.font = 'bold 44px Arial';
-      ctx.fillText(t('MZA Race IQ — SAMLA 200', 'MZA Race IQ — صملة 200'), x, 170);
+      ctx.fillText(t('MZA Race IQ — SAMLA 200', 'MZA Race IQ — صملة 200'), x, 128);
       ctx.fillStyle = '#b8cbc6'; ctx.font = '22px Arial';
-      ctx.fillText(t('Estimated race strategy (not an official SAMLA plan)', 'استراتيجية سباق مقدّرة (ليست خطة صملة رسمية)'), x, 205);
-      const durations = collectMainDurations();
-      const transitions = Number(transitionInput.value || 0) * 6;
-      const total = Object.values(durations).reduce((a, b) => a + b, 0) + transitions;
+      ctx.fillText(t('Estimated race strategy (not an official SAMLA plan)', 'استراتيجية سباق مقدّرة (ليست خطة صملة رسمية)'), x, 160);
       ctx.fillStyle = '#f0f5f3'; ctx.font = 'bold 28px Arial';
-      ctx.fillText(t('Finishing time', 'وقت الإنهاء'), x, 285);
+      ctx.fillText(t('Finishing time', 'وقت الإنهاء'), x, 220);
       ctx.fillStyle = '#f2b718'; ctx.font = 'bold 74px Arial';
-      ctx.fillText(formatMinutes(total), x, 365);
+      ctx.fillText(formatMinutes(total), x, 296);
       ctx.fillStyle = '#b8cbc6'; ctx.font = '20px Arial';
-      ctx.fillText(t(`Total distance: 200 km · Transitions: ${transitions} min`, `المسافة الإجمالية: 200 كم · الانتقالات: ${transitions} دق`), x, 405);
-      ctx.fillStyle = '#f0f5f3'; ctx.font = 'bold 22px Arial';
-      let y = 470;
+      ctx.fillText(t(`Total distance: 200 km · Transitions: ${transitions} min`, `المسافة الإجمالية: 200 كم · الانتقالات: ${transitions} دق`), x, 336);
+      let y = stagesTop;
       for (const stage of stages) {
         const pace = stage.distance ? (stage.id === 'swim' ? formatPace(durations[stage.id] / (stage.distance * 10)) + '/100m' : formatPace(durations[stage.id] / stage.distance) + '/km') : '—';
         const speed = stage.distance ? (stage.distance * 60 / durations[stage.id]).toFixed(1) + ' km/h' : '—';
         ctx.fillStyle = '#f2b718'; ctx.font = 'bold 20px Arial';
         ctx.fillText(`${stageName(stage)}  ${stage.distance ? stage.distance + ' km' : t('shooting', 'رماية')}`, x, y);
         ctx.fillStyle = '#dce7e2'; ctx.font = '18px Arial';
-        ctx.fillText(`${formatMinutes(durations[stage.id])}  ·  ${pace}  ·  ${speed}`, x, y + 26);
-        y += 62;
+        ctx.fillText(`${formatMinutes(durations[stage.id])}  ·  ${pace}  ·  ${speed}`, x, y + 24);
+        y += stageRow;
       }
-      ctx.fillStyle = '#f2b718'; ctx.font = 'bold 26px Arial';
-      ctx.fillText(t("What's your target? Calculate yours for FREE.", 'ما هو وقتك المستهدف؟ احسب استراتيجية سباقك مجاناً.'), x, 1030);
-      ctx.fillStyle = '#b8cbc6'; ctx.font = '20px Arial';
-      ctx.fillText('mzactive.com/samla', x, canvas.height - 48);
+      ctx.fillStyle = '#f2b718'; ctx.font = 'bold 24px Arial';
+      ctx.fillText(t("What's your target? Calculate yours for FREE.", 'ما هو وقتك المستهدف؟ احسب استراتيجية سباقك مجاناً.'), x, marketingY);
+      ctx.fillStyle = '#b8cbc6'; ctx.font = '16px Arial';
+      ctx.fillText('mzactive.com/samla', x, urlY);
       preview.hidden = false;
       actions.hidden = false;
       canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
