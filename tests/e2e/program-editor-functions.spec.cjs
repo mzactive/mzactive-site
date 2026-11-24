@@ -62,8 +62,27 @@ test('Send to My Athlete shows connected athletes immediately and supports Whats
   assertOfflineSafe(mock);
 });
 
-test('email and WhatsApp delivery buttons are available in the existing savebar', async ({ page }) => {
+test('action area has one dropdown and two main buttons', async ({ page }) => {
   await open(page);
-  await expect(page.locator('#programEmailSend')).toBeVisible();
-  await expect(page.locator('#programWhatsAppSend')).toBeVisible();
+  await expect(page.locator('#programSendTo')).toBeVisible();
+  await expect(page.locator('#programSend')).toBeVisible();
+  await expect(page.locator('#programSaveDraft')).toBeVisible();
+  await expect(page.locator('.program-more')).toBeVisible();
+});
+
+test('Send Program with My Athlete saves first and opens the connected-athlete list', async ({ page }) => {
+  const mock = await open(page, {
+    'POST /api/dashboard/programs': json({ id: 'prog-new', week_start: '2026-11-23', session_codes: ['MON-R01'], status: 'saved' }, 201),
+    'POST /api/dashboard/programs/prog-new/send': json({ sent: true, program_id: 'prog-new', href: '/dashboard.html?program=prog-new#athleteProgramHistory' }),
+  });
+  await page.locator('#trainingClientName').fill('E2E Athlete');
+  await page.locator('#trainingClientPhone').fill('55555555');
+  await page.evaluate(() => { const el = document.getElementById('weekMonday'); el.value = 'Easy 5 km'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.locator('#programSendTo').selectOption('mzactive');
+  await page.locator('#programSend').click();
+  await expect.poll(() => mock.calls.some(call => call.method === 'POST' && call.path === '/api/dashboard/programs')).toBe(true);
+  const dialog = page.locator('#sendProgramDialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('#sendProgramList')).toContainText('E2E Active Athlete');
+  assertOfflineSafe(mock);
 });

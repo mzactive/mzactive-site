@@ -105,13 +105,13 @@
     } catch {}
   }
 
-  function sendDialog(programId) {
+  function sendDialog(programId, channel = 'email') {
     const programs = window.mzStudioDashboard?.programs || [];
     if (!programId && !programs.length) { ($('notice') || document.body).textContent = t('saveFirst'); return; }
     let dialog = $('sendProgramDialog');
     if (!dialog) {
       dialog = el('dialog', 'crm-dialog'); dialog.id = 'sendProgramDialog';
-      dialog.innerHTML = `<h3>${t('send')}</h3><select id="sendProgramSelect" aria-label="Program"></select><label class="delivery-choice"><input type="radio" name="sendChannel" value="email" checked> ${lang() === 'ar' ? 'بريد إلكتروني' : 'Email'}</label><label class="delivery-choice"><input type="radio" name="sendChannel" value="whatsapp"> WhatsApp</label><input id="sendProgramSearch" class="athlete-search" type="search" placeholder="${t('search')}"><div id="sendProgramList" class="cards"></div><button id="sendProgramConfirm" class="btn" type="button" disabled>${t('sendNow')}</button>`;
+      dialog.innerHTML = `<h3>${t('send')}</h3><select id="sendProgramSelect" aria-label="Program"></select><label class="delivery-choice"><input type="radio" name="sendChannel" value="mzactive" ${channel === 'mzactive' ? 'checked' : ''}> ${lang() === 'ar' ? 'رياضيي في MZ Active' : 'My Athlete (MZActive)'}</label><label class="delivery-choice"><input type="radio" name="sendChannel" value="email" ${channel === 'email' ? 'checked' : ''}> ${lang() === 'ar' ? 'بريد إلكتروني' : 'Email'}</label><label class="delivery-choice"><input type="radio" name="sendChannel" value="whatsapp" ${channel === 'whatsapp' ? 'checked' : ''}> WhatsApp</label><input id="sendProgramSearch" class="athlete-search" type="search" placeholder="${t('search')}"><div id="sendProgramList" class="cards"></div><button id="sendProgramConfirm" class="btn" type="button" disabled>${t('sendNow')}</button>`;
       document.body.append(dialog);
     }
     state.programId = programId || programs[0]?.id;
@@ -206,6 +206,7 @@
     section.append(list); $('memberPanel').prepend(section);
   }
 
+  window.MZActiveCoachDashboard = { sendDialog };
   document.addEventListener('mzactive:dashboard-loaded', () => {
     const data = window.mzStudioDashboard;
     if (!data) return;

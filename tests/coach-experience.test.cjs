@@ -53,7 +53,7 @@ test('program editor supports flexible duration, sports and channel choice', () 
   const html = read('dashboard.html');
   assert.match(html, /assets\/js\/program-editor-enhancements\.js/);
   const js = read('assets/js/program-editor-enhancements.js');
-  for (const marker of ['programDurationUnit', 'programDurationValue', 'programWeekLabel', 'programPrevWeek', 'programNextWeek', 'session_date', 'programEmailSend', 'programWhatsAppSend', 'program-draft', 'bodybuilding']) {
+  for (const marker of ['programDurationUnit', 'programDurationValue', 'programWeekLabel', 'programPrevWeek', 'programNextWeek', 'session_date', 'programSendTo', 'programSend', 'programSaveDraft', 'program-more', 'program-draft', 'bodybuilding']) {
     assert.ok(js.includes(marker), marker);
   }
   const admin = read('assets/js/coach-dashboard.js');

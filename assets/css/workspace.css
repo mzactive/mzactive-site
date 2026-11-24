@@ -83,3 +83,13 @@ html[dir=rtl] .athlete-row{text-align:right}
 .program-week-nav strong{color:var(--gold);font-size:.82rem}
 .delivery-choice{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:.88rem}
 .studio-savebar #programEmailSend,.studio-savebar #programWhatsAppSend{min-height:42px}
+
+/* Consolidated program action area */
+.program-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.program-send-to{display:flex;align-items:center;gap:8px;font-size:.82rem;font-weight:800;color:var(--muted)}
+.program-send-to select{min-height:42px;padding:.35rem .6rem;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text)}
+.program-actions>.btn{min-height:42px}
+.program-more summary{min-height:42px;display:flex;align-items:center;padding:.35rem .7rem;border:1px solid var(--line);border-radius:10px;color:var(--muted);cursor:pointer;font-size:.82rem}
+.program-more[open] summary{color:var(--gold);border-color:var(--gold)}
+.program-more .btn{width:100%;margin-top:8px}
+@media(max-width:600px){.program-actions{display:grid;grid-template-columns:1fr 1fr}.program-send-to{grid-column:1/-1}.program-send-to select{width:100%}.program-actions>.btn{width:100%}}

@@ -51,6 +51,7 @@ async function openStudioWithProgram(page, options = {}) {
   await page.locator('#trainingWeekStart').fill('2026-11-23');
   await fillStudioField(page, '#weekMonday', SESSION_DETAILS);
   await fillStudioField(page, '#weeklyCoachNote', 'Keep the conversational pace on easy days.');
+  await page.locator('.program-more summary').click();
   await page.click('#studioDocumentPreview');
   await expect(page.locator('#programDocumentDialog')).toBeVisible();
 }
@@ -76,6 +77,7 @@ test('studio preview shows the full professional program in the browser', async 
   expect(payload.weeks[0].days[0].distance).toBe('8 km');
   expect(payload.weeks[0].days[0].duration).toBe('45 min');
 
+  await page.locator('.program-more summary').click();
   await page.click('#studioDocumentPreview');
   const dialog = page.locator('#programDocumentDialog');
   await expect(dialog).toBeVisible();
