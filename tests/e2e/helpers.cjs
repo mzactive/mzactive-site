@@ -470,6 +470,10 @@ function defaultApiHandler(ctx, state) {
     if (method === 'PATCH') return json({ email_enabled: ctx.body?.email_enabled !== false, dashboard_enabled: ctx.body?.dashboard_enabled !== false });
     return json({ email_enabled: true, dashboard_enabled: true });
   }
+  if (urlPath === '/api/dashboard/program-draft') {
+    if (method === 'PUT') return json({ saved: true });
+    return json({ draft: null, updated_at: null });
+  }
   if (urlPath === '/api/dashboard/athletes') {
     return json({
       athletes: [
