@@ -89,15 +89,16 @@ test('private coach profile uses a vertical dashboard list, create menu and FB-s
   for (const action of ['post', 'blog', 'photo', 'program']) {
     assert.match(html, new RegExp(`data-create="${action}"`));
   }
-  for (const section of ['posts', 'blogs', 'programs', 'community', 'about']) {
+  for (const section of ['overview', 'posts', 'blogs', 'programs', 'about']) {
     assert.match(html, new RegExp(`data-section="${section}"`));
   }
   for (const label of ['My Athletes', 'Coaching Requests', 'Training Programs', 'Program History', 'Coaching Statistics', 'Messages & Notifications', 'My Posts & Blogs', 'Settings']) {
     assert.match(dashboardJs, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
-  assert.match(dashboardJs, /coach-quick-actions coach-vertical-nav/);
+  assert.match(read('assets/js/coach-strava-nav.js'), /coachTopNav/);
+  assert.match(read('assets/js/coach-strava-nav.js'), /coachBottomNav/);
   assert.match(dashboardJs, /function focusSection\(key\)/);
-  assert.match(dashboardJs, /window\.MZActiveCoachDashboard = \{ sendDialog, focusSection, renderStatistics \}/);
+  assert.match(dashboardJs, /window\.MZActiveCoachDashboard = \{ sendDialog, focusSection, renderStatistics, settingsDialog \}/);
   assert.match(socialJs, /api\/me\/profile/);
   assert.match(socialJs, /api\/me\/profile\/cover/);
   assert.match(socialJs, /api\/me\/profile\/photo/);

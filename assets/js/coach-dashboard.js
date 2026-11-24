@@ -274,11 +274,11 @@
     section.append(list); $('memberPanel').prepend(section);
   }
 
-  window.MZActiveCoachDashboard = { sendDialog, focusSection, renderStatistics };
+  window.MZActiveCoachDashboard = { sendDialog, focusSection, renderStatistics, settingsDialog };
   document.addEventListener('mzactive:dashboard-loaded', () => {
     const data = window.mzStudioDashboard;
     if (!data) return;
-    if (data.role === 'provider') { quickActions(); $('coachQuickActions')?.querySelector('[href="#coachSettings"]')?.addEventListener('click', event => { event.preventDefault(); settingsDialog(); }); mount(); load(); }
+    if (data.role === 'provider') { mount(); load(); }
     if (data.role === 'member') memberCoaches(data);
   });
   document.addEventListener('mzactive:language-change', () => { if ($('coachMyAthletes')) render(); });

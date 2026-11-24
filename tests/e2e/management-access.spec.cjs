@@ -23,12 +23,12 @@ test('ordinary accounts never receive management menu actions', async ({ page })
   await seedSession(page, { storage: 'local' });
   await page.goto('/dashboard.html');
 
-  const menu = page.locator('[data-account-menu] .account-menu');
+  const menu = page.locator('#coachTopNav details[data-menu="profile"]');
   await expect(menu).toBeVisible();
-  await menu.locator('.account-menu-button').click();
-  const list = menu.locator('.account-menu-list');
-  await expect(list).toContainText('Account Settings');
-  await expect(list).toContainText('Sign Out');
+  await menu.locator('summary').click();
+  const list = menu.locator('.coach-menu-panel');
+  await expect(list).toContainText('Settings');
+  await expect(list).toContainText('Log Out');
   await expect(list).not.toContainText('Management Dashboard');
   await expect(list).not.toContainText('MZ AI Brain');
   assertOfflineSafe(mock);

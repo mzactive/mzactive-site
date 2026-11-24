@@ -63,25 +63,28 @@ test('a signed-in coach sees their own FB-style profile with real stats and a Cr
   assertOfflineSafe(mock);
 });
 
-test('the dashboard uses a vertical list and shows one section at a time', async ({ page }) => {
+test('the dashboard uses a top navigation and shows one section at a time', async ({ page }) => {
   const mock = await openDashboard(page);
-  const nav = page.locator('#coachQuickActions');
+  const nav = page.locator('#coachTopNav');
   await expect(nav).toBeVisible();
-  await expect(nav.locator('.quick-action')).toHaveCount(10);
-  const columns = await nav.evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length);
-  expect(columns).toBe(1);
-  for (const label of ['My Athletes', 'Coaching Requests', 'Training Programs', 'Program History', 'Coaching Statistics', 'Messages & Notifications', 'My Posts & Blogs', 'Settings']) {
-    await expect(nav).toContainText(label);
-  }
+  await expect(nav).toContainText('Dashboard');
+  await expect(nav).toContainText('Training');
+  await expect(nav).toContainText('Create +');
+  await expect(nav).toContainText('Profile');
 
-  await nav.locator('[data-section="programs"]').click();
+  await page.locator('#coachTopNav details[data-menu="training"] summary').click();
+  await page.locator('#coachTopNav details[data-menu="training"] [data-nav="programs"]').first().click();
   await expect(page.locator('#whatsappTrainingForm')).toBeVisible();
   await expect(page.locator('#coachMyAthletes')).toBeHidden();
   await expect(page.locator('#coachStatistics')).toBeHidden();
-  await nav.locator('[data-section="statistics"]').click();
+
+  await page.locator('#coachTopNav details[data-menu="dashboard"] summary').click();
+  await page.locator('#coachTopNav details[data-menu="dashboard"] [data-nav="statistics"]').click();
   await expect(page.locator('#coachStatistics')).toContainText('Programs');
   await expect(page.locator('#whatsappTrainingForm')).toBeHidden();
-  await nav.locator('[data-section="overview"]').click();
+
+  await page.locator('#coachTopNav details[data-menu="dashboard"] summary').click();
+  await page.locator('#coachTopNav details[data-menu="dashboard"] [data-nav="overview"]').click();
   await expect(page.locator('#coachMyAthletes')).toBeVisible();
   await expect(page.locator('#whatsappTrainingForm')).toBeVisible();
   assertOfflineSafe(mock);
@@ -94,10 +97,10 @@ test('private profile tabs switch Posts, Blogs, Programs, Community and About', 
   await tabs.locator('[data-section="blogs"]').click();
   await expect(tabs.locator('[data-section="blogs"]')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#coachBlogDetails')).toHaveAttribute('open', '');
-  await tabs.locator('[data-section="community"]').click();
-  await expect(page.locator('#communityWorkspace')).toBeVisible();
-  await expect(page.locator('#coachBlogDetails')).toBeHidden();
   await tabs.locator('[data-section="about"]').click();
+  await expect(page.locator('#myProfilePanel')).toBeVisible();
+  await expect(page.locator('#coachBlogDetails')).toBeHidden();
+  await tabs.locator('[data-section="programs"]').click();
   await expect(page.locator('#myProfilePanel')).toBeVisible();
   assertOfflineSafe(mock);
 });
@@ -135,11 +138,11 @@ test('Arabic private coach profile renders RTL with translated tabs and vertical
   const mock = await openDashboard(page, { arabic: true });
   await expect(page.locator('#ownName')).toHaveText('Mohcine E2E');
   await expect(page.locator('#ownProfileTabs')).toContainText('المنشورات');
-  await expect(page.locator('#ownProfileTabs')).toContainText('المجتمع');
+  await expect(page.locator('#ownProfileTabs')).toContainText('المنشورات');
   const direction = await page.locator('#myProfilePanel').evaluate(el => getComputedStyle(el).direction);
   expect(direction).toBe('rtl');
-  await expect(page.locator('#coachQuickActions')).toContainText('رياضيون');
-  await expect(page.locator('#coachQuickActions')).toContainText('طلبات التدريب');
+  await expect(page.locator('#coachTopNav')).toContainText('لوحة التحكم');
+  await expect(page.locator('#coachTopNav')).toContainText('التدريب');
   assertOfflineSafe(mock);
 });
 
@@ -148,7 +151,8 @@ test('small screens keep the private profile and vertical navigation free of hor
   await page.setViewportSize({ width: 320, height: 640 });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(2);
-  await expect(page.locator('#coachQuickActions')).toBeVisible();
+  await expect(page.locator('#coachBottomNav')).toBeVisible();
+  await expect(page.locator('#coachBottomNav button')).toHaveCount(5);
   await expect(page.locator('#ownProfileTabs')).toBeVisible();
   assertOfflineSafe(mock);
 });

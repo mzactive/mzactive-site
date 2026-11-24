@@ -30,11 +30,71 @@
     </section>
     <section id="dashboard" class="hidden">
       <div class="dashboard-top"><div><div class="eyebrow" id="roleLabel"></div><h2 id="welcome"></h2></div><div class="actions"><a id="writeProgramJump" class="btn hidden" href="#whatsappTrainingForm" data-en="Write a Program" data-ar="اكتب برنامجاً">Write a Program</a><button id="workspaceJump" class="secondary hidden" type="button" data-en="Private workspace" data-ar="مساحة العمل الخاصة">Private workspace</button><a id="editCoachProfile" class="btn secondary hidden" href="providers.html#provider-portal" data-en="Edit profile" data-ar="تعديل الملف">Edit profile</a><span data-account-menu></span><button id="signOut" class="secondary" data-en="Sign out" data-ar="تسجيل الخروج">Sign out</button></div></div>
+      <nav id="coachTopNav" class="coach-top-nav hidden" aria-label="Coach navigation">
+        <a class="coach-top-brand" href="index.html"><img src="assets/brand/mzactive-logo.webp" alt="MZ Active"></a>
+        <div class="coach-top-menus">
+          <details class="coach-menu" data-menu="dashboard">
+            <summary data-en="Dashboard ▼" data-ar="لوحة التحكم ▼">Dashboard ▼</summary>
+            <div class="coach-menu-panel">
+              <button type="button" data-nav="feed" data-en="Activity Feed" data-ar="خلاصة النشاط">Activity Feed</button>
+              <button type="button" data-nav="athletes" data-en="My Athletes" data-ar="رياضيون">My Athletes</button>
+              <button type="button" data-nav="requests" data-en="Coaching Requests" data-ar="طلبات التدريب">Coaching Requests</button>
+              <button type="button" data-nav="statistics" data-en="Coaching Statistics" data-ar="إحصاءات التدريب">Coaching Statistics</button>
+              <button type="button" data-nav="messages" data-en="Community" data-ar="المجتمع">Community</button>
+            </div>
+          </details>
+          <details class="coach-menu" data-menu="training">
+            <summary data-en="Training ▼" data-ar="التدريب ▼">Training ▼</summary>
+            <div class="coach-menu-panel">
+              <button type="button" data-nav="history" data-en="Training Calendar" data-ar="تقويم التدريب">Training Calendar</button>
+              <button type="button" data-nav="programs" data-en="Create Training Program" data-ar="أنشئ برنامجاً تدريبياً">Create Training Program</button>
+              <button type="button" data-nav="history" data-en="Program History" data-ar="سجل البرامج">Program History</button>
+              <button type="button" data-nav="programs" data-en="Saved Drafts" data-ar="مسودات محفوظة">Saved Drafts</button>
+              <button type="button" data-nav="programs" data-en="Workout Library" data-ar="مكتبة التمارين">Workout Library</button>
+            </div>
+          </details>
+          <div class="coach-create-wrap">
+            <button id="coachCreateToggle" class="coach-create-button" type="button" data-en="Create +" data-ar="إنشاء +">Create +</button>
+            <div id="coachCreateMenu" class="coach-create-menu" hidden>
+              <button type="button" data-create="post" data-en="Create Post" data-ar="أنشئ منشوراً">Create Post</button>
+              <button type="button" data-create="blog" data-en="Write a Blog" data-ar="اكتب مقالاً">Write a Blog</button>
+              <button type="button" data-create="photo" data-en="Share Photo or Video" data-ar="شارك صورة أو فيديو">Share Photo or Video</button>
+              <button type="button" data-create="program" data-en="Create Training Program" data-ar="أنشئ برنامجاً تدريبياً">Create Training Program</button>
+            </div>
+          </div>
+          <button id="coachNotificationBell" class="coach-notification-bell" type="button" aria-label="Notifications" data-en-aria-label="Notifications" data-ar-aria-label="الإشعارات">🔔<span id="coachNotificationCount" hidden></span></button>
+          <details class="coach-menu coach-profile-menu" data-menu="profile">
+            <summary><span id="coachNavAvatar" aria-hidden="true"></span><span data-en="Profile ▼" data-ar="الملف ▼">Profile ▼</span></summary>
+            <div class="coach-menu-panel">
+              <button type="button" data-profile="profile" data-en="My Profile" data-ar="ملفي">My Profile</button>
+              <button type="button" data-profile="edit" data-en="Edit Profile" data-ar="تعديل الملف">Edit Profile</button>
+              <button type="button" data-profile="settings" data-en="Settings" data-ar="الإعدادات">Settings</button>
+              <a id="coachNavPublicProfile" href="coach.html" target="_blank" rel="noopener noreferrer" data-en="View Public Profile" data-ar="عرض الملف العام">View Public Profile</a>
+              <button type="button" data-profile="logout" data-en="Log Out" data-ar="تسجيل الخروج">Log Out</button>
+            </div>
+          </details>
+        </div>
+      </nav>
+      <div id="coachBottomNav" class="coach-bottom-nav" hidden aria-label="Coach navigation">
+        <button type="button" data-bottom="overview" data-en="Home" data-ar="الرئيسية">Home</button>
+        <button type="button" data-bottom="athletes" data-en="Athletes" data-ar="رياضيون">Athletes</button>
+        <button type="button" data-bottom="training" data-en="Training" data-ar="التدريب">Training</button>
+        <button type="button" data-bottom="community" data-en="Community" data-ar="المجتمع">Community</button>
+        <button type="button" data-bottom="profile" data-en="Profile" data-ar="الملف">Profile</button>
+      </div>
+      <div id="coachActionSheet" class="coach-sheet" hidden>
+        <div class="coach-sheet-backdrop"></div>
+        <div class="coach-sheet-panel">
+          <button type="button" class="coach-sheet-close" data-en="Close" data-ar="إغلاق">Close</button>
+          <div id="coachSheetItems" class="coach-sheet-items"></div>
+        </div>
+      </div>
       <section id="myProfilePanel" class="panel my-profile-panel hidden">
         <div class="own-cover"><img id="ownCover" src="assets/images/mzactive-coaching-session.jpg" alt="" decoding="async"><button id="ownChangeCover" class="secondary" type="button" data-en="Edit cover" data-ar="تعديل الغلاف">Edit cover</button><input id="ownCoverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden></div>
         <div class="own-identity">
           <div class="own-photo"><div id="ownAvatar" aria-hidden="true"></div><img id="ownPortrait" alt="" hidden><button id="ownChangePhoto" class="secondary" type="button" data-en="Change photo" data-ar="تغيير الصورة">Change photo</button><input id="ownPhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden></div>
-          <div class="own-copy"><div class="name-line"><h2 id="ownName" data-en="Your coach profile" data-ar="ملفك كمدرب">Your coach profile</h2><span id="ownVerified" class="badge" hidden data-en="Verified" data-ar="موثّق">Verified</span></div><p id="ownRole" class="item-meta"></p><p id="ownBio" class="muted"></p><div id="ownStats" class="own-stats"></div></div>
+          <div class="own-copy"><div class="name-line"><h2 id="ownName" data-en="Your coach profile" data-ar="ملفك كمدرب">Your coach profile</h2><span id="ownVerified" class="badge" hidden data-en="Verified" data-ar="موثّق">Verified</span></div><p id="ownRole" class="item-meta"></p><p id="ownBio" class="muted"></p><div id="ownStats" class="own-stats"></div>
+            <section class="own-recent"><h3 data-en="Recent activity" data-ar="النشاط الأخير">Recent activity</h3><div id="ownRecentActivity" class="cards"></div><p id="ownRecentEmpty" class="muted" data-en="No recent activity yet." data-ar="لا يوجد نشاط أخير بعد.">No recent activity yet.</p></section></div>
           <div class="own-actions">
             <a id="openCoachDashboard" class="btn" href="#coachQuickActions" data-en="Coach Dashboard" data-ar="لوحة المدرب">Coach Dashboard</a>
             <details id="createMenuWrap" class="create-menu"><summary data-en="+ Create" data-ar="+ إنشاء">+ Create</summary><div class="create-menu-list">
@@ -48,10 +108,10 @@
           </div>
         </div>
         <nav id="ownProfileTabs" class="profile-social-tabs" role="tablist" aria-label="Coach profile sections">
+          <button type="button" class="social-tab" data-section="overview" data-en="Overview" data-ar="نظرة عامة">Overview</button>
           <button type="button" class="social-tab" data-section="posts" data-en="Posts" data-ar="المنشورات">Posts</button>
           <button type="button" class="social-tab" data-section="blogs" data-en="Blogs" data-ar="المقالات">Blogs</button>
           <button type="button" class="social-tab" data-section="programs" data-en="Programs" data-ar="البرامج">Programs</button>
-          <button type="button" class="social-tab" data-section="community" data-en="Community" data-ar="المجتمع">Community</button>
           <button type="button" class="social-tab" data-section="about" data-en="About" data-ar="نبذة">About</button>
         </nav>
         <p id="ownProfileStatus" class="muted" role="status" aria-live="polite"></p>
@@ -317,6 +377,7 @@
 <script src="assets/js/community-workspace.js?v=20261120e" defer></script>
 <script src="assets/js/coach-dashboard.js?v=20261124d" defer></script>
 <script src="assets/js/coach-social-dashboard.js?v=20261124c" defer></script>
+<script src="assets/js/coach-strava-nav.js?v=20261124a" defer></script>
 <script src="assets/js/athlete-profile.js?v=20261124a" defer></script>
 <script src="assets/js/coach-contact.js?v=20261122c" defer></script>
 <script src="assets/js/profile-completion.js?v=20261122c" defer></script>
