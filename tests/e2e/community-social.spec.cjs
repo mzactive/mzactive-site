@@ -51,3 +51,21 @@ test('the FB composer opens the existing post form with the typed update', async
   await expect(page.locator('#postBody')).toHaveValue('Long run completed in Doha.');
   assertOfflineSafe(mock);
 });
+
+test('Arabic community feed tabs render RTL with translated labels', async ({ page }) => {
+  const mock = await installApiMock(page, {
+    overrides: {
+      'GET /api/community/posts': json({ posts: [POST] }),
+    },
+  });
+  await page.addInitScript(() => localStorage.setItem('mzactive-language-manual', 'ar'));
+  await page.goto('/community.html');
+  const tabs = page.locator('#communitySocialTabs');
+  await expect(tabs).toContainText('الخلاصة');
+  await expect(tabs).toContainText('المجموعات');
+  await expect(tabs).toContainText('المقالات');
+  await expect(tabs).toContainText('التحديات');
+  const direction = await page.locator('#communitySocialTabs').evaluate(el => getComputedStyle(el).direction);
+  expect(direction).toBe('rtl');
+  assertOfflineSafe(mock);
+});
