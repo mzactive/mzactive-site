@@ -172,9 +172,23 @@
     }
   }
 
-  document.addEventListener('mzactive:dashboard-loaded', event => {
-    if (event.detail?.role !== 'provider') return;
+  function initProfile(data) {
+    if (!data || data.role !== 'provider') return;
+    const panel = $('myProfilePanel');
+    if (!panel || panel.dataset.stravaMounted) return;
+    panel.dataset.stravaMounted = 'true';
     wireControls();
-    renderOwnProfile(event.detail);
-  });
+    renderOwnProfile(data);
+  }
+  function startProfile() {
+    if (window.mzStudioDashboard) initProfile(window.mzStudioDashboard);
+    else {
+      const timer = setInterval(() => {
+        if (window.mzStudioDashboard) { clearInterval(timer); initProfile(window.mzStudioDashboard); }
+      }, 50);
+      setTimeout(() => clearInterval(timer), 10000);
+    }
+  }
+  startProfile();
+  document.addEventListener('mzactive:dashboard-loaded', event => initProfile(event.detail));
 })();
