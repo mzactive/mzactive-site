@@ -1246,6 +1246,48 @@ html[dir="rtl"] .footer-install { text-align: right; }
       </div>
     </section>
 
+    <section id="samlaCampaignBanner" class="samla-campaign-banner" hidden aria-labelledby="samla-banner-title">
+      <div class="wrap samla-campaign-inner">
+        <div>
+          <p class="samla-campaign-eyebrow" data-en="MZ ACTIVE CAMPAIGN" data-ar="حملة MZ ACTIVE">MZ ACTIVE CAMPAIGN</p>
+          <h2 id="samla-banner-title" data-en="SAMLA 200 — Every Minute Counts" data-ar="صمله 200 — كل دقيقة تصنع الفرق">صمله 200 — كل دقيقة تصنع الفرق</h2>
+          <p data-en="Plan your 200 km SAMLA strategy with realistic stage pacing." data-ar="خطط استراتيجية سباق صملة 200 كم بخطوات واقعية.">Plan your 200 km SAMLA strategy with realistic stage pacing.</p>
+        </div>
+        <a class="button" href="/samla/" data-en="Calculate your race strategy for free" data-ar="احسب استراتيجية سباقك مجاناً">احسب استراتيجية سباقك مجاناً</a>
+      </div>
+    </section>
+    <style>
+      .samla-campaign-banner{background:linear-gradient(90deg,#091d21,#103538);border-bottom:1px solid #2e6567;padding:14px 0}
+      .samla-campaign-inner{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+      .samla-campaign-eyebrow{margin:0 0 2px;color:#f2b718;font-size:10px;font-weight:900;letter-spacing:.16em}
+      .samla-campaign-banner h2{margin:0;font-size:clamp(18px,2.4vw,28px);color:#f2b718;line-height:1.2}
+      .samla-campaign-banner p{margin:4px 0 0;color:#b8cbc6;font-size:13px}
+      .samla-campaign-banner .button{white-space:nowrap;min-height:44px}
+      @media(max-width:640px){.samla-campaign-inner{flex-direction:column;align-items:flex-start}.samla-campaign-banner .button{width:100%;text-align:center}}
+    </style>
+    <script>
+      (function(){
+        const banner=document.getElementById('samlaCampaignBanner');
+        if(!banner) return;
+        const fallbackEnd=new Date('2026-12-03T06:00:00.000Z');
+        function hide(){banner.hidden=true;banner.setAttribute('aria-hidden','true')}
+        function show(){banner.hidden=false;banner.removeAttribute('aria-hidden')}
+        function check(){
+          const apiBase=window.MZACTIVE_API_BASE||'';
+          fetch(apiBase+'/api/public/campaigns/samla',{cache:'no-store'})
+            .then(r=>r.ok?r.json():null)
+            .then(data=>{
+              const active=!!data?.active && (!data.ends_at || Date.now()<Date.parse(data.ends_at));
+              active?show():hide();
+            })
+            .catch(()=>{Date.now()<fallbackEnd.getTime()?show():hide()});
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', check, { once: true });
+        else check();
+        const ms=fallbackEnd.getTime()-Date.now();
+        if(ms>0)setTimeout(hide,ms);
+      })();
+    </script>
     <section class="search-section" id="coach-search" aria-labelledby="search-title">
       <div class="wrap">
         <h2 class="sr-only" id="search-title" data-en="Find coaches by sport, location and training type" data-ar="ابحث عن مدربين حسب الرياضة والموقع ونوع التدريب">Find coaches by sport, location and training type</h2>
