@@ -128,3 +128,25 @@ test('one tap delivery sends a saved program to a connected athlete', async ({ p
   await expect.poll(() => mock.calls.some(call => call.method === 'POST' && call.path === '/api/dashboard/programs/prog-e2e/send' && call.body?.channel === 'mzactive' && call.body?.athlete_user_id === 'conn-active-1')).toBe(true);
   assertOfflineSafe(mock);
 });
+
+test('Arabic private coach profile renders RTL with translated tabs and vertical menu', async ({ page }) => {
+  const mock = await openDashboard(page, { arabic: true });
+  await expect(page.locator('#ownName')).toHaveText('Mohcine E2E');
+  await expect(page.locator('#ownProfileTabs')).toContainText('المنشورات');
+  await expect(page.locator('#ownProfileTabs')).toContainText('المجتمع');
+  const direction = await page.locator('#myProfilePanel').evaluate(el => getComputedStyle(el).direction);
+  expect(direction).toBe('rtl');
+  await expect(page.locator('#coachQuickActions')).toContainText('رياضيون');
+  await expect(page.locator('#coachQuickActions')).toContainText('طلبات التدريب');
+  assertOfflineSafe(mock);
+});
+
+test('small screens keep the private profile and vertical navigation free of horizontal overflow', async ({ page }) => {
+  const mock = await openDashboard(page);
+  await page.setViewportSize({ width: 320, height: 640 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(2);
+  await expect(page.locator('#coachQuickActions')).toBeVisible();
+  await expect(page.locator('#ownProfileTabs')).toBeVisible();
+  assertOfflineSafe(mock);
+});

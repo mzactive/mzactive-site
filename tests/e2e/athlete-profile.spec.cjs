@@ -58,3 +58,24 @@ test('athlete profile tabs switch Programs, Community and About', async ({ page 
   await expect(page.locator('#athleteProgramsPanel')).toBeVisible();
   assertOfflineSafe(mock);
 });
+
+test('Arabic athlete profile is RTL with translated tabs and private-sharing copy', async ({ page }) => {
+  const mock = await installApiMock(page, {
+    overrides: {
+      'GET /api/me/access': memberAccess,
+      'GET /api/dashboard': () => json(memberDashboard),
+      'GET /api/me/sports-profile': json({ profile: { ...sportsProfile, display_name: 'رياضي MZ', share_with_coaches: false } }),
+    },
+  });
+  await page.addInitScript(() => localStorage.setItem('mzactive-language-manual', 'ar'));
+  await seedSession(page, { storage: 'session' });
+  await page.goto('/dashboard.html');
+  await expect(page.locator('#athleteProfilePanel')).toBeVisible();
+  await expect(page.locator('#athleteProfileTabs')).toContainText('البرامج');
+  await expect(page.locator('#athleteProfileTabs')).toContainText('نبذة');
+  const direction = await page.locator('#athleteProfilePanel').evaluate(el => getComputedStyle(el).direction);
+  expect(direction).toBe('rtl');
+  await page.locator('#athleteProfileTabs [data-athlete-tab="about"]').click();
+  await expect(page.locator('#athleteAboutShare')).toContainText('خاص');
+  assertOfflineSafe(mock);
+});
