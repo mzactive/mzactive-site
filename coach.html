@@ -8,7 +8,7 @@
   <title>Coach profile | MZ Active</title>
   <script src="assets/js/language-preference.js?v=20261120c" defer></script>
   <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h">
-  <link rel="stylesheet" href="assets/css/coach-profile.css?v=20261124b">
+  <link rel="stylesheet" href="assets/css/coach-profile.css?v=20261124d">
 <link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
 <link rel="preload" as="image" href="assets/images/responsive/mzactive-coaching-session-960w.webp" type="image/webp" media="(max-width: 760px)" fetchpriority="high">
 <link rel="preload" as="image" href="assets/images/responsive/mzactive-coaching-session-1280w.webp" type="image/webp" media="(min-width: 761px)" fetchpriority="high"></head>
@@ -36,27 +36,39 @@
           <picture class="responsive-photo" style="display:contents"><source type="image/webp" srcset="assets/images/responsive/mzactive-coaching-session-320w.webp 320w, assets/images/responsive/mzactive-coaching-session-640w.webp 640w, assets/images/responsive/mzactive-coaching-session-960w.webp 960w, assets/images/responsive/mzactive-coaching-session-1280w.webp 1280w" sizes="(max-width: 760px) 100vw, min(960px, 80vw)"><img id="coverPhoto" class="cover-photo" src="assets/images/mzactive-coaching-session.jpg" alt="MZ Active group training in Doha" width="1280" height="720" decoding="async" fetchpriority="high"></picture>
           <!-- Owner photo controls are created only after the API confirms ownership. -->
         </div>
-        <div class="identity-row">
-          <div class="identity-photo-wrap">
-            <div id="avatarFallback" class="avatar-fallback" aria-hidden="true"></div>
-            <img id="portrait" class="portrait" hidden alt="">
-            <span class="photo-verified" id="photoVerified" hidden aria-label="Verified coach">✓</span>
-          </div>
-          <div class="identity-copy">
+        <div class="portfolio-hero">
+          <div class="portfolio-copy">
+            <p class="portfolio-eyebrow" data-en="COACH PROFILE" data-ar="ملف المدرب">COACH PROFILE</p>
             <div class="name-line"><h1 id="name" dir="auto"></h1><span id="verified" class="verified-badge" hidden><span aria-hidden="true">✓</span><span data-en="Verified Coach" data-ar="مدرب موثّق">Verified Coach</span></span></div>
             <p id="headline" class="headline"></p>
             <p id="location" class="location"></p>
             <p id="tagline" class="tagline" data-user-content></p>
             <div id="specialties" class="specialty-list" data-user-content></div>
             <div id="profileStats" class="profile-stats" data-user-content></div>
+            <section class="portfolio-section">
+              <h2 data-en="Experience &amp; qualifications" data-ar="الخبرة والمؤهلات">Experience &amp; qualifications</h2>
+              <dl id="facts" class="facts"></dl>
+              <p id="credentialsEmpty" class="empty-copy" hidden data-en="No public credentials or experience details have been added." data-ar="لم تتم إضافة مؤهلات أو تفاصيل خبرة عامة.">No public credentials or experience details have been added.</p>
+            </section>
+            <section class="portfolio-section">
+              <h2 data-en="Achievements" data-ar="الإنجازات">Achievements</h2>
+              <div id="achievementsList" class="services-list" data-user-content></div>
+              <p id="achievementsEmpty" class="empty-copy" data-en="No published achievements have been added." data-ar="لم تتم إضافة إنجازات منشورة بعد.">No published achievements have been added.</p>
+            </section>
+            <div class="profile-actions">
+              <button id="followPublic" class="button button-light" type="button"><span data-en="Follow" data-ar="متابعة">Follow</span></button>
+              <a id="book" class="button button-primary" href="#"><span data-en="Request Coaching" data-ar="اطلب تدريباً">Request Coaching</span></a>
+              <button id="share" class="button button-light" type="button"><span data-en="Share" data-ar="مشاركة">Share</span></button>
+              <!-- Owner and signed-in viewer controls are created by coach-profile.js
+                   only after the API identifies the viewer. -->
+            </div>
           </div>
-          <div class="profile-actions">
-            <button id="followPublic" class="button button-light" type="button"><span data-en="Follow" data-ar="متابعة">Follow</span></button>
-            <!-- Owner and signed-in viewer controls are created by coach-profile.js
-                 only after the API identifies the viewer. Public visitors receive
-                 Share profile and Request a session only. -->
-            <button id="share" class="button button-light" type="button"><span aria-hidden="true">↗</span><span data-en="Share profile" data-ar="مشاركة الملف">Share profile</span></button>
-            <a id="book" class="button button-primary" href="#"><span data-en="Request a session" data-ar="اطلب جلسة تدريب">Request a session</span></a>
+          <div class="portfolio-portrait">
+            <div class="portrait-frame">
+              <div id="avatarFallback" class="avatar-fallback" aria-hidden="true"></div>
+              <img id="portrait" class="portrait" hidden alt="">
+              <span class="photo-verified" id="photoVerified" hidden aria-label="Verified coach">✓</span>
+            </div>
           </div>
         </div>
         <nav id="profileTabs" class="profile-tabs" aria-label="Coach profile sections">
@@ -78,16 +90,6 @@
             <h2 data-en="About" data-ar="نبذة">About</h2>
             <p id="bio" class="profile-bio" data-user-content></p>
             <p id="bioEmpty" class="empty-copy" hidden data-en="No public biography has been added." data-ar="لم تتم إضافة نبذة عامة بعد.">No public biography has been added.</p>
-          </section>
-          <section class="surface">
-            <h2 data-en="Credentials & experience" data-ar="المؤهلات والخبرة">Credentials & experience</h2>
-            <dl id="facts" class="facts"></dl>
-            <p id="credentialsEmpty" class="empty-copy" hidden data-en="No public credentials or experience details have been added." data-ar="لم تتم إضافة مؤهلات أو تفاصيل خبرة عامة.">No public credentials or experience details have been added.</p>
-          </section>
-          <section class="surface">
-            <h2 data-en="Achievements" data-ar="الإنجازات">Achievements</h2>
-            <div id="achievementsList" class="services-list" data-user-content></div>
-            <p id="achievementsEmpty" class="empty-copy" data-en="No published achievements have been added." data-ar="لم تتم إضافة إنجازات منشورة بعد.">No published achievements have been added.</p>
           </section>
           <section class="surface">
             <h2 data-en="Links" data-ar="الروابط">Links</h2>
@@ -162,7 +164,7 @@
 </footer>
 
   <script src="assets/js/api-base.js" defer></script>
-  <script src="assets/js/coach-profile.js?v=20261124a" defer></script>
+  <script src="assets/js/coach-profile.js?v=20261124b" defer></script>
   <script src="assets/js/site-language.js?v=20261120h" defer></script>
   <script src="assets/js/management-contact.js"></script><script src="assets/js/whatsapp-chat.js" defer></script>
   <script src="assets/js/assistant-chat-v2.js?v=20261122b" defer></script>
