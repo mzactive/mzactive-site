@@ -62,6 +62,19 @@
       element.dataset.languageSkip = '';
       return element;
     };
+    const ICONS = {
+      pin: '<path d="M12 21s7-5.2 7-11a7 7 0 1 0-14 0c0 5.8 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/>',
+      clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+      globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9S14.5 18.5 12 21c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3Z"/>',
+      list: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+      check: '<path d="M9.6 16.6 5 12l1.4-1.4 3.2 3.2L17.6 6 19 7.4 9.6 16.6Z"/>'
+    };
+    const icon = (name, className) => {
+      const wrap = node('span', className);
+      wrap.setAttribute('aria-hidden', 'true');
+      wrap.innerHTML = `<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+      return wrap;
+    };
 
     function renderFeatured() {
       directory.replaceChildren();
@@ -94,25 +107,43 @@
           card.append(makePhotoPlaceholder());
         }
 
+        const info = node('div', 'coach-info');
+        if (profile.verified === true) {
+          const badge = node('span', 'coach-verified');
+          badge.append(icon('check', 'badge-icon'), node('span', '', lang === 'ar' ? 'معتمد' : 'Verified'));
+          info.append(badge);
+        }
         const category = lang === 'ar' ? profile.professional_category?.ar : profile.professional_category?.en;
         const type = category || (profile.provider_type === 'pacer' ? currentLabels().pacer : currentLabels().coach);
-        card.append(node('p', 'coach-type', type));
-        card.append(authoredNode('h3', '', profile.display_name));
-
-        if (publicFields.has('city')) {
-          const location = [profile.city, profile.country].filter(Boolean).join(', ');
-          if (location) card.append(authoredNode('p', 'coach-location', `⌖ ${location}`));
-        }
+        info.append(authoredNode('h3', '', profile.display_name));
+        info.append(node('p', 'coach-type', type));
 
         const specialties = publicFields.has('specialties') && Array.isArray(profile.specialties)
-          ? profile.specialties.filter(Boolean).slice(0, 3).join(' · ')
-          : '';
-        if (specialties) card.append(authoredNode('p', 'coach-specialty', specialties));
-
-        if (publicFields.has('bio') && profile.bio) {
-          const bio = profile.bio.trim();
-          card.append(authoredNode('p', 'coach-bio', bio.length > 150 ? `${bio.slice(0, 147).trimEnd()}…` : bio));
+          ? profile.specialties.filter(Boolean).slice(0, 2).join(' · ') : '';
+        if (specialties) info.append(authoredNode('p', 'coach-specialty', specialties));
+        if (publicFields.has('city')) {
+          const location = [profile.city, profile.country].filter(Boolean).join(', ');
+          const row = authoredNode('p', 'coach-location', location || currentLabels().location);
+          row.prepend(icon('pin', 'coach-fact-icon'));
+          info.append(row);
         }
+        if (publicFields.has('experience_years') && Number(profile.experience_years) > 0) {
+          const row = authoredNode('p', 'coach-experience', `${profile.experience_years} ${lang === 'ar' ? 'سنوات خبرة' : 'years exp.'}`);
+          row.prepend(icon('clock', 'coach-fact-icon'));
+          info.append(row);
+        }
+        if (publicFields.has('languages') && Array.isArray(profile.languages) && profile.languages.length) {
+          const row = authoredNode('p', 'coach-languages', profile.languages.slice(0, 3).join(' · '));
+          row.prepend(icon('globe', 'coach-fact-icon'));
+          info.append(row);
+        }
+        if (publicFields.has('services') && Array.isArray(profile.services) && profile.services.length) {
+          const row = authoredNode('p', 'coach-services', profile.services.slice(0, 2).join(' · '));
+          row.prepend(icon('list', 'coach-fact-icon'));
+          info.append(row);
+        }
+        info.append(node('span', 'coach-view', currentLabels().view + ' ↗'));
+        card.append(info);
 
         card.href = `coach.html?id=${encodeURIComponent(profile.id)}`;
         card.setAttribute('aria-label', currentLabels().view + ' · ' + profile.display_name);

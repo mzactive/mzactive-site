@@ -1165,7 +1165,24 @@ html[dir="rtl"] .footer-install { text-align: right; }
   <link rel="preload" as="image" href="assets/images/responsive/mzactive-runners-960w.webp" type="image/webp" fetchpriority="high" media="(min-width: 521px)">
 <script src="assets/js/api-base.js" defer></script>
   <script src="assets/js/language-preference.js?v=20261120c" defer></script>
-<link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js?v=20261121b" defer></script></head>
+<link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js?v=20261121b" defer></script><style>
+/* Compact horizontal featured coach cards — same visual language as the directory */
+.coach-card{grid-template-columns:88px minmax(0,1fr)!important;column-gap:9px!important;min-height:118px!important;align-content:start!important;align-items:start!important;padding:8px!important;border-radius:12px!important;background:#f7faf9!important;border:1px solid #a8d7ce!important}
+.coach-card-photo,.coach-card-photo-placeholder{width:88px!important;height:118px!important;aspect-ratio:auto!important;grid-column:1!important;grid-row:1 / span 8!important;border-radius:8px!important;object-position:center top!important}
+.coach-card-photo-placeholder svg{width:24px;height:24px}
+.coach-info{display:grid;gap:2px;min-width:0;grid-column:2;grid-row:1 / span 8}
+.coach-verified{display:inline-flex;align-items:center;gap:3px;width:fit-content;padding:1px 5px;border:1px solid #7fb4a6;border-radius:999px;color:#1b6d5f;font-size:8px;font-weight:800;line-height:1.5}
+.coach-verified svg{width:9px;height:9px;fill:currentColor}
+.coach-card h3{grid-column:auto!important;grid-row:auto!important;font-size:11px!important;line-height:1.2}
+.coach-card .coach-type,.coach-card .coach-location,.coach-card .coach-specialty,.coach-card .coach-experience,.coach-card .coach-languages,.coach-card .coach-services{grid-column:auto!important;grid-row:auto!important;display:flex;align-items:center;gap:4px;margin:0!important;font-size:8px!important;line-height:1.25}
+.coach-fact-icon{display:inline-flex;width:11px;height:11px;flex:0 0 11px}
+.coach-fact-icon svg{width:11px;height:11px;stroke:#27635e;fill:none}
+.coach-card .coach-bio{display:none}
+.coach-view{margin-top:3px;color:#0b6d5e;font-size:8px;font-weight:800}
+@media(max-width:720px){.coach-card{grid-template-columns:72px minmax(0,1fr)!important;min-height:96px!important}.coach-card-photo,.coach-card-photo-placeholder{width:72px!important;height:96px!important}.coach-card h3{font-size:10px!important}}
+@media(max-width:360px){.coach-card{grid-template-columns:68px minmax(0,1fr)!important;min-height:90px!important}.coach-card-photo,.coach-card-photo-placeholder{width:68px!important;height:90px!important}}
+</style>
+</head>
 <body class="home-page">
   <header class="site-header">
     <div class="header-inner">
@@ -1456,7 +1473,7 @@ html[dir="rtl"] .footer-install { text-align: right; }
   </dialog>
 
   <script src="assets/js/site-language.js?v=20261120h" defer></script>
-  <script src="assets/js/homepage.js?v=20261120c" defer></script>
+  <script src="assets/js/homepage.js?v=20261124a" defer></script>
   <script src="assets/js/management-contact.js"></script><script src="assets/js/whatsapp-chat.js" defer></script>
   <script src="assets/js/assistant-chat-v2.js?v=20261122b" defer></script>
 <script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script></body>
