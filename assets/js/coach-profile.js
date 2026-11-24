@@ -33,6 +33,7 @@
   let analyticsData = null;
   let communityPosts = null;
   let communityEvents = null;
+  let coachBlogs = [];
 
   function node(tag, text, className) {
     const item = document.createElement(tag);
@@ -193,6 +194,9 @@
     }
     $('#gallerySection').hidden = gallery.children.length === 0;
 
+    renderProfileStats(p);
+    renderCoachPrograms(p);
+    paintFollow(p);
     const number = String(p.whatsapp_number || '').replace(/\D/g, '');
     const social = (p.social_links || []).find(value => safeProfileUrl(value));
     $('#contact')?.remove();
@@ -238,6 +242,19 @@
       coverInput.accept = 'image/jpeg,image/png,image/webp';
       coverInput.hidden = true;
       cover.append(changeCover, coverInput);
+    }
+    const socialTabs = $('#profileSocialTabs');
+    if (socialTabs && !socialTabs.querySelector('[data-social-tab="community"]')) {
+      const communityTab = node('button', t('Community','المجتمع'), 'social-tab');
+      communityTab.type = 'button';
+      communityTab.dataset.socialTab = 'community';
+      communityTab.setAttribute('role', 'tab');
+      communityTab.setAttribute('aria-selected', 'false');
+      socialTabs.append(communityTab);
+      communityTab.addEventListener('click', () => {
+        for (const tab of socialTabs.querySelectorAll('.social-tab')) tab.setAttribute('aria-selected', String(tab === communityTab));
+        document.querySelectorAll('[data-social-panel]').forEach(panel => { panel.hidden = panel.dataset.socialPanel !== 'community'; });
+      });
     }
     const tabs = $('#profileTabs');
     if (tabs && !tabs.querySelector('[data-owner-tab]')) {
@@ -321,6 +338,8 @@
   function buildViewerActions(p) {
     const actions = q('.profile-actions');
     if (!actions || $('#followCoach')) return;
+    const publicFollow = $('#followPublic');
+    if (publicFollow) publicFollow.hidden = true;
     const token = localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey) || '';
     if (!token) return;
     const follow = node('button', t(p.is_following ? 'Following' : 'Follow', p.is_following ? 'متابَع' : 'متابعة'), 'button button-light');
@@ -666,7 +685,101 @@
       $('#coverInput').value = '';
     }
   }
+  function renderProfileStats(p) {
+    const root = $('#profileStats');
+    if (!root) return;
+    root.replaceChildren();
+    const add = (value, label) => {
+      if (value === undefined || value === null || value === '' || Number(value) === 0) return;
+      const cell = node('div');
+      cell.append(node('b', String(value)), node('span', label));
+      root.append(cell);
+    };
+    add(p.follower_count, t('Followers','متابعون'));
+    add(Number(p.experience_years) > 0 ? p.experience_years : null, t('Years experience','سنوات خبرة'));
+    add((p.program_durations || []).length, t('Programs','برامج'));
+    root.hidden = root.children.length === 0;
+  }
+  function renderCoachPrograms(p) {
+    const root = $('#coachPrograms');
+    if (!root) return;
+    root.replaceChildren();
+    const add = (title, value) => {
+      if (!value) return;
+      const card = node('article', undefined, 'card');
+      card.append(node('strong', title), node('p', String(value)));
+      root.append(card);
+    };
+    add(t('Program lengths','مدد البرامج'), (p.program_durations || []).map(m => `${m}${t(' month',' شهر')}`).join(' · '));
+    add(t('Coaching mode','أسلوب التدريب'), ({ online:t('Online','عن بُعد'), 'in-person':t('In person','حضوري'), both:t('Online & in person','عن بُعد وحضوري') })[p.coaching_mode]);
+    add(t('Services offered','الخدمات المقدمة'), (p.services || []).join(' · '));
+    $('#coachProgramsEmpty').hidden = root.children.length > 0;
+  }
+  function renderCoachBlogs() {
+    const root = $('#coachBlogs');
+    if (!root) return;
+    root.replaceChildren();
+    for (const post of coachBlogs) {
+      const card = node('article', undefined, 'card');
+      card.append(node('strong', post.title));
+      if (post.summary) card.append(node('p', post.summary));
+      const link = node('a', t('Read article ↗','اقرأ المقال ↗'), 'text-link');
+      link.href = `blog.html?slug=${encodeURIComponent(String(post.slug || post.id || ''))}`;
+      card.append(link);
+      root.append(card);
+    }
+    $('#coachBlogsEmpty').hidden = root.children.length > 0;
+  }
+  async function loadCoachBlogs() {
+    try {
+      const response = await fetchWithTimeout(`${apiBase}/api/blog/posts?provider=${encodeURIComponent(id)}`, { headers:{ accept:'application/json' } });
+      if (response.ok) coachBlogs = (await response.json()).posts || [];
+    } catch { /* keep the profile usable when the blog feed is unavailable */ }
+    renderCoachBlogs();
+  }
+  function paintFollow(p) {
+    const button = $('#followPublic');
+    if (!button) return;
+    button.hidden = Boolean(p.viewer?.owner) || Boolean(p.viewer?.authenticated && tokenFromStorage());
+    const label = button.querySelector('span');
+    if (label) label.textContent = p.is_following ? t('Following','متابَع') : t('Follow','متابعة');
+    button.setAttribute('aria-pressed', p.is_following ? 'true' : 'false');
+  }
+  function tokenFromStorage() {
+    return localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey) || '';
+  }
+  function mountSocialTabs() {
+    const tabs = $('#profileSocialTabs');
+    if (!tabs || tabs.dataset.mounted) return;
+    tabs.dataset.mounted = 'true';
+    for (const button of tabs.querySelectorAll('.social-tab')) {
+      button.addEventListener('click', () => {
+        const key = button.dataset.socialTab;
+        for (const tab of tabs.querySelectorAll('.social-tab')) tab.setAttribute('aria-selected', String(tab === button));
+        document.querySelectorAll('[data-social-panel]').forEach(panel => { panel.hidden = panel.dataset.socialPanel !== key; });
+        q('.profile-layout')?.scrollIntoView({ behavior:'smooth', block:'start' });
+      });
+    }
+  }
   ready(() => {
+    $('#followPublic')?.addEventListener('click', async () => {
+      if (!profile) return;
+      if (!profile.viewer?.authenticated || !tokenFromStorage()) {
+        location.href = 'dashboard.html#loginForm';
+        return;
+      }
+      const button = $('#followPublic');
+      button.disabled = true;
+      try {
+        const result = await api(`/api/coaches/${encodeURIComponent(id)}/follow`, tokenFromStorage(), { method: profile.is_following ? 'DELETE' : 'POST', body: {} });
+        profile.is_following = result.following;
+        profile.follower_count = result.follower_count;
+        paintFollow(profile);
+        renderProfileStats(profile);
+      } catch {
+        $('#shared').textContent = t('Sign in to follow this coach.','سجّل الدخول لمتابعة هذا المدرب.');
+      } finally { button.disabled = false; }
+    });
     $('#share')?.addEventListener('click', async () => {
       const url = new URL('coach.html', location.href);
       url.searchParams.set('id', id);
@@ -698,7 +811,9 @@
       profile = payload.provider || null;
       if (!profile) { failure = 404; setUnavailable(); return; }
       renderProfile();
+      mountSocialTabs();
       whenIdle(loadCommunityPosts);
+      whenIdle(loadCoachBlogs);
     } catch {
       failure = 503;
       setUnavailable();

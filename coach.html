@@ -8,7 +8,7 @@
   <title>Coach profile | MZ Active</title>
   <script src="assets/js/language-preference.js?v=20261120c" defer></script>
   <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h">
-  <link rel="stylesheet" href="assets/css/coach-profile.css?v=20261120c">
+  <link rel="stylesheet" href="assets/css/coach-profile.css?v=20261124a">
 <link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
 <link rel="preload" as="image" href="assets/images/responsive/mzactive-coaching-session-960w.webp" type="image/webp" media="(max-width: 760px)" fetchpriority="high">
 <link rel="preload" as="image" href="assets/images/responsive/mzactive-coaching-session-1280w.webp" type="image/webp" media="(min-width: 761px)" fetchpriority="high"></head>
@@ -48,8 +48,10 @@
             <p id="location" class="location"></p>
             <p id="tagline" class="tagline" data-user-content></p>
             <div id="specialties" class="specialty-list" data-user-content></div>
+            <div id="profileStats" class="profile-stats" data-user-content></div>
           </div>
           <div class="profile-actions">
+            <button id="followPublic" class="button button-light" type="button"><span data-en="Follow" data-ar="متابعة">Follow</span></button>
             <!-- Owner and signed-in viewer controls are created by coach-profile.js
                  only after the API identifies the viewer. Public visitors receive
                  Share profile and Request a session only. -->
@@ -62,10 +64,16 @@
           <a href="#community" data-en="Community" data-ar="المجتمع">Community</a>
           <!-- Private workspace tabs are appended only for the confirmed profile owner. -->
         </nav>
+        <nav id="profileSocialTabs" class="profile-social-tabs" aria-label="Coach social sections" role="tablist">
+          <button type="button" class="social-tab" data-social-tab="posts" role="tab" aria-selected="false" data-en="Posts" data-ar="المنشورات">Posts</button>
+          <button type="button" class="social-tab" data-social-tab="blogs" role="tab" aria-selected="false" data-en="Blogs" data-ar="المقالات">Blogs</button>
+          <button type="button" class="social-tab" data-social-tab="programs" role="tab" aria-selected="false" data-en="Programs" data-ar="البرامج">Programs</button>
+          <button type="button" class="social-tab" data-social-tab="about" role="tab" aria-selected="false" data-en="About" data-ar="نبذة">About</button>
+        </nav>
       </section>
 
       <div class="profile-layout" id="overview">
-        <aside class="left-rail" aria-label="Coach details">
+        <aside class="left-rail" aria-label="Coach details" data-social-panel="about">
           <section class="surface about-card">
             <h2 data-en="About" data-ar="نبذة">About</h2>
             <p id="bio" class="profile-bio" data-user-content></p>
@@ -89,20 +97,35 @@
         </aside>
 
         <div class="main-column">
-          <section class="surface services-card">
+          <section class="surface services-card" data-social-panel="about">
             <div class="section-heading"><div><p class="eyebrow" data-en="COACH PROFILE" data-ar="ملف المدرب">COACH PROFILE</p><h2 data-en="Coaching approach" data-ar="نهج التدريب">Coaching approach</h2></div><span id="coachType" class="type-pill"></span></div>
             <div id="services" class="services-list" data-user-content></div>
             <p id="servicesEmpty" class="empty-copy" hidden data-en="No public services have been listed." data-ar="لم تتم إضافة خدمات عامة.">No public services have been listed.</p>
           </section>
 
-          <section class="surface" id="community">
+          <section class="surface" id="community" data-social-panel="community">
             <div class="section-heading"><div><p class="eyebrow" data-en="COMMUNITY" data-ar="المجتمع">COMMUNITY</p><h2 data-en="Community activity" data-ar="نشاط المجتمع">Community activity</h2></div><a class="text-link" href="community.html" data-en="Explore community ↗" data-ar="استكشف المجتمع ↗">Explore community ↗</a></div>
             <h3 data-en="Upcoming public sessions" data-ar="الجلسات العامة القادمة">Upcoming public sessions</h3>
             <div id="coachCommunityEvents" class="cards" data-user-content></div>
             <p id="coachEventsEmpty" class="empty-copy" data-en="No public community sessions are scheduled yet." data-ar="لا توجد جلسات مجتمعية عامة مجدولة بعد.">No public community sessions are scheduled yet.</p>
-            <h3 data-en="Public posts" data-ar="المنشورات العامة">Public posts</h3>
+          </section>
+
+          <section class="surface" id="profilePostsPanel" data-social-panel="posts">
+            <div class="section-heading"><div><p class="eyebrow" data-en="POSTS" data-ar="المنشورات">POSTS</p><h2 data-en="Public posts" data-ar="المنشورات العامة">Public posts</h2></div><a class="text-link" href="community.html" data-en="Explore community ↗" data-ar="استكشف المجتمع ↗">Explore community ↗</a></div>
             <div id="coachPosts" class="cards" data-user-content></div>
             <p id="coachPostsEmpty" class="empty-copy" data-en="This coach has not published a community post yet." data-ar="لم ينشر هذا المدرب أي منشور مجتمعي بعد.">This coach has not published a community post yet.</p>
+          </section>
+
+          <section class="surface" id="profileBlogsPanel" data-social-panel="blogs">
+            <div class="section-heading"><div><p class="eyebrow" data-en="BLOGS" data-ar="المقالات">BLOGS</p><h2 data-en="Articles" data-ar="المقالات">Articles</h2></div><a class="text-link" href="blog.html" data-en="Read all articles ↗" data-ar="اقرأ كل المقالات ↗">Read all articles ↗</a></div>
+            <div id="coachBlogs" class="cards" data-user-content></div>
+            <p id="coachBlogsEmpty" class="empty-copy" data-en="This coach has not published an article yet." data-ar="لم ينشر هذا المدرب مقالاً بعد.">This coach has not published an article yet.</p>
+          </section>
+
+          <section class="surface" id="profileProgramsPanel" data-social-panel="programs">
+            <div class="section-heading"><div><p class="eyebrow" data-en="PROGRAMS" data-ar="البرامج">PROGRAMS</p><h2 data-en="Training programs" data-ar="البرامج التدريبية">Training programs</h2></div></div>
+            <div id="coachPrograms" class="cards" data-user-content></div>
+            <p id="coachProgramsEmpty" class="empty-copy" data-en="No public program details have been added yet." data-ar="لم يتم إضافة تفاصيل برامج عامة بعد.">No public program details have been added yet.</p>
           </section>
 
           <section class="surface" id="gallerySection" hidden>
@@ -139,7 +162,7 @@
 </footer>
 
   <script src="assets/js/api-base.js" defer></script>
-  <script src="assets/js/coach-profile.js?v=20261121n" defer></script>
+  <script src="assets/js/coach-profile.js?v=20261124a" defer></script>
   <script src="assets/js/site-language.js?v=20261120h" defer></script>
   <script src="assets/js/management-contact.js"></script><script src="assets/js/whatsapp-chat.js" defer></script>
   <script src="assets/js/assistant-chat-v2.js?v=20261122b" defer></script>

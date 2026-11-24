@@ -93,3 +93,46 @@ html[dir=rtl] .athlete-row{text-align:right}
 .program-more[open] summary{color:var(--gold);border-color:var(--gold)}
 .program-more .btn{width:100%;margin-top:8px}
 @media(max-width:600px){.program-actions{display:grid;grid-template-columns:1fr 1fr}.program-send-to{grid-column:1/-1}.program-send-to select{width:100%}.program-actions>.btn{width:100%}}
+
+/* Facebook-style private profile + Strava-style vertical dashboard navigation */
+.coach-vertical-nav{display:grid!important;grid-template-columns:1fr!important;gap:6px!important;max-width:420px;margin-bottom:18px}
+.coach-vertical-nav .quick-action{justify-content:space-between;text-align:start;min-height:46px;padding:10px 14px;border-radius:12px;font-size:.9rem}
+.coach-vertical-nav .quick-action::after{content:'›';color:var(--muted);font-size:1.2rem;line-height:1}
+.coach-vertical-nav .quick-action[href="#coachPanel"]{border-style:dashed;color:var(--muted)}
+.my-profile-panel{overflow:hidden;margin-bottom:16px}
+.my-profile-panel .own-cover{position:relative;height:clamp(140px,20vw,210px);background:var(--panel)}
+.my-profile-panel .own-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.my-profile-panel .own-cover>button{position:absolute;inset-inline-end:12px;bottom:10px;min-height:40px}
+.my-profile-panel .own-cover input{display:none}
+.my-profile-panel .own-identity{display:grid;grid-template-columns:112px minmax(0,1fr) auto;gap:16px;align-items:start;padding:0 18px 16px}
+.my-profile-panel .own-photo{position:relative;width:112px;height:112px;margin-top:-36px;border:4px solid var(--bg);border-radius:50%;background:var(--panel2);display:grid;place-items:center;overflow:visible;z-index:1}
+.my-profile-panel .own-photo #ownAvatar{font-size:34px;font-weight:900;color:var(--gold);line-height:1}
+.my-profile-panel .own-photo img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.my-profile-panel .own-photo>button{position:absolute;inset-inline-start:50%;transform:translateX(-50%);bottom:-42px;white-space:nowrap;min-height:36px;font-size:.72rem;padding:.2rem .5rem}
+.my-profile-panel .own-copy{padding-top:12px;min-width:0}
+.my-profile-panel .own-copy .name-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.my-profile-panel .own-copy h2{margin:0;color:var(--text);font-size:1.35rem}
+.my-profile-panel .own-copy p{margin:6px 0}
+.my-profile-panel .own-actions{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;padding-top:12px;justify-content:flex-end;max-width:330px}
+.my-profile-panel .own-actions>.btn,.my-profile-panel .own-actions>button{min-height:44px}
+.my-profile-panel .own-actions details{position:relative}
+.my-profile-panel .own-actions details>summary{list-style:none;min-height:44px;display:flex;align-items:center;padding:.35rem .7rem;border:1px solid var(--line);border-radius:12px;color:var(--gold);cursor:pointer;font-weight:800;white-space:nowrap}
+.my-profile-panel .own-actions details>summary::-webkit-details-marker{display:none}
+.my-profile-panel .create-menu-list{position:absolute;inset-block-start:calc(100% + 6px);inset-inline-end:0;z-index:8;display:grid;gap:4px;min-width:210px;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 28px #0007}
+.my-profile-panel .create-menu-list a,.my-profile-panel .create-menu-list button{display:block;width:100%;text-align:start;min-height:42px;padding:8px 10px;border:0;border-radius:8px;background:transparent;color:var(--text);text-decoration:none;font:inherit;font-size:.84rem;cursor:pointer}
+.my-profile-panel .create-menu-list a:hover,.my-profile-panel .create-menu-list button:hover{background:var(--panel2);color:var(--gold)}
+.my-profile-panel .own-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-width:360px;margin-top:12px}
+.my-profile-panel .own-stats>div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 6px;text-align:center;min-width:0}
+.my-profile-panel .own-stats b{display:block;color:var(--gold);font-size:1.1rem;line-height:1.2}
+.my-profile-panel .own-stats span{display:block;color:var(--muted);font-size:.68rem}
+.my-profile-panel .profile-social-tabs{padding:10px 18px 0;border-top:1px solid var(--line)}
+.my-profile-panel .profile-social-tabs .social-tab{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:999px;min-height:40px;padding:.35rem .8rem;cursor:pointer;font:inherit;font-size:.82rem}
+.my-profile-panel .profile-social-tabs .social-tab[aria-selected="true"]{background:var(--gold);border-color:var(--gold);color:#091d21;font-weight:900}
+.coach-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:10px}
+.coach-stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center}
+.coach-stat b{display:block;color:var(--gold);font-size:1.5rem;line-height:1.2}
+.coach-stat span{display:block;color:var(--muted);font-size:.72rem;text-transform:capitalize}
+html[dir="rtl"] .coach-vertical-nav .quick-action::after{content:'‹'}
+@media(max-width:760px){.my-profile-panel .own-identity{grid-template-columns:88px minmax(0,1fr);gap:12px;padding-inline:13px}.my-profile-panel .own-photo{width:88px;height:88px}.my-profile-panel .own-actions{grid-column:1/-1;max-width:none;justify-content:flex-start;padding-top:34px}.my-profile-panel .profile-social-tabs{overflow-x:auto;flex-wrap:nowrap}.my-profile-panel .profile-social-tabs .social-tab{white-space:nowrap}}
+@media(max-width:420px){.my-profile-panel .own-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.my-profile-panel .own-actions>.btn{white-space:nowrap;text-decoration:none;min-width:150px}

@@ -9,6 +9,7 @@
     dashboard: ['Management Dashboard', 'لوحة الإدارة'],
     ai: ['MZ AI Brain', 'دماغ MZ الذكي'],
     settings: ['Account Settings', 'إعدادات الحساب'],
+    myProfile: ['My Profile', 'ملفي'],
     signOut: ['Sign Out', 'تسجيل الخروج'],
   };
   const ICONS = {
@@ -115,6 +116,7 @@
     if (access.management?.enabled && permissions.includes('management.ai')) {
       list.append(item('/admin.html?tab=ai', text('ai'), 'ai'));
     }
+    list.append(item('/dashboard.html#myProfile', text('myProfile'), 'account'));
     list.append(item('/account.html', text('settings'), 'settings'));
     list.append(action(text('signOut'), 'signOut', signOut));
 

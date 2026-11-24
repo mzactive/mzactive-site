@@ -152,19 +152,81 @@
     });
   }
 
+  const managedSections = ['#coachProfilePanel', '#coachContactPanel', '#coachCommunityPanel',
+    '#coachBlogDetails', '#whatsappTrainingForm', '#flexProgramHistory', '#coachAiPanel', '#coachPlanAiPanel',
+    '#coachTeams', '#coachStatistics', '#communityWorkspace', '#coachMyAthletes'];
+  const sectionGroups = {
+    posts: ['#coachCommunityPanel', '#coachBlogDetails'],
+    profile: ['#myProfilePanel'],
+    athletes: ['#coachMyAthletes'],
+    requests: ['#coachMyAthletes'],
+    programs: ['#whatsappTrainingForm'],
+    history: ['#flexProgramHistory'],
+    statistics: ['#coachStatistics'],
+    messages: ['#communityWorkspace'],
+  };
+  function focusSection(key) {
+    if (key === 'overview') {
+      for (const selector of managedSections) { const node = $(selector.slice(1)); if (node) node.hidden = false; }
+      return;
+    }
+    const visible = sectionGroups[key] || [];
+    for (const selector of managedSections) {
+      const node = $(selector.slice(1));
+      if (node) node.hidden = !visible.includes(selector);
+    }
+    const target = $((visible[0] || '#coachMyAthletes').slice(1));
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (key === 'requests') { state.bucket = 'pending'; render(); }
+    if (key === 'statistics') renderStatistics();
+  }
+  function renderStatistics() {
+    const host = $('coachStatistics'); if (!host) return;
+    const data = window.mzStudioDashboard || {};
+    const programs = data.programs || [];
+    const sessions = programs.reduce((sum, program) => sum + (program.sessions || []).length, 0);
+    const metrics = [['Programs', 'البرامج', programs.length], ['Sessions', 'الحصص', sessions],
+      ['Teams', 'الفرق', (data.teams || []).length], ['Athletes', 'الرياضيون', state.athletes.length]];
+    host.replaceChildren();
+    host.append(el('h3', '', lang() === 'ar' ? 'إحصاءات التدريب' : 'Coaching statistics'));
+    const grid = el('div', 'coach-stat-grid');
+    for (const [en, ar, value] of metrics) {
+      const cell = el('div', 'coach-stat');
+      cell.append(el('b', '', String(value)), el('span', '', lang() === 'ar' ? ar : en));
+      grid.append(cell);
+    }
+    host.append(grid);
+    api('/api/dashboard/analytics').then(result => {
+      const extra = el('div', 'coach-stat-grid');
+      for (const key of ['followers', 'booking_requests', 'accepted_bookings']) {
+        if (result?.analytics?.[key] === undefined) continue;
+        const cell = el('div', 'coach-stat');
+        cell.append(el('b', '', String(result.analytics[key])), el('span', '', key.replace(/_/g, ' ')));
+        extra.append(cell);
+      }
+      if (extra.children.length) host.append(extra);
+    }).catch(() => {});
+  }
   function quickActions() {
     if ($('coachQuickActions') || !$('coachPanel')) return;
-    const nav = el('nav', 'coach-quick-actions'); nav.id = 'coachQuickActions';
+    const nav = el('nav', 'coach-quick-actions coach-vertical-nav'); nav.id = 'coachQuickActions';
     const items = [
-      ['#coachProfilePanel', 'My Profile', 'ملفي'],
-      ['#coachMyAthletes', 'My Athletes', 'رياضيون'],
-      ['#whatsappTrainingForm', 'Training Programs', 'البرامج التدريبية'],
-      ['#communityWorkspace', 'Messages & Requests', 'الرسائل والطلبات'],
-      ['#coachCommunityPanel', 'My Posts', 'منشوراتي'],
-      ['#coachSettings', 'Settings', 'الإعدادات'],
+      ['#myProfilePanel', 'My Profile', 'ملفي', 'profile'],
+      ['#coachMyAthletes', 'My Athletes', 'رياضيون', 'athletes'],
+      ['#coachMyAthletes', 'Coaching Requests', 'طلبات التدريب', 'requests'],
+      ['#whatsappTrainingForm', 'Training Programs', 'البرامج التدريبية', 'programs'],
+      ['#flexProgramHistory', 'Program History', 'سجل البرامج', 'history'],
+      ['#coachStatistics', 'Coaching Statistics', 'إحصاءات التدريب', 'statistics'],
+      ['#communityWorkspace', 'Messages & Notifications', 'الرسائل والإشعارات', 'messages'],
+      ['#coachCommunityPanel', 'My Posts & Blogs', 'منشوراتي ومقالاتي', 'posts'],
+      ['#coachSettings', 'Settings', 'الإعدادات', 'settings'],
+      ['#coachPanel', 'Overview', 'نظرة عامة', 'overview'],
     ];
-    for (const [href, en, ar] of items) {
-      const a = el('a', 'quick-action', lang() === 'ar' ? ar : en); a.href = href; nav.append(a);
+    for (const [href, en, ar, section] of items) {
+      const a = el('a', 'quick-action', lang() === 'ar' ? ar : en);
+      a.href = href; a.dataset.section = section; nav.append(a);
+      if (section === 'settings') continue;
+      a.addEventListener('click', event => { event.preventDefault(); focusSection(section); });
     }
     $('coachPanel').prepend(nav);
   }
@@ -206,7 +268,7 @@
     section.append(list); $('memberPanel').prepend(section);
   }
 
-  window.MZActiveCoachDashboard = { sendDialog };
+  window.MZActiveCoachDashboard = { sendDialog, focusSection, renderStatistics };
   document.addEventListener('mzactive:dashboard-loaded', () => {
     const data = window.mzStudioDashboard;
     if (!data) return;

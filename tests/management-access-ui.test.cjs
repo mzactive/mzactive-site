@@ -41,7 +41,7 @@ test('the account menu is mounted only on authenticated dashboards and derives a
     const html = read(page);
     assert.match(html, /data-account-menu/, page);
     assert.match(html, /assets\/css\/account-menu\.css\?v=20261120h/, page);
-    assert.match(html, /assets\/js\/account-menu\.js\?v=20261120h/, page);
+    assert.match(html, /assets\/js\/account-menu\.js\?v=20261124a/, page);
   }
   const js = read('assets/js/account-menu.js');
   assert.match(js, /\/api\/me\/access/);

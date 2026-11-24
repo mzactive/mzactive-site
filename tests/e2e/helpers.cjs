@@ -445,6 +445,7 @@ function defaultApiHandler(ctx, state) {
   if (urlPath === '/api/me/profile') return json({ profile: state.profile });
   if (urlPath.startsWith('/api/providers')) return json({ providers: state.providers });
   if (urlPath.startsWith('/api/community/posts')) return json({ posts: [] });
+  if (urlPath === '/api/blog/posts') return json({ posts: [] });
   if (urlPath === '/api/dashboard/blog' || urlPath.startsWith('/api/dashboard/blog/')) return json({ posts: [] });
   if (urlPath === '/api/dashboard/calendar') return json({ events: [] });
   if (urlPath === '/api/dashboard/notifications') return json({ notifications: [], unread: 0 });
