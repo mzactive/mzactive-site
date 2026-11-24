@@ -92,9 +92,23 @@
     }
   }
 
-  document.addEventListener('mzactive:dashboard-loaded', event => {
-    if (event.detail?.role !== 'member') return;
+  function initAthlete(data) {
+    if (!data || data.role !== 'member') return;
+    const panel = $('athleteProfilePanel');
+    if (!panel || panel.dataset.stravaMounted) return;
+    panel.dataset.stravaMounted = 'true';
     wireTabs();
-    render(event.detail);
-  });
+    render(data);
+  }
+  function startAthlete() {
+    if (window.mzStudioDashboard) initAthlete(window.mzStudioDashboard);
+    else {
+      const timer = setInterval(() => {
+        if (window.mzStudioDashboard) { clearInterval(timer); initAthlete(window.mzStudioDashboard); }
+      }, 50);
+      setTimeout(() => clearInterval(timer), 10000);
+    }
+  }
+  startAthlete();
+  document.addEventListener('mzactive:dashboard-loaded', event => initAthlete(event.detail));
 })();

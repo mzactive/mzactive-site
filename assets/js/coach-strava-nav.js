@@ -232,13 +232,27 @@
     nav.hidden = false;
   }
 
-  document.addEventListener('mzactive:dashboard-loaded', event => {
-    if (event.detail?.role !== 'provider') return;
+  function initNav(data) {
+    if (!data || data.role !== 'provider') return;
+    const nav = $('coachTopNav');
+    if (!nav || nav.dataset.stravaMounted) return;
+    nav.dataset.stravaMounted = 'true';
     document.body.classList.add('coach-light');
     document.getElementById('dashboard')?.classList.add('coach-light');
     buildTopNav();
     buildBottomNav();
     const oldNav = document.getElementById('coachQuickActions');
     if (oldNav) oldNav.hidden = true;
-  });
+  }
+  function startNav() {
+    if (window.mzStudioDashboard) initNav(window.mzStudioDashboard);
+    else {
+      const timer = setInterval(() => {
+        if (window.mzStudioDashboard) { clearInterval(timer); initNav(window.mzStudioDashboard); }
+      }, 50);
+      setTimeout(() => clearInterval(timer), 10000);
+    }
+  }
+  startNav();
+  document.addEventListener('mzactive:dashboard-loaded', event => initNav(event.detail));
 })();
