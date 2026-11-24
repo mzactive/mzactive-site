@@ -2167,11 +2167,40 @@ async function createBooking(request, env) {
   const customerUserId = viewer && await isMemberAccount(env, viewer) ? viewer.id : null;
   await env.DB.prepare(`INSERT INTO booking_requests(id,provider_id,customer_user_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,consent_at,status,created_at,payment_status,session_type,service_name,distance,target_pace,program_duration_months)
     VALUES(?,?,?,?,?,?,?,?,?,?,'received',?,'pending_payment',?,?,?,?,?)`).bind(id,providerId,customerUserId,name,email||null,phone,city,text(body.preferred_date,10)||null,goal,new Date().toISOString(),new Date().toISOString(),sessionType,serviceName,distance,targetPace,programDuration).run();
+  let coachOwnerId = null, coachOwnerType = null;
   if (providerId) {
-    const owner = await env.DB.prepare("SELECT user_id FROM provider_profiles WHERE id=?").bind(providerId).first();
-    await createNotification(env, owner?.user_id, "booking_received", "New booking request", `${name} · ${city}`, "booking_request", id);
+    const owner = await env.DB.prepare("SELECT user_id,provider_type FROM provider_profiles WHERE id=?").bind(providerId).first();
+    coachOwnerId = owner?.user_id || null;
+    coachOwnerType = owner?.provider_type || null;
+    await createNotification(env, coachOwnerId, "booking_received", "New booking request", `${name} · ${city}`, "booking_request", id);
   }
-  return reply(request, env, { request_id: id, status: "received_pending_payment", provider_name: body.provider_name || "MZ Active Champion Pacer", provider_category: body.provider_category || "Sports Coach", provider_whatsapp: body.provider_whatsapp || null }, 201);
+  // Coaching requests keep a real coach connection so the WhatsApp handoff can
+  // deep-link the coach to the exact pending request instead of exposing a raw id.
+  let coachConnectionId = null;
+  let deepLink = null;
+  if (["coach", "bodybuilding_coach"].includes(coachOwnerType || "")) {
+    const athleteUser = await bookingAthleteUser(env, { customer_user_id: customerUserId, customer_email: email || null });
+    if (coachOwnerId && athleteUser?.id && athleteUser.id !== coachOwnerId) {
+      const existing = await env.DB.prepare("SELECT id FROM coach_connections WHERE coach_user_id=? AND athlete_user_id=?").bind(coachOwnerId, athleteUser.id).first();
+      coachConnectionId = existing?.id || null;
+      if (!coachConnectionId) {
+        coachConnectionId = randomId();
+        await env.DB.prepare(`INSERT INTO coach_connections(id,coach_user_id,athlete_user_id,status,created_at,updated_at,booking_id,source,athlete_accepted_at,workspace_status,workspace_created_at) VALUES(?,?,?,'pending',?,?,?,'booking',NULL,'pending',NULL)`)
+          .bind(coachConnectionId, coachOwnerId, athleteUser.id, new Date().toISOString(), new Date().toISOString(), id).run();
+      }
+      deepLink = coachConnectionId ? `https://mzactive.com/dashboard.html?connection=${coachConnectionId}#myAthletes` : null;
+    }
+  }
+  if (deepLink) {
+    const coachUser = await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(coachOwnerId).first();
+    await queueCoachEmail(env, {
+      eventKey: `booking_received:${id}`,
+      to: coachUser?.email || "",
+      subject: "New coaching request on MZ Active",
+      body: `A member sent you a coaching request on MZ Active.\n\nOpen the exact request: ${deepLink}`,
+    });
+  }
+  return reply(request, env, { request_id: id, connection_id: coachConnectionId, status: "received_pending_payment", provider_name: body.provider_name || "MZ Active Champion Pacer", provider_category: body.provider_category || "Sports Coach", provider_whatsapp: body.provider_whatsapp || null, provider_type: coachOwnerType || null, deep_link: deepLink }, 201);
 }
 
 function newJoinCode() {

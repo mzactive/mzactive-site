@@ -141,3 +141,29 @@ test('notification preferences can disable dashboard and email delivery', async 
     assert.ok(notices >= 1, 'existing notice is preserved');
   } finally { db.close(); }
 });
+
+test('coaching booking creates an actionable coach connection and deep link handoff', async () => {
+  const { db, call } = setup();
+  const emails = [], restore = mockEmail(emails);
+  try {
+    const { coach, athlete, profileId } = await fixtures(db, call);
+    const beforeBookingEmails = emails.length;
+    const saved = await call('bookings', 'POST', {
+      provider_id: profileId, customer_name: 'QA Athlete', customer_phone: '55555555', city: 'Doha',
+      session_type: 'training', program_duration_months: 1, goal_summary: 'Build a consistent base', consent: true,
+    }, athlete.token, 201);
+    assert.equal(saved.status, 'received_pending_payment');
+    assert.ok(saved.connection_id);
+    assert.match(saved.deep_link, /^https:\/\/mzactive\.com\/dashboard\.html\?connection=/);
+    const connection = db.prepare('SELECT * FROM coach_connections WHERE id=?').get(saved.connection_id);
+    assert.equal(connection.status, 'pending');
+    assert.equal(connection.source, 'booking');
+    assert.equal(connection.booking_id, saved.request_id);
+    assert.equal(connection.coach_user_id, coach.user.id);
+    const email = emails.at(-1);
+    assert.match(email.body.text, new RegExp(`connection=${saved.connection_id}`));
+    assert.ok(!email.body.text.includes(saved.request_id), 'coach handoff must not expose a raw request id');
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM coach_notification_outbox WHERE event_key=?').get(`booking_received:${saved.request_id}`).count, 1);
+    assert.ok(emails.length > beforeBookingEmails, 'coaching booking should notify the coach by email');
+  } finally { restore(); db.close(); }
+});

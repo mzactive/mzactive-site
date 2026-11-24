@@ -540,7 +540,7 @@ function defaultApiHandler(ctx, state) {
     return json({ updated: true, status: 'accepted', workspace_active: true });
   }
   if (urlPath === '/api/bookings' && method === 'POST') {
-    return json({ request_id: 'E2E-REQUEST-1', provider_name: 'MZ Active', provider_whatsapp: '97400000000' });
+    return json({ request_id: 'E2E-REQUEST-1', connection_id: 'E2E-CONNECTION-1', deep_link: 'https://mzactive.com/dashboard.html?connection=E2E-CONNECTION-1#myAthletes', status: 'received_pending_payment', provider_name: 'MZ Active', provider_whatsapp: '97400000000' });
   }
   return json({ error: 'e2e_unmocked_api', path: urlPath }, 501);
 }
