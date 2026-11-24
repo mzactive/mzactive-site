@@ -120,19 +120,42 @@
       $('programNextWeek').onclick = () => { const keys = weekKeys(), i = keys.indexOf(current); if (i >= 0 && i < keys.length - 1) showWeek(keys[i + 1]); };
     }
     const savebar = $('whatsappFallback').parentElement;
-    const email = document.createElement('button'); email.type = 'button'; email.className = 'btn'; email.textContent = t('Save & send via Email','حفظ وإرسال بالبريد'); email.id = 'programEmailSend';
-    const whats = document.createElement('button'); whats.type = 'button'; whats.className = 'btn secondary'; whats.textContent = t('Save & prepare WhatsApp','حفظ وتحضير واتساب'); whats.id = 'programWhatsAppSend';
-    savebar.append(email, whats);
-    email.onclick = () => deliver('email');
-    whats.onclick = () => deliver('whatsapp');
+    for (const button of [...savebar.querySelectorAll('button')]) button.hidden = true;
+    const docButton = $('studioDocumentPreview');
+    const actions = document.createElement('div'); actions.className = 'program-actions'; actions.id = 'programActions';
+    const choose = document.createElement('label'); choose.className = 'program-send-to';
+    choose.append(document.createTextNode(t('Send program to','إرسال البرنامج إلى')));
+    const select = document.createElement('select'); select.id = 'programSendTo';
+    select.innerHTML = `<option value="mzactive">${t('My Athlete (MZActive)','رياضيي (MZ Active)')}</option><option value="email">${t('Email','البريد الإلكتروني')}</option><option value="whatsapp">WhatsApp</option>`;
+    choose.append(select);
+    const send = document.createElement('button'); send.type='button'; send.className='btn'; send.id='programSend'; send.textContent=t('Send Program','إرسال البرنامج');
+    const draft = document.createElement('button'); draft.type='button'; draft.className='btn secondary'; draft.id='programSaveDraft'; draft.textContent=t('Save Draft','حفظ المسودة');
+    const more = document.createElement('details'); more.className='program-more';
+    const summary = document.createElement('summary'); summary.textContent=t('More options','خيارات أكثر'); more.append(summary);
+    if (docButton) { docButton.hidden=false; more.append(docButton); }
+    actions.append(choose, send, draft, more); savebar.append(actions);
+    send.onclick = async () => {
+      const channel = select.value;
+      if (channel === 'mzactive') {
+        try { const id = await saveProgram(); window.MZActiveCoachDashboard?.sendDialog(id, 'mzactive'); }
+        catch (error) { $('notice').textContent = error.message || t('Could not save the program.','تعذر حفظ البرنامج.'); }
+      } else await deliver(channel);
+    };
+    draft.onclick = async () => {
+      try { await saveProgram(); $('notice').textContent = t('Draft saved.','تم حفظ المسودة.'); }
+      catch (error) { $('notice').textContent = error.message || t('Could not save the draft.','تعذر حفظ المسودة.'); }
+    };
+  }
+  async function saveProgram() {
+    const data = payload(); if (!data) throw new Error(t('Add at least one workout first.','أضف حصة واحدة على الأقل.'));
+    if (editingId) await api('/api/dashboard/programs/' + editingId, { method: 'PATCH', body: JSON.stringify(data) });
+    else { const saved = await api('/api/dashboard/programs', { method: 'POST', body: JSON.stringify(data) }); editingId = saved.id; }
+    document.dispatchEvent(new Event('mzactive:program-saved'));
+    return editingId;
   }
   async function deliver(channel) {
-    const data = payload(); if (!data) { $('notice').textContent = t('Add at least one workout first.','أضف حصة واحدة على الأقل.'); return; }
-    $('notice').textContent = t('Saving…','جارٍ الحفظ…');
     try {
-      let id = editingId;
-      if (id) { await api('/api/dashboard/programs/' + id, { method: 'PATCH', body: JSON.stringify(data) }); }
-      else { const saved = await api('/api/dashboard/programs', { method: 'POST', body: JSON.stringify(data) }); id = saved.id; editingId = id; }
+      const id = await saveProgram();
       const athleteId = $('programAthlete').value || window.MZActiveProgramEditor?.selectedAthlete || '';
       let result = null;
       if (athleteId) result = await api('/api/dashboard/programs/' + id + '/send', { method: 'POST', body: JSON.stringify({ athlete_user_id: athleteId, channel }) });
@@ -143,7 +166,6 @@
         const url = 'https://mzactive.com' + result.href;
         $('whatsappFallback').href = url; $('whatsappFallback').textContent = t('Open secure program link','افتح رابط البرنامج الآمن'); $('whatsappFallback').classList.remove('hidden');
       }
-      document.dispatchEvent(new Event('mzactive:program-saved'));
     } catch (error) { $('notice').textContent = error.message || t('Could not save the program.','تعذر حفظ البرنامج.'); }
   }
   function loadProgram(program) {
@@ -160,7 +182,7 @@
     const keys = weekKeys(); showWeek(keys[0] || monday(startDate())); $('notice').textContent = t('Program loaded for editing.','تم تحميل البرنامج للتعديل.');
     form.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  window.MZActiveProgramEditor = { payload, loadProgram, showWeek, setAthlete: id => { const select = $('programAthlete'); if ([...select.options].some(o => o.value === id)) select.value = id; }, get selectedAthlete() { return $('programAthlete')?.value || ''; } };
+  window.MZActiveProgramEditor = { payload, saveProgram, loadProgram, showWeek, setAthlete: id => { const select = $('programAthlete'); if ([...select.options].some(o => o.value === id)) select.value = id; }, get selectedAthlete() { return $('programAthlete')?.value || ''; } };
 
   form.addEventListener('input', () => { updateNav(); persist(); });
   form.addEventListener('change', event => { if (event.target?.id === 'trainingWeekStart' && $('programStartDate')) $('programStartDate').value = event.target.value; current = monday(startDate()); updateNav(); persist(); });
