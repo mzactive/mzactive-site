@@ -136,3 +136,21 @@ html[dir="rtl"] .coach-vertical-nav .quick-action::after{content:'‹'}
 @media(max-width:760px){.my-profile-panel .own-identity{grid-template-columns:88px minmax(0,1fr);gap:12px;padding-inline:13px}.my-profile-panel .own-photo{width:88px;height:88px}.my-profile-panel .own-actions{grid-column:1/-1;max-width:none;justify-content:flex-start;padding-top:34px}.my-profile-panel .profile-social-tabs{overflow-x:auto;flex-wrap:nowrap}.my-profile-panel .profile-social-tabs .social-tab{white-space:nowrap}}
 @media(max-width:420px){.my-profile-panel .own-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .my-profile-panel .own-actions>.btn{white-space:nowrap;text-decoration:none;min-width:150px}
+
+/* Private athlete profile */
+.athlete-profile-panel{overflow:hidden;margin-bottom:16px}
+.athlete-profile-panel .athlete-cover{height:clamp(120px,18vw,180px);background:var(--panel)}
+.athlete-profile-panel .athlete-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.athlete-profile-panel .athlete-identity{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:14px;align-items:start;padding:0 16px 14px}
+.athlete-profile-panel .athlete-photo{width:96px;height:96px;margin-top:-32px;border:4px solid var(--bg);border-radius:50%;background:var(--panel2);display:grid;place-items:center;position:relative;z-index:1}
+.athlete-profile-panel .athlete-photo #athleteAvatar{color:var(--gold);font-size:30px;font-weight:900}
+.athlete-profile-panel .athlete-photo img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.athlete-profile-panel .athlete-copy{min-width:0;padding-top:10px}
+.athlete-profile-panel .athlete-copy h2{margin:0;color:var(--text);font-size:1.25rem}
+.athlete-profile-panel .athlete-copy p{margin:6px 0}
+.athlete-profile-panel .athlete-actions{display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;justify-content:flex-end;max-width:320px}
+.athlete-profile-panel .athlete-actions .btn{min-height:44px}
+.athlete-profile-panel .profile-social-tabs{padding:10px 16px 0;border-top:1px solid var(--line)}
+.athlete-profile-panel .profile-social-tabs .social-tab{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:999px;min-height:40px;padding:.35rem .8rem;cursor:pointer;font:inherit;font-size:.82rem}
+.athlete-profile-panel .profile-social-tabs .social-tab[aria-selected="true"]{background:var(--gold);border-color:var(--gold);color:#091d21;font-weight:900}
+@media(max-width:760px){.athlete-profile-panel .athlete-identity{grid-template-columns:76px minmax(0,1fr);gap:10px;padding-inline:12px}.athlete-profile-panel .athlete-photo{width:76px;height:76px}.athlete-profile-panel .athlete-actions{grid-column:1/-1;max-width:none;justify-content:flex-start}.athlete-profile-panel .profile-social-tabs{overflow-x:auto;flex-wrap:nowrap}.athlete-profile-panel .profile-social-tabs .social-tab{white-space:nowrap}}

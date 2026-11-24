@@ -69,7 +69,12 @@
         actions.append(el('button', 'secondary', t('decline'))); actions.lastChild.type = 'button';
         actions.lastChild.onclick = () => decide(a.id, 'declined');
       } else if (a.bucket === 'active') {
-        const create = el('a', 'btn', t('create')); create.href = '#whatsappTrainingForm'; create.onclick = () => prefill(a); actions.append(create);
+        const quickSend = el('button', 'btn', lang() === 'ar' ? 'إرسال برنامج' : 'Send program');
+        quickSend.type = 'button';
+        quickSend.title = lang() === 'ar' ? 'أرسل برنامجاً محفوظاً إلى هذا الرياضي داخل MZ Active' : 'Send a saved program to this athlete inside MZ Active';
+        quickSend.onclick = () => sendDialog(null, 'mzactive', a.id);
+        actions.append(quickSend);
+        const create = el('a', 'btn secondary', t('create')); create.href = '#whatsappTrainingForm'; create.onclick = () => prefill(a); actions.append(create);
         const calendar = el('a', 'btn secondary', t('calendar')); calendar.href = '#flexProgramHistory'; actions.append(calendar);
         const close = el('button', 'secondary', t('close')); close.type = 'button'; close.onclick = () => closeRelationship(a.id); actions.append(close);
       } else {
@@ -105,7 +110,7 @@
     } catch {}
   }
 
-  function sendDialog(programId, channel = 'email') {
+  function sendDialog(programId, channel = 'email', preselectedAthlete = '') {
     const programs = window.mzStudioDashboard?.programs || [];
     if (!programId && !programs.length) { ($('notice') || document.body).textContent = t('saveFirst'); return; }
     let dialog = $('sendProgramDialog');
@@ -119,8 +124,9 @@
     for (const p of programs) { const option = document.createElement('option'); option.value = p.id; option.textContent = `${p.athlete_name || 'Program'} · ${p.week_start}`; select.append(option); }
     if (state.programId) select.value = state.programId;
     select.onchange = () => { state.programId = select.value; };
-    let selected = '';
+    let selected = preselectedAthlete || '';
     const list = $('sendProgramList'), search = $('sendProgramSearch'), confirm = $('sendProgramConfirm');
+    confirm.disabled = !selected;
     search.oninput = () => paint();
     function paint() {
       const q = search.value.toLowerCase(); list.replaceChildren();
