@@ -83,6 +83,13 @@ test('private coach profile uses a vertical dashboard list, create menu and FB-s
   assert.match(css, /\.coach-vertical-nav\{display:grid!important/);
   assert.match(css, /\.my-profile-panel \.create-menu-list/);
   assert.match(html, /coach-social-dashboard\.js\?v=20261124b/);
-  assert.match(html, /workspace\.css\?v=20261124c/);
+  assert.match(html, /workspace\.css\?v=20261124d/);
   assert.match(menu, /dashboard\.html#myProfile/);
+});
+
+test('program delivery can be started in one tap from an active athlete', () => {
+  const js = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../assets/js/coach-dashboard.js'), 'utf8');
+  assert.match(js, /sendDialog\(null, 'mzactive', a\.id\)/);
+  assert.match(js, /let selected = preselectedAthlete \|\| ''/);
+  assert.match(js, /confirm\.disabled = !selected/);
 });

@@ -99,3 +99,32 @@ test('private profile tabs switch Posts, Blogs, Programs, Community and About', 
   await expect(page.locator('#myProfilePanel')).toBeVisible();
   assertOfflineSafe(mock);
 });
+
+test('one tap delivery sends a saved program to a connected athlete', async ({ page }) => {
+  const mock = await installApiMock(page, {
+    overrides: {
+      'GET /api/me/access': coachAccess,
+      'GET /api/dashboard': () => json(dashboard),
+      'GET /api/me/profile': json({ profile: ownProfile }),
+      'GET /api/dashboard/analytics': json({ analytics: { followers: 24 } }),
+      'GET /api/dashboard/athletes': json({
+        athletes: [{ id: 'conn-active-1', display_name: 'Active Athlete', status: 'accepted', bucket: 'active' }],
+        counts: { pending: 0, active: 1, completed: 0 },
+      }),
+      'POST /api/dashboard/programs/prog-e2e/send': json({ sent: true, program_id: 'prog-e2e', sent_at: '2026-11-24T10:00:00.000Z' }),
+    },
+  });
+  await seedSession(page, { storage: 'session' });
+  await page.goto('/dashboard.html');
+  await expect(page.locator('#coachMyAthletes')).toBeVisible();
+  await page.locator('#athleteTabs').getByRole('button', { name: 'Active Athletes' }).click();
+  const card = page.locator('.athlete-row[data-connection-id="conn-active-1"]');
+  await card.getByRole('button', { name: 'Send program' }).click();
+  const dialog = page.locator('#sendProgramDialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('input[name="sendChannel"][value="mzactive"]')).toBeChecked();
+  await expect(dialog.locator('#sendProgramConfirm')).toBeEnabled();
+  await dialog.locator('#sendProgramConfirm').click();
+  await expect.poll(() => mock.calls.some(call => call.method === 'POST' && call.path === '/api/dashboard/programs/prog-e2e/send' && call.body?.channel === 'mzactive' && call.body?.athlete_user_id === 'conn-active-1')).toBe(true);
+  assertOfflineSafe(mock);
+});
