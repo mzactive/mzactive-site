@@ -84,6 +84,22 @@
       ownProfile.following_count = following.following_count || 0;
     } catch { /* the profile stays usable without the following count */ }
     renderStats({ programs: data?.programs || [], athleteCount: (data?.teams || []).length });
+    const recent = $('ownRecentActivity');
+    if (recent) {
+      recent.replaceChildren();
+      const items = (data?.programs || []).slice(0, 5);
+      for (const program of items) {
+        const card = document.createElement('article');
+        card.className = 'card';
+        const title = document.createElement('strong');
+        title.textContent = `${program.athlete_name || t('Athlete', '\u0631\u064A\u0627\u0636\u064A')} · ${program.week_start || ''}`;
+        const meta = document.createElement('small');
+        meta.textContent = `${(program.sessions || []).length} ${t('sessions', 'sessions')}`;
+        card.append(title, meta);
+        recent.append(card);
+      }
+      $('ownRecentEmpty').hidden = items.length > 0;
+    }
     try {
       const athletes = await api('/api/dashboard/athletes');
       renderStats({ programs: data?.programs || [], athleteCount: athletes?.athletes?.length ?? (data?.teams || []).length });
@@ -127,7 +143,7 @@
         for (const item of document.querySelectorAll('#ownProfileTabs [data-section]')) {
           item.setAttribute('aria-selected', String(item === tab));
         }
-        const target = section === 'blogs' ? 'posts' : section === 'about' ? 'profile' : section === 'community' ? 'messages' : section;
+        const target = section === 'blogs' ? 'posts' : section === 'about' ? 'profile' : section === 'overview' ? 'profile' : section === 'community' ? 'messages' : section;
         window.MZActiveCoachDashboard?.focusSection(target);
         if (section === 'blogs') {
           const details = $('coachBlogDetails');

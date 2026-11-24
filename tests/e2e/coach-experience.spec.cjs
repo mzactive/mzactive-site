@@ -81,8 +81,9 @@ test('coach quick actions open notification settings and save preferences', asyn
   });
   await seedSession(page, { storage: 'session' });
   await page.goto('/dashboard.html');
-  await expect(page.locator('#coachQuickActions')).toBeVisible();
-  await page.locator('#coachQuickActions a[href="#coachSettings"]').click();
+  await expect(page.locator('#coachTopNav')).toBeVisible();
+  await page.locator('#coachTopNav details[data-menu="profile"] summary').click();
+  await page.locator('#coachTopNav button[data-profile="settings"]').click();
   const dialog = page.locator('#coachSettings');
   await expect(dialog).toBeVisible();
   await dialog.locator('#prefEmail').uncheck();

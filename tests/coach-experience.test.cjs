@@ -39,8 +39,8 @@ test('additive migration is present and safe', () => {
 });
 
 test('coach quick actions, settings and athlete coach display are wired', () => {
-  const js = read('assets/js/coach-dashboard.js');
-  for (const marker of ['coachQuickActions', 'notification-preferences', 'memberCoaches', 'My Profile', 'Settings']) {
+  const js = read('assets/js/coach-strava-nav.js');
+  for (const marker of ['coachTopNav', 'coachBottomNav', 'My Profile', 'Settings', 'Log Out']) {
     assert.ok(js.includes(marker), marker);
   }
   const worker = read('backend/worker.js');
