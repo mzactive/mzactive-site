@@ -168,3 +168,33 @@ test('public visitors cannot see private coach controls or trigger private reque
     /^\/api\/(me|admin)\//.test(call.path) || /^\/api\/providers\/[^/]+\/(bookings|analytics)$/.test(call.path));
   expect(privateCalls).toEqual([]);
 });
+
+test('new profile really uses light cards and real cover fallback, not global dark theme', async ({page}) => {
+  const mock = await openProfile(page);
+  const theme = await page.evaluate(() => ({
+    background: getComputedStyle(document.body).backgroundColor,
+    heading: getComputedStyle(document.querySelector('.profile-heading')).backgroundColor,
+    name: getComputedStyle(document.querySelector('#name')).color,
+    button: getComputedStyle(document.querySelector('#book')).backgroundColor,
+  }));
+  expect(theme.background).toBe('rgb(245, 247, 246)');
+  expect(theme.heading).toBe('rgb(255, 255, 255)');
+  expect(theme.name).toBe('rgb(23, 51, 47)');
+  expect(theme.button).toBe('rgb(16, 54, 56)');
+  await expect(page.locator('.cover-wrap')).toHaveClass(/no-personal-cover/);
+  await expect(page.locator('#coverPhoto')).toBeHidden();
+  await expect(page.locator('#tagline')).toBeHidden();
+  await expect(page.locator('#bio')).toBeVisible();
+  await expect(page.locator('#profileTabs')).toBeHidden();
+  await expect(page.locator('#profileSocialTabs')).toBeVisible();
+  await expect(page.locator('#book')).toHaveAttribute('href',/provider=/);
+  await expect(page.locator('#profilePostsPanel')).toBeHidden();
+  await page.locator('[data-social-tab=posts]').click();
+  await expect(page.locator('#profilePostsPanel')).toBeVisible();
+  await expect(page.locator('#bio')).toBeHidden();
+});
+test('personal cover image uses actual API media without stock picture source', async ({page}) => {
+  const mock = await openProfile(page,{overrides:{['GET /api/providers/'+PROFILE_ID]:json({provider:{...publicProfile(),has_cover:true,cover_updated_at:'2026-11-25'}})}});
+  await expect(page.locator('#coverPhoto')).toHaveAttribute('src',/\/api\/providers\/[^/]+\/cover\?v=/);
+  await expect(page.locator('.cover-wrap picture source')).toHaveCount(0);
+});
