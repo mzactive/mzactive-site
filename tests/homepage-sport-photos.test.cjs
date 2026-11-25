@@ -38,7 +38,10 @@ test('all eleven sport cards are clickable photo cards with no placeholder icons
   const cards = sportCards();
   assert.equal(cards.length, 11, 'every expected sport card is present');
   for (const card of cards) assert.doesNotMatch(card, /<svg\b/i, 'original sports retain photos');
-  assert.equal((grid.match(/class="sport-card sport-card-recovery"/g)||[]).length,3);
+  const recovery=html.match(/<div class="sport-grid recovery-photo-grid">([\s\S]*?)<\/div>/)?.[1] || "";
+  assert.equal((recovery.match(/class="sport-card sport-card-recovery"/g)||[]).length,3);
+  assert.equal((recovery.match(/<img src="https:\/\/images\.pexels\.com\/photos\//g)||[]).length,3);
+  assert.doesNotMatch(recovery, /<svg\b/i);
 
   cards.forEach((card, index) => {
     const [sport, label] = expectedSports[index];

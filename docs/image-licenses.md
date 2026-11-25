@@ -11,3 +11,10 @@
 - **Derivative licence:** these resized/converted derivatives are shared under CC BY-SA 4.0 with attribution above.
 
 The Fitness card continues to use the pre-existing approved `women-fitness` photograph and is unchanged.
+
+## Recovery category stock photography
+
+Pexels License: https://www.pexels.com/license/ . Illustrative category photographs only, not MZActive registered practitioners.
+- Physiotherapy: https://www.pexels.com/photo/physiotherapist-and-patient-exercising-20860582/ (Funkcinės Terapijos Centras)
+- Sports massage: https://www.pexels.com/photo/a-woman-is-doing-a-massage-on-a-man-27730459/
+- Nutrition: https://www.pexels.com/photo/dietitian-writing-weekly-meals-plan-15319046/
