@@ -21,3 +21,9 @@ test('athlete stays in athlete dashboard',async({page})=>{
 test('explicit legacy tool deep link remains reachable with direct studio link',async({page})=>{
  const mock=await installApiMock(page,opts());await seedSession(page,{storage:'session'});await page.goto('/dashboard.html?legacy=1&studio=0#myProfile');await expect(page.locator('#dashboard')).toBeVisible();await expect(page.locator('#mzaOpenCoachStudio')).toHaveAttribute('href','/coach-studio.html');assertOfflineSafe(mock);
 });
+
+test('old coach profile and request links open native workspace screens',async({page})=>{
+ const mock=await installApiMock(page,opts());await seedSession(page,{storage:'session'});
+ await page.goto('/dashboard.html#myProfile');await expect(page).toHaveURL(/\/coach-studio\.html\?view=profile$/);await expect(page.getByRole('heading',{name:'My profile'})).toBeVisible();
+ await page.goto('/dashboard.html?connection=sample#myAthletes');await expect(page).toHaveURL(/\/coach-studio\.html\?view=athletes$/);await expect(page.getByRole('heading',{name:'Athletes & teams'})).toBeVisible();assertOfflineSafe(mock);
+});
