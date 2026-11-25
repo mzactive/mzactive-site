@@ -13,3 +13,5 @@ dialog{position:fixed;inset:0;margin:auto;overscroll-behavior:contain;scroll-pad
 .planning-banner{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 14px;background:#fff;border:1px solid var(--line);margin:10px 0;border-radius:8px}.planning-banner p{margin:4px 0 0}.planning-banner>div{flex:1;min-width:180px}.panel>h3{font-size:14px;margin:16px 0 4px}.panel>p{white-space:pre-wrap;overflow-wrap:anywhere}
 
 .profile-identity{display:flex;align-items:center;gap:16px;padding:8px 0 18px;border-bottom:1px solid var(--line);margin-bottom:16px}.profile-identity h2{margin:0 0 4px;font-size:24px}.profile-identity p{margin:0}.profile-avatar{width:72px;height:72px;border-radius:50%;position:relative;overflow:hidden;flex:none;display:grid;place-items:center;background:#e6efeb;font-size:23px;font-weight:800;color:var(--dark)}.profile-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+.mza-video-link{display:inline-block;color:#19684f;font-weight:650;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}.exercise-row .mza-video-link{margin:8px 0}

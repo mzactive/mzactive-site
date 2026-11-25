@@ -16,3 +16,5 @@
 .mza-athlete-workout button{justify-self:start}
 .mza-workout-done{color:var(--green)}
 .mza-athlete-instructions{white-space:pre-wrap;overflow-wrap:anywhere}
+
+.mza-athlete-instructions .mza-video-link{display:inline-block;font-weight:700;color:inherit;text-decoration:underline;text-underline-offset:3px;margin:4px 0}

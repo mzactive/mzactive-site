@@ -10,7 +10,8 @@ function cleanText(v,max,required=false){
 }
 function exercise(x){
  if(!x||!idOK(x.id)||!categories.has(x.category))throw Error('invalid_library_item');
- return {id:x.id,category:x.category,en:cleanText(x.en,120,true),ar:cleanText(x.ar,120,true),muscle:cleanText(x.muscle,120),equipment:cleanText(x.equipment,120)};
+ const videoId=cleanText(x.videoId,11);if(videoId&&!/^[A-Za-z0-9_-]{11}$/.test(videoId))throw Error('invalid_library_item');
+ return {id:x.id,category:x.category,en:cleanText(x.en,120,true),ar:cleanText(x.ar,120,true),muscle:cleanText(x.muscle,120),equipment:cleanText(x.equipment,120),...(videoId?{videoId}:{})};
 }
 function workout(x){
  if(!x||!idOK(x.id)||!sports.has(x.sport)||!Array.isArray(x.exercises)||x.exercises.length>20)throw Error('invalid_library_item');
@@ -40,7 +41,7 @@ export async function coachLibraryApi(request,env,user,reply,readJson){
  const path=new URL(request.url).pathname,base='/api/dashboard/coach-library';
  if(path===base&&request.method==='GET'){
   const rows=await env.DB.prepare('SELECT kind,item_id,payload_json,revision,updated_at FROM coach_library_items WHERE coach_user_id=? ORDER BY kind,item_id').bind(user.id).all();
-  return send({library_version:1,items:(rows.results||[]).map(unpack)});
+  return send({library_version:1,video_links:true,items:(rows.results||[]).map(unpack)});
  }
  const match=/^\/api\/dashboard\/coach-library\/(exercise|workout|program)\/([a-zA-Z0-9-]{1,80})$/.exec(path);
  if(!match||!['PUT','DELETE'].includes(request.method))return send({error:'not_found'},404);
