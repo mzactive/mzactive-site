@@ -81,8 +81,8 @@
       if (!profile) return;
       const avatar = $('coachNavAvatar');
       if (avatar) avatar.textContent = String(profile.display_name || 'MZ').trim().charAt(0).toUpperCase();
-      const publicLink = $('coachNavPublicProfile');
-      if (publicLink) publicLink.href = `coach.html?id=${encodeURIComponent(profile.id)}`;
+      const publicLink = $('coachNavPublicProfile') || document.querySelector('#coachTopNav a[href="coach.html"]');
+      if (publicLink) { publicLink.id = 'coachNavPublicProfile'; publicLink.href = `coach.html?id=${encodeURIComponent(profile.id)}`; }
     } catch { /* the navigation remains usable without profile details */ }
     try {
       const access = await api('/api/me/access');
