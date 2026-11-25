@@ -79,6 +79,17 @@ test('discovery cards lead with portraits with real details on every device', as
   await expect(page).toHaveURL(/coach\.html.*contact=coaching/);
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
+  const lightPetrol = 'rgb(240, 248, 245)';
+  await expect(dialog).toHaveCSS('background-color', lightPetrol);
+  const fields = dialog.locator('input:not([type="checkbox"]), select:visible, textarea');
+  await expect(fields).toHaveCount(4);
+  for (const field of await fields.all()) {
+    await expect(field).toHaveCSS('background-color', lightPetrol);
+    await expect(field).toHaveCSS('color', 'rgb(20, 41, 39)');
+    await expect(field).toHaveCSS('color-scheme', 'light');
+  }
+  await dialog.locator('#contactDuration').selectOption('2');
+  await expect(dialog.locator('#contactSubmit')).toHaveCSS('background-color', 'rgb(16, 54, 56)');
   await dialog.locator('[name=customer_name]').fill('Guest Runner');
   await dialog.locator('[name=customer_phone]').fill('---123---');
   await dialog.locator('[name=goal_summary]').fill('Help with my first half marathon');

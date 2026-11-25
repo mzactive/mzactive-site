@@ -19,17 +19,20 @@ const completionCss = read('assets/css/profile-completion.css');
 const migration = read('backend/migrations/0023_coach_communications.sql');
 const communityGroups = read('backend/community-groups.js');
 
-test('public coach markup contains no private owner or viewer controls', () => {
+test('public coach markup contains guest contact but no private owner controls', () => {
   for (const marker of [
     'id="editProfile"', 'id="changePhoto"', 'id="photoInput"',
     'id="changeCover"', 'id="coverInput"', 'id="followCoach"',
-    'id="connectCoach"', 'id="bookingInbox"', 'id="ownerMetrics"',
+    'id="bookingInbox"', 'id="ownerMetrics"',
     'id="snapshotMetrics"', 'id="upcomingSessions"', 'dashboard.html#coachTeams',
     'dashboard.html#whatsappTrainingForm',
   ]) assert.doesNotMatch(html, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), marker);
   assert.match(html, /id="ownerRail"[^>]*hidden><\/aside>/);
   assert.match(html, /id="share"/);
   assert.match(html, /id="book"/);
+  assert.match(html, /id="connectCoach"/);
+  assert.match(html, /<dialog id="coachContact"/);
+  assert.match(profileJs, /if \(!profile \|\| profile\.viewer\?\.owner/);
 });
 
 test('coach profile gates private controls on server-supplied viewer state', () => {

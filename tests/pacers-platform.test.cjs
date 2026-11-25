@@ -115,9 +115,8 @@ test('Pacers promotes Run IQ near the top without altering discovery', () => {
   for (const marker of [
     'id="runiqPromo"',
     "What's Your Running Pace?",
-    'Not sure which Pacer is right for you? Discover your running pace and find someone who matches your goals.',
-    'Free assessment. No signup required to see your results.',
-    'href="https://mzactive.com/run-iq.html">Discover My Pace</a>',
+    'Free assessment. No account needed.',
+    'href="run-iq.html#assessment">Discover My Pace</a>',
     '"Discover My Pace":"اكتشف وتيرتي"',
   ]) assert.ok(html.includes(marker), marker);
   const hero = html.indexOf('class="hero"'), promo = html.indexOf('id="runiqPromo"'), choose = html.indexOf('id="choose"');

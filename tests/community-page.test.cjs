@@ -66,7 +66,8 @@ test('community page scripts parse', () => {
 });
 
 test('the homepage community CTA uses the working member signup flow', () => {
-  assert.match(index, /href="dashboard\.html#registerForm"[^>]*data-en="Join the community"/);
+  assert.match(index, /href="community\.html#join"[^>]*data-en="Join the community"/);
+  assert.match(html, /<section id="join">[\s\S]*?href="dashboard\.html#registerForm"/);
   assert.doesNotMatch(index, /href="community-signup\.html"/);
   assert.match(signup, /http-equiv="refresh" content="0;url=dashboard\.html#registerForm"/);
   assert.match(signup, /window\.location\.href='dashboard\.html#registerForm'/);

@@ -40,7 +40,11 @@ test('guest assessment shows full results before optional account creation', asy
   await page.locator('#recentDistance').fill('10K');
   await page.locator('#recentTime').fill('55:00');
   await page.locator('#nextButton').click();
-  await page.locator('#nextButton').click();
+  await expect(page.locator('#city')).toBeHidden();
+  await page.locator('#qPrefs').click();
+  await expect(page.locator('#city')).toBeVisible();
+  await page.locator('#qPrefs').click();
+  await page.getByRole('button', { name: 'See My Results' }).click();
 
   await expect(page.locator('#resultsSection')).toBeVisible();
   await expect(page.locator('#dashboard')).toContainText('Self-reported beginner runner');

@@ -197,6 +197,7 @@ test('a public coach profile shows permitted community activity without private 
   await expect(page.locator('#editProfile')).toHaveCount(0);
   await expect(page.locator('#bookings')).toHaveCount(0);
 
+  await page.getByRole('tab', { name: 'Community', exact: true }).click();
   await page.locator('#coachCommunityEvents').getByRole('button', { name: 'RSVP' }).click();
   await expect(page.locator('#coachCommunityEvents')).toContainText('Going ✓');
   const rsvp = mock.calls.find(call => call.method === 'POST' && call.path === '/api/community/posts/public-event-e2e/rsvp');

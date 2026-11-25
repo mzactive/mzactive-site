@@ -33,6 +33,8 @@
       ...options, headers,
       body: options.body === undefined || binary ? options.body : JSON.stringify(options.body),
       cache: 'no-store',
+    }).catch(cause => {
+      throw new Error(t('Could not connect. Please try again.', 'تعذّر الاتصال. يرجى المحاولة مرة أخرى.'), { cause });
     });
     let data = {};
     try { data = await response.json(); } catch { /* binary or empty response */ }
