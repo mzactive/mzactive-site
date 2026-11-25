@@ -282,8 +282,20 @@
     return (items || []).filter(post => (!kind || post.kind === kind) && (!sport || post.sport === sport));
   }
 
+  let feedRequest = 0;
   async function loadFeed() {
+    const requestId = ++feedRequest;
+    const following = !communityState.id && document.querySelector('[data-feed-tab="following"]')?.getAttribute('aria-selected') === 'true';
+    const root = $('feedList');
+    root.replaceChildren();
+    $('feedEmpty').hidden = true;
+    if (following && !token) {
+      $('feedEmpty').textContent = t('Sign in to see posts from coaches you follow.', 'سجّل الدخول لمشاهدة منشورات المدربين الذين تتابعهم.');
+      $('feedEmpty').hidden = false;
+      return;
+    }
     const params = new URLSearchParams();
+    if (following) params.set('scope', 'following');
     if ($('feedKind').value) params.set('kind', $('feedKind').value);
     if ($('feedSport').value) params.set('sport', $('feedSport').value);
     try {
@@ -297,10 +309,11 @@
         data = await api(`/community/posts${query ? '?' + query : ''}`);
         posts = data.posts || [];
       }
-      const root = $('feedList');
+      if (requestId !== feedRequest) return;
       root.replaceChildren(...posts.map(renderPost));
-      $('feedEmpty').hidden = posts.length > 0;
-    } catch (error) { notice(error.message); }
+      $('feedEmpty').textContent = following ? t('No posts from followed coaches yet.', 'لا توجد منشورات من المدربين الذين تتابعهم بعد.') : t('No published community posts yet.', 'لا توجد منشورات مجتمعية منشورة بعد.');
+      $('feedEmpty').hidden = posts.length > 0 || document.querySelector('[data-feed-tab="blogs"]')?.getAttribute('aria-selected') === 'true';
+    } catch (error) { if (requestId === feedRequest) { notice(error.message); $('feedEmpty').textContent = t('Unable to load feed. Try again.', 'تعذّر تحميل الموجز. حاول مجدداً.'); $('feedEmpty').hidden = false; } }
   }
 
   function syncComposerFields() {
