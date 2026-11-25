@@ -27,7 +27,7 @@ test('community page uses the real feed, media and sports profile API', () => {
   assert.match(html, /id="sportsPhotoUpload"/);
   assert.match(html, /id="sportsPhotoRemove"/);
   assert.match(html, /id="sportsShare"/);
-  assert.match(html, /assets\/js\/community-feed\.js\?v=20261125-feedfirst/);
+  assert.match(html, /assets\/js\/community-feed\.js\?v=20261125-public/);
   assert.match(js, /garmin_public_url/);
   assert.doesNotMatch(html, /Account creation and notifications are not yet active|Preview only: no membership/);
 });
