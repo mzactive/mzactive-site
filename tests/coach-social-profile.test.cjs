@@ -65,8 +65,8 @@ test('public coach profile exposes real stats, follow and social tabs', () => {
   assert.match(js, /\/api\/coaches\/\$\{encodeURIComponent\(id\)\}\/follow/);
   assert.match(css, /\.profile-stats\{/);
   assert.match(css, /\.profile-social-tabs \.social-tab\[aria-selected="true"\]/);
-  assert.match(html, /coach-profile\.css\?v=20261124b/);
-  assert.match(html, /coach-profile\.js\?v=20261124a/);
+  assert.match(html, /coach-profile\.css\?v=20261125a/);
+  assert.match(html, /coach-profile\.js\?v=20261125a/);
 });
 
 test('public blog feed can scope articles to one approved coach provider', () => {
