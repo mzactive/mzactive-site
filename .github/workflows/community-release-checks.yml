@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'community.html'
+      - 'pacer.html'
+      - 'pacer-profile.html'
       - 'assets/js/community-*.js'
       - 'assets/css/community-signup.css'
       - 'backend/**'
