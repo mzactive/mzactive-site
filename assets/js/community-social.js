@@ -89,7 +89,7 @@
     if (key === 'challenges' && $('feedKind')) {
       $('feedKind').value = 'challenge';
       $('feedKind').dispatchEvent(new Event('change', { bubbles: true }));
-    } else if (key === 'feed' && $('feedKind')) {
+    } else if ((key === 'feed' || key === 'following') && $('feedKind')) {
       $('feedKind').value = '';
       $('feedKind').dispatchEvent(new Event('change', { bubbles: true }));
     }
