@@ -227,7 +227,7 @@
     if (!actions || $('#editProfile')) return;
     const edit = node('a', undefined, 'button button-gold');
     edit.id = 'editProfile';
-    edit.href = 'coach-studio.html?view=profile';
+    edit.href = 'providers.html?edit=1#provider-portal';
     const editGlyph = node('span', '✎');
     editGlyph.setAttribute('aria-hidden', 'true');
     edit.append(editGlyph, node('span', t('Edit profile','تعديل الملف')));
@@ -307,7 +307,7 @@
       create.append(node('h2', t('Create','إنشاء')));
       for (const [href, en, ar] of [
         ['dashboard.html#coachBlogForm','Write an article','اكتب مقالاً'],
-        ['providers.html#provider-portal','Manage profile photos','إدارة صور الملف'],
+        ['providers.html?edit=1#provider-portal','Manage profile photos','إدارة صور الملف'],
         ['coach-studio.html?view=athletes','Group session','جلسة جماعية'],
         ['coach-studio.html','Training program','برنامج تدريبي'],
       ]) {
