@@ -98,12 +98,16 @@ test('approved Pacers get an account-connected workspace and booking management'
   assert.match(read('backend/worker.js'), /p\.provider_type AS provider_type/);
 });
 
-test('Pacers cards use readable dark surfaces and a compact premium layout', () => {
+test('Pacers cards use readable light marketplace surfaces and a compact premium layout', () => {
   const html = read('pacer.html');
   assert.match(html, /\.section\{padding:56px 0\}/);
   assert.match(html, /\.feature\{padding:18px 16px;background:linear-gradient/);
   assert.match(html, /\.pacer-card\{background:linear-gradient/);
-  assert.doesNotMatch(html, /\.pacer-card\{background:#fff/);
+  assert.match(html, /\.pacer-card\{background:#fff;color:#17342e/);
+  assert.match(html, /id="directorySearch"/);
+  assert.match(html, /id="directoryDistance"/);
+  assert.match(html, /function applyDirectory\(\)/);
+  assert.match(html, /pacer-profile\.html\?id=/);
   assert.match(html, /\.empty-note\{[^}]*background:linear-gradient/);
   assert.match(html, /function renderEmpty\(message\)/);
   assert.match(html, /join\.href='pacer-register\.html'/);
