@@ -50,6 +50,9 @@
     let lang = document.documentElement.lang === 'ar' ? 'ar' : 'en';
     let profiles = null;
     let directoryError = false;
+    let featuredFilter = '';
+    const filters = document.getElementById('previewCoachFilters');
+    const filterPatterns = {running:/run|جري/i,padel:/padel|بادل/i,hyrox:/hyrox|هايروكس/i};
     const currentLabels = () => labels[lang];
     const node = (tag, className, text) => {
       const element = document.createElement(tag);
@@ -76,22 +79,37 @@
       return wrap;
     };
 
+    function matchesFilter(profile) {
+      if (!featuredFilter) return true;
+      if (featuredFilter === 'online') return ['online','both'].includes(profile.coaching_mode);
+      if (featuredFilter === 'doha') return /doha|الدوحة/i.test(profile.city || '') && ['in_person','in-person','both'].includes(profile.coaching_mode);
+      return filterPatterns[featuredFilter]?.test([...(profile.specialties || []),...(profile.services || [])].join(' ')) ?? false;
+    }
     function renderFeatured() {
       directory.replaceChildren();
       if (profiles === null) {
-        directory.append(node('p', 'directory-status', currentLabels().loading));
+        const skeleton=node('div','preview-skeleton');
+        skeleton.setAttribute('aria-hidden','true');
+        skeleton.append(node('span'),node('span'),node('span'));
+        const browse=node('a','directory-status',lang==='ar'?'تصفّح المدربين المعتمدين':'Browse approved coaches');
+        browse.href='coaches.html';
+        directory.append(skeleton,browse);
         return;
       }
       if (directoryError) {
-        directory.append(node('p', 'directory-status', currentLabels().unavailable));
+        const fallback=node('a','directory-status',currentLabels().unavailable);
+        fallback.href='coaches.html';
+        directory.append(fallback);
         return;
       }
-      if (!profiles.length) {
-        directory.append(node('p', 'directory-status', currentLabels().empty));
+      const visibleProfiles=profiles.filter(matchesFilter);
+      if (!visibleProfiles.length) {
+        const empty=node('p','directory-status',featuredFilter?(lang==='ar'?'لا توجد نتائج لهذا الاختيار.':'No approved coaches match this filter.'):currentLabels().empty);
+        directory.append(empty);
         return;
       }
 
-      for (const profile of profiles.slice(0, 4)) {
+      for (const profile of visibleProfiles.slice(0, 4)) {
         const publicFields = new Set(Array.isArray(profile.public_fields) ? profile.public_fields : []);
         const card = node('a', 'coach-card');
         if (profile.has_profile_photo && publicFields.has('profile_photo')) {
@@ -142,6 +160,10 @@
           row.prepend(icon('list', 'coach-fact-icon'));
           info.append(row);
         }
+        if (profile.license_verified === true) info.append(node('p','coach-type',lang==='ar'?'ترخيص موثّق':'Verified professional license'));
+        if (publicFields.has('indicative_rate_qar') && Number(profile.indicative_rate_qar)>0) {
+          info.append(node('p','coach-type',(lang==='ar'?'سعر استرشادي: ':'Indicative rate: ')+profile.indicative_rate_qar+(lang==='ar'?' ر.ق.':' QAR')));
+        }
         info.append(node('span', 'coach-view', currentLabels().view + ' ↗'));
         card.append(info);
 
@@ -160,16 +182,19 @@
 
     renderFeatured();
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
-    const timeout = controller ? setTimeout(() => controller.abort(), 8000) : null;
-    fetch(`${api}/api/providers`, controller ? { signal: controller.signal } : {})
-      .finally(() => { if (timeout) clearTimeout(timeout); })
+    let timer;
+    const deadline = new Promise((_,reject) => {
+      timer=setTimeout(() => { controller?.abort(); reject(new Error('directory_timeout')); }, 4500);
+    });
+    const load = fetch(`${api}/api/providers`, controller ? {signal:controller.signal} : {})
       .then(response => {
         if (!response.ok) throw new Error(`provider_directory_http_${response.status}`);
         return response.json();
-      })
+      });
+    Promise.race([load,deadline]).finally(() => clearTimeout(timer))
       .then(data => {
         if (!Array.isArray(data.providers)) throw new Error('provider_directory_invalid_response');
-        profiles = data.providers;
+        profiles = data.providers.filter(profile => profile.provider_type!=='pacer');
         directoryError = false;
         const locations = new Set();
         for (const profile of profiles) {
@@ -191,6 +216,14 @@
         renderFeatured();
       });
 
+    filters?.addEventListener('click',event=>{
+      const chip=event.target.closest('button[data-filter]');
+      if(!chip)return;
+      featuredFilter=featuredFilter===chip.dataset.filter?'':chip.dataset.filter;
+      for(const item of filters.querySelectorAll('button'))item.setAttribute('aria-pressed',String(item.dataset.filter===featuredFilter));
+      renderFeatured();
+      document.getElementById('featured-coaches')?.scrollIntoView({block:'start'});
+    });
     document.addEventListener('mzactive:language-change', event => {
       lang = event.detail.lang === 'ar' ? 'ar' : 'en';
       renderFeatured();

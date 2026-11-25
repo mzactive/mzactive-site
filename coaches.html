@@ -42,7 +42,7 @@ header .main-nav a:hover,header .main-nav a:focus{color:#f2b718;text-decoration:
   .search-panel input, .search-panel select, .advanced input, .advanced select{min-height:44px}
 }
 </style>
-<link rel="stylesheet" href="assets/css/coach-directory.css?v=20261125"></head>
+<link rel="stylesheet" href="assets/css/coach-directory.css?v=20261125"><link rel="stylesheet" href="/assets/css/conversion-preview.css?v=1"></head>
 <body>
 <header><div class="wrap nav"><a class="brand" href="index.html"><img src="assets/brand/mzactive-logo.webp" alt="MZ Active"></a><nav class="main-nav" aria-label="Primary navigation" data-en-aria-label="Primary navigation" data-ar-aria-label="التنقل الرئيسي"><a href="index.html" data-en="Home" data-ar="الرئيسية">Home</a><a href="coaches.html" aria-current="page" data-en="Find Your Coach" data-ar="اعثر على مدربك">Find Your Coach</a><a href="pacer.html" data-en="Pacers" data-ar="المرافقون">Pacers</a><a href="providers.html">Join as a Coach</a><details class="nav-more"><summary>Explore</summary><div><a href="blog.html">Blog</a><a href="providers.html#provider-portal">My Profile</a></div></details><div class="nav-auth"><a class="auth-login" href="dashboard.html#loginForm" data-en="Log In" data-ar="تسجيل الدخول">Log In</a><a class="auth-signup" href="dashboard.html#registerForm" data-en="Sign Up" data-ar="إنشاء حساب">Sign Up</a></div></nav><button class="lang" id="lang">English</button></div></header>
 <section class="hero"><div class="wrap"><h1 data-ar="اعثر على مدربك في قطر" data-en="Find your coach in Qatar">اعثر على مدربك في قطر</h1><p data-ar="تصفح ملفات المدربين المعتمدين وتواصل مع المدرب المناسب لك." data-en="Browse approved coaches and contact the right coach for you.">تصفح ملفات المدربين المعتمدين وتواصل مع المدرب المناسب لك.</p></div></section>
@@ -130,4 +130,4 @@ function fetchProviders(url){const controller=typeof AbortController==='function
 function loadProviders(){loaded=false;failed=false;render();const query=applied.type?`?type=${encodeURIComponent(applied.type)}`:'';fetchProviders(`${API_BASE}/api/providers${query}`).then(r=>{if(!r.ok)throw new Error('directory_unavailable');return r.json()}).then(data=>{profiles=Array.isArray(data.providers)?data.providers.filter(p=>p.provider_type!=='pacer'):[];loaded=true;render();if(location.hash.startsWith('#coach-'))requestAnimationFrame(()=>document.querySelector(location.hash)?.scrollIntoView({behavior:'smooth',block:'center'}))}).catch(()=>{loaded=true;failed=true;render()})}loadProviders();
 </script>
 <script src="assets/js/site-language.js?v=20261120h"></script>
-<script src="assets/js/assistant-chat-v2.js?v=20261122b" defer></script><script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script></body></html>
+<script src="assets/js/assistant-chat-v2.js?v=20261122b" defer></script><script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script><script src="/assets/js/conversion-preview.js?v=1" defer></script></body></html>

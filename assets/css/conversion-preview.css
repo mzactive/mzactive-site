@@ -1,0 +1,27 @@
+.preview-sandbox-label{margin:0;padding:8px 16px;background:#fff0c4;color:#2d250e;text-align:center;font:600 13px/1.4 system-ui,sans-serif}
+.preview-filter-row{position:relative;display:flex;gap:8px;padding:8px 0 14px;overflow:auto}
+.preview-filter-row :is(button,a){flex:none;min-height:38px;padding:8px 13px;border:1px solid #bc9a51;border-radius:999px;background:#fff8e6;color:#493608;font:650 13px/1.5 system-ui;text-decoration:none}
+.preview-filter-row button[aria-pressed="true"]{background:#edbc54}
+.preview-skeleton{display:grid;grid-column:1/-1;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.preview-skeleton span{height:84px;border-radius:10px;background:#315452}
+.preview-mobile-nav{display:none}
+.preview-tools{width:min(92vw,420px);padding:20px;border:1px solid #af8a43;border-radius:14px;background:#fffdf8;color:#17332f}
+.preview-tools::backdrop{background:#102d2ccc}
+.preview-tools :is(a,button),.preview-panel :is(a,button){display:block;margin-top:10px;padding:10px 12px;border:1px solid #af8a43;border-radius:8px;background:#fff7e3;color:#493608;text-decoration:none;font:650 15px/1.5 system-ui}
+.preview-screen{margin:0;background:#fff7e3;color:#17332f;font:16px/1.5 system-ui,sans-serif}
+.preview-panel{max-width:550px;margin:45px auto;padding:20px}
+.preview-panel h1{font-size:30px}
+@media(max-width:720px),(display-mode:standalone){
+ body:has(.preview-mobile-nav){padding-block-end:calc(68px + env(safe-area-inset-bottom))}
+ .preview-mobile-nav{position:fixed;inset:auto 0 0;z-index:120;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:5px 5px calc(5px + env(safe-area-inset-bottom));gap:4px;border-top:1px solid #cdad68;background:#fffdf8}
+ .preview-mobile-nav :is(a,button){display:grid;place-items:center;min-height:48px;padding:4px;color:#17332f;text-align:center;font:650 12px/1.25 system-ui;text-decoration:none;border:0;background:none;border-radius:9px}
+ .preview-mobile-nav .preview-tools-button{background:#f2bd51}
+}
+.preview-standalone :is([data-mza-install-promo],[data-mza-install-link]){display:none!important}
+
+.preview-install{display:block;margin:8px auto;padding:7px 12px;border:1px solid #af8a43;border-radius:8px;background:#fff7e3;color:#493608;font:650 13px/1.4 system-ui}
+.preview-tools ol{padding-inline-start:22px}
+
+.preview-coach-trust{display:flex;gap:6px;flex-wrap:wrap;margin-block:8px}
+.preview-coach-trust:empty{display:none}
+.preview-coach-trust span{display:inline-block;padding:5px 9px;border:1px solid #d9c999;border-radius:999px;background:#fff7e3;color:#543a0c;font-size:12px}

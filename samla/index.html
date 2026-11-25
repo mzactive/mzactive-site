@@ -55,7 +55,7 @@
     footer{padding:24px 0;color:#838c85;font-size:12px;border-top:1px solid #2e6567;margin-top:28px}
     @media(max-width:700px){table{min-width:680px}th,td{padding:8px 6px;font-size:12px}}
   </style>
-</head>
+<link rel="stylesheet" href="/assets/css/conversion-preview.css?v=1"></head>
 <body>
 <script src="../assets/js/language-preference.js?v=20261120c"></script>
 <header>
@@ -115,6 +115,11 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 14h-2v-2h2Zm0-4h-2V7h2Z" fill="currentColor"/></svg>
         <span data-en="Get My AI Race Strategy" data-ar="احصل على استراتيجية سباقك بالذكاء الاصطناعي">Get My AI Race Strategy</span>
       </button>
+    </div>
+    <div class="action-row" id="previewSamlaActions" hidden>
+      <button class="button action-button" id="savePacingPlan" type="button" data-en="Save My Pacing Plan" data-ar="احفظ خطتي للوتيرة">Save My Pacing Plan</button>
+      <a class="button action-button" href="/coaches.html?sport=running" data-en="Find a Running Coach" data-ar="ابحث عن مدرب جري">Find a Running Coach</a>
+      <a class="button action-button" href="/pacer.html#champions" data-en="Find a Pacer" data-ar="ابحث عن مرافق">Find a Pacer</a>
     </div>
     <section id="aiStrategyPanel" class="card" hidden>
       <div class="send-dialog-head">
@@ -615,7 +620,15 @@
   document.getElementById('calculateButton').addEventListener('click', () => {
     document.getElementById('aiStrategyPanel').hidden = true;
     transitionInput.dispatchEvent(new Event('input'));
+    if(location.hostname==='mzactive-conversion-staging.mzactive5.workers.dev' && document.getElementById('validation').hidden) {
+      document.getElementById('previewSamlaActions').hidden=false;
+    }
   });
+  document.getElementById('savePacingPlan').onclick=()=>{
+    if(location.hostname!=='mzactive-conversion-staging.mzactive5.workers.dev')return;
+    sessionStorage.setItem('mza-preview-samla-plan',JSON.stringify({durations:collectMainDurations(),transitions:transitionInput.value}));
+    location.assign('/preview-account.html');
+  };
   document.getElementById('shareCardButton').addEventListener('click', () => {
     const canvas = document.getElementById('strategyCanvas');
     const preview = document.getElementById('shareCardPreview');
@@ -726,7 +739,7 @@
   transitionInput.addEventListener('input', () => { for (const stage of stages) {} });
 </script>
 <script src="../assets/js/site-language.js?v=20261120h"></script>
-</body>
+<script src="/assets/js/conversion-preview.js?v=1" defer></script></body>
 </html>
 MD
 echo created

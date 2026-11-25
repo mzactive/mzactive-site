@@ -99,6 +99,13 @@
     $('#tagline').textContent = p.bio || '';
     $('#tagline').hidden = true;
     $('#verified').hidden = !(p.verified === true);
+    const trust = $('#previewCoachTrust');
+    if (trust) {
+      trust.replaceChildren();
+      if (p.license_verified === true) trust.append(node('span',t('Verified professional license','ترخيص مهني موثّق')));
+      if (Number(p.experience_years)>0) trust.append(node('span',p.experience_years+' '+t('years of experience','سنوات خبرة')));
+      if (Number(p.indicative_rate_qar)>0) trust.append(node('span',t('Indicative rate: ','السعر الاسترشادي: ')+p.indicative_rate_qar+t(' QAR',' ر.ق.')));
+    }
     $('#photoVerified').hidden = true;
     $('#coachType').textContent = roleName(p);
 
@@ -803,6 +810,7 @@
     }
     const statuses = {
       sending: t('Sending…', 'جارٍ الإرسال…'),
+      preview_confirmed: t('Test booking confirmed. No payment or real reservation was made.', 'تم تأكيد الحجز التجريبي دون تحصيل مبلغ أو حجز فعلي.'),
       coaching: t('Request sent. The coach can contact you using the number you provided.', 'تم إرسال الطلب. يمكن للمدرب التواصل معك عبر الرقم الذي أدخلته.'),
       message: t('Message sent privately. The coach can reply using the number you provided.', 'تم إرسال رسالتك بشكل خاص. يمكن للمدرب الرد عبر الرقم الذي أدخلته.'),
       limit: t('Too many requests. Please try again later.', 'تم تجاوز عدد الطلبات المسموح به. يرجى المحاولة لاحقاً.'),
@@ -820,6 +828,7 @@
     if ($('#contactFields').hidden) form.reset();
     contactKind = kind;
     contactResult = '';
+    $('#previewCoachCheckout').hidden=true;
     $('#contactFields').hidden = false;
     const type = profile.provider_type || 'coach';
     const durations = type === 'coach' ? (profile.program_durations || []).filter(months => [1, 2, 3].includes(months)) : [];
@@ -878,8 +887,15 @@
         headers: { 'Content-Type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(body),
       });
-      if (response.ok && (await response.json()).request_id) {
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && result.request_id) {
         contactResult = contactKind;
+        if (window.MZA_CONVERSION_STAGING && contactKind==='coaching' && result.staging && /^\/preview-checkout\.html\?booking=[a-f0-9-]{36}$/.test(result.checkout_url)) {
+          const checkout = $('#previewCoachCheckout');
+          checkout.href = result.checkout_url;
+          checkout.hidden = false;
+          contactResult = 'preview_confirmed';
+        }
         $('#contactFields').hidden = true;
         form.reset();
         $('#contactClose').focus();

@@ -1182,7 +1182,7 @@ html[dir="rtl"] .footer-install { text-align: right; }
 @media(max-width:720px){.coach-card{grid-template-columns:72px minmax(0,1fr)!important;min-height:96px!important}.coach-card-photo,.coach-card-photo-placeholder{width:72px!important;height:96px!important}.coach-card h3{font-size:10px!important}}
 @media(max-width:360px){.coach-card{grid-template-columns:68px minmax(0,1fr)!important;min-height:90px!important}.coach-card-photo,.coach-card-photo-placeholder{width:68px!important;height:90px!important}}
 </style>
-</head>
+<link rel="stylesheet" href="/assets/css/conversion-preview.css?v=1"></head>
 <body class="home-page">
   <header class="site-header">
     <div class="header-inner">
@@ -1245,6 +1245,15 @@ html[dir="rtl"] .footer-install { text-align: right; }
           <p class="hero-note" data-en="One-to-one coaching · Worldwide" data-ar="تدريب فردي · حول العالم">One-to-one coaching · Worldwide</p>
         </div>
       </div>
+      <nav class="preview-filter-row wrap" id="previewCoachFilters" aria-label="Quick coach filters">
+        <button type="button" data-filter="running" data-en="Running" data-ar="الجري">Running</button>
+        <button type="button" data-filter="padel" data-en="Padel" data-ar="البادل">Padel</button>
+        <button type="button" data-filter="hyrox" data-en="HYROX" data-ar="هايروكس">HYROX</button>
+        <a href="/samla/" data-en="Samla 200" data-ar="صملة ٢٠٠">Samla 200</a>
+        <button type="button" data-filter="doha" data-en="Doha / In person" data-ar="الدوحة / حضورياً">Doha / In person</button>
+        <button type="button" data-filter="online" data-en="Online coaching" data-ar="تدريب عن بُعد">Online coaching</button>
+        <a href="/pacer.html#champions" data-en="Pacers" data-ar="المرافقون">Pacers</a>
+      </nav>
     </section>
 
     <a id="samlaCampaignBanner" class="samla-campaign-banner" href="/samla/" hidden aria-labelledby="samla-banner-title">
@@ -1393,7 +1402,7 @@ html[dir="rtl"] .footer-install { text-align: right; }
       </div>
     </section>
 
-    <section class="featured-section" aria-labelledby="featured-title">
+    <section class="featured-section" id="featured-coaches" aria-labelledby="featured-title">
       <div class="wrap">
         <div class="section-heading section-heading-row">
           <div>
@@ -1403,10 +1412,9 @@ html[dir="rtl"] .footer-install { text-align: right; }
           <a class="text-link" href="coaches.html" data-en="Browse the directory" data-ar="تصفح الدليل">Browse the directory <span aria-hidden="true">↗</span></a>
         </div>
         <div id="featuredCoachGrid" class="featured-grid" aria-live="polite">
-          <p class="directory-status" data-en="Loading approved coaches…" data-ar="جارٍ تحميل المدربين المعتمدين…">Loading approved coaches…</p>
+          <a class="directory-status" href="coaches.html" data-en="Browse approved coaches" data-ar="تصفّح المدربين المعتمدين">Browse approved coaches</a>
         </div>
-        <p class="directory-disclaimer" data-en="Only profiles approved by MZ Active are shown. No ratings or credentials are added by the directory." data-ar="تعرض الصفحة الملفات التي اعتمدتها MZ Active فقط. ولا يضيف الدليل تقييمات أو مؤهلات من عنده.">Only profiles approved by MZ Active are shown. No ratings or credentials are added by the directory.</p>
-      </div>
+              </div>
     </section>
 
     <section class="community-section" aria-labelledby="community-title">
@@ -1500,8 +1508,8 @@ html[dir="rtl"] .footer-install { text-align: right; }
   </dialog>
 
   <script src="assets/js/site-language.js?v=20261120h" defer></script>
-  <script src="assets/js/homepage.js?v=20261124a" defer></script>
+  <script src="assets/js/homepage.js?v=20261125-conversion" defer></script>
   <script src="assets/js/management-contact.js"></script><script src="assets/js/whatsapp-chat.js" defer></script>
   <script src="assets/js/assistant-chat-v2.js?v=20261122b" defer></script>
-<script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script></body>
+<script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script><script src="/assets/js/conversion-preview.js?v=1" defer></script></body>
 </html>
