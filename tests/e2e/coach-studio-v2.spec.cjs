@@ -22,3 +22,36 @@ test('language switches to Arabic',async({page})=>{await open(page);await choose
 
 
 test('signed out visitor cannot access the workspace',async({page})=>{await open(page,{signedIn:false});await expect(page.getByText('This workspace is available to approved coaches.',{exact:false})).toBeVisible();await expect(page.locator('#studio')).toBeHidden()});
+
+test('workout library creates reusable sessions without an athlete and assigns independent copies',async({page})=>{
+ await open(page);await expect(page.locator('#studio')).toBeVisible();
+ await page.locator('[data-screen=sessions]').click();await page.getByRole('button',{name:'Create workout'}).click();
+ const d=page.locator('#dialog');await d.getByLabel('Workout name').fill('Reusable Strength');
+ await d.getByLabel('Add exercise').fill('goblet');await d.getByRole('button',{name:/Goblet squat/}).click();
+ await d.getByLabel('Sets',{exact:true}).fill('3');await d.getByLabel('Reps',{exact:true}).fill('10');await d.getByRole('button',{name:'Save workout'}).click();
+ await expect(page.getByText('Reusable Strength',{exact:true})).toBeVisible();
+ await page.locator('[data-screen=calendar]').click();await choose(page);
+ await page.locator('#calendarGrid .day').first().getByRole('button',{name:'From library',exact:true}).click();
+ await d.getByRole('button',{name:'Add to calendar'}).click();await expect(page.locator('#calendarGrid').getByText('Reusable Strength')).toBeVisible();
+ await page.locator('[data-screen=sessions]').click();await page.getByRole('button',{name:'Edit',exact:true}).click();
+ await d.getByLabel('Workout name').fill('Revised Strength');await d.getByRole('button',{name:'Save workout'}).click();
+ await expect(page.getByText('Revised Strength',{exact:true})).toBeVisible();
+ await page.locator('[data-screen=calendar]').click();await expect(page.locator('#calendarGrid').getByText('Reusable Strength')).toBeVisible();
+});
+test('coach creates custom bilingual exercise and uses it in a workout',async({page})=>{
+ await open(page);await expect(page.locator('#studio')).toBeVisible();await page.locator('[data-screen=exercises]').click();
+ const d=page.locator('#dialog');await page.getByRole('button',{name:'Create exercise'}).click();
+ await d.getByLabel('English name').fill('MZA band walk');await d.getByLabel('Arabic name').fill('مشي بالمطاط');await d.getByLabel('Target muscles').fill('Glutes');await d.getByLabel('Equipment').fill('Band');await d.getByRole('button',{name:'Save exercise'}).click();
+ await page.getByRole('searchbox',{name:'Search exercises'}).fill('MZA band walk');await expect(page.getByText('MZA band walk',{exact:true})).toBeVisible();
+ await page.locator('[data-screen=sessions]').click();await page.getByRole('button',{name:'Create workout'}).click();
+ await d.getByLabel('Workout name').fill('Custom drill');await d.getByLabel('Add exercise').fill('MZA band walk');await d.getByRole('button',{name:/MZA band walk/}).click();
+ await expect(d.getByText('MZA band walk',{exact:true})).toBeVisible();await d.getByRole('button',{name:'Save workout'}).click();await expect(page.getByText('Custom drill',{exact:true})).toBeVisible();
+});
+test('calendar library drawer applies reusable program to an empty week',async({page})=>{
+ await open(page);await choose(page);await create(page);
+ await page.getByRole('button',{name:'Save week as template'}).click();
+ const d=page.locator('#dialog');await d.getByLabel('Template name').fill('Week from library');await d.getByRole('button',{name:'Save template',exact:true}).click();
+ await choose(page,'conn-b');await page.getByRole('button',{name:'Add from library',exact:true}).click();
+ await expect(d).toHaveClass(/library-drawer/);await d.getByRole('button',{name:'Apply to week'}).click();
+ await expect(page.locator('#calendarGrid').getByText('Strength A')).toBeVisible();
+});
