@@ -153,3 +153,11 @@ body.community-page:not(.home-page) main :is(input,textarea,select){color:#17342
  .community-page .activity-fields label:last-child{grid-column:1/-1}
  .community-page .feed-actions button{font-size:13px;padding-inline:8px}
 }
+
+.community-page #privateActivityPanel{scroll-margin-top:16px;margin:0 0 16px}
+.community-page #privateActivityPanel h3{margin:0 0 8px}
+.community-page #privateActivityPanel .activity-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.community-page #privateActivityPanel .activity-fields label:last-child{grid-column:auto}
+.community-page .private-activity-card{padding:16px 0;border-top:1px solid #dce4de;display:grid;gap:8px}
+.community-page .private-activity-card>p{white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.community-page .private-activity-card .activity-stat-grid{grid-template-columns:repeat(auto-fit,minmax(85px,1fr))}
