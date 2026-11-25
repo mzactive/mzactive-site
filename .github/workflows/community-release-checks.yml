@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'community.html'
+      - 'coaches.html'
+      - 'assets/css/coach-directory.css'
       - 'pacer.html'
       - 'pacer-profile.html'
       - 'assets/js/community-*.js'
@@ -27,6 +29,7 @@ jobs:
           node --check assets/js/community-feed.js
           node --check assets/js/community-social.js
           node --check assets/js/community-public.js
+          node --check assets/js/community-groups.js
           node --check assets/js/community-activity-log.js
           node --check backend/activity-log.js
           node --check backend/worker.js
