@@ -8,7 +8,7 @@
   <title>Coach profile | MZ Active</title>
   <script src="assets/js/language-preference.js?v=20261120c" defer></script>
   <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h">
-  <link rel="stylesheet" href="assets/css/coach-profile.css?v=20261125b">
+  <link rel="stylesheet" href="assets/css/coach-profile.css?v=20261125-contact">
 <link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
 
 </head>
@@ -53,11 +53,9 @@
           </div>
           <div class="profile-actions">
             <button id="followPublic" class="button button-light" type="button"><span data-en="Follow" data-ar="متابعة">Follow</span></button>
-            <!-- Owner and signed-in viewer controls are created by coach-profile.js
-                 only after the API identifies the viewer. Public visitors receive
-                 Share profile and Request a session only. -->
             <button id="share" class="button button-light" type="button"><span aria-hidden="true">↗</span><span data-en="Share profile" data-ar="مشاركة الملف">Share profile</span></button>
-            <a id="book" class="button button-primary" href="#"><span data-en="Request coaching" data-ar="اطلب التدريب">Request coaching</span></a>
+            <a id="book" class="button button-primary" href="#coachContact" hidden><span data-en="Request coaching" data-ar="اطلب التدريب">Request coaching</span></a>
+            <button id="connectCoach" type="button" class="button button-light" hidden><span data-en="Message privately" data-ar="مراسلة خاصة">Message privately</span></button>
           </div>
         </div>
         <nav id="profileTabs" class="profile-tabs" aria-label="Coach profile sections">
@@ -72,6 +70,29 @@
           <button type="button" class="social-tab" data-social-tab="about" role="tab" aria-selected="false" data-en="Credentials" data-ar="المؤهلات">Credentials</button>
         </nav>
       </section>
+
+
+      <dialog id="coachContact" class="coach-contact" aria-labelledby="contactTitle">
+        <form id="coachContactForm">
+          <div class="contact-heading">
+            <h2 id="contactTitle"></h2>
+            <button type="button" id="contactClose" class="button button-light" aria-label="Close" data-en-aria-label="Close" data-ar-aria-label="إغلاق">×</button>
+          </div>
+          <p data-en="You can send this without creating an account." data-ar="يمكنك الإرسال دون إنشاء حساب.">You can send this without creating an account.</p>
+          <div id="contactFields">
+            <div class="contact-grid">
+              <label><span data-en="Your name" data-ar="اسمك">Your name</span><input name="customer_name" autocomplete="name" maxlength="100" required></label>
+              <label><span data-en="Phone number" data-ar="رقم الهاتف">Phone number</span><input name="customer_phone" type="tel" autocomplete="tel" dir="ltr" maxlength="40" required></label>
+              <label id="contactDurationLabel"><span data-en="Program length" data-ar="مدة البرنامج">Program length</span><select name="program_duration_months" id="contactDuration"></select></label>
+              <label id="contactServiceLabel"><span data-en="Service" data-ar="الخدمة">Service</span><select name="service_name" id="contactService"></select></label>
+            </div>
+            <label><span id="contactMessageLabel"></span><textarea name="goal_summary" maxlength="900" rows="3" required></textarea></label>
+            <label class="contact-consent"><input name="consent" type="checkbox" required><span><span data-en="I agree to share these details with this provider." data-ar="أوافق على مشاركة هذه البيانات مع مقدم الخدمة.">I agree to share these details with this provider.</span> <a href="privacy.html" target="_blank" rel="noopener" data-en="Privacy notice" data-ar="إشعار الخصوصية">Privacy notice</a></span></label>
+            <button type="submit" id="contactSubmit" class="button button-primary"></button>
+          </div>
+          <p id="contactStatus" role="status" aria-live="polite"></p>
+        </form>
+      </dialog>
 
       <div class="profile-layout" id="overview">
         <aside class="left-rail" aria-label="Coach details" data-social-panel="about">
@@ -164,7 +185,7 @@
 </footer>
 
   <script src="assets/js/api-base.js" defer></script>
-  <script src="assets/js/coach-profile.js?v=20261125b" defer></script>
+  <script src="assets/js/coach-profile.js?v=20261125-contact" defer></script>
   <script src="assets/js/site-language.js?v=20261120h" defer></script>
   <script src="assets/js/management-contact.js"></script><script src="assets/js/whatsapp-chat.js" defer></script>
   <script src="assets/js/assistant-chat-v2.js?v=20261122b" defer></script>
