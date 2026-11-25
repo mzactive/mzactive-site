@@ -102,7 +102,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="MZA">
   <script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
-  <link rel="stylesheet" href="assets/css/community-signup.css?v=20261125-white-gold">
+  <link rel="stylesheet" href="assets/css/community-signup.css?v=20261125-activity">
 </head>
 <body class="community-page">
 <script src="assets/js/language-preference.js?v=20261120c"></script>
@@ -118,8 +118,8 @@
 <main>
   <section class="hero">
     <div class="community-hero-copy">
-    <h1 data-en="Community" data-ar="المجتمع">Community</h1>
-    <p class="lead" data-en="Share your training and find people to move with in Qatar." data-ar="شارك تدريباتك وتعرّف على أشخاص يشاركونك النشاط في قطر.">Share your training and find people to move with in Qatar.</p>
+    <h1 data-en="Your sporting community" data-ar="مجتمعك الرياضي">Your sporting community</h1>
+    <p class="lead" data-en="Share your training, celebrate progress and find people to move with." data-ar="شارك تدريباتك واحتفل بتقدمك وتعرّف على أشخاص يشاركونك النشاط.">Share your training, celebrate progress and find people to move with.</p>
     <div class="community-hero-links">
       <a href="#feed" data-en="Activity feed" data-ar="آخر الأنشطة">Activity feed</a>
       <a href="#upcoming" data-en="Events" data-ar="الفعاليات">Events</a>
@@ -139,7 +139,7 @@
   </section>
 
   <section id="feed">
-    <h2 data-en="Community feed" data-ar="خلاصة المجتمع">Community feed</h2>
+    <div class="activity-heading"><div><p class="activity-eyebrow">MZACTIVE</p><h2 data-en="Activity feed" data-ar="موجز الأنشطة">Activity feed</h2></div><a class="activity-profile" href="dashboard.html" data-en="My profile" data-ar="ملفي الشخصي">My profile</a></div>
     <nav id="communitySocialTabs" class="fb-feed-tabs" aria-label="Community sections" role="tablist">
       <button type="button" class="social-tab" data-feed-tab="feed" aria-selected="true" data-en="Feed" data-ar="الخلاصة">Feed</button>
       <button type="button" class="social-tab" data-feed-tab="groups" aria-selected="false" data-en="Groups" data-ar="المجموعات">Groups</button>
@@ -147,10 +147,12 @@
       <button type="button" class="social-tab" data-feed-tab="challenges" aria-selected="false" data-en="Challenges" data-ar="التحديات">Challenges</button>
     </nav>
     <div class="fb-composer"><label for="fbComposerText" data-en="Share your sporting journey…" data-ar="شارك رحلتك الرياضية…">Share your sporting journey…</label><input id="fbComposerText" maxlength="4000" aria-label="Share your sporting journey"><div class="fb-composer-actions">
+      <button type="button" class="activity-primary" data-compose="activity" data-en="+ Log activity" data-ar="+ سجّل نشاطاً">+ Log activity</button>
+      <button type="button" data-compose="post" data-en="Write a post" data-ar="اكتب منشوراً">Write a post</button>
       <button type="button" data-compose="photo" data-en="Photo" data-ar="صورة">Photo</button>
-      <button type="button" data-compose="video" data-en="Video" data-ar="فيديو">Video</button>
+      
       <button type="button" data-compose="event" data-en="Event" data-ar="فعالية">Event</button>
-      <a href="dashboard.html#whatsappTrainingForm" data-compose="program" data-en="Program" data-ar="برنامج">Program</a>
+      
     </div></div>
     <p id="feedNotice" class="note" role="status" aria-live="polite" data-en="Real posts, events and group sessions appear here after MZ Active moderation." data-ar="تظهر المنشورات والفعاليات والحصص الجماعية الحقيقية هنا بعد إشراف MZ Active.">Real posts, events and group sessions appear here after MZ Active moderation.</p>
     <p id="signInPrompt"><span data-en="Sign in from your dashboard to publish, like, comment and join group sessions." data-ar="سجّل الدخول من لوحة التحكم للنشر والإعجاب والتعليق والانضمام إلى الحصص الجماعية.">Sign in from your dashboard to publish, like, comment and join group sessions.</span> <a href="dashboard.html" data-en="Open dashboard" data-ar="افتح لوحة التحكم">Open dashboard</a></p>
@@ -158,7 +160,8 @@
       <p id="composerCommunityLabel" class="note"></p>
       <p id="postAccessNotice" class="note" hidden></p>
       <label><span data-en="Post type" data-ar="نوع المنشور">Post type</span><select id="postKind"><option value="post" data-en="Update" data-ar="تحديث">Update</option><option value="event" data-en="Event" data-ar="فعالية">Event</option><option value="group_session" data-en="Group session" data-ar="جلسة جماعية">Group session</option></select></label>
-      <label><span data-en="Your post" data-ar="منشورك">Your post</span><textarea id="postBody" maxlength="4000" rows="4" required></textarea></label>
+      <label><span data-en="Title or notes" data-ar="العنوان أو الملاحظات">Title or notes</span><textarea id="postBody" maxlength="3700" rows="3" required></textarea></label>
+      <details id="activityMetrics" class="activity-metrics"><summary data-en="Add workout statistics (optional)" data-ar="أضف إحصاءات التمرين (اختياري)">Add workout statistics (optional)</summary><p class="note" data-en="These statistics will be included in your community post. Only share information you want this audience to see." data-ar="ستظهر هذه الإحصاءات في منشورك المجتمعي. شارك فقط المعلومات التي ترغب أن يراها هذا الجمهور.">These statistics will be included in your community post. Only share information you want this audience to see.</p><div class="activity-fields"><label><span data-en="Distance (km)" data-ar="المسافة (كم)">Distance (km)</span><input id="activityDistance" type="number" min="0.01" max="1000" step="0.01" inputmode="decimal"></label><label><span data-en="Duration (minutes)" data-ar="المدة (دقائق)">Duration (minutes)</span><input id="activityDuration" type="number" min="0.1" max="1440" step="0.1" inputmode="decimal"></label><label><span data-en="Activity date" data-ar="تاريخ النشاط">Activity date</span><input id="activityDate" type="date"></label></div><p id="activityEstimate" class="activity-estimate" aria-live="polite" data-user-content></p></details>
       <div class="feed-filters"><label><span data-en="Sport" data-ar="الرياضة">Sport</span><select id="postSport"><option value="" data-en="General" data-ar="عام">General</option><option value="running">Running</option><option value="walking">Walking</option><option value="fitness">Fitness</option><option value="strength">Strength</option><option value="cycling">Cycling</option><option value="swimming">Swimming</option><option value="padel">Padel</option><option value="triathlon">Triathlon</option><option value="hyrox">Hyrox</option><option value="boxing">Boxing</option><option value="kickboxing">Kickboxing</option><option value="football">Football</option><option value="other">Other</option></select></label><label id="postStartsWrap" hidden><span data-en="Starts at" data-ar="يبدأ في">Starts at</span><input id="postStartsAt" type="datetime-local"></label></div>
       <div id="postEventFields" class="feed-filters" hidden><label><span data-en="Location" data-ar="المكان">Location</span><input id="postLocation" maxlength="120"></label><label><span data-en="Capacity" data-ar="السعة">Capacity</span><input id="postCapacity" type="number" min="1" max="10000"></label></div>
       <label><span data-en="Photos (up to 3)" data-ar="الصور (حتى ٣ صور)">Photos (up to 3)</span><input id="postPhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple></label>
@@ -384,9 +387,9 @@
   document.addEventListener('mzactive:language-change',event=>{lang=event.detail.lang;render()});render();
 })();
 </script>
-<script src="assets/js/community-feed.js?v=20261124b" defer></script>
+<script src="assets/js/community-feed.js?v=20261125-activity" defer></script>
 <script src="assets/js/community-groups.js?v=20261125-locale" defer></script>
-<script src="assets/js/community-social.js?v=20261124a" defer></script>
+<script src="assets/js/community-social.js?v=20261125-activity" defer></script>
 <script src="assets/js/site-language.js?v=20261120h"></script>
 <script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script>
 <script src="assets/js/community-event-signup.js?v=20261125-event-alerts" defer></script>
