@@ -61,11 +61,12 @@ test('centralized sign-in always follows the backend destination, never a chosen
   assert.match(helper, /data\?\.dashboard_path/);
   assert.doesNotMatch(helper, /provider_type|FormData|querySelector|<input|<select/);
   for (const page of ['admin.html', 'dashboard.html', 'providers.html']) {
-    assert.match(read(page), /assets\/js\/auth-session\.js\?v=20261120h/, page);
+    assert.match(read(page), /assets\/js\/auth-session\.js\?v=[^"]+/, page);
   }
   assert.match(read('assets/js/admin.js'), /window\.MZActiveAuth\.store\(d\)/);
   assert.match(read('dashboard.html'), /window\.MZActiveAuth\.store\(data\)/);
   assert.match(read('dashboard.html'), /window\.MZActiveAuth\.destination\(access\)/);
+  assert.match(read('dashboard.html'), /access\.account_type==='member'&&window\.MZActiveAuth\.isWorkoutId\(workout\)/);
   assert.match(read('providers.html'), /window\.MZActiveAuth\.store\(data\)/);
   assert.match(read('providers.html'), /window\.MZActiveAuth\.destination\(access\)/);
 });

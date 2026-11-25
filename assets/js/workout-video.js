@@ -11,6 +11,13 @@
   }catch{return ''}
  }
  const url=id=>valid(id)?'https://www.youtube.com/watch?v='+id:'';
+ function appendLink(root,id,label){
+  if(!valid(id))return;
+  const link=document.createElement('a');
+  link.href=url(id);link.target='_blank';link.rel='noopener noreferrer';
+  link.textContent=label;link.className='mza-video-link';
+  root.append(link);
+ }
  function appendInstructions(root,text,label,exerciseLength){
   const structured=Number.isInteger(exerciseLength)&&exerciseLength>=0&&exerciseLength<=text.length;
   const instructions=structured?text.slice(exerciseLength+(exerciseLength?1:0)):'';
@@ -19,7 +26,7 @@
   lines.forEach((line,i)=>{
    if(i)root.append(document.createTextNode('\n'));
    const id=idFromUrl(line);
-   if(id){const a=document.createElement('a');a.href=url(id);a.target='_blank';a.rel='noopener noreferrer';a.textContent=label;a.className='mza-video-link';root.append(a)}
+   if(id)appendLink(root,id,label)
    else root.append(document.createTextNode(line));
   });
   if(structured&&instructions){
@@ -29,5 +36,5 @@
   root.style.whiteSpace='pre-wrap';
   root.style.overflowWrap='anywhere';
  }
- window.MZAWorkoutVideo={valid,idFromUrl,url,appendInstructions};
+ window.MZAWorkoutVideo={valid,idFromUrl,url,appendInstructions,appendLink};
 })();

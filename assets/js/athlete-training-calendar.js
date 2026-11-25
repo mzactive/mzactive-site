@@ -16,11 +16,15 @@ const button=(text,fn)=>{const b=el('button',text,'secondary');b.type='button';b
 const panel=el('section',undefined,'panel mza-athlete-calendar');panel.id='mzaAthleteCalendar';panel.hidden=true;panel.setAttribute('data-language-skip','');host.prepend(panel);
 const dialog=el('dialog',undefined,'studio-dialog');dialog.id='mzaAthleteWorkout';document.body.append(dialog);
 let programs=[],selected='',pending=false;
+const workoutId=new URLSearchParams(location.search).get('workout');
+let openLinkedWorkout=window.MZActiveAuth?.isWorkoutId(workoutId)===true;
+let workoutLinkUnavailable=false;
 function sessions(){return programs.flatMap(p=>(p.sessions||[]).map(s=>{const fallback=dateRE.test(p.week_start||'')&&days.includes(s.day_key)?shift(monday(p.week_start),days.indexOf(s.day_key)):'';return {...s,date:dateRE.test(s.session_date||'')?s.session_date:fallback};})).filter(s=>s.date&&s.id);}
 function parse(details){const lines=String(details||'').split('\n');let meta={};if(lines[1]?.startsWith('[MZ:')){try{meta=JSON.parse(lines[1].slice(4,-1));}catch{}return{title:lines[0],body:lines.slice(2).join('\n'),meta};}return {title:lines[0],body:lines.slice(1).join('\n'),meta};}
 function render(){
  if(window.mzStudioDashboard?.role!=='member'){panel.hidden=true;return;}panel.hidden=false;if(!selected)selected=localDate();panel.replaceChildren();
  const heading=el('h2',t('My training','تدريبي'));const sub=el('p',t('Your assigned workouts, calendar and progress.','حصصك المخصصة وتقويمك وتقدمك.'),'muted');panel.append(heading,sub);
+ if(workoutLinkUnavailable)panel.append(el('p',t('This workout is unavailable in your account.','هذه الحصة غير متاحة في حسابك.'),'muted'));
  const rows=sessions(),start=monday(selected),end=shift(start,6),week=rows.filter(s=>s.date>=start&&s.date<=end),done=week.filter(s=>s.completed_at);
  const metrics=el('div',undefined,'mza-athlete-metrics');for(const [value,label] of [[done.length+' / '+week.length,t('Completed this week','حصص مكتملة هذا الأسبوع')],[done.reduce((n,s)=>n+Number(s.actual_km||0),0).toFixed(1)+' km',t('Distance logged','المسافة المسجلة')],[done.reduce((n,s)=>n+Number(s.duration_minutes||0),0)+' min',t('Time logged','المدة المسجلة')]]){const cell=el('div');cell.append(el('strong',value),el('small',label));metrics.append(cell);}panel.append(metrics);
  const nav=el('div',undefined,'mza-athlete-week-nav');const title=el('strong',dateText(start,{day:'numeric',month:'short'})+' — '+dateText(end,{day:'numeric',month:'short',year:'numeric'}));nav.append(button(t('Previous','السابق'),()=>{selected=shift(selected,-7);render();}),title,button(t('Next','التالي'),()=>{selected=shift(selected,7);render();}),button(t('Today','اليوم'),()=>{selected=localDate();render();}));panel.append(nav);
@@ -39,10 +43,20 @@ function openWorkout(session){
  const close=button(t('Close','إغلاق'),()=>{if(!pending)dialog.close();});const reset=button(t('Mark incomplete','إلغاء إكمال الحصة'),()=>submit(false));reset.hidden=!session.completed_at;
  async function submit(completed){if(pending||window.mzStudioDashboard?.role!=='member')return;if(completed&&(!km.checkValidity()||!min.checkValidity())){if(!km.checkValidity())km.reportValidity();else min.reportValidity();return;}const token=window.MZActiveAuth?.token();if(!token){status.textContent=t('Sign in again.','سجل الدخول مجدداً.');return;}pending=true;save.disabled=reset.disabled=close.disabled=true;
   try{const res=await fetch(window.MZACTIVE_API_BASE+'/api/dashboard/program-sessions/'+encodeURIComponent(session.id)+'/complete',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({completed,actual_km:Number(km.value||0),duration_minutes:Number(min.value||0)})});const data=await res.json();if(!res.ok)throw Error(data.error||'request_failed');if(token!==window.MZActiveAuth?.token())return;for(const p of programs){const s=(p.sessions||[]).find(x=>x.id===session.id);if(s){s.completed_at=completed?new Date().toISOString():null;s.actual_km=completed?data.actual_km:0;s.duration_minutes=completed?data.duration_minutes:0;}}dialog.close();render();document.dispatchEvent(new CustomEvent('mzactive:athlete-log-updated',{detail:window.mzStudioDashboard}));}catch{status.textContent=t('Could not save. Please try again.','تعذر الحفظ. حاول مرة أخرى.');}finally{pending=false;save.disabled=reset.disabled=close.disabled=false;}}
- dialog.append(heading,body,grid,save,reset,close,status);dialog.showModal();
+ dialog.append(heading);
+ window.MZAWorkoutVideo.appendLink(dialog,d.meta.workoutVideoId,t('Watch workout video ↗','شاهد فيديو الحصة ↗'));
+ dialog.append(body,grid,save,reset,close,status);dialog.showModal();
 }
 dialog.addEventListener('cancel',event=>{if(pending)event.preventDefault();});
-function update(data){if(data?.role!=='member'){panel.hidden=true;programs=[];selected='';return;}programs=data.programs||[];render();}
+function update(data){if(data?.role!=='member'){panel.hidden=true;programs=[];selected='';return;}programs=data.programs||[];
+ if(!openLinkedWorkout){render();return;}
+ openLinkedWorkout=false;
+ const linked=sessions().find(session=>session.id===workoutId);
+ workoutLinkUnavailable=!linked;
+ if(linked)selected=linked.date;
+ render();
+ if(linked)openWorkout(linked);
+}
 document.addEventListener('mzactive:dashboard-loaded',e=>update(e.detail));
 document.addEventListener('mzactive:language-change',()=>{if(dialog.open&&!pending)dialog.close();render();});
 $('signOut')?.addEventListener('click',()=>{panel.hidden=true;panel.replaceChildren();programs=[];selected='';if(dialog.open)dialog.close();});

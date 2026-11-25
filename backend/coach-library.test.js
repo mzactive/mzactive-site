@@ -61,6 +61,10 @@ test('schema removes unrecognized private fields and rejects malformed records',
 test('YouTube video ID survives stored exercise and program validation',()=>{
  const v={...movement,videoId:'dQw4w9WgXcQ'};
  assert.equal(cleanLibraryItem('exercise',v.id,v).videoId,v.videoId);
+ const videoOnly={...workout,notes:'',exercises:[],videoId:v.videoId};
+ assert.equal(cleanLibraryItem('workout',videoOnly.id,videoOnly).videoId,v.videoId);
+ assert.equal(cleanLibraryItem('program',program.id,{...program,sessions:[{...videoOnly,offset:2}]}).sessions[0].videoId,v.videoId);
+ assert.throws(()=>cleanLibraryItem('workout',videoOnly.id,{...videoOnly,videoId:'wrong-link'}));
  assert.equal(cleanLibraryItem('program',program.id,{...program,sessions:[{...workout,offset:2,exercises:[v]}]}).sessions[0].exercises[0].videoId,v.videoId);
  assert.throws(()=>cleanLibraryItem('exercise',v.id,{...v,videoId:'javascript:bad'}));
 });

@@ -6,7 +6,7 @@ const connection=(id,user,name)=>({id,coach_user_id:coach,athlete_user_id:user,a
 const connections=[connection('conn-a',athlete,'Alex Runner'),connection('conn-b',second,'Sam Athlete'),{...connection('conn-c','no-access','Closed athlete'),workspace_status:'closed'}];
 function localDate(){const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
 async function open(page,{type='coach',signedIn=true,overrides={},libraryItems=null,athleteConnections=connections,profileData={}}={}){
- const mock=await installApiMock(page,{libraryItems,connections:athleteConnections,profile:{status:'approved',provider_type:type,...profileData},dashboard:{role:'provider',teams:[],programs:[{id:'old',athlete_user_id:athlete,athlete_name:'Alex Runner',week_start:localDate(),sessions:[{id:'old-workout',session_date:localDate(),sport_type:'run',details:'Existing completed run\nKeep steady',completed_at:'2026-11-24T07:00:00Z',actual_km:5,duration_minutes:30}]}]},overrides:{'GET /api/me/access':json({account_type:'provider',user:{id:coach},dashboard_path:'/dashboard.html'}),...overrides}});
+ const mock=await installApiMock(page,{libraryItems,connections:athleteConnections,profile:{status:'approved',provider_type:type,...profileData},dashboard:{role:'provider',teams:[],programs:[{id:'old',athlete_user_id:athlete,athlete_name:'Alex Runner',week_start:localDate(),sessions:[{id:program,session_date:localDate(),sport_type:'run',details:'Existing completed run\nKeep steady',completed_at:'2026-11-24T07:00:00Z',actual_km:5,duration_minutes:30}]}]},overrides:{'GET /api/me/access':json({account_type:'provider',user:{id:coach},dashboard_path:'/dashboard.html'}),...overrides}});
  if(signedIn)await seedSession(page,{storage:'session'});
  await page.goto('/coach-studio.html');return mock;
 }
@@ -148,11 +148,25 @@ test('quick write requires only the coaching text and preserves it on publish',a
  await page.locator('#calendarGrid .day').first().getByRole('button',{name:'+ Workout',exact:true}).click();
  const d=page.locator('#dialog'),text='  Warm-up: 3 km easy.\n\nMain: 2 × 3 km.\nتهدئة: كيلومتر واحد.  \n';
  await expect(d.getByLabel('Workout name')).toBeHidden();await expect(d.getByLabel('Add exercise')).toBeHidden();
+ const video=d.getByLabel('Workout video link (optional)');
+ await video.fill('https://youtu.be/dQw4w9WgXcQ');
+ await expect(d.getByRole('link',{name:'Preview workout video'})).toHaveAttribute('href','https://www.youtube.com/watch?v=dQw4w9WgXcQ');
  await d.getByLabel('Coach instructions').fill(text);await d.getByRole('button',{name:'Save workout'}).click();
  await expect(page.locator('#calendarGrid').getByText('Warm-up: 3 km easy.',{exact:true})).toBeVisible();
  await page.locator('#calendarGrid').getByText('Warm-up: 3 km easy.',{exact:true}).click();
  await expect(d.getByLabel('Coach instructions')).toHaveValue(text);await d.getByRole('button',{name:'Close',exact:true}).click();
  await page.getByRole('button',{name:'Send to my athlete',exact:true}).click();await d.getByLabel('Athlete phone (required by current program API)').fill('+97455555555');
  await d.getByRole('button',{name:'Publish to athlete'}).click();await expect(d).toBeHidden();
- const created=mock.calls.find(c=>c.method==='POST'&&c.path==='/api/dashboard/programs');expect(created.body.weeks[0].sessions[0].details.endsWith(text)).toBe(true);assertOfflineSafe(mock);
+ const created=mock.calls.find(c=>c.method==='POST'&&c.path==='/api/dashboard/programs');expect(created.body.weeks[0].sessions[0].details.endsWith(text)).toBe(true);
+ expect(created.body.weeks[0].sessions[0].details).toContain('"workoutVideoId":"dQw4w9WgXcQ"');assertOfflineSafe(mock);
+});
+
+test('copying a published workout link opens the authenticated athlete route',async({page})=>{
+ await page.addInitScript(()=>Object.defineProperty(navigator,'clipboard',{value:undefined,configurable:true}));
+ const mock=await open(page);await choose(page);
+ await page.getByText('Existing completed run',{exact:true}).click();
+ const d=page.locator('#dialog');
+ await d.getByRole('button',{name:'Copy athlete workout link'}).click();
+ await expect(d.getByLabel('Athlete workout link',{exact:true})).toHaveValue(new URL('/athlete-studio.html?workout='+program,page.url()).href);
+ assertOfflineSafe(mock);
 });
