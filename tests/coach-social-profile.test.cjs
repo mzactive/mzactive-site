@@ -105,7 +105,7 @@ test('private coach profile uses a vertical dashboard list, create menu and FB-s
   assert.match(socialJs, /focusSection\('posts'\)/);
   assert.match(css, /\.coach-vertical-nav\{display:grid!important/);
   assert.match(css, /\.my-profile-panel \.create-menu-list/);
-  assert.match(html, /coach-social-dashboard\.js\?v=20261124d/);
+  assert.match(html, /coach-social-dashboard\.js\?v=20261125a/);
   assert.match(html, /workspace\.css\?v=20261124e/);
   assert.match(menu, /dashboard\.html#myProfile/);
 });

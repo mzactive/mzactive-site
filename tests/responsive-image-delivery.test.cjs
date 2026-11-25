@@ -127,10 +127,9 @@ test('coach-login background retains the original JPEG fallback and selects exis
   }
 });
 
-test('community and pacer heroes preload format-gated WebP backgrounds', () => {
+test('community hero preloads its dedicated format-gated WebP background', () => {
   for (const [page, asset] of [
-    ['community.html', 'mzactive-runners-768w.webp'],
-    ['pacer.html', 'qatar-finish-line-768w.webp'],
+    ['community.html', 'mzactive-community-run-768w.webp'],
   ]) {
     const html = read(page);
     assert.ok(html.includes(`rel="preload" as="image" href="assets/images/responsive/${asset}" type="image/webp"`), page);

@@ -106,3 +106,11 @@ test('Fitness and Bodybuilding Coach use distinct licensed local photos', () => 
   const license = fs.readFileSync(path.join(root, 'docs/image-licenses.md'), 'utf8');
   assert.match(license, /CC BY-SA 4\.0/);
 });
+
+test('the running card uses a distinct credited photo instead of repeating the homepage hero', () => {
+  const card = sportCards()[0];
+  assert.match(card, /assets\/images\/sports\/running\.webp/);
+  assert.doesNotMatch(card, /mzactive-runners/);
+  assert.match(html, /https:\/\/commons\.wikimedia\.org\/wiki\/File:Marathon_Runners\.jpg/);
+  assert.match(html, /https:\/\/creativecommons\.org\/licenses\/by\/2\.0\//);
+});

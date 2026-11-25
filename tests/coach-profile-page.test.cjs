@@ -68,7 +68,7 @@ test('profile initialization waits for the DOM and never leaves a loading screen
   assert.match(html, /assets\/js\/language-preference\.js(\?v=[^"]*)?" defer/);
   assert.match(html, /assets\/js\/coach-profile\.js(\?v=[^"]*)?" defer/);
   assert.match(html, /id="coverPhoto"[^>]*fetchpriority="high"/);
-  assert.match(html, /mzactive-coaching-session-960w\.webp/);
+  assert.doesNotMatch(html, /mzactive-coaching-session/);
 });
 
 test('profile skeleton reserves layout and clears busy state when loading finishes', () => {
