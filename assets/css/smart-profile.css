@@ -1,0 +1,52 @@
+/* Shared professional identity. Original uploaded photos only. Public profiles
+   use the poster composition; private owner controls keep their existing layout. */
+body.mza-coach-public .profile-heading.public-heading .cover-wrap{height:0;min-height:0;overflow:hidden}
+body.mza-coach-public .profile-heading.public-heading .identity-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,34%);grid-template-areas:"copy photo" "actions photo";gap:18px 32px;padding:clamp(22px,4vw,48px);background:radial-gradient(ellipse at 90% 10%,#205456,#091d21 75%);color:#f0f5f3;align-items:start;position:relative}
+body.mza-coach-public .public-heading .identity-photo-wrap{grid-area:photo;width:100%;height:auto;aspect-ratio:3/4;margin:0;border:1px solid #b79652;border-radius:12px;overflow:hidden;align-self:center;background:#205456;box-shadow:none}
+body.mza-coach-public .public-heading .identity-photo-wrap .portrait{width:100%;height:100%;object-fit:cover;object-position:center 20%;border-radius:0}
+body.mza-coach-public .public-heading .avatar-fallback{width:100%;height:100%;display:grid;place-items:center;border-radius:0;background:#205456;color:#e8c779;font-size:clamp(36px,7vw,80px)}
+body.mza-coach-public .public-heading .identity-copy{grid-area:copy;padding:0;min-width:0}
+.smart-profile-brand{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid #b7965280;color:#e8c779;font-size:11px;letter-spacing:.09em;text-transform:uppercase;font-weight:700}
+.smart-profile-brand img{width:min(150px,42%);height:auto;object-fit:contain}
+body.mza-coach-public .public-heading .name-line h1{font-size:clamp(27px,4vw,48px);color:#fff!important;line-height:1.12;font-weight:800}
+body.mza-coach-public .public-heading :is(.headline,.location,.tagline){color:#dcebe6!important;line-height:1.5}
+body.mza-coach-public .public-heading .headline{font-size:clamp(15px,1.8vw,20px);color:#e8c779!important;margin-block:10px}
+body.mza-coach-public .public-heading .service-chip{background:#ffffff12!important;color:#e8c779!important;border:1px solid #b7965266}
+body.mza-coach-public .public-heading .profile-stats>div{background:transparent!important;border-color:#b7965266}
+body.mza-coach-public .public-heading .profile-stats b{color:#e8c779!important}
+body.mza-coach-public .public-heading .profile-stats span{color:#dcebe6!important}
+body.mza-coach-public .public-heading .verified-badge{color:#e8c779!important;border-color:#b79652;background:transparent}
+body.mza-coach-public .public-heading .profile-actions{grid-area:actions;padding:0;max-width:none;width:100%;align-self:end;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+body.mza-coach-public:not(.home-page) .public-heading .profile-actions .button{background:transparent!important;color:#e8c779!important;border-color:#b79652!important;white-space:normal}
+body.mza-coach-public:not(.home-page) .public-heading .profile-actions #book{grid-column:1/-1;background:#e8c779!important;color:#091d21!important;border-color:#e8c779!important}
+body.mza-coach-public .public-heading .profile-actions #connectCoach{grid-column:1/-1}
+body.mza-coach-public .public-heading [hidden]{display:none!important}
+body.mza-coach-public .owner-preview .smart-profile-brand{display:none}
+@media(max-width:600px){
+body.mza-coach-public .profile-heading.public-heading .identity-row{grid-template-columns:minmax(0,1fr) minmax(100px,36%);gap:12px;grid-template-areas:"copy photo" "actions actions";padding:18px 14px}
+body.mza-coach-public .public-heading .identity-photo-wrap{align-self:start;margin-top:8px}
+body.mza-coach-public .public-heading .smart-profile-brand{flex-direction:column;align-items:flex-start;gap:7px;margin-bottom:12px;padding-bottom:8px;font-size:9px}
+body.mza-coach-public .public-heading .smart-profile-brand img{width:95px;max-width:100%}
+body.mza-coach-public .public-heading .name-line h1{font-size:clamp(20px,6vw,28px)}
+body.mza-coach-public .public-heading .headline{font-size:13px}
+body.mza-coach-public .public-heading .profile-stats{gap:8px}
+body.mza-coach-public .public-heading .profile-stats>div{padding-inline-end:8px}
+body.mza-coach-public .public-heading .profile-stats b{font-size:17px}
+}
+body.smart-pacer-profile:not(.home-page){background:#eaf3ef!important;color:#17332f!important;color-scheme:light}
+body.smart-pacer-profile .wrap{width:min(1050px,94%);padding-top:20px}
+body.smart-pacer-profile .smart-pacer-header{background:#091d21;padding:14px 4%;display:flex;align-items:center;justify-content:space-between;gap:16px}
+body.smart-pacer-profile .smart-pacer-header img{width:145px;height:auto}
+body.smart-pacer-profile .smart-pacer-header a{color:#e8c779!important;font-weight:700}
+body.smart-pacer-profile #profileCard{padding:clamp(20px,4vw,38px);background:radial-gradient(ellipse at 90% 10%,#205456,#091d21 75%)!important;border-color:#b79652;color:#f0f5f3!important}
+body.smart-pacer-profile #profileCard .head{grid-template-columns:minmax(0,1fr) minmax(180px,35%);align-items:start;gap:24px}
+body.smart-pacer-profile #profileCard .head .photo{grid-column:2;grid-row:1;width:100%;height:auto;aspect-ratio:3/4;border-color:#b79652;background:#205456}
+body.smart-pacer-profile #profileCard .head .pacer-identity{grid-column:1;grid-row:1;min-width:0}
+body.smart-pacer-profile #profileCard h1{color:#fff!important;overflow-wrap:anywhere}
+body.smart-pacer-profile #profileCard p{color:#dcebe6!important;overflow-wrap:anywhere}
+body.smart-pacer-profile #profileCard .metric{background:#ffffff08!important;border-color:#b7965266}
+body.smart-pacer-profile #profileCard .metric b{color:#e8c779!important}
+body.smart-pacer-profile #profileCard .metric span{color:#dcebe6!important}
+body.smart-pacer-profile #profileCard .button{background:#e8c779!important;color:#091d21!important}
+body.smart-pacer-profile #profileCard .button.secondary{background:transparent!important;color:#e8c779!important;border-color:#b79652!important}
+@media(max-width:600px){body.smart-pacer-profile #profileCard .head{grid-template-columns:minmax(0,1fr) minmax(92px,36%);gap:12px}body.smart-pacer-profile #profileCard .smart-profile-brand{margin-bottom:10px;flex-direction:column;align-items:flex-start}body.smart-pacer-profile #profileCard .smart-profile-brand img{width:96px}body.smart-pacer-profile #profileCard h1{font-size:23px}body.smart-pacer-profile #profileCard .grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
