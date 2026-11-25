@@ -42,8 +42,8 @@ test('Pacers page follows the approved section order and bilingual copy', () => 
 
 test('Pacers page uses only approved directory data and keeps the booking contract', () => {
   const html = read('pacer.html');
-  assert.match(html, /api\/providers\?type=pacer/);
-  assert.match(html, /\/api\/providers\/\'\+encodeURIComponent\(p\.id\)\+\'\/photo/);
+  assert.match(html, /api\/pacers/);
+  assert.match(html, /\/api\/pacers\/'\+encodeURIComponent\(p\.id\)\+'\/photo/);
   assert.match(html, /pacer\.html\?provider=\'\+encodeURIComponent\(p\.id\)\+\'#request/);
   assert.match(html, /The first pacer profiles are being reviewed\./);
   assert.match(html, /ملفات أول المرافقين قيد المراجعة\./);
@@ -68,16 +68,19 @@ test('registration collects real Pacer details through the shared profile API', 
   }
   assert.match(html, /new URLSearchParams\(location\.search\)\.get\('type'\)/);
   assert.match(html, /submitter\?\.value==='draft'\?'draft':'submit'/);
+  const dedicated=read('pacer-register.html');
+  assert.match(dedicated, /api\/pacer\/register/);
+  assert.match(dedicated, /Become a Pacer/);
 });
 
 test('Admin Portal has a Pacer workspace with review and booking filtering', () => {
   const admin = read('assets/js/admin.js');
   assert.match(admin, /pacers:\['Pacers','المرافقون'\]/);
   assert.match(admin, /pacers:'management\.coaches'/);
-  assert.match(admin, /pacers:\['Review running and cycling Pacer applications/);
+  assert.match(admin, /Independent Pacer review/);
   assert.match(admin, /if\(tab==='pacers'\)/);
-  assert.match(admin, /renderCoaches\(root,'pacer'\)/);
-  assert.match(admin, /provider_type==='pacer'/);
+  assert.match(admin, /admin\/pacers/);
+  assert.match(admin, /admin\/pacer-requests/);
   assert.match(admin, /p\.pacer_details\|\|/);
 });
 
@@ -103,7 +106,7 @@ test('Pacers cards use readable dark surfaces and a compact premium layout', () 
   assert.doesNotMatch(html, /\.pacer-card\{background:#fff/);
   assert.match(html, /\.empty-note\{[^}]*background:linear-gradient/);
   assert.match(html, /function renderEmpty\(message\)/);
-  assert.match(html, /join\.href='providers\.html\?type=pacer#provider-portal'/);
+  assert.match(html, /join\.href='pacer-register\.html'/);
   assert.match(html, /\.main-nav\{flex-wrap:nowrap;overflow-x:auto/);
 });
 

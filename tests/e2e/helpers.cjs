@@ -154,6 +154,15 @@ function defaultApiHandler(ctx, state) {
   }
   if (urlPath === '/api/public/campaigns/samla') return json({ id: 'samla', enabled: true, starts_at: '2026-11-24T00:00:00.000Z', ends_at: '2026-12-03T06:00:00.000Z', updated_at: '2026-11-24T00:00:00.000Z', active: true });
   if (urlPath === '/api/samla/ai-strategy' && method === 'POST') return json({ answer: 'Estimated strategy: start conservatively, hold steady pacing, fuel regularly, and keep transitions short. This is not a guarantee.' });
+  if (urlPath === '/api/pacers') return json({ pacers: [] });
+  if (/^\/api\/pacers\/[^/]+$/.test(urlPath)) return json({ error: 'pacer_not_found' }, 404);
+  if (/^\/api\/pacers\/[^/]+\/photo$/.test(urlPath)) return json({ error: 'photo_not_found' }, 404);
+  if (urlPath === '/api/pacer/profile') return json({ error: 'pacer_profile_required' }, 404);
+  if (urlPath === '/api/pacer/requests') return method === 'GET' ? json({ requests: [] }) : json({ request_id: 'pacer-request-e2e', status: 'pending' }, 201);
+  if (/^\/api\/pacer\/requests\/[^/]+$/.test(urlPath)) return json({ updated: true });
+  if (urlPath === '/api/admin/pacers') return json({ pacers: [] });
+  if (/^\/api\/admin\/pacers\/[^/]+$/.test(urlPath)) return json({ updated: true });
+  if (urlPath === '/api/admin/pacer-requests') return json({ requests: [] });
   if (urlPath === '/api/public/campaigns/samla') {
     return json({ id: 'samla', enabled: true, starts_at: '2026-11-24T00:00:00.000Z', ends_at: '2026-12-03T06:00:00.000Z', updated_at: '2026-11-24T00:00:00.000Z', active: true });
   }

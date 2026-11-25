@@ -14,37 +14,27 @@ const adminAccess = json({
   management: { enabled: true, permissions: [] },
 });
 
-const applications = json({
-  providers: [{
-    id: PACER_ID, provider_type: 'pacer', display_name: 'E2E Pacer Applicant',
-    email: 'pacer@example.invalid', city: 'Doha', country: 'QA', status: 'pending',
-    profile_complete: 1, updated_at: CREATED, review_version: CREATED,
-    bio: 'Reviewed endurance pacing background.',
-    specialties_json: '["Running"]', languages_json: '["English"]',
-    services_json: '["Sessions"]', qualifications: 'Pacing qualification',
-    pacer_details: {
-      sports: ['running'], services: ['sessions', 'race'], distances: ['10K', 'Half Marathon'],
-      running_pace: '4:30/km', cycling_speed: '', achievements: 'Regional race result',
-      personal_bests: '10K — 42:30', hourly_rate_qar: 250, race_rate_qar: 600,
-      service_areas: 'Doha and Lusail', availability: 'Weekend mornings',
-    },
-  }],
-  approved_providers: [], rejected_providers: [], suspended_providers: [],
-  bookings: [{
-    id: 'booking-pacer-e2e', provider_id: PACER_ID, provider_type: 'pacer',
-    status: 'received', customer_name: 'E2E Athlete', coach_name: 'E2E Pacer Applicant',
-    city: 'Doha', session_type: 'race', service_name: 'Race pacing',
-    distance: '10K', target_pace: '4:30/km', created_at: CREATED,
+const pacers = json({
+  pacers: [{
+    id: PACER_ID, display_name: 'E2E Pacer Applicant', city: 'Doha', country: 'QA',
+    status: 'pending', verified: false, experience: '10 years running',
+    distances: ['10K', 'Half Marathon'], paces: { '10K': '4:30' },
+    availability: 'Weekend mornings', created_at: CREATED,
   }],
 });
 
-test('Admin Portal reviews Pacer applications and their booking requests', async ({ page }) => {
+test('Admin Portal reviews independent Pacer applications and requests', async ({ page }) => {
   const mock = await installApiMock(page, {
     overrides: {
       'GET /api/me/access': adminAccess,
       'GET /api/admin/dashboard': json({ counts: {}, notifications: [], activity: [], generated_at: CREATED }),
       'GET /api/admin/agents': json({ snapshot: {}, tasks: [], pending: [], activity: [], status: 'available' }),
-      'GET /api/admin/applications': applications,
+      'GET /api/admin/pacers': pacers,
+      'GET /api/admin/pacer-requests': json({ requests: [{
+        id: 'pacer-request-e2e', pacer_name: 'E2E Pacer Applicant',
+        event_name: 'Race pacing', date: '2026-12-01', distance: '10K',
+        target_pace: '4:30/km', status: 'pending', created_at: CREATED,
+      }] }),
     },
   });
   await seedSession(page, { storage: 'session' });
@@ -54,13 +44,8 @@ test('Admin Portal reviews Pacer applications and their booking requests', async
   await clickAdminTab(page, 'pacers');
   await expect(page.locator('#title')).toHaveText('Pacers');
   await expect(page.locator('#view')).toContainText('E2E Pacer Applicant');
-  await expect(page.locator('#view')).toContainText('Champion Pacer');
-  await expect(page.locator('#view')).toContainText('Pacer booking requests');
+  await expect(page.locator('#view')).toContainText('Independent Pacer review');
+  await expect(page.locator('#view')).toContainText('10K');
   await expect(page.locator('#view')).toContainText('Race pacing');
-
-  await page.locator('.coach-card').first().locator('summary').click();
-  await expect(page.locator('.coach-card').first()).toContainText('4:30/km');
-  await expect(page.locator('.coach-card').first()).toContainText('Regional race result');
-  await expect(page.locator('.coach-card').first()).toContainText('Weekend mornings');
   assertOfflineSafe(mock);
 });

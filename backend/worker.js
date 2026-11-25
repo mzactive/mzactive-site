@@ -643,6 +643,206 @@ async function adminCampaign(request, env) {
   return reply(request, env, { id, enabled, starts_at: startsAt, ends_at: endsAt, updated_at: now });
 }
 
+function pacerPublic(row) {
+  return {
+    id: row.id, user_id: row.user_id, display_name: row.display_name,
+    country: row.country, city: row.city,
+    languages: safeParse(row.languages_json), bio: row.bio, experience: row.experience,
+    achievements: row.achievements, distances: safeParse(row.distances_json),
+    paces: safeParse(row.paces_json), availability: row.availability,
+    social_links: safeParse(row.social_links_json),
+    status: row.status, verified: row.verified === 1,
+    has_photo: Boolean(row.photo_bytes), photo_updated_at: row.photo_updated_at,
+    created_at: row.created_at, updated_at: row.updated_at,
+  };
+}
+async function pacerProfileForUser(env, userId) {
+  return env.DB.prepare('SELECT * FROM pacer_profiles WHERE user_id=?').bind(userId).first();
+}
+async function isApprovedPacerUser(env, userId) {
+  if (!userId) return false;
+  const row = await pacerProfileForUser(env, userId);
+  return row ? row.status === 'approved' : false;
+}
+function pacerText(value, max = 2000) { return text(value, max); }
+function cleanStringList(value, allowed, max = 12) {
+  return [...new Set((Array.isArray(value) ? value : []).map((item) => pacerText(item, 60)).filter((item) => !allowed || allowed.includes(item)))].slice(0, max);
+}
+const PACER_DISTANCES = ['5K', '10K', 'Half Marathon', 'Marathon', 'Ultra Running', 'Community Runs'];
+async function publicPacers(url, request, env, id = '') {
+  const q = text(url.searchParams.get('q') || '', 80).toLowerCase();
+  const country = text(url.searchParams.get('country') || '', 80).toLowerCase();
+  const city = text(url.searchParams.get('city') || '', 80).toLowerCase();
+  const distance = text(url.searchParams.get('distance') || '', 40);
+  const pace = text(url.searchParams.get('pace') || '', 20);
+  const availability = text(url.searchParams.get('availability') || '', 40).toLowerCase();
+  const language = text(url.searchParams.get('language') || '', 40).toLowerCase();
+  if (id) {
+    const row = await env.DB.prepare("SELECT * FROM pacer_profiles WHERE id=? AND status='approved'").bind(id).first();
+    return row ? reply(request, env, { pacer: pacerPublic(row) }) : reply(request, env, { error: 'pacer_not_found' }, 404);
+  }
+  const rows = (await env.DB.prepare("SELECT * FROM pacer_profiles WHERE status='approved' ORDER BY created_at DESC LIMIT 200").all()).results || [];
+  const pacers = rows.map(pacerPublic).filter((p) => {
+    const haystack = [p.display_name, p.city, p.country, p.bio, p.experience, (p.distances || []).join(' '), (p.languages || []).join(' ')].join(' ').toLowerCase();
+    const distances = (p.distances || []).map((item) => String(item));
+    const paces = Object.values(p.paces || {}).map((item) => String(item));
+    return (!q || haystack.includes(q)) && (!country || p.country.toLowerCase().includes(country)) &&
+      (!city || p.city.toLowerCase().includes(city)) && (!distance || distances.some((item) => item.toLowerCase().includes(distance.toLowerCase()))) &&
+      (!pace || paces.some((item) => item.includes(pace))) && (!availability || (p.availability || '').toLowerCase().includes(availability)) &&
+      (!language || (p.languages || []).some((item) => String(item).toLowerCase().includes(language)));
+  });
+  return reply(request, env, { pacers });
+}
+async function pacerPhoto(request, env, id) {
+  const row = await env.DB.prepare("SELECT photo_bytes,photo_content_type FROM pacer_profiles WHERE id=? AND status='approved'").bind(id).first();
+  if (!row || !row.photo_bytes) return reply(request, env, { error: 'photo_not_found' }, 404);
+  return binaryReply(request, env, row.photo_bytes, row.photo_content_type || 'image/jpeg', 'public, max-age=3600');
+}
+async function pacerRegister(request, env) {
+  const body = await readJson(request);
+  const displayName = pacerText(body?.display_name || body?.full_name, 100);
+  const email = emailValue(body?.email);
+  const password = pacerText(body?.password, 200);
+  if (!displayName || !email || !body?.consent) return reply(request, env, { error: 'invalid_registration' }, 400);
+  if (password.length < 8) return reply(request, env, { error: 'weak_password' }, 400);
+  const viewer = await currentUser(request, env);
+  let user = viewer;
+  const now = new Date().toISOString();
+  if (!user) {
+    const existing = await env.DB.prepare('SELECT id FROM users WHERE email=?').bind(email).first();
+    if (existing) return reply(request, env, { error: 'account_already_exists' }, 409);
+    const userId = randomId();
+    await env.DB.prepare('INSERT INTO users(id,email,password_hash,role,created_at) VALUES(?,?,?,?,?)')
+      .bind(userId, email, await hashPassword(password), 'provider', now).run();
+    user = { id: userId, email, role: 'provider' };
+  }
+  const existing = await pacerProfileForUser(env, user.id);
+  if (existing) return reply(request, env, { error: 'pacer_profile_exists' }, 409);
+  const id = randomId();
+  const distances = cleanStringList(body?.distances, PACER_DISTANCES);
+  const paces = {};
+  for (const [key, value] of Object.entries(body?.paces || {})) {
+    const pace = pacerText(value, 20);
+    if (/^\d{1,2}:[0-5]\d(?:\/[^\s]+)?$/.test(pace)) paces[pacerText(key, 30)] = pace;
+  }
+  await env.DB.prepare(`INSERT INTO pacer_profiles(id,user_id,display_name,email,phone,country,city,languages_json,bio,experience,achievements,distances_json,paces_json,availability,social_links_json,status,verified,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',0,?,?)`)
+    .bind(id, user.id, displayName, user.email || email, pacerText(body?.phone, 40),
+      pacerText(body?.country, 80) || 'Qatar', pacerText(body?.city, 80),
+      JSON.stringify(cleanStringList(body?.languages)), pacerText(body?.bio, 4000),
+      pacerText(body?.experience, 2000), pacerText(body?.achievements, 2000),
+      JSON.stringify(distances), JSON.stringify(paces), pacerText(body?.availability, 2000),
+      JSON.stringify(cleanSocialLinks(body?.social_links)), now, now).run();
+  try { await createNotification(env, user.id, 'pacer_application_received', 'Pacer application received', 'Your Pacer profile is pending review.', 'pacer_profile', id); } catch {}
+  return reply(request, env, { created: true, id, status: 'pending' }, 201);
+}
+async function ownerPacer(request, env) {
+  const auth = await authenticated(request, env);
+  if (auth.response) return auth.response;
+  const row = await pacerProfileForUser(env, auth.user.id);
+  if (!row) return reply(request, env, { error: 'pacer_profile_required' }, 404);
+  if (request.method === 'GET') return reply(request, env, { profile: pacerPublic(row) });
+  const body = await readJson(request);
+  const distances = body?.distances === undefined ? safeParse(row.distances_json) : cleanStringList(body.distances, PACER_DISTANCES);
+  const paces = body?.paces === undefined ? safeParse(row.paces_json) : body.paces;
+  await env.DB.prepare(`UPDATE pacer_profiles SET display_name=?,phone=?,country=?,city=?,languages_json=?,bio=?,experience=?,achievements=?,distances_json=?,paces_json=?,availability=?,social_links_json=?,updated_at=?,verified=0 WHERE id=?`)
+    .bind(body?.display_name ? pacerText(body.display_name, 100) : row.display_name,
+      body?.phone !== undefined ? pacerText(body.phone, 40) : row.phone,
+      body?.country ? pacerText(body.country, 80) : row.country,
+      body?.city !== undefined ? pacerText(body.city, 80) : row.city,
+      body?.languages ? JSON.stringify(cleanStringList(body.languages)) : row.languages_json,
+      body?.bio !== undefined ? pacerText(body.bio, 4000) : row.bio,
+      body?.experience !== undefined ? pacerText(body.experience, 2000) : row.experience,
+      body?.achievements !== undefined ? pacerText(body.achievements, 2000) : row.achievements,
+      JSON.stringify(distances), JSON.stringify(paces),
+      body?.availability !== undefined ? pacerText(body.availability, 2000) : row.availability,
+      body?.social_links ? JSON.stringify(cleanSocialLinks(body.social_links)) : row.social_links_json,
+      new Date().toISOString(), row.id).run();
+  return reply(request, env, { saved: true });
+}
+async function publicPacerRequest(request, env) {
+  const body = await readJson(request);
+  const providerId = text(body?.provider_id, 60);
+  const provider = await env.DB.prepare("SELECT id,user_id FROM pacer_profiles WHERE id=? AND status='approved'").bind(providerId).first();
+  if (!provider) return reply(request, env, { error: 'pacer_unavailable' }, 404);
+  const name = pacerText(body?.customer_name, 100), phone = pacerText(body?.customer_phone, 40), email = emailValue(body?.customer_email);
+  const event = pacerText(body?.event_name, 140), date = text(body?.date, 10), distance = pacerText(body?.distance, 60);
+  const pace = pacerText(body?.target_pace, 30), targetTime = pacerText(body?.target_time, 20);
+  const location = pacerText(body?.location, 140), message = pacerText(body?.message, 2000);
+  if (!name || !phone || !event || !date || !distance || !location) return reply(request, env, { error: 'invalid_request' }, 400);
+  const id = randomId(), now = new Date().toISOString();
+  const viewer = await currentUser(request, env);
+  const goal = [event, distance, pace ? `Pace ${pace}` : '', targetTime ? `Target ${targetTime}` : '', message].filter(Boolean).join(' · ');
+  await env.DB.prepare(`INSERT INTO pacer_requests(id,pacer_id,customer_user_id,customer_name,customer_email,customer_phone,location,event_name,date,distance,target_pace,target_time,message,status,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`)
+    .bind(id, providerId, viewer?.id || null, name, email || null, phone, location, event, date, distance, pace || null, targetTime || null, message, now, now).run();
+  try { await createNotification(env, provider.user_id, 'pacer_request_received', 'New pacing request', `${name} · ${distance}`, 'pacer_request', id); } catch {}
+  return reply(request, env, { request_id: id, status: 'received' }, 201);
+}
+async function pacerPhotoUpload(request, env) {
+  const auth = await authenticated(request, env);
+  if (auth.response) return auth.response;
+  const profile = await pacerProfileForUser(env, auth.user.id);
+  if (!profile) return reply(request, env, { error: 'pacer_profile_required' }, 404);
+  if (request.method === 'DELETE') {
+    await env.DB.prepare('UPDATE pacer_profiles SET photo_bytes=NULL,photo_content_type=NULL,photo_updated_at=NULL,updated_at=? WHERE id=?').bind(new Date().toISOString(), profile.id).run();
+    return reply(request, env, { removed: true });
+  }
+  const image = await readImageBody(request);
+  if (image.error) return reply(request, env, { error: image.error }, image.status);
+  const now = new Date().toISOString();
+  await env.DB.prepare('UPDATE pacer_profiles SET photo_bytes=?,photo_content_type=?,photo_updated_at=?,updated_at=? WHERE id=?')
+    .bind(image.bytes, image.contentType, now, now, profile.id).run();
+  return reply(request, env, { updated: true, photo_updated_at: now });
+}
+async function pacerRequests(request, env, id = '') {
+  const auth = await authenticated(request, env);
+  if (auth.response) return auth.response;
+  const profile = await pacerProfileForUser(env, auth.user.id);
+  if (!profile) return reply(request, env, { error: 'pacer_profile_required' }, 404);
+  if (request.method === 'GET') {
+    const rows = (await env.DB.prepare(`SELECT * FROM pacer_requests WHERE pacer_id=? ORDER BY created_at DESC LIMIT 200`).bind(profile.id).all()).results || [];
+    return reply(request, env, { requests: rows });
+  }
+  if (!id) return reply(request, env, { error: 'request_required' }, 400);
+  const body = await readJson(request);
+  const status = pacerText(body?.status, 20);
+  if (!['accepted', 'declined', 'completed', 'cancelled'].includes(status)) return reply(request, env, { error: 'invalid_status' }, 400);
+  const updated = await env.DB.prepare('UPDATE pacer_requests SET status=?,updated_at=? WHERE id=? AND pacer_id=?').bind(status, new Date().toISOString(), id, profile.id).run();
+  if (!updated.meta.changes) return reply(request, env, { error: 'request_not_found' }, 404);
+  const row = await env.DB.prepare('SELECT customer_user_id FROM pacer_requests WHERE id=?').bind(id).first();
+  if (row?.customer_user_id) await createNotification(env, row.customer_user_id, 'pacer_request_updated', 'Pacing request updated', `Your request is now ${status}.`, 'pacer_request', id);
+  return reply(request, env, { updated: true, status });
+}
+async function adminPacers(request, env, id = '') {
+  const auth = await authenticated(request, env);
+  if (auth.response) return auth.response;
+  const permissions = await managementPermissionCodes(env, auth.user);
+  if (auth.user.role !== 'admin' && !permissions.includes('management.coaches')) return reply(request, env, { error: 'forbidden' }, 403);
+  if (!id) {
+    const rows = (await env.DB.prepare('SELECT * FROM pacer_profiles ORDER BY created_at DESC LIMIT 200').all()).results || [];
+    return reply(request, env, { pacers: rows.map(pacerPublic) });
+  }
+  const row = await env.DB.prepare('SELECT * FROM pacer_profiles WHERE id=?').bind(id).first();
+  if (!row) return reply(request, env, { error: 'pacer_not_found' }, 404);
+  if (request.method === 'GET') return reply(request, env, { pacer: pacerPublic(row) });
+  const body = await readJson(request);
+  const status = body?.status ? pacerText(body.status, 20) : row.status;
+  if (!['pending', 'approved', 'rejected', 'suspended'].includes(status)) return reply(request, env, { error: 'invalid_status' }, 400);
+  const verified = status === 'approved' ? (body?.verified === undefined ? row.verified : (body.verified ? 1 : 0)) : 0;
+  await env.DB.prepare('UPDATE pacer_profiles SET status=?,verified=?,updated_at=? WHERE id=?')
+    .bind(status, verified, new Date().toISOString(), id).run();
+  try { await createNotification(env, row.user_id, 'pacer_review', 'Pacer profile reviewed', `Your Pacer profile is now ${status}.`, 'pacer_profile', id); } catch {}
+  return reply(request, env, { updated: true, status, verified: Boolean(verified) });
+}
+async function adminPacerRequests(request, env) {
+  const auth = await authenticated(request, env);
+  if (auth.response) return auth.response;
+  const permissions = await managementPermissionCodes(env, auth.user);
+  if (auth.user.role !== 'admin' && !permissions.includes('management.coaches')) return reply(request, env, { error: 'forbidden' }, 403);
+  const rows = (await env.DB.prepare("SELECT r.*, p.display_name AS pacer_name FROM pacer_requests r JOIN pacer_profiles p ON p.id=r.pacer_id ORDER BY r.created_at DESC LIMIT 200").all()).results || [];
+  return reply(request, env, { requests: rows });
+}
 async function register(request, env) {
   if (!await collectionEnabled(env)) return reply(request, env, { error: "intake_paused" }, 503);
   if (!await rateLimit(request, env, "register", 5)) return reply(request, env, { error: "rate_limited" }, 429);
@@ -2547,6 +2747,9 @@ async function managementAccess(env, user) {
   if (manager) {
     accountType = superAdmin ? "admin" : adminRole ? "limited_admin" : "manager";
     dashboardPath = "/admin.html";
+  } else if (await isApprovedPacerUser(env, user.id)) {
+    accountType = "pacer";
+    dashboardPath = "/pacer-dashboard.html";
   } else if (await isApprovedCoach(env, user)) {
     accountType = "provider";
     dashboardPath = "/dashboard.html";
@@ -5300,6 +5503,22 @@ export default {
     const publicPhotoMatch = /^\/api\/providers\/([\w-]{36})\/photo$/.exec(url.pathname);
     if (request.method === "GET" && publicPhotoMatch) return publicProfilePhoto(publicPhotoMatch[1], request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/register") return register(request, env);
+    if (request.method === "GET" && url.pathname === "/api/pacers") return publicPacers(url, request, env);
+    const pacerMatch = /^\/api\/pacers\/([\w-]{1,60})$/.exec(url.pathname);
+    if (request.method === "GET" && pacerMatch) return publicPacers(url, request, env, pacerMatch[1]);
+    const pacerPhotoMatch = /^\/api\/pacers\/([\w-]{1,60})\/photo$/.exec(url.pathname);
+    if (request.method === "GET" && pacerPhotoMatch) return pacerPhoto(request, env, pacerPhotoMatch[1]);
+    if (request.method === "POST" && url.pathname === "/api/pacer/register") return pacerRegister(request, env);
+    if (url.pathname === "/api/pacer/profile" && ["GET","PUT"].includes(request.method)) return ownerPacer(request, env);
+    if (url.pathname === "/api/pacer/profile/photo" && ["PUT","DELETE"].includes(request.method)) return pacerPhotoUpload(request, env);
+    if (url.pathname === "/api/pacer/requests" && ["GET","PATCH"].includes(request.method)) return pacerRequests(request, env);
+    if (request.method === "POST" && url.pathname === "/api/pacer/requests") return publicPacerRequest(request, env);
+    const pacerRequestMatch = /^\/api\/pacer\/requests\/([\w-]{36})$/.exec(url.pathname);
+    if (request.method === "PATCH" && pacerRequestMatch) return pacerRequests(request, env, pacerRequestMatch[1]);
+    if (url.pathname === "/api/admin/pacers" && request.method === "GET") return adminPacers(request, env);
+    const adminPacerMatch = /^\/api\/admin\/pacers\/([\w-]{1,60})$/.exec(url.pathname);
+    if (adminPacerMatch && ["GET","PATCH"].includes(request.method)) return adminPacers(request, env, adminPacerMatch[1]);
+    if (request.method === "GET" && url.pathname === "/api/admin/pacer-requests") return adminPacerRequests(request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/login") return login(request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/recover") return recoverAdminPassword(request, env);
     if (request.method === "POST" && url.pathname === "/api/auth/forgot-password") return forgotPassword(request, env);

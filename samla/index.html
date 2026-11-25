@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#091d21">
-  <title>MZA Race IQ — SAMLA 200 Strategy Calculator</title>
+  <title data-en="MZA Race IQ — SAMLA 200 Strategy Calculator" data-ar="MZA Race IQ — حاسبة استراتيجية سباق صملة 200">MZA Race IQ — حاسبة استراتيجية سباق صملة 200</title>
   <script src="../assets/js/language-preference.js?v=20261120c" defer></script>
   <link rel="stylesheet" href="../assets/css/site-theme.css?v=20261120h">
   <style>
@@ -81,7 +81,7 @@
     <h2 data-en="Official SAMLA 200 stages" data-ar="مراحل صملة 200 الرسمية">Official SAMLA 200 stages</h2>
     <p class="muted" data-en="Distances are locked to the published SAMLA 200 route: swim 3 km, run 50 km, kayak 6 km, run 33 km, shooting, cycling 75 km, run 33 km. Total 200 km. Cut-off 44 hours." data-ar="المسافات مثبتة وفق مسار صملة 200 المنشور: سباحة 3 كم، جري 50 كم، كاياك 6 كم، جري 33 كم، رماية، دراجة 75 كم، جري 33 كم. المجموع 200 كم. حد القطع 44 ساعة.">Distances are locked to the published SAMLA 200 route: swim 3 km, run 50 km, kayak 6 km, run 33 km, shooting, cycling 75 km, run 33 km. Total 200 km. Cut-off 44 hours.</p>
     <div class="stage-table-wrap">
-      <table aria-label="SAMLA 200 stage calculator">
+      <table data-en-aria-label="SAMLA 200 stage calculator" data-ar-aria-label="حاسبة مراحل صملة 200" aria-label="حاسبة مراحل صملة 200">
         <thead><tr>
           <th data-en="Stage" data-ar="المرحلة">Stage</th>
           <th data-en="Distance km" data-ar="المسافة كم">Distance km</th>
@@ -119,7 +119,7 @@
     <section id="aiStrategyPanel" class="card" hidden>
       <div class="send-dialog-head">
         <h2 data-en="AI Race Strategy" data-ar="استراتيجية السباق بالذكاء الاصطناعي">AI Race Strategy</h2>
-        <button id="aiStrategyClose" type="button" class="send-dialog-close" aria-label="Close">×</button>
+        <button id="aiStrategyClose" type="button" class="send-dialog-close" data-en-aria-label="Close" data-ar-aria-label="إغلاق" aria-label="إغلاق">×</button>
       </div>
       <p id="aiStrategyLoading" class="muted" hidden data-en="Preparing your race strategy…" data-ar="جارٍ إعداد استراتيجية سباقك…">Preparing your race strategy…</p>
       <div id="aiStrategyResult" class="muted" data-user-content></div>
@@ -130,7 +130,7 @@
       <p class="muted" data-en="AI guidance is based only on the values you entered. It is not a guarantee of performance and does not change your calculated times." data-ar="إرشادات الذكاء الاصطناعي مبنية فقط على القيم التي أدخلتها. ليست ضماناً للأداء ولا تغير أوقاتك المحسوبة.">AI guidance is based only on the values you entered. It is not a guarantee of performance and does not change your calculated times.</p>
     </section>
     <div id="shareCardPreview" class="share-card" hidden>
-      <button id="shareCardClose" type="button" class="share-card-close" aria-label="Close">×</button>
+      <button id="shareCardClose" type="button" class="share-card-close" data-en-aria-label="Close" data-ar-aria-label="إغلاق" aria-label="إغلاق">×</button>
       <canvas id="strategyCanvas" width="1080" height="860"></canvas>
       <div id="shareActions" class="share-actions" hidden>
         <button id="shareStrategyButton" class="button" type="button">
@@ -164,8 +164,8 @@
     <div class="field" style="max-width:260px">
       <label data-en="Or separate hours and minutes" data-ar="أو ساعات ودقائق منفصلة">Or separate hours and minutes</label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <input id="targetHours" type="number" min="0" max="44" step="1" value="15" aria-label="Hours">
-        <input id="targetMinutes" type="number" min="0" max="59" step="1" value="0" aria-label="Minutes">
+        <input id="targetHours" type="number" min="0" max="44" step="1" value="15" data-en-aria-label="Hours" data-ar-aria-label="ساعات" aria-label="ساعات">
+        <input id="targetMinutes" type="number" min="0" max="59" step="1" value="0" data-en-aria-label="Minutes" data-ar-aria-label="دقائق" aria-label="دقائق">
       </div>
     </div>
     <div class="button-row">
@@ -174,7 +174,7 @@
     </div>
     <div id="aiNotice" class="notice" hidden></div>
     <div class="stage-table-wrap">
-      <table aria-label="AI target distribution">
+      <table data-en-aria-label="AI target distribution" data-ar-aria-label="توزيع الهدف بالذكاء الاصطناعي" aria-label="توزيع الهدف بالذكاء الاصطناعي">
         <thead><tr>
           <th data-en="Stage" data-ar="المرحلة">Stage</th>
           <th data-en="Locked km" data-ar="كم مثبت">Locked km</th>
@@ -212,9 +212,8 @@
   <p class="notice" data-en="This is an independent MZ Active planning tool. It is not affiliated with or endorsed by SAMLA or the Qatar Challenge Racing Club. Stage distances are based on published SAMLA 200 route information and may change. Always verify official rules, checkpoints, cut-offs, nutrition and medical guidance." data-ar="هذه أداة تخطيط مستقلة من MZ Active. ليست تابعة لصملة أو نادي تحدي قطر ولا معتمدة منها. المسافات مبنية على معلومات مسار صملة 200 المنشورة وقد تتغير. تحقق دائماً من القواعد والنقاط والحدود والغذاء والإرشادات الطبية الرسمية.">This is an independent MZ Active planning tool. It is not affiliated with or endorsed by SAMLA or the Qatar Challenge Racing Club. Stage distances are based on published SAMLA 200 route information and may change. Always verify official rules, checkpoints, cut-offs, nutrition and medical guidance.</p>
 </main>
 <footer class="wrap">
-  MZ Active · Train Smart. Perform Strong. · <a href="../index.html">mzactive.com</a>
+  <span data-en="MZ Active · Train Smart. Perform Strong." data-ar="MZ Active · تدرب بذكاء. حقق أداءً أقوى.">MZ Active · تدرب بذكاء. حقق أداءً أقوى.</span> · <a href="../index.html">mzactive.com</a>
 </footer>
-<script src="../assets/js/site-language.js?v=20261120h"></script>
 <script>
   const stages = [
     { id: 'swim', nameEn: 'Swim', nameAr: 'سباحة', distance: 3, type: 'water' },
@@ -271,9 +270,25 @@
     distanceCell.textContent = stage.distance ? stage.distance : '—';
     const modeCell = document.createElement('td');
     const mode = document.createElement('select');
-    mode.innerHTML = stage.type === 'shoot'
-      ? '<option value="duration">Duration</option>'
-      : '<option value="pace">Pace</option><option value="speed">Speed</option><option value="duration">Duration</option>';
+    const addMode = (value, en, ar) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = t(en, ar);
+      mode.append(option);
+    };
+    if (stage.type === 'shoot') addMode('duration', 'Duration', 'المدة');
+    else if (stage.id === 'kayak' || stage.id === 'bike') {
+      addMode('speed', 'Speed (km/h)', 'السرعة (كم/س)');
+      addMode('duration', 'Duration', 'المدة');
+    } else if (stage.id === 'swim') {
+      addMode('pace', 'Pace (MM:SS/100m)', 'الوتيرة (د:ث/100م)');
+      addMode('speed', 'Speed (km/h)', 'السرعة (كم/س)');
+      addMode('duration', 'Duration', 'المدة');
+    } else {
+      addMode('pace', 'Pace (MM:SS/km)', 'الوتيرة (د:ث/كم)');
+      addMode('speed', 'Speed (km/h)', 'السرعة (كم/س)');
+      addMode('duration', 'Duration', 'المدة');
+    }
     mode.value = stage.type === 'shoot' ? 'duration' : 'pace';
     modeCell.append(mode);
     const valueCell = document.createElement('td');
@@ -551,7 +566,7 @@
     const target = targetHours > 0 ? targetHours * 60 + extraMinutes : Number(document.getElementById('targetHours').value || 0) * 60 + extraMinutes;
     const stageLines = stages.map((stage) => {
       const pace = stage.distance ? (stage.id === 'swim' ? formatPace(durations[stage.id] / (stage.distance * 10)) + ' per 100m' : formatPace(durations[stage.id] / stage.distance) + ' per km') : 'n/a';
-      const speed = stage.distance ? (stage.distance * 60 / durations[stage.id]).toFixed(1) + ' km/h' : 'n/a';
+      const speed = stage.distance ? (stage.distance * 60 / durations[stage.id]).toFixed(1) + t('km/h', 'كم/س') : 'n/a';
       return `${stageName(stage)}: ${stage.distance ? stage.distance + ' km' : 'shooting'}, duration ${formatMinutes(durations[stage.id])}, pace ${pace}, speed ${speed}`;
     }).join('\n');
     const nutrition = window.lastCarb ? `Carbohydrates: ${Math.round(window.lastCarb.total)} g total, ${Math.round(window.lastCarb.perHour)} g/hour.` : 'No carbohydrate calculation provided.';
@@ -573,7 +588,7 @@
               distance: stage.distance,
               duration: formatMinutes(durations[stage.id]),
               pace: stage.distance ? (stage.id === 'swim' ? formatPace(durations[stage.id] / (stage.distance * 10)) + ' per 100m' : formatPace(durations[stage.id] / stage.distance) + ' per km') : 'n/a',
-              speed: stage.distance ? (stage.distance * 60 / durations[stage.id]).toFixed(1) + ' km/h' : 'n/a',
+              speed: stage.distance ? (stage.distance * 60 / durations[stage.id]).toFixed(1) + t('km/h', 'كم/س') : 'n/a',
             })),
           },
         }),
@@ -644,8 +659,8 @@
       ctx.fillText(t(`Total distance: 200 km · Transitions: ${transitions} min`, `المسافة الإجمالية: 200 كم · الانتقالات: ${transitions} دق`), x, 336);
       let y = stagesTop;
       for (const stage of stages) {
-        const pace = stage.distance ? (stage.id === 'swim' ? formatPace(durations[stage.id] / (stage.distance * 10)) + '/100m' : formatPace(durations[stage.id] / stage.distance) + '/km') : '—';
-        const speed = stage.distance ? (stage.distance * 60 / durations[stage.id]).toFixed(1) + ' km/h' : '—';
+        const pace = stage.distance ? (stage.id === 'swim' ? formatPace(durations[stage.id] / (stage.distance * 10)) + t('/100m', 'د/100م') : formatPace(durations[stage.id] / stage.distance) + t('/km', 'د/كم')) : '—';
+        const speed = stage.distance ? (stage.distance * 60 / durations[stage.id]).toFixed(1) + t('km/h', 'كم/س') : '—';
         ctx.fillStyle = '#f2b718'; ctx.font = 'bold 20px Arial';
         ctx.fillText(`${stageName(stage)}  ${stage.distance ? stage.distance + ' km' : t('shooting', 'رماية')}`, x, y);
         ctx.fillStyle = '#dce7e2'; ctx.font = '18px Arial';
@@ -675,7 +690,7 @@
     const file = window.lastStrategyFile;
     if (!file) return;
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ title: 'SAMLA 200 strategy', text: 'My SAMLA 200 estimated strategy from MZ Active.', files: [file] }); }
+      try { await navigator.share({ title: t('SAMLA 200 strategy', 'استراتيجية صملة 200'), text: t('My SAMLA 200 estimated strategy from MZ Active.', 'استراتيجيتي المقدّرة لسباق صملة 200 من MZ Active.'), files: [file] }); }
       catch (e) { if (e.name !== 'AbortError') downloadStrategyImage(); }
     } else downloadStrategyImage();
   }
@@ -692,7 +707,7 @@
       catch (e) { if (e.name !== 'AbortError') {} else return; }
     }
     downloadStrategyImage();
-    const text = encodeURIComponent('My SAMLA 200 estimated strategy: https://mzactive.com/samla/');
+    const text = encodeURIComponent(t('My SAMLA 200 estimated strategy: https://mzactive.com/samla/', 'استراتيجيتي المقدّرة لسباق صملة 200: https://mzactive.com/samla/'));
     window.open('https://wa.me/?text=' + text, '_blank', 'noopener');
   }
   async function copyStrategyLink() {

@@ -22,9 +22,10 @@ test('registration exposes all professional categories and private license verif
 
 test('directory and homepage render category labels and verified credentials safely', () => {
   const directory = read('coaches.html');
-  for (const type of ['coach', 'bodybuilding_coach', 'pacer', 'nutritionist', 'physiotherapist', 'sports_massage_therapist']) {
+  for (const type of ['coach', 'bodybuilding_coach', 'nutritionist', 'physiotherapist', 'sports_massage_therapist']) {
     assert.match(directory, new RegExp(`<option value="${type}"`), type);
   }
+  assert.doesNotMatch(directory, /<option value="pacer"/);
   assert.match(directory, /id="searchForm"/);
   assert.match(directory, /id="searchButton"/);
   assert.doesNotMatch(directory, /typeSearch\.addEventListener\('change',loadProviders\)/);
@@ -49,7 +50,7 @@ test('booking flow sends category-aware session types and chosen services', () =
     assert.match(html, new RegExp(`value="${type}"`), type);
   }
   assert.match(html, /id="serviceField"/);
-  assert.match(html, /service_name:serviceName/);
+  assert.match(html, /event_name:serviceName\|\|'MZ Active pacing request'/);
   assert.match(html, /serviceDefaults/);
   assert.match(html, /defaults\[type\]/);
 });
