@@ -166,16 +166,19 @@
 
     const bell = make('button', 'coach-notification-bell', '🔔');
     bell.type = 'button';
+    bell.id = 'coachNotificationBell';
     bell.setAttribute('aria-label', t('Notifications', 'الإشعارات'));
     const badge = make('span', 'coach-notification-count');
+    badge.id = 'coachNotificationCount';
     badge.hidden = true;
     bell.append(badge);
-    bell.addEventListener('click', () => window.MZActiveCoachDashboard?.settingsDialog?.());
+    bell.addEventListener('click', () => window.MZActiveCoachInbox?.open?.());
     menus.append(bell);
 
     const profileMenu = menu(t('Profile', 'الملف'), [
       { label: t('My Profile', 'ملفي'), profile: 'profile', action: () => focus('profile') },
       { label: t('Edit Profile', 'تعديل الملف'), profile: 'edit', href: 'providers.html#provider-portal' },
+      { label: t('Manage profile photos', 'إدارة صور الملف'), href: 'providers.html#galleryEditor' },
       { label: t('Settings', 'الإعدادات'), profile: 'settings', action: () => window.MZActiveCoachDashboard?.settingsDialog?.() },
       { label: t('View Public Profile', 'عرض الملف العام'), href: 'coach.html', target: '_blank', rel: 'noopener noreferrer' },
       { label: t('Log Out', 'تسجيل الخروج'), profile: 'logout', action: () => { localStorage.removeItem(key); sessionStorage.removeItem(key); location.assign('/index.html'); } },
@@ -209,6 +212,7 @@
     const profileItems = [
       { label: t('My Profile', 'ملفي'), action: () => focus('profile') },
       { label: t('Edit Profile', 'تعديل الملف'), action: () => { location.assign('providers.html#provider-portal'); } },
+      { label: t('Manage profile photos', 'إدارة صور الملف'), action: () => location.assign('providers.html#galleryEditor') },
       { label: t('Settings', 'الإعدادات'), action: () => window.MZActiveCoachDashboard?.settingsDialog?.() },
       { label: t('View Public Profile', 'عرض الملف العام'), action: () => { const link = document.getElementById('coachNavPublicProfile'); if (link) window.open(link.href, '_blank', 'noopener'); } },
       { label: t('Create Post', 'أنشئ منشوراً'), action: () => { focus('posts'); document.getElementById('coachCommunityPostBody')?.focus(); } },
