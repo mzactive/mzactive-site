@@ -37,7 +37,10 @@ test('directory and homepage render category labels and verified credentials saf
   assert.match(directory, /"credentials"/);
 
   const home = read('index.html');
-  for (const type of ['physiotherapist','sports_massage_therapist','nutritionist']) assert.ok(home.includes('coaches.html?type='+type));
+  for (const type of ['physiotherapist','sports_massage_therapist','nutritionist']) assert.ok(home.includes('specialists.html?type='+type));
+  const specialist = read('specialists.html');
+  assert.match(specialist, /data\.providers\.filter\(p=>\['physiotherapist','sports_massage_therapist','nutritionist'\]\.includes\(p\.provider_type\)\)/);
+  assert.match(home, /id="smart-featured-coaches"/);
   const homepage = read('assets/js/homepage.js');
   assert.match(homepage, /professional_category\?\.ar/);
   assert.match(homepage, /professional_category\?\.en/);
