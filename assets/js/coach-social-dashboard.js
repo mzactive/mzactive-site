@@ -69,7 +69,7 @@
       }
       if (ownProfile.has_cover && ownProfile.id) {
         const cover = $('ownCover');
-        cover.onerror = () => { cover.onerror = null; cover.src = 'assets/images/mzactive-coaching-session.jpg'; };
+        cover.hidden = true; cover.onload = () => { cover.hidden = false; }; cover.onerror = () => { cover.hidden = true; };
         cover.src = `${API}/api/providers/${encodeURIComponent(ownProfile.id)}/cover?v=${encodeURIComponent(ownProfile.cover_updated_at || '')}`;
       }
     } catch (error) {
@@ -116,7 +116,7 @@
     api(path, { method: 'PUT', body: file, headers: { 'content-type': file.type } }).then(result => {
       const preview = URL.createObjectURL(file);
       if (path.includes('/cover')) {
-        $('ownCover').src = preview;
+        $('ownCover').hidden = false; $('ownCover').src = preview;
         if (result.status && result.status !== 'approved') status.textContent = t('Cover saved for review.', 'تم حفظ الغلاف للمراجعة.');
       } else {
         $('ownPortrait').src = preview;

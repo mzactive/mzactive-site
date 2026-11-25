@@ -16,3 +16,5 @@ The existing logo, runner hero, and MZ Active photographs are unchanged.
 Image files were downloaded from the original providers and re-encoded as WebP
 at quality 80, with a 1000-pixel maximum dimension. Each source and its reuse
 status was checked through the source provider's metadata and linked to its source page.
+
+- `running.webp`: [Marathon Runners](https://commons.wikimedia.org/wiki/File:Marathon_Runners.jpg), Chris Brown, Zürich Marathon 2008, [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/). Resized and WebP-compressed, including responsive variants. Illustrative sports-category photo; no affiliation with MZActive or Qatar is implied. Attribution is also displayed in the homepage footer.
