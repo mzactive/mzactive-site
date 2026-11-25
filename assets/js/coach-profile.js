@@ -132,9 +132,10 @@
       portrait.removeAttribute('src');
     }
 
-    const bookingHref = `pacer.html?provider=${encodeURIComponent(id)}#request`;
-    $('#book').href = bookingHref;
-    if ($('bookSectionLink')) $('bookSectionLink').href = bookingHref;
+    const canContact = !p.viewer?.owner && Boolean(contactSessions[p.provider_type || 'coach']);
+    $('#book').hidden = !canContact;
+    $('#connectCoach').hidden = !canContact;
+    if ($('#coachContact').open) paintContactCopy();
     const bio = $('#bio');
     bio.textContent = p.bio || '';
     bio.hidden = !p.bio;
@@ -282,10 +283,7 @@
       const headingCopy = node('div');
       const eyebrow = node('p', t('BOOKINGS','الحجوزات'), 'eyebrow');
       headingCopy.append(eyebrow, node('h2', t('Session requests','طلبات الجلسات')));
-      const request = node('a', t('Request a session ↗','اطلب جلسة ↗'), 'text-link');
-      request.id = 'bookSectionLink';
-      request.href = `pacer.html?provider=${encodeURIComponent(p.id)}#request`;
-      heading.append(headingCopy, request);
+      heading.append(headingCopy);
       const copy = node('p', t('Athletes send requests through the existing form. Your private booking inbox is shown here after sign-in; no payment is collected here.','يرسل الرياضيون الطلبات عبر النموذج الحالي. يظهر صندوق حجوزاتك الخاص هنا بعد تسجيل الدخول؛ لا يتم تحصيل أي دفع هنا.'), 'integration-copy');
       const inbox = node('div', undefined, 'cards');
       inbox.id = 'bookingInbox';
@@ -357,10 +355,7 @@
     const follow = node('button', t(p.is_following ? 'Following' : 'Follow', p.is_following ? 'متابَع' : 'متابعة'), 'button button-light');
     follow.id = 'followCoach';
     follow.type = 'button';
-    const connect = node('a', t('Message privately','مراسلة خاصة'), 'button button-light');
-    connect.id = 'connectCoach';
-    connect.href = 'dashboard.html#wsConnections';
-    actions.append(follow, connect);
+    actions.append(follow);
     follow.addEventListener('click', async () => {
       follow.disabled = true;
       try {
@@ -775,7 +770,132 @@
       });
     }
   }
+
+  const contactSessions = {
+    coach: 'training',
+    bodybuilding_coach: 'training',
+    nutritionist: 'nutrition',
+    physiotherapist: 'assessment',
+    sports_massage_therapist: 'massage',
+  };
+  let contactKind = 'coaching';
+  let contactResult = '';
+
+  function paintContactCopy() {
+    const coaching = contactKind === 'coaching';
+    $('#contactTitle').textContent = coaching
+      ? t(`Request coaching from ${profile.display_name}`, `اطلب التدريب من ${profile.display_name}`)
+      : t(`Message ${profile.display_name}`, `راسل ${profile.display_name}`);
+    $('#contactMessageLabel').textContent = coaching
+      ? t('What would you like to work on?', 'ما هدفك من التدريب؟')
+      : t('Your message', 'رسالتك');
+    $('#contactSubmit').textContent = coaching ? t('Send request', 'إرسال الطلب') : t('Send message', 'إرسال الرسالة');
+    for (const option of $('#contactDuration').options) {
+      const months = Number(option.value);
+      option.textContent = months === 1 ? t('1 month', 'شهر واحد')
+        : months === 2 ? t('2 months', 'شهران') : t('3 months', 'ثلاثة أشهر');
+    }
+    const statuses = {
+      sending: t('Sending…', 'جارٍ الإرسال…'),
+      coaching: t('Request sent. The coach can contact you using the number you provided.', 'تم إرسال الطلب. يمكن للمدرب التواصل معك عبر الرقم الذي أدخلته.'),
+      message: t('Message sent privately. The coach can reply using the number you provided.', 'تم إرسال رسالتك بشكل خاص. يمكن للمدرب الرد عبر الرقم الذي أدخلته.'),
+      limit: t('Too many requests. Please try again later.', 'تم تجاوز عدد الطلبات المسموح به. يرجى المحاولة لاحقاً.'),
+      unavailable: t('This provider is currently unavailable.', 'مقدم الخدمة غير متاح حالياً.'),
+      failed: t('We could not confirm delivery. Your details are still here.', 'تعذر تأكيد الإرسال. ما زالت بياناتك في النموذج.'),
+    };
+    $('#contactStatus').textContent = statuses[contactResult] || '';
+  }
+
+  function openContact(kind) {
+    if (!profile || profile.viewer?.owner || !contactSessions[profile.provider_type || 'coach']) return;
+    const dialog = $('#coachContact');
+    const form = $('#coachContactForm');
+    if ($('#contactSubmit').disabled) return;
+    if ($('#contactFields').hidden) form.reset();
+    contactKind = kind;
+    contactResult = '';
+    $('#contactFields').hidden = false;
+    const type = profile.provider_type || 'coach';
+    const durations = type === 'coach' ? (profile.program_durations || []).filter(months => [1, 2, 3].includes(months)) : [];
+    $('#contactDuration').replaceChildren(...durations.map(months => new Option(String(months), String(months))));
+    $('#contactDurationLabel').hidden = kind === 'message' || durations.length < 2;
+    const needsService = ['nutritionist', 'physiotherapist', 'sports_massage_therapist'].includes(type);
+    const services = needsService && profile.services?.length ? profile.services : [roleName(profile)];
+    $('#contactService').replaceChildren(...services.map(service => new Option(service, service)));
+    $('#contactServiceLabel').hidden = !needsService || services.length < 2;
+    paintContactCopy();
+    if (!dialog.open) dialog.showModal();
+    form.elements.customer_name.focus();
+  }
+
+  async function submitContact(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = $('#contactSubmit');
+    if (button.disabled) return;
+    const fields = form.elements;
+    const name = fields.customer_name.value.trim();
+    const note = fields.goal_summary.value.trim();
+    if (!name || !note) {
+      const field = !name ? fields.customer_name : fields.goal_summary;
+      field.value = '';
+      field.reportValidity();
+      return;
+    }
+    const phone = fields.customer_phone;
+    if (!/^\+?[\d\s()-]{7,40}$/.test(phone.value.trim()) || phone.value.replace(/\D/g, '').length < 7) {
+      phone.setCustomValidity(t('Enter a valid phone number.', 'أدخل رقم هاتف صالحاً.'));
+      phone.reportValidity();
+      return;
+    }
+    const type = profile.provider_type || 'coach';
+    const body = {
+      provider_id: profile.id,
+      customer_name: name,
+      customer_phone: fields.customer_phone.value.trim(),
+      city: 'To be agreed',
+      session_type: contactSessions[type],
+      service_name: ['nutritionist', 'physiotherapist', 'sports_massage_therapist'].includes(type) ? fields.service_name.value : '',
+      program_duration_months: Number(fields.program_duration_months.value) || null,
+      goal_summary: contactKind === 'message' ? `Private message · رسالة خاصة: ${note}` : note,
+      consent: fields.consent.checked,
+    };
+    button.disabled = true;
+    contactResult = 'sending';
+    paintContactCopy();
+    try {
+      const token = profile.viewer?.authenticated ? tokenFromStorage() : '';
+      const response = await fetchWithTimeout(`${apiBase}/api/bookings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(body),
+      });
+      if (response.ok && (await response.json()).request_id) {
+        contactResult = contactKind;
+        $('#contactFields').hidden = true;
+        form.reset();
+        $('#contactClose').focus();
+      } else {
+        contactResult = response.status === 429 ? 'limit' : response.status === 404 ? 'unavailable' : 'failed';
+      }
+    } catch {
+      contactResult = 'failed';
+    } finally {
+      button.disabled = false;
+      paintContactCopy();
+    }
+  }
+
   ready(() => {
+    $('#book').addEventListener('click', event => {
+      event.preventDefault();
+      openContact('coaching');
+    });
+    $('#connectCoach').addEventListener('click', () => openContact('message'));
+    $('#contactClose').addEventListener('click', () => $('#coachContact').close());
+    const contactForm = $('#coachContactForm');
+    contactForm.addEventListener('submit', submitContact);
+    contactForm.elements.customer_phone.addEventListener('input', event => event.target.setCustomValidity(''));
     $('#followPublic')?.addEventListener('click', async () => {
       if (!profile) return;
       if (!profile.viewer?.authenticated || !tokenFromStorage()) {
