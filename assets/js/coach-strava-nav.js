@@ -118,6 +118,7 @@
     } catch { count.hidden = true; }
   }
 
+  function openStudioTool(id) { focus('programs');const b=$(id);if(b&&!b.hidden)b.click(); }
   function buildTopNav() {
     const nav = $('coachTopNav');
     if (!nav || nav.dataset.mounted) return;
@@ -134,11 +135,12 @@
       { label: t('Community', 'المجتمع'), nav: 'messages', action: () => focus('messages') },
     ], 'dashboard'));
     menus.append(menu(t('Training', 'التدريب'), [
-      { label: t('Training Calendar', 'تقويم التدريب'), nav: 'history', action: () => focus('history') },
+      { label: t('Training Calendar', 'تقويم التدريب'), nav: 'programs', action: () => focus('programs') },
       { label: t('Create Training Program', 'أنشئ برنامجاً تدريبياً'), nav: 'programs', action: () => focus('programs') },
       { label: t('Program History', 'سجل البرامج'), nav: 'history', action: () => focus('history') },
       { label: t('Saved Drafts', 'مسودات محفوظة'), nav: 'programs', action: () => focus('programs') },
-      { label: t('Workout Library', 'مكتبة التمارين'), nav: 'programs', action: () => focus('programs') },
+      { label: t('Workout Library', 'مكتبة التمارين'), nav: 'programs', action: () => openStudioTool('studioExerciseLibrary') },
+      { label: t('Program Templates', 'قوالب البرامج'), nav: 'programs', action: () => openStudioTool('programTemplates') },
     ], 'training'));
     const createWrap = make('div', 'coach-create-wrap');
     const createButton = make('button', 'coach-create-button', t('Create +', 'إنشاء +'));
@@ -197,11 +199,12 @@
     if (!nav || nav.dataset.mounted) return;
     nav.dataset.mounted = 'true';
     const trainingItems = [
-      { label: t('Training Calendar', 'تقويم التدريب'), action: () => focus('history') },
+      { label: t('Training Calendar', 'تقويم التدريب'), action: () => focus('programs') },
       { label: t('Create Training Program', 'أنشئ برنامجاً تدريبياً'), action: () => focus('programs') },
-      { label: t('Program History', 'سجل البرograms'), action: () => focus('history') },
+      { label: t('Program History', 'سجل البرامج'), action: () => focus('history') },
       { label: t('Saved Drafts', 'مسودات محفوظة'), action: () => focus('programs') },
-      { label: t('Workout Library', 'مكتبة التمارين'), action: () => focus('programs') },
+      { label: t('Workout Library', 'مكتبة التمارين'), action: () => openStudioTool('studioExerciseLibrary') },
+      { label: t('Program Templates', 'قوالب البرامج'), action: () => openStudioTool('programTemplates') },
     ];
     const profileItems = [
       { label: t('My Profile', 'ملفي'), action: () => focus('profile') },

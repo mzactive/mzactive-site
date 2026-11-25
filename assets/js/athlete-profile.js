@@ -109,6 +109,7 @@
       setTimeout(() => clearInterval(timer), 10000);
     }
   }
+  document.addEventListener('mzactive:athlete-log-updated',event=>{if(event.detail?.role==='member')renderStats(event.detail)});
   startAthlete();
   document.addEventListener('mzactive:dashboard-loaded', event => initAthlete(event.detail));
 })();

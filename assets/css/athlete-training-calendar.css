@@ -1,0 +1,18 @@
+.mza-athlete-calendar{display:grid;gap:14px;min-width:0}
+.mza-athlete-calendar[hidden]{display:none!important}
+.mza-athlete-calendar h2,.mza-athlete-calendar h3,.mza-athlete-calendar h4,.mza-athlete-calendar p{margin:0}
+.mza-athlete-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mza-athlete-metrics>div{background:var(--panel,#103538);border:1px solid var(--line);border-radius:12px;padding:10px;display:grid;gap:4px;min-width:0}
+.mza-athlete-metrics strong{font-size:clamp(1rem,3vw,1.55rem);color:var(--gold)}
+.mza-athlete-metrics small{font-size:.76rem;overflow-wrap:anywhere}
+.mza-athlete-week-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mza-athlete-week-nav strong{flex:1;text-align:center;min-width:100px}
+.mza-athlete-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.mza-athlete-days button{display:grid;gap:4px;place-items:center;padding:8px 2px;min-width:0;white-space:normal;font-size:.76rem}
+.mza-athlete-days button[aria-pressed=true]{border-color:var(--gold);color:var(--gold);background:#123a3a}
+.mza-athlete-days strong{font-size:1.1rem}
+.mza-athlete-workouts{display:grid;gap:8px}
+.mza-athlete-workout{display:grid;gap:7px;border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--panel)}
+.mza-athlete-workout button{justify-self:start}
+.mza-workout-done{color:var(--green)}
+.mza-athlete-instructions{white-space:pre-wrap;overflow-wrap:anywhere}
