@@ -22,7 +22,7 @@
     const rows=el('div');rows.id='coachInboxRows';
     const notificationTitle=el('h3',t('Notifications','الإشعارات'));notificationTitle.id='coachInboxNotificationsTitle';
     const notices=el('div');notices.id='coachInboxNotifications';
-    const gallery=el('a',t('Manage my public training photos','إدارة صور تدريبي العامة'),'btn secondary');gallery.id='coachGalleryShortcut';gallery.href='providers.html#galleryEditor';
+    const gallery=el('a',t('Manage my public training photos','إدارة صور تدريبي العامة'),'btn secondary');gallery.id='coachGalleryShortcut';gallery.href='providers.html?edit=1#galleryEditor';
     panel.append(head,help,gallery,status,rows,notificationTitle,notices);$('coachPanel').prepend(panel);
   }
   function paint() {
@@ -74,7 +74,7 @@
     }catch{if(current===seq&&session===token()&&$('coachInboxStatus'))$('coachInboxStatus').textContent=t('Unable to load requests. Try again.','تعذّر تحميل الطلبات. حاول مجدداً.');}
   }
   function open(){mount();window.MZActiveCoachDashboard?.focusSection?.('requests');const panel=$('coachBookingInbox');if(panel){panel.hidden=false;panel.scrollIntoView({block:'start',behavior:'smooth'});}refresh();}
-  function init(data){if(data?.role!=='provider'||!token())return;mount();if(!$('coachBookingInbox'))return;activeToken=token();clearInterval(timer);refresh();timer=setInterval(()=>{if(document.visibilityState==='visible')refresh();},45000);if(new URLSearchParams(location.search).has('booking'))open();}
+  function init(data){if(data?.role!=='provider'||!token())return;mount();if(!$('coachBookingInbox'))return;activeToken=token();clearInterval(timer);refresh();timer=setInterval(()=>{if(document.visibilityState==='visible')refresh();},45000);if(new URLSearchParams(location.search).has('booking')||new URLSearchParams(location.search).get('view')==='requests')open();}
   window.MZActiveCoachInbox={open,refresh};
   document.addEventListener('mzactive:dashboard-loaded',e=>init(e.detail));
   if(window.mzStudioDashboard)init(window.mzStudioDashboard);
