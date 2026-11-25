@@ -64,7 +64,7 @@ test('Arabic community feed tabs render RTL with translated labels', async ({ pa
   await page.addInitScript(() => localStorage.setItem('mzactive-language-manual', 'ar'));
   await page.goto('/community.html');
   const tabs = page.locator('#communitySocialTabs');
-  await expect(tabs).toContainText('الخلاصة');
+  await expect(tabs).toContainText('الجميع');
   await expect(tabs).toContainText('المجموعات');
   await expect(tabs).toContainText('المقالات');
   await expect(tabs).toContainText('التحديات');

@@ -28,5 +28,5 @@ test('community feed uses activity-first tabs, a composer and post sharing', () 
   assert.match(js, /api\/blog\/posts/);
   assert.match(js, /data-feed-tab/);
   assert.match(feed, /actionButton\(t\('Share', 'مشاركة'\)/);
-  assert.match(html, /community-social\.js\?v=20261125-feedfirst/);
+  assert.match(html, /community-social\.js\?v=20261125-public/);
 });

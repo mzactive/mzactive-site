@@ -24,6 +24,7 @@ jobs:
         run: |
           node --check assets/js/community-feed.js
           node --check assets/js/community-social.js
+          node --check assets/js/community-public.js
           node --check assets/js/community-activity-log.js
           node --check backend/activity-log.js
           node --check backend/worker.js

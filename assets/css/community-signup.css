@@ -221,3 +221,23 @@ body.community-page:not(.home-page){--bg:#f3f5f3;--panel:#fff;--text:#17342e}
 .community-page .social-layout+section{margin-top:44px}
 @media(max-width:1060px){.community-page .social-layout{grid-template-columns:200px minmax(0,1fr);gap:16px}.community-page .social-right{grid-column:1/-1;grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.community-page main{padding:12px}.community-page .social-layout{display:flex;flex-direction:column;gap:16px}.community-page .social-layout #feed{order:0;width:100%}.community-page .social-left{order:1;width:100%;grid-template-columns:1fr}.community-page .social-right{order:2;width:100%;grid-template-columns:1fr}.community-page .activity-profile{display:block}.community-page .activity-heading h1{font-size:25px}.community-page .fb-feed-tabs .social-tab{font-size:12px;padding:8px 10px}.community-page .fb-composer-actions button{flex:1 0 auto}.community-page .social-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:8px}.community-page .social-shortcuts a{border:0}.community-page .social-profile-cover{height:42px}}
+
+/* Public community discovery; personal data remains in the on-demand log. */
+.community-page .public-explore h2{font-size:19px;margin:4px 0 12px}
+.community-page .public-welcome{padding:16px}
+.community-page .public-welcome h3{font-size:17px;margin:0 0 7px}
+.community-page .public-welcome p{font-size:13px;line-height:1.5;color:#516c64}
+.community-page .public-welcome a{font-weight:700;font-size:13px}
+.community-page .public-people{margin-top:18px;padding:16px}
+.community-page .public-people-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.community-page .public-people-head h2{font-size:19px;margin:0}
+.community-page .public-people-head a{font-size:13px;white-space:nowrap}
+.community-page #publicPeopleList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.community-page .public-person{display:flex;align-items:center;gap:9px;border:1px solid #e0e6e1;padding:10px;border-radius:8px;text-decoration:none;color:#17342e;min-width:0}
+.community-page .public-person:hover{border-color:#a78a43}
+.community-page .public-person-avatar{position:relative;display:grid;place-items:center;width:45px;height:45px;flex:none;overflow:hidden;border-radius:50%;background:#e5eee8;font-size:18px;font-weight:700}
+.community-page .public-person-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.community-page .public-person-info{display:grid;min-width:0;gap:2px;overflow-wrap:anywhere}
+.community-page .public-person-info strong{font-size:13px}
+.community-page .public-person-info small{font-size:11px;color:#516c64}
+@media(max-width:480px){.community-page #publicPeopleList{grid-template-columns:1fr}}

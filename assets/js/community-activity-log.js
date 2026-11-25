@@ -92,7 +92,7 @@
   }
   opener.addEventListener('click',()=>{
     panel.hidden=!panel.hidden;opener.setAttribute('aria-expanded',String(!panel.hidden));
-    if(!panel.hidden){ $('postForm').hidden=true; $('privateActivityDate').value ||= today();load();panel.scrollIntoView({block:'start',behavior:'smooth'}); }
+    if(!panel.hidden){ $('postForm').hidden=true; $('privateActivityDate').value ||= today();load();loadWeek();panel.scrollIntoView({block:'start',behavior:'smooth'}); }
     else{++sequence;form.hidden=true;list.replaceChildren();}
   });
   $('closeActivityLog')?.addEventListener('click',()=>{ if(!panel.hidden) opener.click(); opener.focus(); });
@@ -122,9 +122,8 @@
       $('socialWeekStatus').textContent='';
     } catch { if(session===token()) $('socialWeekStatus').textContent=t('Activity totals unavailable.','إحصاءات الأنشطة غير متاحة.'); }
   }
-  loadWeek();
-  window.addEventListener('storage',event=>{if(event.key==='mzactive-provider-session')loadWeek();});
-  document.addEventListener('mzactive:language-change',loadWeek);
+  window.addEventListener('storage',event=>{if(event.key==='mzactive-provider-session'&&!panel.hidden)loadWeek();});
+  document.addEventListener('mzactive:language-change',()=>{if(!panel.hidden)loadWeek();});
   document.addEventListener('mzactive:language-change',()=>{if(!panel.hidden&&token())render();});
   window.addEventListener('storage',event=>{if(event.key==='mzactive-provider-session'&&!panel.hidden){form.reset();load();}});
 })();
