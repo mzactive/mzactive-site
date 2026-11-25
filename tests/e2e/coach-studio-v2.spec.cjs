@@ -11,7 +11,7 @@ async function open(page,{type='coach',signedIn=true,overrides={},libraryItems=n
  await page.goto('/coach-studio.html');return mock;
 }
 async function choose(page,id='conn-a'){await expect(page.locator('#studio')).toBeVisible();await page.locator('#athleteSelect').selectOption(id)}
-async function create(page){await page.locator('#calendarGrid .day').first().getByRole('button',{name:'+ Workout',exact:true}).click();const d=page.locator('#dialog');await d.getByLabel('Workout name').fill('Strength A');await d.getByLabel('Add exercise').fill('goblet');await d.getByRole('button',{name:/Goblet squat/}).click();await d.getByLabel('Sets',{exact:true}).fill('3');await d.getByLabel('Reps',{exact:true}).fill('10');await d.getByLabel('Weight (kg)').fill('12');await d.getByRole('button',{name:'Save workout'}).click();await expect(page.locator('#calendarGrid').getByText('Strength A')).toBeVisible()}
+async function create(page){await page.locator('#calendarGrid .day').first().getByRole('button',{name:'+ Workout',exact:true}).click();const d=page.locator('#dialog');await d.locator('details').filter({hasText:'Workout details (optional)'}).evaluate(x=>x.open=true);await d.getByLabel('Workout name').fill('Strength A');await d.locator('details').filter({hasText:'Exercise library'}).evaluate(x=>x.open=true);await d.getByLabel('Add exercise').fill('goblet');await d.getByRole('button',{name:/Goblet squat/}).click();await d.getByLabel('Sets',{exact:true}).fill('3');await d.getByLabel('Reps',{exact:true}).fill('10');await d.getByLabel('Weight (kg)').fill('12');await d.getByRole('button',{name:'Save workout'}).click();await expect(page.locator('#calendarGrid').getByText('Strength A')).toBeVisible()}
 test('calendar shows only selected athletes and preserves separate drafts',async({page})=>{const mock=await open(page);await choose(page);await expect(page.getByText('Existing completed run')).toBeVisible();await create(page);await choose(page,'conn-b');await expect(page.getByText('Strength A')).toHaveCount(0);await expect(page.getByText('Existing completed run')).toHaveCount(0);await choose(page);await expect(page.getByText('Strength A')).toBeVisible();await page.reload();await choose(page);await expect(page.getByText('Strength A')).toBeVisible();await expect(page.locator('#athleteSelect option')).toHaveCount(3);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1&&Math.abs(visualViewport.width-document.documentElement.clientWidth)<=2)).toBe(true);assertOfflineSafe(mock)});
 test('workout publishes to actual accepted athlete user without replacing completed session',async({page})=>{const mock=await open(page,{overrides:{'POST /api/dashboard/programs':json({id:program},201),['POST /api/dashboard/programs/'+program+'/send']:json({sent:true,program_id:program})}});await choose(page);await create(page);await page.getByRole('button',{name:'Send to my athlete',exact:true}).click();const d=page.locator('#dialog');await d.getByLabel('Athlete phone (required by current program API)').fill('+97455555555');await d.getByRole('button',{name:'Publish to athlete'}).click();await expect(d).not.toBeVisible();await expect(page.getByText('Published successfully to the athlete.')).toBeVisible();const calls=mock.calls.filter(x=>x.method==='POST'&&x.path.includes('/api/dashboard/programs'));expect(calls).toHaveLength(2);expect(calls[0].body.athlete_user_id).toBeNull();expect(calls[0].body.weeks[0].sessions[0].details).toContain('Goblet squat');expect(calls[0].body.weeks[0].sessions[0].details).toContain('sets: 3');expect(calls[1].body.athlete_user_id).toBe(athlete);await expect(page.getByText('Existing completed run')).toBeVisible();await expect(page.locator('#athleteSelect')).toBeEnabled();assertOfflineSafe(mock)});
 test('saved draft is retried without duplicate create if publishing fails',async({page})=>{const path='POST /api/dashboard/programs/'+program+'/send';const mock=await open(page,{overrides:{'POST /api/dashboard/programs':json({id:program},201),[path]:[json({error:'temporary'},500),json({sent:true,program_id:program})]}});await choose(page);await create(page);await page.getByRole('button',{name:'Send to my athlete',exact:true}).click();const d=page.locator('#dialog');await d.getByLabel('Athlete phone (required by current program API)').fill('+97455555555');await d.getByRole('button',{name:'Publish to athlete'}).click();await expect(d.getByRole('status')).toHaveText('temporary');await d.getByRole('button',{name:'Close',exact:true}).click();await page.getByRole('button',{name:'Retry publishing'}).click();await expect(d.getByLabel('Athlete phone (required by current program API)')).toHaveCount(0);await d.getByRole('button',{name:'Publish to athlete'}).click();await expect(d).not.toBeVisible();expect(mock.calls.filter(x=>x.method==='POST'&&x.path==='/api/dashboard/programs')).toHaveLength(1);assertOfflineSafe(mock)});
@@ -28,15 +28,15 @@ test('network or API failure does not force a second login',async({page})=>{awai
 test('workout library creates reusable sessions without an athlete and assigns independent copies',async({page})=>{
  await open(page);await expect(page.locator('#studio')).toBeVisible();
  await page.locator('[data-screen=sessions]').click();await page.getByRole('button',{name:'Create workout'}).click();
- const d=page.locator('#dialog');await d.getByLabel('Workout name').fill('Reusable Strength');
- await d.getByLabel('Add exercise').fill('goblet');await d.getByRole('button',{name:/Goblet squat/}).click();
+ const d=page.locator('#dialog');await d.locator('details').filter({hasText:'Workout details (optional)'}).evaluate(x=>x.open=true);await d.getByLabel('Workout name').fill('Reusable Strength');
+ await d.locator('details').filter({hasText:'Exercise library'}).evaluate(x=>x.open=true);await d.getByLabel('Add exercise').fill('goblet');await d.getByRole('button',{name:/Goblet squat/}).click();
  await d.getByLabel('Sets',{exact:true}).fill('3');await d.getByLabel('Reps',{exact:true}).fill('10');await d.getByRole('button',{name:'Save workout'}).click();
  await expect(page.getByText('Reusable Strength',{exact:true})).toBeVisible();
  await page.locator('[data-screen=calendar]').click();await choose(page);
  await page.locator('#calendarGrid .day').first().getByRole('button',{name:'From library',exact:true}).click();
  await d.getByRole('button',{name:'Add to calendar'}).click();await expect(page.locator('#calendarGrid').getByText('Reusable Strength')).toBeVisible();
  await page.locator('[data-screen=sessions]').click();await page.getByRole('button',{name:'Edit',exact:true}).click();
- await d.getByLabel('Workout name').fill('Revised Strength');await d.getByRole('button',{name:'Save workout'}).click();
+ await d.locator('details').filter({hasText:'Workout details (optional)'}).evaluate(x=>x.open=true);await d.getByLabel('Workout name').fill('Revised Strength');await d.getByRole('button',{name:'Save workout'}).click();
  await expect(page.getByText('Revised Strength',{exact:true})).toBeVisible();
  await page.locator('[data-screen=calendar]').click();await expect(page.locator('#calendarGrid').getByText('Reusable Strength')).toBeVisible();
 });
@@ -46,7 +46,7 @@ test('coach creates custom bilingual exercise and uses it in a workout',async({p
  await d.getByLabel('English name').fill('MZA band walk');await d.getByLabel('Arabic name').fill('مشي بالمطاط');await d.getByLabel('Target muscles').fill('Glutes');await d.getByLabel('Equipment').fill('Band');await d.getByRole('button',{name:'Save exercise'}).click();
  await page.getByRole('searchbox',{name:'Search exercises'}).fill('MZA band walk');await expect(page.getByText('MZA band walk',{exact:true})).toBeVisible();
  await page.locator('[data-screen=sessions]').click();await page.getByRole('button',{name:'Create workout'}).click();
- await d.getByLabel('Workout name').fill('Custom drill');await d.getByLabel('Add exercise').fill('MZA band walk');await d.getByRole('button',{name:/MZA band walk/}).click();
+ await d.locator('details').filter({hasText:'Workout details (optional)'}).evaluate(x=>x.open=true);await d.getByLabel('Workout name').fill('Custom drill');await d.locator('details').filter({hasText:'Exercise library'}).evaluate(x=>x.open=true);await d.getByLabel('Add exercise').fill('MZA band walk');await d.getByRole('button',{name:/MZA band walk/}).click();
  await expect(d.getByText('MZA band walk',{exact:true})).toBeVisible();await d.getByRole('button',{name:'Save workout'}).click();await expect(page.getByText('Custom drill',{exact:true})).toBeVisible();
 });
 test('calendar library drawer applies reusable program to an empty week',async({page})=>{
@@ -65,13 +65,13 @@ test('account library persists across browser storage clearing, revisions preven
  await expect(page.getByText('Saved to your MZA account.')).toBeVisible();
  await expect(page.getByText('Server session',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Edit',exact:true}).click();const d=page.locator('#dialog');
- await d.getByLabel('Workout name').fill('Updated server workout');await d.getByRole('button',{name:'Save workout'}).click();
+ await d.locator('details').filter({hasText:'Workout details (optional)'}).evaluate(x=>x.open=true);await d.getByLabel('Workout name').fill('Updated server workout');await d.getByRole('button',{name:'Save workout'}).click();
  await expect(d).toBeHidden();await expect(page.getByText('Updated server workout',{exact:true})).toBeVisible();
  expect(mock.libraryItems[0].revision).toBe(2);
  await page.evaluate(()=>localStorage.removeItem('mza-studio-v2-workouts:e2e-coach'));
  await page.reload();await expect(page.locator('#studio')).toBeVisible();await page.locator('[data-screen=sessions]').click();await expect(page.getByText('Updated server workout',{exact:true})).toBeVisible();
  mock.libraryItems[0].revision=3;
- await page.getByRole('button',{name:'Edit',exact:true}).click();await d.getByLabel('Workout name').fill('Do not overwrite');await d.getByRole('button',{name:'Save workout'}).click();
+ await page.getByRole('button',{name:'Edit',exact:true}).click();await d.locator('details').filter({hasText:'Workout details (optional)'}).evaluate(x=>x.open=true);await d.getByLabel('Workout name').fill('Do not overwrite');await d.getByRole('button',{name:'Save workout'}).click();
  await expect(d.getByRole('alert')).toContainText('Account save not confirmed');expect(mock.libraryItems[0].item.title).toBe('Updated server workout');assertOfflineSafe(mock);
 });
 test('account mode imports local library without overwriting existing server items',async({page})=>{
@@ -135,9 +135,24 @@ test('sending a private draft never overwrites an existing athlete draft',async(
 test('YouTube demo is validated and preserved in the assigned workout',async({page})=>{
  const mock=await open(page,{overrides:{'POST /api/dashboard/programs':json({id:program},201),['POST /api/dashboard/programs/'+program+'/send']:json({sent:true,program_id:program})}});
  await choose(page);await create(page);await page.locator('#calendarGrid').getByText('Strength A').click();
- const d=page.locator('#dialog'),v=d.getByLabel('YouTube demonstration (optional)');await v.fill('https://youtube.com.evil.example/watch?v=dQw4w9WgXcQ');await expect.poll(()=>v.evaluate(x=>x.validity.valid)).toBe(false);
+ const d=page.locator('#dialog'),v=d.getByLabel('YouTube demonstration (optional)');await d.locator('details').filter({hasText:'Exercise library'}).evaluate(x=>x.open=true);await v.fill('https://youtube.com.evil.example/watch?v=dQw4w9WgXcQ');await expect.poll(()=>v.evaluate(x=>x.validity.valid)).toBe(false);
  await v.fill('https://youtu.be/dQw4w9WgXcQ');await expect(d.getByRole('link',{name:/Preview video/})).toHaveAttribute('href','https://www.youtube.com/watch?v=dQw4w9WgXcQ');
  await d.getByRole('button',{name:'Save workout'}).click();await page.getByRole('button',{name:'Send to my athlete',exact:true}).click();
  await d.getByLabel('Athlete phone (required by current program API)').fill('+97455555555');await d.getByRole('button',{name:'Publish to athlete'}).click();await expect(d).toBeHidden();
  const created=mock.calls.find(c=>c.method==='POST'&&c.path==='/api/dashboard/programs');expect(created.body.weeks[0].sessions[0].details).toContain('https://www.youtube.com/watch?v=dQw4w9WgXcQ');assertOfflineSafe(mock)
+});
+
+test('quick write requires only the coaching text and preserves it on publish',async({page})=>{
+ const mock=await open(page,{overrides:{'POST /api/dashboard/programs':json({id:program},201),['POST /api/dashboard/programs/'+program+'/send']:json({sent:true,program_id:program})}});
+ await choose(page);
+ await page.locator('#calendarGrid .day').first().getByRole('button',{name:'+ Workout',exact:true}).click();
+ const d=page.locator('#dialog'),text='Warm-up: 3 km easy.\nMain: 2 × 3 km.\nRecovery: 2 min between repetitions.\nCool-down: 1 km easy.';
+ await expect(d.getByLabel('Workout name')).toBeHidden();await expect(d.getByLabel('Add exercise')).toBeHidden();
+ await d.getByLabel('Coach instructions').fill(text);await d.getByRole('button',{name:'Save workout'}).click();
+ await expect(page.locator('#calendarGrid').getByText('Warm-up: 3 km easy.',{exact:true})).toBeVisible();
+ await page.locator('#calendarGrid').getByText('Warm-up: 3 km easy.',{exact:true}).click();
+ await expect(d.getByLabel('Coach instructions')).toHaveValue(text);await d.getByRole('button',{name:'Close',exact:true}).click();
+ await page.getByRole('button',{name:'Send to my athlete',exact:true}).click();await d.getByLabel('Athlete phone (required by current program API)').fill('+97455555555');
+ await d.getByRole('button',{name:'Publish to athlete'}).click();await expect(d).toBeHidden();
+ const created=mock.calls.find(c=>c.method==='POST'&&c.path==='/api/dashboard/programs');expect(created.body.weeks[0].sessions[0].details.endsWith(text)).toBe(true);assertOfflineSafe(mock);
 });
