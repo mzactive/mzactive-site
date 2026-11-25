@@ -27,3 +27,23 @@ test('old coach profile and request links open native workspace screens',async({
  await page.goto('/dashboard.html#myProfile');await expect(page).toHaveURL(/\/coach-studio\.html\?view=profile$/);await expect(page.getByRole('heading',{name:'My profile'})).toBeVisible();
  await page.goto('/dashboard.html?connection=sample#myAthletes');await expect(page).toHaveURL(/\/coach-studio\.html\?view=athletes$/);await expect(page.getByRole('heading',{name:'Athletes & teams'})).toBeVisible();assertOfflineSafe(mock);
 });
+
+test('login form is hidden during existing session check, and temporary errors do not clear credentials',async({page})=>{
+ const options=opts();options.overrides['GET /api/me/access']=[json({error:'unavailable'},503),json(provider)];
+ const mock=await installApiMock(page,options);await seedSession(page,{storage:'session'});await page.goto('/dashboard.html#loginForm');
+ await expect(page.locator('#sessionMessage')).toContainText('Retry without signing in again');
+ await expect(page.locator('#loginForm')).toBeHidden();await expect(page.locator('#registerForm')).toBeHidden();
+ expect(await page.evaluate(()=>sessionStorage.getItem('mzactive-provider-session'))).toBeTruthy();
+ await page.locator('#sessionRetry').click();await expect(page).toHaveURL(/\/coach-studio\.html$/);await expect(page.locator('#studio')).toBeVisible();
+ expect(mock.calls.filter(c=>c.path==='/api/auth/login')).toHaveLength(0);assertOfflineSafe(mock);
+});
+test('signed out login has one visible sign-in action and registration is separate',async({page})=>{
+ await installApiMock(page);await page.goto('/dashboard.html#loginForm');await expect(page.locator('#loginForm')).toBeVisible();await expect(page.locator('#registerForm')).toBeHidden();
+ await expect(page.getByRole('button',{name:'Sign in',exact:true})).toHaveCount(1);
+ await page.getByRole('button',{name:'Create an athlete account'}).click();await expect(page.locator('#registerForm')).toBeVisible();await expect(page.locator('#loginForm')).toBeHidden();
+ await page.getByRole('button',{name:'Back to sign in'}).click();await expect(page.locator('#loginForm')).toBeVisible();await expect(page.locator('#registerForm')).toBeHidden();
+});
+test('expired token opens the login only after unauthorized response',async({page})=>{
+ const options=opts();options.overrides['GET /api/me/access']=json({error:'unauthorized'},401);
+ await installApiMock(page,options);await seedSession(page,{storage:'session'});await page.goto('/dashboard.html#loginForm');await expect(page.locator('#loginForm')).toBeVisible();await expect(page.locator('#notice')).toContainText('Your session expired.');expect(await page.evaluate(()=>sessionStorage.getItem('mzactive-provider-session'))).toBeNull();
+});
