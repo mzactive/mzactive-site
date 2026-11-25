@@ -16,10 +16,12 @@
       return;
     }
     if (!form) return;
-    if (form.hidden) {
+    if (form.dataset.canCompose !== 'true') {
       $('postAccessNotice')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+    if (!$('privateActivityPanel').hidden) $('openPrivateActivities').click();
+    form.hidden = false;
     if (kind === 'activity') {
       $('postKind').value = 'post';
       $('postKind').dispatchEvent(new Event('change', { bubbles: true }));
@@ -104,6 +106,9 @@
     for (const button of document.querySelectorAll('#communitySocialTabs [data-feed-tab]')) {
       button.addEventListener('click', () => selectTab(button.dataset.feedTab, button));
     }
+    $('closePostComposer')?.addEventListener('click', () => { $('postForm').hidden = true; $('fbComposerText').focus(); });
+    $('fbComposerText')?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); openComposer('post'); } });
+    for (const link of document.querySelectorAll('[data-social-link]')) link.addEventListener('click', event => { event.preventDefault(); document.querySelector(`[data-feed-tab="${link.dataset.socialLink}"]`)?.click(); if(link.dataset.socialLink==='challenges') $('feed')?.scrollIntoView({behavior:'smooth'}); });
     for (const button of document.querySelectorAll('[data-compose]')) {
       button.addEventListener('click', event => {
         if (button.tagName === 'A') return;

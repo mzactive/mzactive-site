@@ -21,9 +21,12 @@ test('community feed uses activity-first tabs, a composer and post sharing', () 
   assert.match(html, /id="fbComposerText"/);
   assert.match(html, /id="openPrivateActivities"/);
   assert.match(html, /id="privateActivityPanel"/);
+  assert.match(html, /class="social-layout"/);
+  assert.match(html, /id="closePostComposer"/);
+  assert.match(feed, /canCompose/);
   assert.match(html, /id="communityBlogs"[^>]*data-feed-panel="blogs"/);
   assert.match(js, /api\/blog\/posts/);
   assert.match(js, /data-feed-tab/);
   assert.match(feed, /actionButton\(t\('Share', 'مشاركة'\)/);
-  assert.match(html, /community-social\.js\?v=20261125-activity2/);
+  assert.match(html, /community-social\.js\?v=20261125-feedfirst/);
 });

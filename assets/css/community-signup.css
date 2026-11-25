@@ -161,3 +161,63 @@ body.community-page:not(.home-page) main :is(input,textarea,select){color:#17342
 .community-page .private-activity-card{padding:16px 0;border-top:1px solid #dce4de;display:grid;gap:8px}
 .community-page .private-activity-card>p{white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
 .community-page .private-activity-card .activity-stat-grid{grid-template-columns:repeat(auto-fit,minmax(85px,1fr))}
+
+/* Feed-first dashboard: independent MZActive identity, real activity data only. */
+body.community-page:not(.home-page){--bg:#f3f5f3;--panel:#fff;--text:#17342e}
+.community-page main{max-width:1360px;padding:24px clamp(14px,3vw,36px)}
+.community-page .social-layout{display:grid;grid-template-columns:minmax(210px,245px) minmax(0,1fr) minmax(210px,270px);gap:22px;align-items:start}
+.community-page .social-left,.community-page .social-right{display:grid;gap:14px;min-width:0}
+.community-page .social-layout #feed{width:100%;max-width:none;min-width:0;margin:0}
+.community-page .social-layout .card{border-radius:10px;border:1px solid #e0e6e1}
+.community-page .activity-heading h1{font-size:clamp(24px,3vw,32px);line-height:1.2;margin:0}
+.community-page .activity-profile{display:none}
+.community-page .social-profile{padding:0;overflow:hidden}
+.community-page .social-profile-cover{height:64px;background:linear-gradient(115deg,#103538,#205456)}
+.community-page .social-profile-content{padding:0 16px 16px}
+.community-page .social-avatar{display:grid;place-items:center;width:64px;height:64px;margin-top:-32px;border:4px solid white;border-radius:50%;background:#f1e5c7;color:#17342e;font-size:21px;font-weight:800}
+.community-page .social-profile-content h2{font-size:19px;line-height:1.2;margin:8px 0 2px;overflow-wrap:anywhere}
+.community-page .social-profile-content p{font-size:13px;margin:0 0 10px}
+.community-page .social-profile-link{font-size:13px;font-weight:700;color:#205456}
+.community-page .social-week{border-top:1px solid #e1e7e2;padding:14px}
+.community-page .social-week h3{font-size:14px;margin:0 0 12px}
+.community-page .social-week-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.community-page .social-week-stats div{display:grid;gap:4px}
+.community-page .social-week-stats small{font-size:11px;color:#516c64}
+.community-page .social-week-stats strong{font-size:15px;overflow-wrap:anywhere}
+.community-page .social-week .note{font-size:12px;margin-bottom:0}
+.community-page .social-shortcuts,.community-page .social-discover{padding:15px}
+.community-page .social-shortcuts a,.community-page .social-discover a{display:block;text-decoration:none;padding:10px 2px;border-bottom:1px solid #e9ede9;font-size:14px;font-weight:650}
+.community-page .social-shortcuts a:last-child,.community-page .social-discover a:last-child{border:0}
+.community-page .social-shortcuts a:hover,.community-page .social-discover a:hover{color:#806022}
+.community-page .social-discover h3{font-size:19px;margin:6px 0}
+.community-page .social-discover small{display:block;font-weight:400;color:#516c64;font-size:12px}
+.community-page .social-right #join{margin:0;padding:15px;background:white;border:1px solid #e0e6e1;border-radius:10px}
+.community-page .social-right #join h2{font-size:17px;line-height:1.3}
+.community-page .social-right #join p{font-size:13px}
+.community-page .social-right #eventAlertSignup{font-size:13px;padding:9px 12px;width:100%}
+.community-page .social-right .community-auth-actions{gap:6px}
+.community-page .social-right .community-auth-actions a{font-size:13px;padding:8px}
+.community-page .fb-feed-tabs{background:white;border:1px solid #e0e6e1;border-radius:8px;padding:5px;margin:14px 0 12px}
+.community-page .fb-feed-tabs .social-tab{background:transparent;color:#17342e;padding:8px 13px;font-weight:650;border:0;min-height:38px}
+.community-page .fb-feed-tabs .social-tab[aria-selected="true"]{background:#103538;color:white}
+.community-page .fb-composer{gap:8px;padding:14px;border-color:#e0e6e1;margin-bottom:12px}
+.community-page .fb-composer label{display:none}
+.community-page .fb-composer input{border-color:#d6dfd9!important;border-radius:7px;min-height:43px}
+.community-page .fb-composer-actions{gap:5px}
+.community-page .fb-composer-actions button{font-size:12px;padding:7px 9px;border:0;background:#f2f5f2;border-radius:6px;min-height:37px}
+.community-page .fb-composer-actions .activity-primary{background:#103538;color:#fff}
+.community-page #feedNotice{font-size:12px;margin:8px 0}
+.community-page #feed>.feed-filters{margin:10px 0}
+.community-page #feed>.feed-filters label{font-size:12px}
+.community-page #feed>.feed-filters select{font-size:13px;padding:7px}
+.community-page .social-form-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.community-page .social-form-head h3{margin:0;font-size:18px}
+.community-page .social-form-head .button{margin:0;font-size:12px;color:#205456;border-color:#b9c9c2}
+.community-page #postForm:not([hidden]),.community-page #privateActivityPanel:not([hidden]){box-shadow:0 4px 18px #17342e12;padding:16px}
+.community-page .feed-card .team-head{display:flex;align-items:center;gap:12px}
+.community-page .feed-avatar{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:#e5eee8;font-weight:800;font-size:18px;flex:none}
+.community-page .feed-identity{display:grid;gap:1px;min-width:0}
+.community-page .social-empty{text-align:center;padding:26px 16px!important}
+.community-page .social-layout+section{margin-top:44px}
+@media(max-width:1060px){.community-page .social-layout{grid-template-columns:200px minmax(0,1fr);gap:16px}.community-page .social-right{grid-column:1/-1;grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.community-page main{padding:12px}.community-page .social-layout{display:flex;flex-direction:column;gap:16px}.community-page .social-layout #feed{order:0;width:100%}.community-page .social-left{order:1;width:100%;grid-template-columns:1fr}.community-page .social-right{order:2;width:100%;grid-template-columns:1fr}.community-page .activity-profile{display:block}.community-page .activity-heading h1{font-size:25px}.community-page .fb-feed-tabs .social-tab{font-size:12px;padding:8px 10px}.community-page .fb-composer-actions button{flex:1 0 auto}.community-page .social-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:8px}.community-page .social-shortcuts a{border:0}.community-page .social-profile-cover{height:42px}}

@@ -102,7 +102,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="MZA">
   <script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
-  <link rel="stylesheet" href="assets/css/community-signup.css?v=20261125-activity">
+  <link rel="stylesheet" href="assets/css/community-signup.css?v=20261125-feedfirst">
 </head>
 <body class="community-page">
 <script src="assets/js/language-preference.js?v=20261120c"></script>
@@ -116,30 +116,25 @@
   </nav>
 </header>
 <main>
-  <section class="hero">
-    <div class="community-hero-copy">
-    <h1 data-en="Your sporting community" data-ar="مجتمعك الرياضي">Your sporting community</h1>
-    <p class="lead" data-en="Share your training, celebrate progress and find people to move with." data-ar="شارك تدريباتك واحتفل بتقدمك وتعرّف على أشخاص يشاركونك النشاط.">Share your training, celebrate progress and find people to move with.</p>
-    <div class="community-hero-links">
-      <a href="#feed" data-en="Activity feed" data-ar="آخر الأنشطة">Activity feed</a>
-      <a href="#upcoming" data-en="Events" data-ar="الفعاليات">Events</a>
-      <a href="#discover" data-en="Groups" data-ar="المجموعات">Groups</a>
-    </div>
-    </div>
-    <section id="join" class="event-alert-card" aria-labelledby="eventAlertTitle">
-      <h2 id="eventAlertTitle" data-en="Join the community" data-ar="انضم إلى المجتمع">Join the community</h2>
-      <p data-en="Get new event announcements by email." data-ar="تلقَّ إعلانات الفعاليات الجديدة بالبريد الإلكتروني.">Get new event announcements by email.</p>
-      <div id="communityAuthActions" class="community-auth-actions">
-        <a class="button" href="dashboard.html?next=%2Fcommunity.html#registerForm" data-en="Sign up" data-ar="أنشئ حساباً">Sign up</a>
-        <a class="button alt" href="dashboard.html?next=%2Fcommunity.html#loginForm" data-en="Log in" data-ar="سجّل الدخول">Log in</a>
+  <div class="social-layout">
+    <aside class="social-left" aria-label="Profile and activity">
+      <div class="social-profile card">
+        <div class="social-profile-cover"></div>
+        <div class="social-profile-content"><div class="social-avatar" aria-hidden="true">MZ</div>
+          <h2 id="socialProfileName" data-user-content>MZActive</h2><p class="note" id="socialProfileHint" data-en="Your sporting journey" data-ar="رحلتك الرياضية">Your sporting journey</p>
+          <a class="social-profile-link" href="dashboard.html" data-en="View my profile" data-ar="عرض ملفي">View my profile</a>
+        </div>
+        <div class="social-week"><h3 data-en="Your last 7 days" data-ar="آخر ٧ أيام">Your last 7 days</h3><div class="social-week-stats" data-user-content><div><small data-en="Activities" data-ar="الأنشطة">Activities</small><strong id="socialWeekCount">—</strong></div><div><small data-en="Distance" data-ar="المسافة">Distance</small><strong id="socialWeekDistance">—</strong></div><div><small data-en="Time" data-ar="المدة">Time</small><strong id="socialWeekTime">—</strong></div></div><p class="note" id="socialWeekStatus" data-user-content></p></div>
       </div>
-      <button id="eventAlertSignup" class="button" type="button" data-en="Subscribe to event emails" data-ar="اشترك في رسائل الفعاليات" hidden>Subscribe to event emails</button>
-      <p id="eventAlertStatus" role="status" aria-live="polite" data-language-skip data-user-content></p>
-    </section>
-  </section>
-
+      <nav class="social-shortcuts card" aria-label="Explore MZActive">
+        <a href="#feed" data-en="Activity feed" data-ar="موجز الأنشطة">Activity feed</a>
+        <a href="dashboard.html" data-en="My training" data-ar="تدريباتي">My training</a>
+        <a href="coaches.html" data-en="Find a coach" data-ar="ابحث عن مدرب">Find a coach</a>
+        <a href="pacer.html" data-en="Find a pacer" data-ar="ابحث عن مرافق">Find a pacer</a>
+      </nav>
+    </aside>
   <section id="feed">
-    <div class="activity-heading"><div><p class="activity-eyebrow">MZACTIVE</p><h2 data-en="Activity feed" data-ar="موجز الأنشطة">Activity feed</h2></div><a class="activity-profile" href="dashboard.html" data-en="My profile" data-ar="ملفي الشخصي">My profile</a></div>
+    <div class="activity-heading"><div><p class="activity-eyebrow">MZACTIVE COMMUNITY</p><h1 data-en="Activity feed" data-ar="موجز الأنشطة">Activity feed</h1></div><a class="activity-profile" href="dashboard.html" data-en="My profile" data-ar="ملفي الشخصي">My profile</a></div>
     <nav id="communitySocialTabs" class="fb-feed-tabs" aria-label="Community sections" role="tablist">
       <button type="button" class="social-tab" data-feed-tab="feed" aria-selected="true" data-en="Feed" data-ar="الخلاصة">Feed</button>
       <button type="button" class="social-tab" data-feed-tab="following" aria-selected="false" data-en="Following" data-ar="المتابَعون">Following</button>
@@ -147,7 +142,7 @@
       <button type="button" class="social-tab" data-feed-tab="blogs" aria-selected="false" data-en="Blogs" data-ar="المقالات">Blogs</button>
       <button type="button" class="social-tab" data-feed-tab="challenges" aria-selected="false" data-en="Challenges" data-ar="التحديات">Challenges</button>
     </nav>
-    <div class="fb-composer"><label for="fbComposerText" data-en="Share your sporting journey…" data-ar="شارك رحلتك الرياضية…">Share your sporting journey…</label><input id="fbComposerText" maxlength="4000" aria-label="Share your sporting journey"><div class="fb-composer-actions">
+    <div class="fb-composer"><label for="fbComposerText" data-en="Share your sporting journey…" data-ar="شارك رحلتك الرياضية…">Share your sporting journey…</label><input id="fbComposerText" maxlength="3700" aria-label="Share your sporting journey" data-en-placeholder="How was your training?" data-ar-placeholder="كيف كان تدريبك؟" placeholder="How was your training?"><div class="fb-composer-actions">
       <button type="button" class="activity-primary" id="openPrivateActivities" aria-controls="privateActivityPanel" aria-expanded="false" data-en="+ Log activity" data-ar="+ سجّل نشاطاً">+ Log activity</button>
       <button type="button" data-compose="activity" data-en="Share workout" data-ar="شارك تمريناً">Share workout</button>
       <button type="button" data-compose="post" data-en="Write a post" data-ar="اكتب منشوراً">Write a post</button>
@@ -157,7 +152,7 @@
       
     </div></div>
     <section id="privateActivityPanel" class="card" hidden aria-labelledby="privateActivityHeading">
-      <h3 id="privateActivityHeading" data-en="My activity log" data-ar="سجل أنشطتي">My activity log</h3>
+      <div class="social-form-head"><h3 id="privateActivityHeading" data-en="My activity log" data-ar="سجل أنشطتي">My activity log</h3><button type="button" id="closeActivityLog" class="button small alt" data-en="Close" data-ar="إغلاق">Close</button></div>
       <p class="note" data-en="Activities are private by default. You can share an activity with one accepted coach or revoke access at any time. Public community posts are separate." data-ar="الأنشطة خاصة افتراضياً. يمكنك مشاركة نشاط مع مدرب مرتبط بك بعد قبول الطلب وإلغاء المشاركة في أي وقت. المنشورات العامة منفصلة.">Activities are private by default. You can share an activity with one accepted coach or revoke access at any time. Public community posts are separate.</p>
       <p id="activityLogStatus" class="note" role="status" aria-live="polite" data-user-content></p>
       <form id="privateActivityForm" class="feed-form" hidden>
@@ -175,9 +170,9 @@
     </section>
     <p id="feedNotice" class="note" role="status" aria-live="polite" data-en="Real posts, events and group sessions appear here after MZ Active moderation." data-ar="تظهر المنشورات والفعاليات والحصص الجماعية الحقيقية هنا بعد إشراف MZ Active.">Real posts, events and group sessions appear here after MZ Active moderation.</p>
     <p id="signInPrompt"><span data-en="Sign in from your dashboard to publish, like, comment and join group sessions." data-ar="سجّل الدخول من لوحة التحكم للنشر والإعجاب والتعليق والانضمام إلى الحصص الجماعية.">Sign in from your dashboard to publish, like, comment and join group sessions.</span> <a href="dashboard.html" data-en="Open dashboard" data-ar="افتح لوحة التحكم">Open dashboard</a></p>
-    <form id="postForm" class="card feed-form" hidden>
+    <p id="postAccessNotice" class="note" hidden role="status"></p><form id="postForm" class="card feed-form" hidden><div class="social-form-head"><h3 data-en="Create a post" data-ar="أنشئ منشوراً">Create a post</h3><button type="button" id="closePostComposer" class="button small alt" data-en="Close" data-ar="إغلاق">Close</button></div>
       <p id="composerCommunityLabel" class="note"></p>
-      <p id="postAccessNotice" class="note" hidden></p>
+
       <label><span data-en="Post type" data-ar="نوع المنشور">Post type</span><select id="postKind"><option value="post" data-en="Update" data-ar="تحديث">Update</option><option value="event" data-en="Event" data-ar="فعالية">Event</option><option value="group_session" data-en="Group session" data-ar="جلسة جماعية">Group session</option></select></label>
       <label><span data-en="Title or notes" data-ar="العنوان أو الملاحظات">Title or notes</span><textarea id="postBody" maxlength="3700" rows="3" required></textarea></label>
       <details id="activityMetrics" class="activity-metrics"><summary data-en="Add workout statistics (optional)" data-ar="أضف إحصاءات التمرين (اختياري)">Add workout statistics (optional)</summary><p class="note" data-en="These statistics will be included in your community post. Only share information you want this audience to see." data-ar="ستظهر هذه الإحصاءات في منشورك المجتمعي. شارك فقط المعلومات التي ترغب أن يراها هذا الجمهور.">These statistics will be included in your community post. Only share information you want this audience to see.</p><div class="activity-fields"><label><span data-en="Distance (km)" data-ar="المسافة (كم)">Distance (km)</span><input id="activityDistance" type="number" min="0.01" max="1000" step="0.01" inputmode="decimal"></label><label><span data-en="Duration (minutes)" data-ar="المدة (دقائق)">Duration (minutes)</span><input id="activityDuration" type="number" min="0.1" max="1440" step="0.1" inputmode="decimal"></label><label><span data-en="Activity date" data-ar="تاريخ النشاط">Activity date</span><input id="activityDate" type="date"></label></div><p id="activityEstimate" class="activity-estimate" aria-live="polite" data-user-content></p></details>
@@ -190,8 +185,21 @@
     <div id="feedList" class="grid" data-user-content data-feed-panel="feed"></div>
     <div id="communityBlogs" class="grid" data-user-content data-feed-panel="blogs" hidden></div>
     <p id="communityBlogsEmpty" class="note" hidden data-en="No published articles yet." data-ar="لا توجد مقالات منشورة بعد.">No published articles yet.</p>
-    <p id="feedEmpty" class="note" data-en="No published community posts yet." data-ar="لا توجد منشورات مجتمعية منشورة بعد.">No published community posts yet.</p>
+    <p id="feedEmpty" class="note social-empty card" data-en="No published community posts yet." data-ar="لا توجد منشورات مجتمعية منشورة بعد.">No published community posts yet.</p>
   </section>
+    <aside class="social-right" aria-label="Community discovery"><div class="card social-discover"><p class="activity-eyebrow" data-en="DISCOVER" data-ar="اكتشف">DISCOVER</p><h3 data-en="Move together" data-ar="نتحرك معاً">Move together</h3><a href="#discover" data-social-link="groups"><strong data-en="Clubs & groups" data-ar="الأندية والمجموعات">Clubs & groups</strong><small data-en="Find your people" data-ar="اعثر على مجموعتك">Find your people</small></a><a href="#upcoming"><strong data-en="Upcoming events" data-ar="الفعاليات القادمة">Upcoming events</strong><small data-en="Train together in Qatar" data-ar="تدرّبوا معاً في قطر">Train together in Qatar</small></a><a href="#feed" data-social-link="challenges"><strong data-en="Weekly challenges" data-ar="التحديات الأسبوعية">Weekly challenges</strong><small data-en="Make progress together" data-ar="تقدّموا معاً">Make progress together</small></a></div>
+    <section id="join" class="event-alert-card" aria-labelledby="eventAlertTitle">
+      <h2 id="eventAlertTitle" data-en="Join the community" data-ar="انضم إلى المجتمع">Join the community</h2>
+      <p data-en="Get new event announcements by email." data-ar="تلقَّ إعلانات الفعاليات الجديدة بالبريد الإلكتروني.">Get new event announcements by email.</p>
+      <div id="communityAuthActions" class="community-auth-actions">
+        <a class="button" href="dashboard.html?next=%2Fcommunity.html#registerForm" data-en="Sign up" data-ar="أنشئ حساباً">Sign up</a>
+        <a class="button alt" href="dashboard.html?next=%2Fcommunity.html#loginForm" data-en="Log in" data-ar="سجّل الدخول">Log in</a>
+      </div>
+      <button id="eventAlertSignup" class="button" type="button" data-en="Subscribe to event emails" data-ar="اشترك في رسائل الفعاليات" hidden>Subscribe to event emails</button>
+      <p id="eventAlertStatus" role="status" aria-live="polite" data-language-skip data-user-content></p>
+    </section>
+    </aside>
+  </div>
 
   <section id="activities">
     <h2 data-en="Find Your People" data-ar="اكتشف مجموعتك">Find Your People</h2>
@@ -406,10 +414,10 @@
   document.addEventListener('mzactive:language-change',event=>{lang=event.detail.lang;render()});render();
 })();
 </script>
-<script src="assets/js/community-feed.js?v=20261125-activity2" defer></script>
+<script src="assets/js/community-feed.js?v=20261125-feedfirst" defer></script>
 <script src="assets/js/community-groups.js?v=20261125-locale" defer></script>
-<script src="assets/js/community-social.js?v=20261125-activity2" defer></script>
-<script src="assets/js/community-activity-log.js?v=20261125a" defer></script>
+<script src="assets/js/community-social.js?v=20261125-feedfirst" defer></script>
+<script src="assets/js/community-activity-log.js?v=20261125b" defer></script>
 <script src="assets/js/site-language.js?v=20261120h"></script>
 <script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script>
 <script src="assets/js/community-event-signup.js?v=20261125-event-alerts" defer></script>

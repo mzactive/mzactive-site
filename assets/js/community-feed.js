@@ -221,7 +221,11 @@
     card.dataset.userContent = '';
     card.id = 'post-' + post.id;
     const head = node('div', undefined, 'team-head');
-    head.append(node('strong', post.author_name || 'MZ Active member'), node('small', [kindLabel(post.kind), formatDate(post.published_at || post.created_at)].filter(Boolean).join(' · ')));
+    const name = post.author_name || t('MZActive member','عضو MZActive');
+    const avatar = node('span', name.trim().slice(0,1).toUpperCase() || 'M', 'feed-avatar'); avatar.setAttribute('aria-hidden','true');
+    const identity = node('div',undefined,'feed-identity');
+    identity.append(node('strong', name), node('small', [kindLabel(post.kind), formatDate(post.published_at || post.created_at)].filter(Boolean).join(' · ')));
+    head.append(avatar,identity);
     card.append(head);
     if (post.title && post.title !== post.body) card.append(node('strong', post.title));
     const body = String(post.body || '');
@@ -330,7 +334,8 @@
     if (!form || !prompt) return;
     if (communityState.id) {
       const allowed = Boolean(communityState.member || communityState.can_manage);
-      form.hidden = !token || !allowed;
+      form.dataset.canCompose = String(Boolean(token && allowed));
+      if (!token || !allowed) form.hidden = true;
       if (access) {
         access.hidden = !token || allowed;
         access.textContent = t('Join this community to post, comment and join events.', 'انضم إلى هذا المجتمع للنشر والتعليق وحضور الفعاليات.');
@@ -338,7 +343,8 @@
       prompt.hidden = Boolean(token);
       if (label) label.textContent = `${t('Posting to', 'النشر في')}: ${communityState.name || t('this community', 'هذا المجتمع')}`;
     } else {
-      form.hidden = !token;
+      form.dataset.canCompose = String(Boolean(token));
+      if (!token) form.hidden = true;
       if (access) access.hidden = true;
       prompt.hidden = Boolean(token);
       if (label) label.textContent = '';
@@ -348,6 +354,7 @@
   async function createPost(event) {
     event.preventDefault();
     const form = event.currentTarget;
+    if (form.dataset.canCompose !== 'true') return;
     const body = $('postBody').value.trim();
     if (!body) return;
     const kind = $('postKind').value, timed = ['event', 'group_session'].includes(kind);
@@ -381,6 +388,7 @@
         await api(`/community/posts/${encodeURIComponent(result.id)}/photos/${index + 1}`, { method: 'PUT', headers: { 'content-type': file.type }, body: file });
       }
       form.reset();
+      form.hidden = true;
       $('activityMetrics').open = false;
       updateActivityEstimate();
       syncComposerFields();
@@ -520,6 +528,7 @@
       member: Boolean(detail.member), can_manage: Boolean(detail.can_manage),
     };
     if (detail.user_id) currentUserId = detail.user_id;
+    $('postForm').hidden = true;
     syncComposerAccess();
     loadFeed();
   });

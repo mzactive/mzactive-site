@@ -45,10 +45,13 @@ test('the FB composer opens the existing post form with the typed update', async
   });
   await seedSession(page, { storage: 'session' });
   await page.goto('/community.html');
+  await expect(page.locator('#postForm')).toBeHidden();
   await page.locator('#fbComposerText').fill('Long run completed in Doha.');
   await page.locator('[data-compose="photo"]').click();
   await expect(page.locator('#postForm')).toBeVisible();
   await expect(page.locator('#postBody')).toHaveValue('Long run completed in Doha.');
+  await page.locator('#closePostComposer').click();
+  await expect(page.locator('#postForm')).toBeHidden();
   assertOfflineSafe(mock);
 });
 
