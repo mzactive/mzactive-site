@@ -2495,14 +2495,18 @@ async function createBooking(request, env) {
       deepLink = coachConnectionId ? `https://mzactive.com/dashboard.html?connection=${coachConnectionId}#myAthletes` : null;
     }
   }
-  if (deepLink) {
+  if (coachOwnerId) {
     const coachUser = await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(coachOwnerId).first();
-    await queueCoachEmail(env, {
-      eventKey: `booking_received:${id}`,
-      to: coachUser?.email || "",
-      subject: "New coaching request on MZ Active",
-      body: `A member sent you a coaching request on MZ Active.\n\nOpen the exact request: ${deepLink}`,
-    });
+    const requestLink = "https://mzactive.com/dashboard.html?view=requests#coachBookingInbox";
+    // The booking exists for both guests and registered athletes. Never require a connection to alert its owner.
+    try {
+      await queueCoachEmail(env, {
+        eventKey: `booking_received:${id}`,
+        to: coachUser?.email || "",
+        subject: "MZActive — New coaching request / طلب تدريب جديد",
+        body: `You have a new request from ${name}. Review the request and respond in your secure dashboard.\n\nلديك طلب جديد. راجع الطلب ورد عليه في لوحة التحكم.\n\n${requestLink}${deepLink ? `\n\nAthlete connection / ارتباط الرياضي: ${deepLink}` : ""}`,
+      });
+    } catch { /* A saved booking must remain successful if email delivery is unavailable. */ }
   }
   return reply(request, env, { request_id: id, connection_id: coachConnectionId, status: "received_pending_payment", provider_name: body.provider_name || "MZ Active Champion Pacer", provider_category: body.provider_category || "Sports Coach", provider_whatsapp: body.provider_whatsapp || null, provider_type: coachOwnerType || null, deep_link: deepLink }, 201);
 }
@@ -5596,9 +5600,14 @@ export default {
       const profile = await env.DB.prepare(`SELECT id,verified,qualifications,services_json,coaching_mode,certificate_name,certificate_issuer,certificate_number,license_number,license_issuer,license_country,license_expires_on,license_status,license_review_note,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=provider_profiles.id) AS gallery_slots,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,pacer_details_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json,status,review_note,submission_state,submitted_at,CASE WHEN cv_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_cv,cv_file_name,cv_byte_size,cv_updated_at,updated_at FROM provider_profiles WHERE user_id=?`).bind(user.id).first();
       return reply(request, env, { profile: profile ? { ...profile, professional_category:{ en:professionalLabel(profile.provider_type,"en"), ar:professionalLabel(profile.provider_type,"ar") }, services:safeParse(profile.services_json), gallery_slots:safeParse(profile.gallery_slots), specialties:safeParse(profile.specialties_json), languages:safeParse(profile.languages_json), program_durations:safeParse(profile.program_durations_json), pacer_details:cleanPacerDetails(safeParse(profile.pacer_details_json)), social_links:safeParse(profile.social_links_json), public_fields:cleanPublicFields(safeParse(profile.public_fields_json)) } : null });
     }
-    if (request.method === "PUT" && url.pathname === "/api/me/profile/photo") {
+    if (["GET", "PUT"].includes(request.method) && url.pathname === "/api/me/profile/photo") {
       const user = await currentUser(request, env);
       if (!user || user.role !== "provider") return reply(request, env, { error: "unauthorized" }, 401);
+      if (request.method === "GET") {
+        const row = await env.DB.prepare("SELECT profile_photo_bytes,profile_photo_content_type FROM provider_profiles WHERE user_id=? AND COALESCE(review_note,'')!='Removed by owner'").bind(user.id).first();
+        if (!row?.profile_photo_bytes || !row.profile_photo_content_type) return reply(request, env, { error: "photo_not_found" }, 404);
+        return binaryReply(request, env, row.profile_photo_bytes, row.profile_photo_content_type, "private, no-store");
+      }
       return uploadProfilePhoto(request, env, user);
     }
     if (["GET", "PUT", "DELETE"].includes(request.method) && url.pathname === "/api/me/profile/cv") {

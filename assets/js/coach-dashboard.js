@@ -224,12 +224,12 @@
 
   const managedSections = ['#coachProfilePanel', '#coachContactPanel', '#coachCommunityPanel',
     '#coachBlogDetails', '#whatsappTrainingForm', '#flexProgramHistory', '#coachAiPanel', '#coachPlanAiPanel',
-    '#coachTeams', '#coachStatistics', '#communityWorkspace', '#coachMyAthletes'];
+    '#coachTeams', '#coachStatistics', '#communityWorkspace', '#coachMyAthletes', '#coachBookingInbox'];
   const sectionGroups = {
     posts: ['#coachCommunityPanel', '#coachBlogDetails'],
     profile: ['#myProfilePanel'],
     athletes: ['#coachMyAthletes'],
-    requests: ['#coachMyAthletes'],
+    requests: ['#coachBookingInbox', '#coachMyAthletes'],
     programs: ['#whatsappTrainingForm'],
     history: ['#flexProgramHistory'],
     statistics: ['#coachStatistics'],
@@ -247,7 +247,7 @@
     }
     const target = $((visible[0] || '#coachMyAthletes').slice(1));
     target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    if (key === 'requests') { state.bucket = 'pending'; render(); }
+    if (key === 'requests') { state.bucket = 'pending'; render(); window.MZActiveCoachInbox?.refresh?.(); }
     if (key === 'statistics') renderStatistics();
   }
   function renderStatistics() {

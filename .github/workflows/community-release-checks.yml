@@ -4,6 +4,10 @@ on:
     branches: [main]
     paths:
       - 'community.html'
+      - 'dashboard.html'
+      - 'providers.html'
+      - 'coach.html'
+      - 'assets/js/coach-*.js'
       - 'coaches.html'
       - 'assets/css/coach-directory.css'
       - 'pacer.html'
@@ -26,6 +30,8 @@ jobs:
           node-version: '22'
       - name: Syntax checks
         run: |
+          node --check assets/js/coach-request-inbox.js
+          node --check assets/js/coach-strava-nav.js
           node --check assets/js/community-feed.js
           node --check assets/js/community-social.js
           node --check assets/js/community-public.js
