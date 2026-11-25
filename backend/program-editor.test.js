@@ -32,18 +32,20 @@ async function approvedCoach(call){
 
 test('long programs save every session on the correct date and can be updated', async()=>{
   const {db,call}=setup();const coach=await approvedCoach(call);
+  const exactWorkout = 'Strength A\n[MZ:{"km":0,"minutes":0,"exerciseLength":0}]\n  إحماء\n\n5 × 400 m  \n';
   const payload={
     athlete_name:'Athlete',athlete_phone:'55555555',athlete_type:'running',duration_unit:'days',duration_value:10,
     start_date:'2026-11-23',coach_note:'10-day block',
     weeks:[
       {week_start:'2026-11-23',sessions:[{day_key:'monday',sport_type:'run',details:'Easy 5 km'}]},
-      {week_start:'2026-11-30',sessions:[{day_key:'monday',sport_type:'strength',details:'Strength A'}]},
+      {week_start:'2026-11-30',sessions:[{day_key:'monday',sport_type:'strength',details:exactWorkout}]},
     ],
   };
   const saved=await call('dashboard/programs','POST',payload,coach.token,201);
   assert.equal(saved.duration_unit,'days');assert.equal(saved.end_date,'2026-12-02');assert.equal(saved.session_codes.length,2);
   const dates=db.prepare('SELECT session_date,details FROM athlete_program_sessions_v2 WHERE program_id=? ORDER BY sort_order').all(saved.id);
   assert.deepEqual(dates.map(x=>x.session_date),['2026-11-23','2026-11-30']);
+  assert.equal(dates[1].details,exactWorkout);
   const updated=await call('dashboard/programs/'+saved.id,'PATCH',{...payload,duration_unit:'weeks',duration_value:4,weeks:[{week_start:'2026-11-23',sessions:[{day_key:'monday',sport_type:'run',details:'Easy 6 km'}]},{week_start:'2026-12-07',sessions:[{day_key:'monday',sport_type:'swim',details:'Swim technique'}]}]},coach.token);
   assert.equal(updated.status,'updated');
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM athlete_program_sessions_v2 WHERE program_id=?').get(saved.id).count,2);

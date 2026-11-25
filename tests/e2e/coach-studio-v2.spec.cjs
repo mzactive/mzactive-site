@@ -146,7 +146,7 @@ test('quick write requires only the coaching text and preserves it on publish',a
  const mock=await open(page,{overrides:{'POST /api/dashboard/programs':json({id:program},201),['POST /api/dashboard/programs/'+program+'/send']:json({sent:true,program_id:program})}});
  await choose(page);
  await page.locator('#calendarGrid .day').first().getByRole('button',{name:'+ Workout',exact:true}).click();
- const d=page.locator('#dialog'),text='Warm-up: 3 km easy.\nMain: 2 × 3 km.\nRecovery: 2 min between repetitions.\nCool-down: 1 km easy.';
+ const d=page.locator('#dialog'),text='  Warm-up: 3 km easy.\n\nMain: 2 × 3 km.\nتهدئة: كيلومتر واحد.  \n';
  await expect(d.getByLabel('Workout name')).toBeHidden();await expect(d.getByLabel('Add exercise')).toBeHidden();
  await d.getByLabel('Coach instructions').fill(text);await d.getByRole('button',{name:'Save workout'}).click();
  await expect(page.locator('#calendarGrid').getByText('Warm-up: 3 km easy.',{exact:true})).toBeVisible();

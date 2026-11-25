@@ -2439,9 +2439,11 @@ async function createBooking(request, env) {
   if (!await rateLimit(request, env, "booking", 5)) return reply(request, env, { error: "rate_limited" }, 429);
   const body = await readJson(request), email = emailValue(body?.customer_email);
   const name = text(body?.customer_name,100), phone = text(body?.customer_phone,40), city = text(body?.city,80), goal = text(body?.goal_summary,1000);
+  const digits = phone.replace(/\D/g, "");
+  const validMobile = /^\+?[\d\s()-]+$/.test(phone) && /^\d{7,15}$/.test(digits);
   const sessionType = BOOKING_SESSION_TYPES.includes(body?.session_type) ? body.session_type : "";
   const serviceName = text(body?.service_name,120), distance = text(body?.distance,60), targetPace = text(body?.target_pace,40);
-  if (!body || !/^\+?[\d\s()-]{7,40}$/.test(phone) || !name || !city || !goal || !sessionType || body.consent !== true) return reply(request, env, { error: "invalid_booking_request" }, 400);
+  if (!body || !validMobile || !/\p{L}/u.test(name) || !city || !goal || !sessionType || body.consent !== true) return reply(request, env, { error: "invalid_booking_request" }, 400);
   let providerId = text(body.provider_id,36) || null, programDuration = Number(body.program_duration_months) || null;
   if (providerId) {
     const provider = await env.DB.prepare("SELECT id,display_name,provider_type,services_json,public_fields_json,program_durations_json,CASE WHEN whatsapp_public=1 THEN whatsapp_number ELSE NULL END AS public_whatsapp FROM provider_profiles WHERE id=? AND status='approved' AND NOT EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND (u.profile_visibility<>'public' OR u.account_status IS NULL OR u.account_status<>'active')) AND (provider_type NOT IN ('nutritionist','physiotherapist','sports_massage_therapist') OR (license_status='verified' AND (license_expires_on IS NULL OR license_expires_on>=date('now'))))").bind(providerId).first();
@@ -2987,10 +2989,12 @@ function prepareProgram(body) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart) || !Number.isFinite(Date.parse(weekStart+"T00:00:00Z"))) return null;
     for (const item of Array.isArray(week?.sessions) ? week.sessions : []) {
       const dayKey=item?.day_key, sport=item?.sport_type;
-      if (!days.includes(dayKey) || !sports.has(sport) || !text(item?.details,1600)) return null;
+      const details = item?.details;
+      const studioDetails = typeof details === "string" && /^[^\n]+\n\[MZ:\{[^\n]*"exerciseLength":\d+\}\]\n/.test(details);
+      if (!days.includes(dayKey) || !sports.has(sport) || !text(details,1600) || (studioDetails && details.length > 1600)) return null;
       const sessionDate=text(item?.session_date,10) || addDays(weekStart, days.indexOf(dayKey));
       if (!/^\d{4}-\d{2}-\d{2}$/.test(sessionDate) || sessionDate < startDate || sessionDate > endDate) return null;
-      sessions.push({ day_key:dayKey, sport_type:sport, details:text(item.details,1600), session_date:sessionDate });
+      sessions.push({ day_key:dayKey, sport_type:sport, details:studioDetails?details:text(details,1600), session_date:sessionDate });
     }
   }
   if (!sessions.length || sessions.length > 500) return null;

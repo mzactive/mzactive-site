@@ -3,10 +3,10 @@ const kinds=new Set(['exercise','workout','program']);
 const categories=new Set(['strength','core','run','mobility','bike','swim','recovery']);
 const sports=new Set(['strength','run','bike','swim','recovery','other']);
 const idOK=x=>typeof x==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(x);
-function cleanText(v,max,required=false){
+function cleanText(v,max,required=false,preserveWhitespace=false){
  if(v==null&&!required)return '';
  if(typeof v!=='string'||v.length>max||(required&&!v.trim()))throw Error('invalid_library_item');
- return v.trim();
+ return preserveWhitespace?v:v.trim();
 }
 function exercise(x){
  if(!x||!idOK(x.id)||!categories.has(x.category))throw Error('invalid_library_item');
@@ -15,12 +15,12 @@ function exercise(x){
 }
 function workout(x){
  if(!x||!idOK(x.id)||!sports.has(x.sport)||!Array.isArray(x.exercises)||x.exercises.length>20)throw Error('invalid_library_item');
- const result={id:x.id,title:cleanText(x.title,120,true),sport:x.sport,km:cleanText(x.km,12),minutes:cleanText(x.minutes,12),notes:cleanText(x.notes,1000),exercises:x.exercises.map(e=>{
+ const result={id:x.id,title:cleanText(x.title,120,true),sport:x.sport,km:cleanText(x.km,12),minutes:cleanText(x.minutes,12),notes:cleanText(x.notes,1000,false,true),exercises:x.exercises.map(e=>{
   const value=exercise(e);
   for(const k of ['sets','reps','weight','distance','duration','pace','rest'])value[k]=cleanText(e[k],32);
   return value;
  })};
- if(!result.notes&&!result.exercises.length)throw Error('invalid_library_item');
+ if(!result.notes.trim()&&!result.exercises.length)throw Error('invalid_library_item');
  return result;
 }
 export function cleanLibraryItem(kind,id,body){

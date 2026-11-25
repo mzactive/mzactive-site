@@ -29,9 +29,11 @@ const COACH = {
   viewer: { authenticated: false, owner: false, can_message: false },
 };
 
-test('discovery cards are compact horizontal cards with real details on every device', async ({ page }) => {
+test('discovery cards lead with portraits with real details on every device', async ({ page }) => {
   const mock = await installApiMock(page, {
     overrides: {
+      ['GET /api/providers/'+COACH_ID]: json({ provider: COACH }),
+      'POST /api/bookings': json({ request_id: 'guest-request' }, 201),
       'GET /api/providers': json({
         providers: [{
           ...COACH,
@@ -55,14 +57,14 @@ test('discovery cards are compact horizontal cards with real details on every de
     const badge = el.querySelector('.verified-badge').getBoundingClientRect();
     const columns = getComputedStyle(document.getElementById('grid')).gridTemplateColumns.split(' ').length;
     return {
-      photoWidth: Math.round(photo.width), photoHeight: Math.round(photo.height),
+      photoWidth: Math.round(photo.width), cardWidth: Math.round(el.getBoundingClientRect().width), photoHeight: Math.round(photo.height),
       fit: getComputedStyle(image).objectFit, badgeHeight: Math.round(badge.height), columns,
       text: el.textContent, emoji: /[🏃🏁📍]/.test(el.textContent), tagCount: el.querySelectorAll('.tag').length,
     };
   });
   const mobile = await page.evaluate(() => window.innerWidth <= 620);
-  expect(layout.photoWidth).toBe(mobile ? 90 : 120);
-  expect(layout.photoHeight).toBe(mobile ? 120 : 160);
+  expect(layout.cardWidth-layout.photoWidth).toBeLessThanOrEqual(2);
+  expect(layout.photoHeight).toBeGreaterThanOrEqual(190);
   expect(layout.fit).toBe('cover');
   expect(layout.badgeHeight).toBeLessThan(24);
   expect(layout.columns).toBe(mobile ? 1 : 3);
@@ -73,7 +75,20 @@ test('discovery cards are compact horizontal cards with real details on every de
   await expect(card).toContainText('Arabic · English');
   await expect(card).toContainText('Running plans · Race preparation');
   await expect(card.getByRole('link', { name: 'View Profile' })).toHaveAttribute('href', `coach.html?id=${COACH_ID}`);
-  await expect(card.getByRole('link', { name: 'Send Request' })).toHaveAttribute('href', `pacer.html?provider=${COACH_ID}#request`);
+  await card.getByRole('link', { name: 'Contact coach' }).click();
+  await expect(page).toHaveURL(/coach\.html.*contact=coaching/);
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('[name=customer_name]').fill('Guest Runner');
+  await dialog.locator('[name=customer_phone]').fill('---123---');
+  await dialog.locator('[name=goal_summary]').fill('Help with my first half marathon');
+  await dialog.locator('[name=consent]').check();
+  await dialog.getByRole('button', { name: 'Send request' }).click();
+  expect(mock.calls.filter(c=>c.path==='/api/bookings')).toHaveLength(0);
+  await dialog.locator('[name=customer_phone]').fill('+974 ١٢٣٤٥٦٧٨');
+  await dialog.getByRole('button', { name: 'Send request' }).click();
+  await expect(dialog.getByRole('status')).toContainText('Request sent.');
+  expect(mock.calls.find(c=>c.path==='/api/bookings').body.customer_phone).toBe('+97412345678');
   assertOfflineSafe(mock);
 });
 

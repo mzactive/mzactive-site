@@ -1,0 +1,30 @@
+body .hero { padding-block: clamp(36px, 6vw, 76px); }
+body .hero h1 { letter-spacing: normal; }
+main.section .grid { gap: 20px; }
+main.section .card {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  gap: 0;
+  padding: 0;
+  background-color: #f3faf7 !important;
+  color: #162c2a !important;
+  border-color: #b8cec8 !important;
+  border-radius: 18px;
+  overflow: hidden;
+}
+main.section .card:focus-within { outline: 3px solid #f2b718; outline-offset: 3px; }
+main.section .card .photo {
+  width: 100%;
+  height: clamp(190px, 23vw, 270px);
+  border-radius: 0;
+  background: #c9ded8;
+}
+main.section .card .body { display: flex; flex-direction: column; padding: 18px; }
+main.section .card .name h3 { color: #162c2a !important; font-size: clamp(1.08rem, 2vw, 1.29rem); }
+main.section .card .specialty { color: #285a55; margin-block: 7px 12px; }
+main.section .card .fact { color: #34524e; }
+main.section .card .verified-badge { color: #245b49; border-color: #83aa9c; }
+main.section .card .profile-actions { margin-top: auto; padding-top: 16px; }
+main.section .card .profile-actions .btn { color: #fff !important; background-color: #155550 !important; border-color: #155550 !important; }
+main.section .card .profile-actions .view-profile { color: #184945 !important; background-color: transparent !important; }
+main.section .note a { color: #f2ce6c; }
