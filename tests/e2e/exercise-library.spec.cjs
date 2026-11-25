@@ -10,7 +10,7 @@ async function open(page,provider_type='coach'){
  'GET /api/dashboard/athletes':json({athletes:[],counts:{pending:0,active:0,completed:0}}),
  'POST /api/dashboard/programs':json({id:'prog-new',session_codes:[]},201)
  }});
- await seedSession(page,{storage:'session'});await page.goto('/dashboard.html?studio=0');
+ await seedSession(page,{storage:'session'});await page.goto('/dashboard.html?legacy=1&studio=0');
  if(['coach','bodybuilding_coach'].includes(provider_type))await expect(page.locator('#studioExerciseLibrary')).toBeVisible();else await expect(page.locator('#coachMyAthletes')).toBeVisible();return mock;
 }
 test('exercise library inserts a configurable workout and saves existing payload',async({page})=>{

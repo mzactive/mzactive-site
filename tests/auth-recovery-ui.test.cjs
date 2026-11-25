@@ -66,7 +66,7 @@ test('reset page maps API errors and only shows success after a 200 response', (
   assert.doesNotMatch(resetJs, /Password reset successful|Your password has been reset/i);
 });
 
-test('all three login pages load the one shared auth UI and its CSS', () => {
+test('login pages use shared auth UI; provider registration links to the central sign-in', () => {
   for (const [name, html] of [
     ['admin.html', adminHtml],
     ['dashboard.html', dashboardHtml],
@@ -74,10 +74,11 @@ test('all three login pages load the one shared auth UI and its CSS', () => {
   ]) {
     assert.ok(html.includes(`auth-ui.js${VERSION}`), name);
     assert.ok(html.includes(`auth.css${VERSION}`), name);
-    assert.match(html, /data-forgot-password/, name);
+    if(name!=='providers.html')assert.match(html, /data-forgot-password/, name);
   }
   assert.match(dashboardHtml, /data-en="Forgot password\?" data-ar="هل نسيت كلمة المرور\؟"/);
-  assert.match(providersHtml, /data-en="Forgot password\?" data-ar="هل نسيت كلمة المرور\؟"/);
+  assert.match(providersHtml, /href="\/dashboard\.html#loginForm"/);
+  assert.doesNotMatch(providersHtml, /<form[^>]+id="providerLogin"/);
   assert.equal((authUi.match(/id: 'forgotPasswordDialog'/g) || []).length, 1);
   assert.match(authUi, /\/api\/auth\/forgot-password/);
   assert.match(authUi, /'aria-modal': 'true'/);
