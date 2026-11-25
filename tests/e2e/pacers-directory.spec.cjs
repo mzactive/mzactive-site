@@ -129,3 +129,17 @@ test('Pacer request creates a real independent request', async ({ page }) => {
   await page.locator('#bookingSubmit').click();
   await expect.poll(() => mock.calls.some(c => c.method === 'POST' && c.path === '/api/pacer/requests' && c.body.provider_id === 'pacer-e2e')).toBe(true);
 });
+
+test('directory filters real profiles and links to public profile', async ({page})=>{
+  const mock=await installApiMock(page,{overrides:{'GET /api/pacers':json({pacers:[approvedPacer]})}});
+  await page.goto('/pacer.html');
+  await expect(page.locator('#pacerGrid .profile-link')).toHaveAttribute('href','pacer-profile.html?id=pacer-e2e');
+  await page.locator('#directorySearch').fill('no matching name');
+  await expect(page.locator('#pacerGrid .pacer-card')).toHaveCount(0);
+  await expect(page.locator('#pacerEmpty')).toContainText('No matching pacers');
+  await page.locator('#directoryReset').click();
+  await expect(page.locator('#pacerGrid .pacer-card')).toHaveCount(1);
+  await page.locator('[data-sport-filter="running"]').click();
+  await expect(page.locator('#pacerGrid .pacer-card')).toHaveCount(1);
+  assertOfflineSafe(mock);
+});
