@@ -27,5 +27,6 @@
 
   const token = () => sessionStorage.getItem(KEY) || localStorage.getItem(KEY) || '';
 
-  window.MZActiveAuth = Object.freeze({ KEY, destination, store, token });
+  const isWorkoutId = (value) => typeof value === 'string' && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
+  window.MZActiveAuth = Object.freeze({ KEY, destination, store, token, isWorkoutId });
 })();

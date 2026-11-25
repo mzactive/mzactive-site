@@ -8,19 +8,25 @@ function cleanText(v,max,required=false,preserveWhitespace=false){
  if(typeof v!=='string'||v.length>max||(required&&!v.trim()))throw Error('invalid_library_item');
  return preserveWhitespace?v:v.trim();
 }
+function cleanVideoId(value){
+ const id=cleanText(value,11);
+ if(id&&!/^[A-Za-z0-9_-]{11}$/.test(id))throw Error('invalid_library_item');
+ return id;
+}
 function exercise(x){
  if(!x||!idOK(x.id)||!categories.has(x.category))throw Error('invalid_library_item');
- const videoId=cleanText(x.videoId,11);if(videoId&&!/^[A-Za-z0-9_-]{11}$/.test(videoId))throw Error('invalid_library_item');
+ const videoId=cleanVideoId(x.videoId);
  return {id:x.id,category:x.category,en:cleanText(x.en,120,true),ar:cleanText(x.ar,120,true),muscle:cleanText(x.muscle,120),equipment:cleanText(x.equipment,120),...(videoId?{videoId}:{})};
 }
 function workout(x){
  if(!x||!idOK(x.id)||!sports.has(x.sport)||!Array.isArray(x.exercises)||x.exercises.length>20)throw Error('invalid_library_item');
- const result={id:x.id,title:cleanText(x.title,120,true),sport:x.sport,km:cleanText(x.km,12),minutes:cleanText(x.minutes,12),notes:cleanText(x.notes,1000,false,true),exercises:x.exercises.map(e=>{
+ const videoId=cleanVideoId(x.videoId);
+ const result={id:x.id,...(videoId?{videoId}:{}),title:cleanText(x.title,120,true),sport:x.sport,km:cleanText(x.km,12),minutes:cleanText(x.minutes,12),notes:cleanText(x.notes,1000,false,true),exercises:x.exercises.map(e=>{
   const value=exercise(e);
   for(const k of ['sets','reps','weight','distance','duration','pace','rest'])value[k]=cleanText(e[k],32);
   return value;
  })};
- if(!result.notes.trim()&&!result.exercises.length)throw Error('invalid_library_item');
+ if(!result.notes.trim()&&!result.exercises.length&&!videoId)throw Error('invalid_library_item');
  return result;
 }
 export function cleanLibraryItem(kind,id,body){
