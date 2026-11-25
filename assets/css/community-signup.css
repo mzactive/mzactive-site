@@ -241,3 +241,24 @@ body.community-page:not(.home-page){--bg:#f3f5f3;--panel:#fff;--text:#17342e}
 .community-page .public-person-info strong{font-size:13px}
 .community-page .public-person-info small{font-size:11px;color:#516c64}
 @media(max-width:480px){.community-page #publicPeopleList{grid-template-columns:1fr}}
+
+/* Public community discovery: essentials first. */
+.community-page #discover .discover-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.community-page #discover .discover-heading h2{margin:0 0 4px;font-size:clamp(22px,3vw,28px)}
+.community-page #discover .discover-heading p{margin:0;color:#526b63;font-size:14px}
+.community-page #discover .discover-heading button{flex:none;font-size:13px;min-height:40px;margin:0}
+.community-page #discover .discover-filters{grid-template-columns:minmax(0,2fr) minmax(120px,1fr) auto;align-items:end;gap:10px}
+.community-page #discover .discover-filters :is(input,select),.community-page #createCommunityForm :is(input,select,textarea){min-height:43px;padding:9px 12px;border:1px solid #cfdbd3;border-radius:8px;background:#fff}
+.community-page #discover .discover-more{align-self:end;font-size:13px;padding:9px 0}
+.community-page #discover details summary{cursor:pointer;color:#205456;font-weight:650}
+.community-page #discover .discover-more[open]{grid-column:1/-1;background:#fff;border:1px solid #dce4df;padding:12px;border-radius:8px;display:grid;gap:8px}
+.community-page #discover .discover-more label{margin-top:9px}
+.community-page #createCommunityForm{max-width:650px;padding:18px}
+.community-page #createCommunityForm h3{margin:0}
+.community-page #createCommunityForm #createCommunityNotice:empty,.community-page #discoverNotice:empty{display:none}
+.community-page #createCommunityForm .community-optional{background:#f3f5f3;border:1px solid #dce4df;border-radius:8px;padding:12px}
+.community-page #createCommunityForm .community-optional>label{margin-top:10px}
+.community-page #createCommunityForm .filters{grid-template-columns:1fr 1fr}
+.community-page #communityList .card{border-radius:10px;padding:16px}
+.community-page #communityEmpty{background:#fff;border:1px solid #dce4df;border-radius:10px;padding:20px;text-align:center}
+@media(max-width:600px){.community-page #discover .discover-heading{align-items:flex-start}.community-page #discover .discover-heading button{font-size:12px;padding:7px 10px}.community-page #discover .discover-filters{grid-template-columns:minmax(0,1fr) minmax(100px,.75fr)}.community-page #discover .discover-more{grid-column:1/-1}.community-page #createCommunityForm .filters{grid-template-columns:1fr}}

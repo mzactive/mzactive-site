@@ -29,7 +29,9 @@ test('directory and homepage render category labels and verified credentials saf
   assert.match(directory, /id="searchForm"/);
   assert.match(directory, /id="searchButton"/);
   assert.doesNotMatch(directory, /typeSearch\.addEventListener\('change',loadProviders\)/);
-  assert.match(directory, /api\/providers\$\{query\}/);
+  assert.match(directory, /fetchProviders\(`\$\{API_BASE\}\/api\/providers`\)/);
+  assert.match(directory, /!applied\.type\|\|p\.provider_type===applied\.type/);
+  assert.match(directory, /function runSearch\(\).*if\(failed\)loadProviders\(\);else render\(\)/);
   assert.match(directory, /professional_category/);
   assert.match(directory, /license_verified/);
   assert.match(directory, /"credentials"/);

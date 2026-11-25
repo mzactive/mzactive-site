@@ -86,10 +86,13 @@ test('an eligible member creates an active community and a moderator creates a r
   await seedSession(page, { storage: 'local' });
   await page.goto('/community.html');
 
+  await expect(page.locator('#createCommunityForm')).toBeHidden();
+  await page.locator('#openCreateCommunity').click();
   await expect(page.locator('#createCommunityForm')).toBeVisible();
   await page.locator('#newCommunityName').fill('E2E Cycling Community');
   await page.locator('#newCommunitySport').selectOption('cycling');
   await page.locator('#newCommunityDescription').fill('A synthetic private group used only for offline checks.');
+  await page.locator('.community-optional summary').click();
   await page.locator('#newCommunityLocation').fill('Doha');
   await page.locator('#newCommunityVisibility').selectOption('private');
   await page.locator('#newCommunityRules').fill('Be respectful.');

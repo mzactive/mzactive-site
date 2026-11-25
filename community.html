@@ -102,7 +102,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="MZA">
   <script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
-  <link rel="stylesheet" href="assets/css/community-signup.css?v=20261125-public">
+  <link rel="stylesheet" href="assets/css/community-signup.css?v=20261125-simple">
 </head>
 <body class="community-page">
 <script src="assets/js/language-preference.js?v=20261120c"></script>
@@ -209,25 +209,25 @@
   </section>
 
   <section id="discover">
-    <h2 data-en="Discover communities" data-ar="اكتشف المجتمعات">Discover communities</h2>
-    <p id="discoverNotice" class="note" role="status" aria-live="polite" data-en="Search real communities, filter by sport and location, or open My Communities." data-ar="ابحث في المجتمعات الحقيقية، وصفِّ حسب الرياضة والمكان، أو افتح مجتمعاتي.">Search real communities, filter by sport and location, or open My Communities.</p>
-    <div class="filters">
+    <div class="discover-heading"><div><h2 data-en="Discover communities" data-ar="اكتشف المجتمعات">Discover communities</h2><p data-en="Find a group. Train together." data-ar="اعثر على مجموعة وتدرّب معها.">Find a group. Train together.</p></div><button type="button" id="openCreateCommunity" class="button small" aria-expanded="false" aria-controls="createCommunityForm" data-en="+ Create community" data-ar="+ أنشئ مجتمعاً">+ Create community</button></div>
+    <p id="discoverNotice" class="note" role="status" aria-live="polite" data-user-content></p>
+    <div class="filters discover-filters">
       <label><span data-en="Search" data-ar="بحث">Search</span><input id="communitySearch" type="search" maxlength="100" data-en-placeholder="Name, sport or description" data-ar-placeholder="الاسم أو الرياضة أو الوصف" placeholder="Name, sport or description"></label>
       <label><span data-en="Sport" data-ar="الرياضة">Sport</span><select id="communitySport"><option value="" data-en="All sports" data-ar="كل الرياضات">All sports</option><option value="running">Running</option><option value="walking">Walking</option><option value="fitness">Fitness</option><option value="strength">Strength</option><option value="cycling">Cycling</option><option value="swimming">Swimming</option><option value="padel">Padel</option><option value="triathlon">Triathlon</option><option value="hyrox">Hyrox</option><option value="boxing">Boxing</option><option value="kickboxing">Kickboxing</option><option value="football">Football</option><option value="other">Other</option></select></label>
-      <label><span data-en="Location" data-ar="المكان">Location</span><input id="communityLocation" type="search" maxlength="80" data-en-placeholder="City or area" data-ar-placeholder="المدينة أو المنطقة" placeholder="City or area"></label>
-      <label><span data-en="Scope" data-ar="النطاق">Scope</span><select id="communityScope"><option value="discover" data-en="Discover" data-ar="اكتشف">Discover</option><option value="mine" data-en="My Communities" data-ar="مجتمعاتي">My Communities</option></select></label>
+      <details class="discover-more"><summary data-en="More filters" data-ar="المزيد من خيارات التصفية">More filters</summary><label><span data-en="Location" data-ar="المكان">Location</span><input id="communityLocation" type="search" maxlength="80" data-en-placeholder="City or area" data-ar-placeholder="المدينة أو المنطقة" placeholder="City or area"></label>
+      <label><span data-en="Scope" data-ar="النطاق">Scope</span><select id="communityScope"><option value="discover" data-en="Discover" data-ar="اكتشف">Discover</option><option value="mine" data-en="My Communities" data-ar="مجتمعاتي">My Communities</option></select></label></details>
     </div>
-    <p id="createPrompt" data-en="Sign in from your dashboard to create a community." data-ar="سجّل الدخول من لوحة التحكم لإنشاء مجتمع.">Sign in from your dashboard to create a community. <a href="dashboard.html" data-en="Open dashboard" data-ar="افتح لوحة التحكم">Open dashboard</a></p>
+    <p id="createPrompt" hidden data-en="Sign in from your dashboard to create a community." data-ar="سجّل الدخول من لوحة التحكم لإنشاء مجتمع.">Sign in from your dashboard to create a community. <a href="dashboard.html" data-en="Open dashboard" data-ar="افتح لوحة التحكم">Open dashboard</a></p>
     <form id="createCommunityForm" class="card community-form" hidden>
-      <h3 data-en="Create a community" data-ar="أنشئ مجتمعاً">Create a community</h3>
+      <div class="social-form-head"><h3 data-en="Create a community" data-ar="أنشئ مجتمعاً">Create a community</h3><button type="button" class="button small alt" id="closeCreateCommunity" data-en="Close" data-ar="إغلاق">Close</button></div>
       <p id="createCommunityNotice" class="note" role="status" aria-live="polite"></p>
       <label><span data-en="Community name" data-ar="اسم المجتمع">Community name</span><input id="newCommunityName" maxlength="120" required></label>
       <label><span data-en="Sport" data-ar="الرياضة">Sport</span><select id="newCommunitySport"><option value="running">Running</option><option value="walking">Walking</option><option value="fitness">Fitness</option><option value="strength">Strength</option><option value="cycling">Cycling</option><option value="swimming">Swimming</option><option value="padel">Padel</option><option value="triathlon">Triathlon</option><option value="hyrox">Hyrox</option><option value="boxing">Boxing</option><option value="kickboxing">Kickboxing</option><option value="football">Football</option><option value="other">Other</option></select></label>
       <label><span data-en="Description" data-ar="الوصف">Description</span><textarea id="newCommunityDescription" maxlength="4000" rows="3" required></textarea></label>
-      <div class="filters"><label><span data-en="Location (optional)" data-ar="المكان (اختياري)">Location (optional)</span><input id="newCommunityLocation" maxlength="120"></label><label><span data-en="Visibility" data-ar="الظهور">Visibility</span><select id="newCommunityVisibility"><option value="public" data-en="Public" data-ar="عام">Public</option><option value="private" data-en="Private" data-ar="خاص">Private</option></select></label></div>
+      <details class="community-optional"><summary data-en="Optional details" data-ar="تفاصيل اختيارية">Optional details</summary><div class="filters"><label><span data-en="Location (optional)" data-ar="المكان (اختياري)">Location (optional)</span><input id="newCommunityLocation" maxlength="120"></label><label><span data-en="Visibility" data-ar="الظهور">Visibility</span><select id="newCommunityVisibility"><option value="public" data-en="Public" data-ar="عام">Public</option><option value="private" data-en="Private" data-ar="خاص">Private</option></select></label></div>
       <label><span data-en="Rules" data-ar="القواعد">Rules</span><textarea id="newCommunityRules" maxlength="4000" rows="2"></textarea></label>
       <label><span data-en="Cover photo (optional)" data-ar="صورة الغلاف (اختياري)">Cover photo (optional)</span><input id="newCommunityCover" type="file" accept="image/jpeg,image/png,image/webp"></label>
-      <button class="button" type="submit" data-en="Create community" data-ar="أنشئ المجتمع">Create community</button>
+      </details><button class="button" type="submit" data-en="Create community" data-ar="أنشئ المجتمع">Create community</button>
     </form>
     <div id="communityList" class="grid community-grid" data-user-content></div>
     <p id="communityEmpty" class="note" data-en="No communities match these filters yet." data-ar="لا توجد مجتمعات مطابقة لهذه المرشحات بعد.">No communities match these filters yet.</p>
@@ -413,12 +413,12 @@
 })();
 </script>
 <script src="assets/js/community-feed.js?v=20261125-public" defer></script>
-<script src="assets/js/community-groups.js?v=20261125-locale" defer></script>
+<script src="assets/js/community-groups.js?v=20261125-simple" defer></script>
 <script src="assets/js/community-social.js?v=20261125-public" defer></script>
 <script src="assets/js/community-activity-log.js?v=20261125c" defer></script>
 <script src="assets/js/site-language.js?v=20261120h"></script>
 <script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script>
 <script src="assets/js/community-event-signup.js?v=20261125-event-alerts" defer></script>
-<script src="assets/js/community-public.js?v=20261125a" defer></script>
+<script src="assets/js/community-public.js?v=20261125b" defer></script>
 </body>
 </html>

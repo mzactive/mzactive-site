@@ -263,6 +263,7 @@
   async function createCommunity(event) {
     event.preventDefault();
     const form = event.currentTarget;
+    if (!token) return;
     const submit = form.querySelector('[type="submit"]');
     submit.disabled = true;
     try {
@@ -282,6 +283,7 @@
         await api(`/communities/${created.community.id}/cover`, { method: 'PUT', headers: { 'content-type': cover.type }, body: cover });
       }
       form.reset();
+      closeCreateCommunity();
       await loadCommunities();
       await openCommunity(created.community.id);
       discoverNotice(t('Community created and active now.', 'تم إنشاء المجتمع وتفعيله الآن.'));
@@ -561,11 +563,22 @@
     if (name === 'manage') loadAudit();
   }
 
+  function closeCreateCommunity() {
+    $('createCommunityForm').hidden = true;
+    $('createPrompt').hidden = true;
+    $('openCreateCommunity').setAttribute('aria-expanded','false');
+  }
+  function openCreateCommunity() {
+    if (!token) { $('createPrompt').hidden = !$('createPrompt').hidden; return; }
+    if (!$('createCommunityForm').hidden) { closeCreateCommunity(); return; }
+    $('createCommunityForm').hidden = false;
+    $('openCreateCommunity').setAttribute('aria-expanded','true');
+    $('newCommunityName').focus();
+  }
   function applySession() {
     token = currentToken();
     currentUserId = '';
-    $('createCommunityForm').hidden = !token;
-    $('createPrompt').hidden = Boolean(token);
+    closeCreateCommunity();
     if (!token && $('communityScope').value === 'mine') $('communityScope').value = 'discover';
     if (token) api('/me/community').then(data => { currentUserId = data.user_id || ''; }).catch(() => {});
     loadCommunities();
@@ -577,6 +590,8 @@
   ['communitySearch', 'communitySport', 'communityLocation', 'communityScope'].forEach((id) => {
     $(id).addEventListener(id === 'communitySearch' ? 'input' : 'change', loadCommunities);
   });
+  $('openCreateCommunity').addEventListener('click', openCreateCommunity);
+  $('closeCreateCommunity').addEventListener('click', () => { closeCreateCommunity(); $('openCreateCommunity').focus(); });
   $('createCommunityForm').addEventListener('submit', createCommunity);
   $('joinButton').addEventListener('click', toggleJoin);
   $('reportCommunityButton').addEventListener('click', () => community && reportEntity('community', community.id));
