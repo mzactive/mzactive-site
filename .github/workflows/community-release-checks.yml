@@ -11,6 +11,8 @@ on:
       - 'coaches.html'
       - 'assets/css/coach-directory.css'
       - 'pacer.html'
+      - 'pacer-register.html'
+      - 'pacer-dashboard.html'
       - 'pacer-profile.html'
       - 'assets/js/community-*.js'
       - 'assets/css/community-signup.css'
