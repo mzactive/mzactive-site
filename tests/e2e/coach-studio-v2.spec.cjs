@@ -5,8 +5,8 @@ const coach='e2e-coach',athlete='11111111-1111-4111-8111-111111111111',second='2
 const connection=(id,user,name)=>({id,coach_user_id:coach,athlete_user_id:user,athlete_name:name,status:'accepted',workspace_status:'active'});
 const connections=[connection('conn-a',athlete,'Alex Runner'),connection('conn-b',second,'Sam Athlete'),{...connection('conn-c','no-access','Closed athlete'),workspace_status:'closed'}];
 function localDate(){const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
-async function open(page,{type='coach',signedIn=true,overrides={}}={}){
- const mock=await installApiMock(page,{connections,profile:{status:'approved',provider_type:type},dashboard:{role:'provider',teams:[],programs:[{id:'old',athlete_user_id:athlete,athlete_name:'Alex Runner',week_start:localDate(),sessions:[{id:'old-workout',session_date:localDate(),sport_type:'run',details:'Existing completed run\nKeep steady',completed_at:'2026-11-24T07:00:00Z',actual_km:5,duration_minutes:30}]}]},overrides:{'GET /api/me/access':json({account_type:'provider',user:{id:coach},dashboard_path:'/dashboard.html'}),...overrides}});
+async function open(page,{type='coach',signedIn=true,overrides={},libraryItems=null}={}){
+ const mock=await installApiMock(page,{libraryItems,connections,profile:{status:'approved',provider_type:type},dashboard:{role:'provider',teams:[],programs:[{id:'old',athlete_user_id:athlete,athlete_name:'Alex Runner',week_start:localDate(),sessions:[{id:'old-workout',session_date:localDate(),sport_type:'run',details:'Existing completed run\nKeep steady',completed_at:'2026-11-24T07:00:00Z',actual_km:5,duration_minutes:30}]}]},overrides:{'GET /api/me/access':json({account_type:'provider',user:{id:coach},dashboard_path:'/dashboard.html'}),...overrides}});
  if(signedIn)await seedSession(page,{storage:'session'});
  await page.goto('/coach-studio.html');return mock;
 }
@@ -54,4 +54,31 @@ test('calendar library drawer applies reusable program to an empty week',async({
  await choose(page,'conn-b');await page.getByRole('button',{name:'Add from library',exact:true}).click();
  await expect(d).toHaveClass(/library-drawer/);await d.getByRole('button',{name:'Apply to week'}).click();
  await expect(page.locator('#calendarGrid').getByText('Strength A')).toBeVisible();
+});
+
+test('account library persists across browser storage clearing, revisions prevent stale edits',async({page})=>{
+ const existing={id:'server-workout',title:'Server session',sport:'strength',km:'',minutes:'',notes:'Warm up well',exercises:[]};
+ const mock=await open(page,{libraryItems:[{kind:'workout',id:existing.id,revision:1,item:existing}]});
+ await expect(page.locator('#studio')).toBeVisible();await page.locator('[data-screen=sessions]').click();
+ await expect(page.getByText('Saved to your MZA account.')).toBeVisible();
+ await expect(page.getByText('Server session',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Edit',exact:true}).click();const d=page.locator('#dialog');
+ await d.getByLabel('Workout name').fill('Updated server workout');await d.getByRole('button',{name:'Save workout'}).click();
+ await expect(d).toBeHidden();await expect(page.getByText('Updated server workout',{exact:true})).toBeVisible();
+ expect(mock.libraryItems[0].revision).toBe(2);
+ await page.evaluate(()=>localStorage.removeItem('mza-studio-v2-workouts:e2e-coach'));
+ await page.reload();await expect(page.locator('#studio')).toBeVisible();await page.locator('[data-screen=sessions]').click();await expect(page.getByText('Updated server workout',{exact:true})).toBeVisible();
+ mock.libraryItems[0].revision=3;
+ await page.getByRole('button',{name:'Edit',exact:true}).click();await d.getByLabel('Workout name').fill('Do not overwrite');await d.getByRole('button',{name:'Save workout'}).click();
+ await expect(d.getByRole('alert')).toContainText('Account save not confirmed');expect(mock.libraryItems[0].item.title).toBe('Updated server workout');assertOfflineSafe(mock);
+});
+test('account mode imports local library without overwriting existing server items',async({page})=>{
+ const local={id:'local-workout',title:'Old browser workout',sport:'strength',km:'',minutes:'',notes:'Easy',exercises:[]};
+ await page.addInitScript(item=>localStorage.setItem('mza-studio-v2-workouts:e2e-coach',JSON.stringify([item])),local);
+ const mock=await open(page,{libraryItems:[]});
+ await expect(page.locator('#studio')).toBeVisible();await page.locator('[data-screen=sessions]').click();
+ await expect(page.getByText('Old browser workout',{exact:true})).toHaveCount(0);
+ page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Import browser library'}).click();
+ await expect(page.getByText('Old browser workout',{exact:true})).toBeVisible();
+ expect(mock.libraryItems[0].item.title).toBe(local.title);expect(mock.libraryItems[0].revision).toBe(1);assertOfflineSafe(mock);
 });

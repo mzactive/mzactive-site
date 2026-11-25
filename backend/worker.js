@@ -1,3 +1,4 @@
+import { coachLibraryApi } from "./coach-library.js";
 import { ATHLETE_INVITATION_TTL_DAYS, onboardingIncomplete, lastActivityAt, isActive, coachMatches, invitationEmail } from "./athlete-crm.js";
 import { handleCommunityGroupsApi } from "./community-groups.js";
 import { handleAiCoachApi } from "./ai-coach.js";
@@ -2860,6 +2861,7 @@ async function canManageTeam(env, user, teamId) {
 async function dashboardApi(request, env, user) {
   const url = new URL(request.url), path = url.pathname;
   if (request.method === "GET" && path === "/api/dashboard") return dashboardOverview(request, env, user);
+  if (path === "/api/dashboard/coach-library" || path.startsWith("/api/dashboard/coach-library/")) return coachLibraryApi(request, env, user, reply, readJson);
   if (path === "/api/dashboard/program-draft") {
     if (request.method === "PUT") {
       const body = await readJson(request);
