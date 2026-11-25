@@ -63,3 +63,27 @@ body:not(.home-page) main.section .search-panel{margin:14px 0 6px}
 body:not(.home-page) main.section .chips{margin:10px 0}
 @media(max-width:900px){body:not(.home-page) main.section .grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:680px){body:not(.home-page) main.section .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}body:not(.home-page) main.section .grid .card .body{padding:10px}}
+
+/* Compact discovery: prioritize professional cards above the fold. */
+body:not(.home-page) header .nav{min-height:64px!important;padding-block:8px!important;gap:12px}
+body:not(.home-page) header .brand img{width:clamp(110px,13vw,150px)}
+body:not(.home-page) header .main-nav{gap:10px!important}
+body:not(.home-page) .hero{padding:20px 0!important}
+body:not(.home-page) .hero h1{font-size:clamp(22px,3vw,32px)!important;margin:0!important;letter-spacing:0}
+body:not(.home-page) .hero p{font-size:13px;margin:4px 0 0}
+body:not(.home-page) main.section{padding-block:16px 36px!important}
+body:not(.home-page) main.section>h2{font-size:21px;margin:0 0 4px}
+body:not(.home-page) main.section>p.muted{display:none}
+body:not(.home-page) main.section .search-panel{margin:8px 0;gap:8px}
+body:not(.home-page) main.section .search-main>label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+body:not(.home-page) main.section .search-panel input,body:not(.home-page) main.section .search-submit{min-height:44px;padding:9px 12px;font-size:13px}
+body:not(.home-page) main.section .advanced summary{padding:8px 0;font-size:12px}
+body:not(.home-page) main.section #activeFilters:not(:has(.filter-token)){display:none}
+body:not(.home-page) main.section #activeFilters{margin:6px 0}
+body:not(.home-page) main.section .chips{margin:8px 0;gap:5px}
+body:not(.home-page) main.section .chip{padding:6px 10px;min-height:32px;font-size:11px}
+body:not(.home-page) main.section .filter-bar{margin:3px 0}
+body:not(.home-page) main.section #editSearch{display:none}
+body:not(.home-page) main.section #resetFilters{min-height:32px;padding:4px 0;font-size:12px}
+body:not(.home-page) main.section .results-summary{margin:5px 0;font-size:12px}
+@media(max-width:680px){body:not(.home-page) header .nav{min-height:52px!important}body:not(.home-page) .hero{padding:12px 0!important}body:not(.home-page) main.section .search-panel{grid-template-columns:minmax(0,1fr) auto}body:not(.home-page) main.section .search-submit{width:auto;padding-inline:10px}body:not(.home-page) main.section .chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}body:not(.home-page) main.section .chip{flex:none;min-height:44px}}
