@@ -3,6 +3,7 @@ import { wellnessApi } from "./athlete-wellness.js";
 import { coachLibraryApi } from "./coach-library.js";
 import { ATHLETE_INVITATION_TTL_DAYS, onboardingIncomplete, lastActivityAt, isActive, coachMatches, invitationEmail } from "./athlete-crm.js";
 import { handleCommunityGroupsApi } from "./community-groups.js";
+import { handleActivityLog } from "./activity-log.js";
 import { handleAiCoachApi } from "./ai-coach.js";
 import { cleanAssessment, analyzeAssessment, buildStarterPlan, mondayOf, assessmentFingerprint, buildAdvice, analyzeRaceResult, formatPace } from "./run-iq.js";
 
@@ -5479,6 +5480,8 @@ export default {
     if (eventAlertResponse) return eventAlertResponse;
     const invitationResponse = await handleAthleteInvitationApi(request, env, url);
     if (invitationResponse) return invitationResponse;
+    const activityLogResponse = await handleActivityLog(request, env, url, { authenticated, reply, text, readJson, randomId, sports: SPORTS });
+    if (activityLogResponse) return activityLogResponse;
     const communityResponse = await handleCommunityApi(request, env, url);
     if (communityResponse) return communityResponse;
     const communityGroupsResponse = await handleCommunityGroupsApi(request, env, url, {
