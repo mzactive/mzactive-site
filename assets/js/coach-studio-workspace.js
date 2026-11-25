@@ -95,7 +95,7 @@ function mount(){
  const dashboard=$('dashboard');coachPanel=$('coachPanel');if(!dashboard||!coachPanel)return;
  shell=element('section',undefined,'mza-studio-shell');shell.id='mzaCoachStudio';
  header=element('div',undefined,'mza-studio-header');header.setAttribute('data-language-skip','');const brand=element('div',undefined,'mza-studio-brand');brand.append(element('strong','MZA'),element('span','COACH STUDIO'));
- const actions=element('div',undefined,'mza-studio-header-actions');homeLink=element('a','');homeLink.href='dashboard.html?studio=0';langButton=button('',()=>$('lang')?.click());settings=button('',()=>window.MZActiveCoachDashboard?.settingsDialog?.());signout=button('',()=>$('signOut')?.click());actions.append(homeLink,langButton,settings,signout);header.append(brand,actions);
+ const actions=element('div',undefined,'mza-studio-header-actions');homeLink=element('a','');homeLink.href='dashboard.html?studio=0';langButton=button('',()=>$('lang')?.click());settings=button('',()=>window.MZActiveCoachDashboard?.settingsDialog?.());signout=button('',()=>$('signOut')?.click());const nextStudio=element('a',tr('New Coach Studio','استوديو المدرب الجديد'));nextStudio.id='mzaCoachStudioV2Link';nextStudio.href='/coach-studio.html';actions.append(nextStudio,homeLink,langButton,settings,signout);header.append(brand,actions);
  nav=element('nav',undefined,'mza-studio-sidebar');nav.setAttribute('data-language-skip','');main=element('section',undefined,'mza-studio-main');main.tabIndex=-1;heading=element('h1','');heading.id='mzaStudioSectionTitle';heading.setAttribute('data-language-skip','');main.setAttribute('aria-labelledby',heading.id);main.append(heading);
  shell.append(header,nav,main);dashboard.append(shell);
  exerciseBrowser=element('section',undefined,'mza-library-page');exerciseBrowser.id='mzaExerciseBrowser';exerciseBrowser.hidden=true;templateBrowser=element('section',undefined,'mza-library-page');templateBrowser.id='mzaTemplateBrowser';templateBrowser.hidden=true;main.append(exerciseBrowser,templateBrowser);
@@ -112,7 +112,7 @@ document.addEventListener('mzactive:template-library-changed',()=>{if(shell&&act
 document.addEventListener('mzactive:studio-navigate',e=>{if(shell)setSection(e.detail,false);});
 document.addEventListener('mzactive:coach-tools-denied',()=>{unmount();$('mzaOpenCoachStudio')?.remove();$('mzaOpenCoachStudioMobile')?.remove();});
 document.addEventListener('mzactive:dashboard-loaded',e=>{if(e.detail?.role!=='provider'){unmount();$('mzaOpenCoachStudio')?.remove();$('mzaOpenCoachStudioMobile')?.remove();}});
-document.addEventListener('mzactive:language-change',()=>{if(shell){renderNavigation();setSection(active,false);updateSetupLabels();}if(link)link.textContent=tr('Open Coach Studio','افتح استوديو المدرب');const mobile=$('mzaOpenCoachStudioMobile');if(mobile)mobile.textContent=tr('Open Coach Studio','افتح استوديو المدرب');});
+document.addEventListener('mzactive:language-change',()=>{if(shell){renderNavigation();setSection(active,false);updateSetupLabels();const next=$('mzaCoachStudioV2Link');if(next)next.textContent=tr('New Coach Studio','استوديو المدرب الجديد');}if(link)link.textContent=tr('Open Coach Studio','افتح استوديو المدرب');const mobile=$('mzaOpenCoachStudioMobile');if(mobile)mobile.textContent=tr('Open Coach Studio','افتح استوديو المدرب');});
 $('signOut')?.addEventListener('click',()=>{unmount();$('mzaOpenCoachStudio')?.remove();$('mzaOpenCoachStudioMobile')?.remove();});
 if(authorized())mount();
 })();
