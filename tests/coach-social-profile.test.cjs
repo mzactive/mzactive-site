@@ -25,19 +25,21 @@ test('coach directory uses portrait-led cards with real details and no emojis', 
   assert.doesNotMatch(html, /🏃|🏁|📍|MZ ACTIVE APPROVED/);
 });
 
-test('homepage featured coaches use the same compact horizontal design', () => {
+test('homepage featured coaches use branded portrait cards', () => {
   const html = read('index.html');
   const js = read('assets/js/homepage.js');
-  assert.match(html, /\.coach-info\{display:grid/);
+  assert.match(html, /\.featured-grid \.coach-info\{display:flex!important/);
   assert.match(html, /\.coach-verified\{display:inline-flex/);
-  assert.match(html, /\.coach-card-photo,\.coach-card-photo-placeholder\{width:88px!important;height:118px!important/);
-  assert.match(html, /width:72px!important;height:96px!important/);
+  assert.match(html, /aspect-ratio:4\/3!important/);
+  assert.match(html, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(js, /const info = node\('div', 'coach-info'\)/);
   assert.match(js, /icon\('pin'/);
   assert.match(js, /icon\('clock'/);
   assert.match(js, /icon\('globe'/);
   assert.match(js, /icon\('list'/);
-  assert.match(html, /homepage\.js\?v=20261124a/);
+  assert.match(html, /homepage\.js\?v=20261125-smart/);
+  assert.match(html, /id="smart-featured-coaches"/);
+  assert.match(js, /smart-card-brand/);
   assert.doesNotMatch(js, /⌖|🏃|🏁|📍/);
 });
 
