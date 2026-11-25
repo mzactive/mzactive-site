@@ -18,7 +18,7 @@ test('community feed switches Feed, Blogs and Challenges with real content', asy
   });
   await page.goto('/community.html');
   const tabs = page.locator('#communitySocialTabs');
-  await expect(tabs.locator('button')).toHaveCount(4);
+  await expect(tabs.locator('button')).toHaveCount(5);
   await expect(page.locator('#feedList')).toContainText('12 km at an easy pace');
   await expect(page.locator('#feedList')).toContainText('Share');
 
@@ -67,5 +67,15 @@ test('Arabic community feed tabs render RTL with translated labels', async ({ pa
   await expect(tabs).toContainText('التحديات');
   const direction = await page.locator('#communitySocialTabs').evaluate(el => getComputedStyle(el).direction);
   expect(direction).toBe('rtl');
+  assertOfflineSafe(mock);
+});
+
+
+test('guest following feed shows sign-in notice without public feed fallback', async ({ page }) => {
+  const mock = await installApiMock(page, { overrides: { 'GET /api/community/posts': json({ posts: [POST] }) } });
+  await page.goto('/community.html');
+  await page.locator('[data-feed-tab="following"]').click();
+  await expect(page.locator('#feedEmpty')).toContainText('Sign in');
+  await expect(page.locator('#feedList')).not.toContainText(POST.body);
   assertOfflineSafe(mock);
 });
