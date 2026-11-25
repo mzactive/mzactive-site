@@ -103,7 +103,7 @@
   <meta name="apple-mobile-web-app-title" content="MZA">
   <script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
   <link rel="stylesheet" href="assets/css/community-signup.css?v=20261125-simple">
-</head>
+<style>#privateSportsEditor>summary{cursor:pointer;font-weight:700;padding:12px 0;color:#17342e}#privateSportsEditor .sports-form{max-width:680px;margin:10px auto}#privateSportsEditor .sports-extra{border:1px solid #dce4df;border-radius:10px;padding:12px;margin:12px 0}#privateSportsEditor .sports-extra summary{cursor:pointer;font-weight:600}#privateSportsEditor .member-photo-row{flex-wrap:wrap}</style></head>
 <body class="community-page">
 <script src="assets/js/language-preference.js?v=20261120c"></script>
 <header>
@@ -326,9 +326,7 @@
   </section>
 
   <section id="sportsProfileSection">
-    <h2 data-en="Your sports profile" data-ar="ملفك الرياضي">Your sports profile</h2>
-    <p class="note" data-en="Optional. Used only for private coach communication. Garmin support is a public profile link only; no credentials or health data are collected." data-ar="اختياري. يُستخدم للتواصل الخاص مع المدرب. يدعم Garmin عبر رابط عام فقط؛ لا تُجمع بيانات دخول أو صحية.">Optional. Used only for private coach communication. Garmin support is a public profile link only; no credentials or health data are collected.</p>
-    <p id="sportsNotice" class="note" role="status" aria-live="polite"></p>
+    <details id="privateSportsEditor"><summary data-en="My private coaching profile" data-ar="ملفي التدريبي الخاص">My private coaching profile</summary><p class="note" data-en="Optional. Only shared with connected coaches if you enable sharing." data-ar="اختياري. لا يُشارك مع المدربين المرتبطين بك إلا إذا فعّلت المشاركة.">Optional. Only shared with connected coaches if you enable sharing.</p><p id="sportsNotice" class="note" role="status" aria-live="polite"></p>
     <form id="sportsForm" class="card sports-form" hidden>
       <div class="member-photo-row">
         <img id="sportsPhotoPreview" alt="" hidden>
@@ -341,7 +339,7 @@
       <label><span data-en="Name shown to coaches" data-ar="الاسم الظاهر للمدربين">Name shown to coaches</span><input id="sportsName" maxlength="80"></label>
       <label><span data-en="City" data-ar="المدينة">City</span><input id="sportsCity" maxlength="80"></label>
       <label><span data-en="Sports" data-ar="الرياضات">Sports</span><input id="sportsList" maxlength="240" placeholder="running, walking, strength"></label>
-      <label><span data-en="Experience level" data-ar="مستوى الخبرة">Experience level</span><input id="sportsLevel" maxlength="60"></label>
+<details class="sports-extra"><summary data-en="Optional coaching details & privacy" data-ar="تفاصيل التدريب والخصوصية الاختيارية">Optional coaching details & privacy</summary>      <label><span data-en="Experience level" data-ar="مستوى الخبرة">Experience level</span><input id="sportsLevel" maxlength="60"></label>
       <label><span data-en="Goals" data-ar="الأهداف">Goals</span><textarea id="sportsGoals" maxlength="600" rows="3"></textarea></label>
       <label><span data-en="Preferred language" data-ar="اللغة المفضلة">Preferred language</span><select id="sportsLanguage"><option value="" data-en="Not provided" data-ar="غير متوفر">Not provided</option><option value="en" data-en="English" data-ar="الإنجليزية">English</option><option value="ar" data-en="Arabic" data-ar="العربية">Arabic</option></select></label>
       <label><span data-en="Availability" data-ar="الأوقات المناسبة">Availability</span><input id="sportsAvailability" maxlength="300" placeholder="online, weekday evenings"></label>
@@ -349,8 +347,9 @@
       <label><span data-en="Gender" data-ar="الجنس">Gender</span><input id="sportsGender" maxlength="40"></label>
       <label><span data-en="Public Garmin URL" data-ar="رابط Garmin عام">Public Garmin URL</span><input id="sportsGarmin" type="url" maxlength="300" placeholder="https://connect.garmin.com/profile/…"></label>
       <label class="consent-row"><input id="sportsShare" type="checkbox"><span data-en="Share this sports profile and public Garmin link with coaches I am connected with. Off by default." data-ar="مشاركة هذا الملف الرياضي ورابط Garmin العام مع المدربين المرتبطين بي. متوقف افتراضياً.">Share this sports profile and public Garmin link with coaches I am connected with. Off by default.</span></label>
+</details>
       <button class="button" type="submit" data-en="Save sports profile" data-ar="احفظ الملف الرياضي">Save sports profile</button>
-    </form>
+    </form></details>
   </section>
 
   <section id="member-account">
