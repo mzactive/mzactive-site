@@ -1,7 +1,7 @@
 'use strict';
 const {test,expect}=require('./pw.cjs');
 const {installApiMock,json,seedSession}=require('./helpers.cjs');
-async function open(page,type='coach',route='/dashboard.html?studio=1'){
+async function open(page,type='coach',route='/dashboard.html?legacy=1&studio=1'){
 const coach={id:'e2e-coach',email:'coach@example.invalid',role:'provider'};
 await installApiMock(page,{overrides:{
 'GET /api/me/access':json({user:coach,account_type:'provider',dashboard_path:'/dashboard.html',management:{enabled:false,permissions:[]}}),
@@ -37,7 +37,7 @@ await expect(studio.locator('#whatsappTrainingForm')).toBeVisible();
 expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2)).toBe(true);
 });
 test('studio entry is available on existing dashboard only for verified coaches',async({page})=>{
-await open(page,'coach','/dashboard.html?studio=0');await expect(page.locator('#mzaOpenCoachStudio')).toHaveAttribute('href','dashboard.html?studio=1');
+await open(page,'coach','/dashboard.html?legacy=1&studio=0');await expect(page.locator('#mzaOpenCoachStudio')).toHaveAttribute('href','/coach-studio.html');
 await expect(page.locator('#mzaCoachStudio')).toHaveCount(0);
 });
 test('pacer does not get dedicated coach workspace',async({page})=>{
@@ -54,8 +54,8 @@ await expect(studio.locator('#coachMyAthletes')).toBeVisible();
 await expect(page.locator('html')).toHaveAttribute('dir','rtl');
 });
 
-test('approved coach opens the clean workspace by default',async({page})=>{
- await open(page,'coach','/dashboard.html');
+test('approved coach can still open the legacy workspace explicitly',async({page})=>{
+ await open(page,'coach','/dashboard.html?legacy=1&studio=1');
  const studio=page.locator('#mzaCoachStudio');
  await expect(studio).toBeVisible();
  await expect(studio.locator('#mzaProgramSetup')).toBeVisible();

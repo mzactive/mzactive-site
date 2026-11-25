@@ -3,8 +3,8 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const tr=(en,ar)=>document.documentElement.lang==='ar'?ar:en;
-const params=new URLSearchParams(location.search);const mode=params.get('studio')==='1'||(params.get('studio')!=='0'&&!params.has('connection')&&!params.has('program')&&!location.hash);
-const workspaceURL='dashboard.html?studio=1';
+const params=new URLSearchParams(location.search);const legacy=params.get('legacy')==='1';const deepLink=params.has('connection')||params.has('program')||!!(location.hash&&!['#loginForm','#registerForm','#signup','#login'].includes(location.hash));const mode=legacy&&params.get('studio')==='1';
+const workspaceURL='/coach-studio.html';
 const sections={
  calendar:{en:'Training calendar',ar:'تقويم التدريب',icon:'▦',ids:['whatsappTrainingForm']},
  athletes:{en:'My athletes',ar:'الرياضيون',icon:'◎',ids:['coachMyAthletes']},
@@ -90,12 +90,13 @@ function simplifyEditor(){
 function restoreEditor(){libraryShortcut?.remove();libraryShortcut=null;if(setup){for(const node of [...setup.querySelector('.mza-setup-grid').children])node._mzaSetupMarker?.replaceWith(node);setup.remove();setup=null;}if(toolbarMore){for(const node of [...toolbarMore.querySelector('.mza-calendar-more-body').children])node._mzaToolbarMarker?.replaceWith(node);toolbarMore.remove();toolbarMore=null;}}
 function mount(){
  if(!authorized())return;
+ if(!legacy&&!deepLink){location.replace(workspaceURL);return;}
  if(!mode){linkToWorkspace();return;}
  if(shell){setSection(active,false);return;}
  const dashboard=$('dashboard');coachPanel=$('coachPanel');if(!dashboard||!coachPanel)return;
  shell=element('section',undefined,'mza-studio-shell');shell.id='mzaCoachStudio';
  header=element('div',undefined,'mza-studio-header');header.setAttribute('data-language-skip','');const brand=element('div',undefined,'mza-studio-brand');brand.append(element('strong','MZA'),element('span','COACH STUDIO'));
- const actions=element('div',undefined,'mza-studio-header-actions');homeLink=element('a','');homeLink.href='dashboard.html?studio=0';langButton=button('',()=>$('lang')?.click());settings=button('',()=>window.MZActiveCoachDashboard?.settingsDialog?.());signout=button('',()=>$('signOut')?.click());const nextStudio=element('a',tr('New Coach Studio','استوديو المدرب الجديد'));nextStudio.id='mzaCoachStudioV2Link';nextStudio.href='/coach-studio.html';actions.append(nextStudio,homeLink,langButton,settings,signout);header.append(brand,actions);
+ const actions=element('div',undefined,'mza-studio-header-actions');homeLink=element('a','');homeLink.href='dashboard.html?legacy=1&studio=0';langButton=button('',()=>$('lang')?.click());settings=button('',()=>window.MZActiveCoachDashboard?.settingsDialog?.());signout=button('',()=>$('signOut')?.click());const nextStudio=element('a',tr('New Coach Studio','استوديو المدرب الجديد'));nextStudio.id='mzaCoachStudioV2Link';nextStudio.href='/coach-studio.html';actions.append(nextStudio,homeLink,langButton,settings,signout);header.append(brand,actions);
  nav=element('nav',undefined,'mza-studio-sidebar');nav.setAttribute('data-language-skip','');main=element('section',undefined,'mza-studio-main');main.tabIndex=-1;heading=element('h1','');heading.id='mzaStudioSectionTitle';heading.setAttribute('data-language-skip','');main.setAttribute('aria-labelledby',heading.id);main.append(heading);
  shell.append(header,nav,main);dashboard.append(shell);
  exerciseBrowser=element('section',undefined,'mza-library-page');exerciseBrowser.id='mzaExerciseBrowser';exerciseBrowser.hidden=true;templateBrowser=element('section',undefined,'mza-library-page');templateBrowser.id='mzaTemplateBrowser';templateBrowser.hidden=true;main.append(exerciseBrowser,templateBrowser);

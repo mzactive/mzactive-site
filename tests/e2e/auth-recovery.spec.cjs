@@ -40,7 +40,7 @@ async function requestReset(page, email, expectedText, expectConfirmation = true
   await expect(dialog).toBeHidden();
 }
 
-for (const pagePath of ['/admin.html', '/dashboard.html', '/providers.html']) {
+for (const pagePath of ['/admin.html', '/dashboard.html']) {
   test(`shared forgot dialog works on ${pagePath} without a recovery key`, async ({ page }) => {
     const mock = await installApiMock(page, {
       overrides: { 'POST /api/auth/forgot-password': json({ ok: true, message: CONFIRM_EN }) },
@@ -110,6 +110,8 @@ test('forgot dialog maps rate limits, unavailable recovery and network errors', 
     },
   });
   await page.goto('/providers.html');
+  await page.locator('#providerSignIn a').click();
+  await expect(page).toHaveURL(/\/dashboard\.html#loginForm$/);
 
   const status = page.locator('#forgotPasswordStatus');
   await requestReset(page, EMAIL_A, 'Too many attempts. Wait a minute and try again.', false);
