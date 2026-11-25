@@ -33,7 +33,7 @@ textarea{min-height:80px}
 <h1 data-en="My Pacer Dashboard" data-ar="لوحة منظّم الوتيرة">لوحة منظّم الوتيرة</h1>
 <div class="menu">
 <a href="#myProfile" data-en="My Profile" data-ar="ملفي">ملفي</a>
-<a href="pacer-register.html#edit" data-en="Edit Profile" data-ar="تعديل الملف">تعديل الملف</a>
+<a href="#availability" data-en="Edit Profile" data-ar="تعديل الملف">تعديل الملف</a>
 <a href="#availability" data-en="My Availability" data-ar="تاحتي">تاحتي</a>
 <a href="#paces" data-en="Pacing Distances and Speeds" data-ar="المسافات والسرعات">المسافات والسرعات</a>
 <a href="#requests" data-en="Incoming Pacing Requests" data-ar="طلبات التنسيق الواردة">طلبات التنسيق</a>
@@ -43,7 +43,7 @@ textarea{min-height:80px}
 <a href="account.html" data-en="Account Settings" data-ar="إعدادات الحساب">إعدادات الحساب</a>
 </div>
 <section class="card" id="myProfile"><h2 data-en="My Profile" data-ar="ملفي">ملفي</h2><div id="profile"></div></section>
-<section class="card" id="availability"><h2 data-en="My Availability" data-ar="تاحتي">تاحتي</h2><form id="profileForm"><label><span data-en="Availability" data-ar="التاحة">التاحة</span><textarea id="availabilityInput"></textarea></label><label><span data-en="Bio" data-ar="النبذة">النبذة</span><textarea id="bioInput"></textarea></label><button class="btn" type="submit" data-en="Save profile" data-ar="حفظ الملف">حفظ الملف</button></form></section>
+<section class="card" id="availability"><h2 data-en="My Availability" data-ar="تاحتي">تاحتي</h2><form id="profileForm"><label><span data-en="Availability" data-ar="التاحة">التاحة</span><textarea id="availabilityInput"></textarea></label><label><span data-en="Bio" data-ar="النبذة">النبذة</span><textarea id="bioInput"></textarea></label><label><span data-en="Experience" data-ar="الخبرة">Experience</span><textarea id="experienceInput"></textarea></label><label><span data-en="Achievements" data-ar="الإنجازات">Achievements</span><textarea id="achievementsInput"></textarea></label><label><span data-en="Distances (comma separated)" data-ar="المسافات (مفصولة بفواصل)">Distances</span><input id="distancesInput" placeholder="5K, 10K, Marathon"></label><label><span data-en="Profile photo (optional)" data-ar="الصورة الشخصية (اختياري)">Profile photo</span><input id="pacerPhoto" type="file" accept="image/jpeg,image/png,image/webp"></label><p id="editStatus" role="status"></p><button class="btn" type="submit" data-en="Save profile" data-ar="حفظ الملف">حفظ الملف</button></form></section>
 <section class="card" id="paces"><h2 data-en="Pacing Distances and Speeds" data-ar="المسافات والسرعات">المسافات والسرعات</h2><div id="pacesView"></div></section>
 <section class="card" id="requests"><h2 data-en="Incoming Pacing Requests" data-ar="طلبات التنسيق الواردة">طلبات التنسيق</h2><div id="pendingList"></div></section>
 <section class="card" id="accepted"><h2 data-en="Accepted Requests" data-ar="الطلبات المقبولة">الطلبات المقبولة</h2><div id="acceptedList"></div></section>
@@ -63,7 +63,7 @@ async function update(id,status){await api('/api/pacer/requests/'+id,{method:'PA
 async function load(){try{
  const p=await api('/api/pacer/profile');const d=p.profile;
  $('profile').innerHTML=`<h3>${d.display_name}</h3><p>${[d.city,d.country].filter(Boolean).join(', ')}</p>${d.verified?`<p class="status">✓ ${t('Verified Pacer','منظّم موثّق')}</p>`:''}`;
- $('availabilityInput').value=d.availability||'';$('bioInput').value=d.bio||'';
+ $('availabilityInput').value=d.availability||'';$('bioInput').value=d.bio||'';$('experienceInput').value=d.experience||'';$('achievementsInput').value=d.achievements||'';$('distancesInput').value=(d.distances||[]).join(', ');
  $('pacesView').innerHTML=Object.entries(d.paces||{}).map(([k,v])=>`<p><strong>${k}</strong>: ${v}</p>`).join('')||t('No pacing ranges yet.','لا توجد نطاقات وتيرة بعد.');
  const r=await api('/api/pacer/requests');const reqs=r.requests||[];
  $('pendingList').replaceChildren(...reqs.filter(q=>q.status==='received').map(q=>requestCard(q,true)));
@@ -71,7 +71,7 @@ async function load(){try{
  $('eventsList').replaceChildren(...reqs.filter(q=>q.status==='accepted'&&q.preferred_date).map(q=>requestCard(q,false)));
  $('notices').textContent=t('No new notifications.','لا توجد إشعارات جديدة.');
  }catch(e){$('profile').textContent=e.message}}
-$('profileForm').onsubmit=async e=>{e.preventDefault();await api('/api/pacer/profile',{method:'PUT',body:JSON.stringify({availability:$('availabilityInput').value,bio:$('bioInput').value})});await load()};
+$('profileForm').onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;try{await api('/api/pacer/profile',{method:'PUT',body:JSON.stringify({availability:$('availabilityInput').value,bio:$('bioInput').value,experience:$('experienceInput').value,achievements:$('achievementsInput').value,distances:$('distancesInput').value.split(',').map(x=>x.trim()).filter(Boolean)})});const photo=$('pacerPhoto').files[0];if(photo){if(photo.size>1000000)throw Error('photo_too_large');const form=new FormData();form.append('photo',photo);const r=await fetch(apiBase+'/api/pacer/profile/photo',{method:'PUT',headers:{authorization:'Bearer '+token()},body:form});if(!r.ok)throw Error('photo_upload_failed');$('pacerPhoto').value='';}$('editStatus').textContent=t('Profile saved.','تم حفظ الملف.');await load();}catch{$('editStatus').textContent=t('Unable to finish saving. Please check your photo and try again.','تعذر إكمال الحفظ. تحقق من الصورة وحاول مجدداً.');}finally{b.disabled=false;}};
 $('signout').onclick=async()=>{try{await fetch(apiBase+'/api/auth/logout',{method:'POST'})}catch{}localStorage.removeItem('mzactive-provider-session');sessionStorage.removeItem('mzactive-provider-session');location.assign('/index.html')};
 load();
 </script>

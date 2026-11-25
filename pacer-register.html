@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title data-en="Become a Pacer | MZ Active" data-ar="انضم كمنظّم وتيرة الجري | MZ Active">انضم كمنظّم وتيرة الجري | MZ Active</title>
@@ -27,70 +27,49 @@ button{width:100%;min-height:50px;border:0;border-radius:12px;background:#f2b718
 <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c">
 <meta name="apple-mobile-web-app-title" content="MZA">
 <script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
-</head>
-<body>
+<style>
+body.pacer-registration:not(.home-page){--bg:#f3f6f3;--text:#17342e;--muted:#526b63;--panel:#fff;--line:#dce4df;background:#f3f6f3!important;color:#17342e!important}
+body.pacer-registration *{box-sizing:border-box}body.pacer-registration .wrap{width:min(520px,94%);padding:22px 0 40px}
+body.pacer-registration .registration-header{background:#091d21!important;border-radius:14px 14px 0 0;padding:16px 22px} .registration-header img{width:145px;display:block}
+.registration-card{background:#fff;padding:24px;border:1px solid #dce4df;border-radius:0 0 14px 14px}.eyebrow{font-size:11px;letter-spacing:1.8px;font-weight:800;color:#806022!important}.registration-card h1{line-height:1.15}.registration-card .lead{font-size:14px}.location-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+body.pacer-registration input:not([type=checkbox]){background:#fff!important;color:#17342e!important;border-color:#cbd9d0!important;color-scheme:light}.consent{display:flex;align-items:flex-start;gap:9px}.consent input{width:18px;height:18px;flex:none}.status{color:#205456!important}.status:empty{display:none}.registration-card a{color:#205456;font-weight:700}
+</style></head>
+<body class="pacer-registration">
 <div class="wrap">
-  <a href="index.html" style="color:#f2b718">MZ Active</a>
-  <h1 data-en="Become a Pacer" data-ar="انضم كمنظّم وتيرة الجري">انضم كمنظّم وتيرة الجري</h1>
-  <p class="lead" data-en="Independent Pacer registration. Help runners hold a sustainable pace at races and community runs. No coaching certification required." data-ar="تسجيل مستقل لمنظّمي وتيرة الجري. ساعد العدائين على الحفاظ على وتيرة مستدامة في السباقات والجري المجتمعي. لا يشترط شهادة تدريب.">تسجيل مستقل لمنظّمي وتيرة الجري. ساعد العدائين على الحفاظ على وتيرة مستدامة في السباقات والجري المجتمعي. لا يشترط شهادة تدريب.</p>
-  <form id="pacerForm" class="card">
-    <label><span data-en="Full name" data-ar="الاسم الكامل">الاسم الكامل</span><input id="display_name" required maxlength="100"></label>
-    <label><span data-en="Profile photo (JPG, PNG or WebP)" data-ar="صورة الملف (JPG أو PNG أو WebP)">صورة الملف</span><input id="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
-    <label><span data-en="Email address" data-ar="البريد الإلكتروني">البريد الإلكتروني</span><input id="email" type="email" required></label>
-    <label><span data-en="Password (8+ characters)" data-ar="كلمة المرور (٨ أحرف فأكثر)">كلمة المرور</span><input id="password" type="password" minlength="8" required></label>
-    <label><span data-en="Phone number" data-ar="رقم الهاتف">رقم الهاتف</span><input id="phone" type="tel" required></label>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <label><span data-en="Country" data-ar="الدولة">الدولة</span><input id="country" value="Qatar"></label>
-      <label><span data-en="City" data-ar="المدينة">المدينة</span><input id="city" required></label>
-    </div>
-    <label><span data-en="Languages (comma separated)" data-ar="اللغات (يفصل بينها بفاصلة)">اللغات</span><input id="languages" placeholder="Arabic, English"></label>
-    <label><span data-en="Short biography" data-ar="نبذة قصيرة">نبذة قصيرة</span><textarea id="bio" required></textarea></label>
-    <label><span data-en="Running experience" data-ar="خبرة الجري">خبرة الجري</span><textarea id="experience"></textarea></label>
-    <label><span data-en="Previous races and achievements" data-ar="السباقات السابقة والإنجازات">السباقات والإنجازات</span><textarea id="achievements"></textarea></label>
-    <fieldset style="border:1px solid #2e6567;border-radius:12px;padding:12px;margin:12px 0">
-      <legend data-en="Supported running distances" data-ar="مسافات الجري المدعومة">المسافات المدعومة</legend>
-      <div class="checks" id="distances">
-        <label><input type="checkbox" value="5K"><span>5K</span></label>
-        <label><input type="checkbox" value="10K"><span>10K</span></label>
-        <label><input type="checkbox" value="Half Marathon"><span data-en="Half Marathon" data-ar="نصف الماراثون">نصف الماراثون</span></label>
-        <label><input type="checkbox" value="Marathon"><span data-en="Marathon" data-ar="الماراثون">الماراثون</span></label>
-        <label><input type="checkbox" value="Ultra Running"><span data-en="Ultra Running" data-ar="الجري فائق الطول">الجري فائق الطول</span></label>
-        <label><input type="checkbox" value="Community Runs"><span data-en="Community Runs" data-ar="جري المجتمع">جري المجتمع</span></label>
-      </div>
-    </fieldset>
-    <fieldset style="border:1px solid #2e6567;border-radius:12px;padding:12px;margin:12px 0">
-      <legend data-en="Sustainable pacing ranges (MM:SS per km)" data-ar="نطاقات الوتيرة المستدامة (د:ث/كم)">نطاقات الوتيرة</legend>
-      <div class="pace-grid" id="paces">
-        <label><span>5K</span><input data-pace="5K" placeholder="05:30"></label>
-        <label><span>10K</span><input data-pace="10K" placeholder="05:35"></label>
-        <label><span data-en="Half Marathon" data-ar="نصف الماراثون">نصف الماراثون</span><input data-pace="Half Marathon" placeholder="05:45"></label>
-        <label><span data-en="Marathon" data-ar="الماراثون">الماراثون</span><input data-pace="Marathon" placeholder="06:00"></label>
-      </div>
-    </fieldset>
-    <label><span data-en="Availability for races and community runs" data-ar="التاحة للسباقات وجري المجتمع">التاحة</span><input id="availability"></label>
-    <label><span data-en="Optional social media and Strava links" data-ar="روابط التواصل و Strava (اختياري)">الروابط</span><input id="social_links" placeholder="https://strava.com/..."></label>
-    <label><input id="consent" type="checkbox" required> <span data-en="I consent to the review of my Pacer profile." data-ar="أوافق على مراجعة ملفي كمنظّم وتيرة.">أوافق على المراجعة.</span></label>
-    <button type="submit" data-en="Submit Pacer application" data-ar="إرسال طلب الانضمام">إرسال الطلب</button>
-    <p id="status" class="status" role="status" aria-live="polite"></p>
-  </form>
-</div>
+<header class="registration-header"><a href="index.html"><img src="assets/brand/mzactive-logo.webp" alt="MZActive"></a></header>
+<main class="registration-card">
+<p class="eyebrow" data-en="JOIN MZACTIVE" data-ar="انضم إلى MZActive">JOIN MZACTIVE</p>
+<h1 data-en="Become a Pacer" data-ar="انضم كمرافق رياضي">Become a Pacer</h1>
+<p class="lead" data-en="Create your account. Complete your sporting profile later." data-ar="أنشئ حسابك وأكمل ملفك الرياضي لاحقاً.">Create your account. Complete your sporting profile later.</p>
+<form id="pacerForm">
+<label><span data-en="Full name" data-ar="الاسم الكامل">Full name</span><input id="display_name" autocomplete="name" required maxlength="100"></label>
+<label><span data-en="Email address" data-ar="البريد الإلكتروني">Email address</span><input id="email" type="email" autocomplete="email" required></label>
+<label><span data-en="Password (8+ characters)" data-ar="كلمة المرور (٨ أحرف فأكثر)">Password (8+ characters)</span><input id="password" type="password" autocomplete="new-password" minlength="8" maxlength="200" required></label>
+<label><span data-en="Phone number" data-ar="رقم الهاتف">Phone number</span><input id="phone" type="tel" autocomplete="tel" required maxlength="40"></label>
+<div class="location-grid"><label><span data-en="Country" data-ar="الدولة">Country</span><input id="country" value="Qatar" autocomplete="country-name" required maxlength="80"></label><label><span data-en="City" data-ar="المدينة">City</span><input id="city" autocomplete="address-level2" required maxlength="80"></label></div>
+<label class="consent"><input id="consent" type="checkbox" required><span data-en="I consent to processing my application and reviewing my profile before publication." data-ar="أوافق على معالجة طلبي ومراجعة ملفي قبل نشره.">I consent to processing my application and reviewing my profile before publication.</span></label>
+<button type="submit" id="submitPacer" data-en="Create my Pacer account" data-ar="أنشئ حسابي كمرافق">Create my Pacer account</button>
+<p id="status" class="status" role="status" aria-live="polite" data-user-content></p>
+<a id="continueProfile" href="pacer-dashboard.html" hidden data-en="Continue to my profile" data-ar="انتقل إلى ملفي">Continue to my profile</a>
+</form>
+<p class="lead"><a href="login.html" data-en="Already have an account? Log in" data-ar="لديك حساب؟ سجّل الدخول">Already have an account? Log in</a></p>
+</main></div>
 <script src="assets/js/site-language.js?v=20261120h"></script>
 <script>
 const apiBase=window.MZACTIVE_API_BASE||'';
 const byId=id=>document.getElementById(id);
 const val=id=>byId(id).value.trim();
+const t=(en,ar)=>document.documentElement.lang==='ar'?ar:en;
 byId('pacerForm').addEventListener('submit',async e=>{
-  e.preventDefault();
-  const status=byId('status');status.textContent='...';
-  const paces={};document.querySelectorAll('#paces input').forEach(i=>{if(i.value.trim())paces[i.dataset.pace]=i.value.trim()});
-  const body={display_name:val('display_name'),email:val('email'),password:val('password'),phone:val('phone'),country:val('country'),city:val('city'),languages:val('languages').split(',').map(x=>x.trim()).filter(Boolean),bio:val('bio'),experience:val('experience'),achievements:val('achievements'),distances:[...document.querySelectorAll('#distances input:checked')].map(i=>i.value),paces,availability:val('availability'),social_links:[val('social_links')].filter(Boolean),consent:byId('consent').checked};
-  try{
-    const r=await fetch(apiBase+'/api/pacer/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
-    const d=await r.json();if(!r.ok)throw Error(d.error||'failed');
-    const photo=byId('photo').files[0];
-    if(photo){const fd=new FormData();fd.append('photo',photo);await fetch(apiBase+'/api/pacer/profile/photo',{method:'PUT',body:fd,headers:{authorization:localStorage.getItem('mzactive-provider-session')||sessionStorage.getItem('mzactive-provider-session')||''}})}
-    status.textContent=d.status==='pending'?'Application submitted. Your profile is awaiting review.':'تم الإرسال';
-  }catch(err){status.textContent=err.message}
+ e.preventDefault();const status=byId('status'),button=byId('submitPacer');button.disabled=true;
+ status.textContent=t('Creating your account…','جارٍ إنشاء الحساب…');
+ const body={display_name:val('display_name'),email:val('email'),password:byId('password').value,phone:val('phone'),country:val('country'),city:val('city'),consent:byId('consent').checked};
+ try{
+ const r=await fetch(apiBase+'/api/pacer/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+ const d=await r.json();if(!r.ok)throw Error(d.error||'failed');
+ status.textContent=t('Account created. Sign in to complete your profile. Your application is pending review.','تم إنشاء الحساب. سجّل الدخول لإكمال ملفك. طلبك قيد المراجعة.');
+ byId('pacerForm').reset();byId('continueProfile').href='login.html';byId('continueProfile').textContent=t('Sign in to complete my profile','سجّل الدخول لإكمال ملفك');byId('continueProfile').hidden=false;
+ }catch(err){status.textContent=err.message==='account_already_exists'?t('This email is already registered. Please sign in.','هذا البريد مسجل بالفعل. يرجى تسجيل الدخول.'):t('Unable to create your account. Please check your details and try again.','تعذر إنشاء الحساب. تحقق من بياناتك وحاول مجدداً.');button.disabled=false;}
 });
 </script>
 </body>
