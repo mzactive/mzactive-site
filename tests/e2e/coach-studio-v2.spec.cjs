@@ -131,3 +131,13 @@ test('sending a private draft never overwrites an existing athlete draft',async(
  await expect(d.getByRole('status')).toContainText('already has a draft');expect(mock.calls.filter(c=>c.method==='POST'&&c.path.includes('/api/dashboard/programs'))).toHaveLength(0);
  await d.getByRole('button',{name:'Close',exact:true}).click();await choose(page,'conn-b');await expect(page.locator('#calendarGrid').getByText('Strength A')).toHaveCount(1);assertOfflineSafe(mock)
 });
+
+test('YouTube demo is validated and preserved in the assigned workout',async({page})=>{
+ const mock=await open(page,{overrides:{'POST /api/dashboard/programs':json({id:program},201),['POST /api/dashboard/programs/'+program+'/send']:json({sent:true,program_id:program})}});
+ await choose(page);await create(page);await page.locator('#calendarGrid').getByText('Strength A').click();
+ const d=page.locator('#dialog'),v=d.getByLabel('YouTube demonstration (optional)');await v.fill('https://youtube.com.evil.example/watch?v=dQw4w9WgXcQ');await expect.poll(()=>v.evaluate(x=>x.validity.valid)).toBe(false);
+ await v.fill('https://youtu.be/dQw4w9WgXcQ');await expect(d.getByRole('link',{name:/Preview video/})).toHaveAttribute('href','https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+ await d.getByRole('button',{name:'Save workout'}).click();await page.getByRole('button',{name:'Send to my athlete',exact:true}).click();
+ await d.getByLabel('Athlete phone (required by current program API)').fill('+97455555555');await d.getByRole('button',{name:'Publish to athlete'}).click();await expect(d).toBeHidden();
+ const created=mock.calls.find(c=>c.method==='POST'&&c.path==='/api/dashboard/programs');expect(created.body.weeks[0].sessions[0].details).toContain('https://www.youtube.com/watch?v=dQw4w9WgXcQ');assertOfflineSafe(mock)
+});

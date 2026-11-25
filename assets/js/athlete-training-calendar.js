@@ -33,7 +33,7 @@ function render(){
 }
 function openWorkout(session){
  if(window.mzStudioDashboard?.role!=='member'||pending)return;dialog.replaceChildren();
- const d=parse(session.details),heading=el('h2',d.title||t('Workout','حصة')),body=el('p',d.body||'','mza-athlete-instructions'),status=el('p',undefined,'muted');status.setAttribute('role','status');
+ const d=parse(session.details),heading=el('h2',d.title||t('Workout','حصة')),body=el('p',undefined,'mza-athlete-instructions'),status=el('p',undefined,'muted');status.setAttribute('role','status');window.MZAWorkoutVideo.appendInstructions(body,d.body,t('Watch demonstration on YouTube ↗','شاهد شرح التمرين على يوتيوب ↗'));
  const km=el('input'),min=el('input');km.type=min.type='number';km.min=min.min='0';km.max='500';km.step='0.1';min.max='720';min.step='1';km.value=session.completed_at?String(session.actual_km||0):'';min.value=session.completed_at?String(session.duration_minutes||0):'';const labelKm=el('label',t('Actual distance (km)','المسافة الفعلية (كم)')),labelMin=el('label',t('Actual duration (min)','المدة الفعلية (دقائق)'));labelKm.append(km);labelMin.append(min);const grid=el('div',undefined,'mza-exercise-fields');grid.append(labelKm,labelMin);
  const save=button(t('Mark completed / save log','تسجيل الحصة كمكتملة'),()=>submit(true));save.dataset.athleteComplete='true';
  const close=button(t('Close','إغلاق'),()=>{if(!pending)dialog.close();});const reset=button(t('Mark incomplete','إلغاء إكمال الحصة'),()=>submit(false));reset.hidden=!session.completed_at;
