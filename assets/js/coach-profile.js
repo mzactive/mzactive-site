@@ -206,6 +206,7 @@
     if (p.viewer?.owner) exposeOwnerTools(p);
     else if (p.viewer?.can_message) buildViewerActions(p);
     q('.profile-layout')?.classList.toggle('public-layout', !(p.viewer?.owner));
+    q('.profile-heading')?.classList.toggle('public-heading', !(p.viewer?.owner));
   }
 
   function actionButton(label, className, id) {
@@ -259,8 +260,8 @@
     const tabs = $('#profileTabs');
     if (tabs && !tabs.querySelector('[data-owner-tab]')) {
       for (const [href, en, ar] of [
-        ['dashboard.html#whatsappTrainingForm','Training Programs','البرامج التدريبية'],
-        ['dashboard.html#coachTeams','My Athletes','رياضيّاي'],
+        ['coach-studio.html','Training Programs','البرامج التدريبية'],
+        ['coach-studio.html?view=athletes','My Athletes','رياضيّاي'],
         ['#bookings','Bookings','الحجوزات'],
         ['#analytics','Analytics','التحليلات'],
       ]) {
@@ -306,8 +307,8 @@
       for (const [href, en, ar] of [
         ['dashboard.html#coachBlogForm','Write an article','اكتب مقالاً'],
         ['providers.html#provider-portal','Manage profile photos','إدارة صور الملف'],
-        ['dashboard.html#coachTeams','Group session','جلسة جماعية'],
-        ['dashboard.html#whatsappTrainingForm','Training program','برنامج تدريبي'],
+        ['coach-studio.html?view=athletes','Group session','جلسة جماعية'],
+        ['coach-studio.html','Training program','برنامج تدريبي'],
       ]) {
         const link = node('a', t(en,ar));
         link.href = href;
@@ -756,7 +757,7 @@
       button.addEventListener('click', () => {
         const key = button.dataset.socialTab;
         for (const tab of tabs.querySelectorAll('.social-tab')) tab.setAttribute('aria-selected', String(tab === button));
-        document.querySelectorAll('[data-social-panel]').forEach(panel => { panel.hidden = panel.dataset.socialPanel !== key; });
+        document.querySelectorAll('[data-social-panel]').forEach(panel => { panel.hidden = key !== 'overview' && panel.dataset.socialPanel !== key; });
         q('.profile-layout')?.scrollIntoView({ behavior:'smooth', block:'start' });
       });
     }
