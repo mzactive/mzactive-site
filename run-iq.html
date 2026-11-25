@@ -344,7 +344,7 @@ body.rtl{direction:rtl;text-align:right}body.rtl .main-nav{justify-content:flex-
     try{const d=await apiCall('/api/run-iq/coaches?city='+encodeURIComponent($('city').value||''));if(!d.coaches.length){host.textContent=t('noCoaches');return;}
       for(const c of d.coaches){const el=document.createElement('article');el.className='coach';el.append(Object.assign(document.createElement('h3'),{textContent:c.display_name}),Object.assign(document.createElement('p'),{textContent:[c.city,c.country].filter(Boolean).join(', ')}),Object.assign(document.createElement('p'),{textContent:(c.specialties||[]).join(' · ')}));
         const a=Object.assign(document.createElement('a'),{href:c.profile_url,textContent:t('profile')});a.target='_blank';a.rel='noopener noreferrer';a.onclick=()=>track('coach_profile_clicked',c.id);
-        const b=Object.assign(document.createElement('a'),{href:'pacer.html?provider='+encodeURIComponent(c.id)+'#request',textContent:t('request')});
+        const b=Object.assign(document.createElement('a'),{href:'coach.html?id='+encodeURIComponent(c.id)+'&contact=coaching',textContent:t('request')});
         const share=Object.assign(document.createElement('button'),{type:'button',className:'btn ghost',textContent:t('share')});share.onclick=async()=>{if(!token()){$('revealSave').click();return;}if(!window.confirm(t('share')))return;await apiCall('/api/run-iq/share',{method:'POST',body:JSON.stringify({coach_user_id:c.id,consent:true})});await loadMine();};
         el.append(a,b,document.createElement('br'),share);host.append(el);}
     }catch{host.textContent=t('error');}}

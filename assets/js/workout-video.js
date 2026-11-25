@@ -11,14 +11,21 @@
   }catch{return ''}
  }
  const url=id=>valid(id)?'https://www.youtube.com/watch?v='+id:'';
- function appendInstructions(root,text,label){
-  const lines=String(text||'').split('\n');
+ function appendInstructions(root,text,label,exerciseLength){
+  const structured=Number.isInteger(exerciseLength)&&exerciseLength>=0&&exerciseLength<=text.length;
+  const instructions=structured?text.slice(exerciseLength+(exerciseLength?1:0)):'';
+  const exerciseText=structured?text.slice(0,exerciseLength):text;
+  const lines=String(exerciseText||'').split('\n');
   lines.forEach((line,i)=>{
    if(i)root.append(document.createTextNode('\n'));
    const id=idFromUrl(line);
    if(id){const a=document.createElement('a');a.href=url(id);a.target='_blank';a.rel='noopener noreferrer';a.textContent=label;a.className='mza-video-link';root.append(a)}
    else root.append(document.createTextNode(line));
   });
+  if(structured&&instructions){
+   if(exerciseLength)root.append(document.createTextNode('\n'));
+   root.append(document.createTextNode(instructions));
+  }
   root.style.whiteSpace='pre-wrap';
   root.style.overflowWrap='anywhere';
  }

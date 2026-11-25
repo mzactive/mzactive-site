@@ -333,6 +333,7 @@
     }
     // Keep authenticated owner tools out of the actual public profile layout.
     const privateTools = node('details', undefined, 'owner-private-tools');
+    privateTools.open = location.hash === '#bookings';
     privateTools.id = 'ownerPrivateTools';
     privateTools.append(node('summary', t('Additional private management tools','أدوات الإدارة الخاصة الإضافية')));
     if (tabs) privateTools.append(tabs);
@@ -504,7 +505,11 @@
       const card = node('article', undefined, 'card');
       card.append(node('strong', booking.customer_name), node('p', [label(booking.status), booking.city, booking.session_type, booking.program_duration_months ? `${booking.program_duration_months}${t(' mo',' شهر')}` : ''].filter(Boolean).join(' · ')));
       card.append(node('small', booking.goal_summary || ''));
-      if (booking.customer_phone) card.append(node('a', booking.customer_phone, 'text-link'));
+      if (booking.customer_phone) {
+        const phone = node('a', booking.customer_phone, 'text-link');
+        phone.href = 'tel:' + booking.customer_phone.replace(/[^+0-9]/g, '');
+        card.append(phone);
+      }
       for (const status of transitions[booking.status] || []) {
         const action = node('button', label(status));
         action.type = 'button';
@@ -592,6 +597,7 @@
       ownerData = { ...(ownerData || {}), bookings: bookings.bookings || [] };
       renderAnalytics();
       renderBookingInbox();
+      if (location.hash === '#bookings') $('#bookings')?.scrollIntoView();
     } catch {
       // Public profile details remain visible when private analytics are unavailable.
     }
@@ -836,14 +842,16 @@
     const fields = form.elements;
     const name = fields.customer_name.value.trim();
     const note = fields.goal_summary.value.trim();
-    if (!name || !note) {
-      const field = !name ? fields.customer_name : fields.goal_summary;
-      field.value = '';
+    if (!/\p{L}/u.test(name) || !note) {
+      const field = !/\p{L}/u.test(name) ? fields.customer_name : fields.goal_summary;
+      field.setCustomValidity(field === fields.customer_name ? t('Enter your name.', 'أدخل اسمك.') : t('Enter a message.', 'أدخل رسالة.'));
       field.reportValidity();
       return;
     }
     const phone = fields.customer_phone;
-    if (!/^\+?[\d\s()-]{7,40}$/.test(phone.value.trim()) || phone.value.replace(/\D/g, '').length < 7) {
+    const mobile = phone.value.trim().replace(/[٠-٩۰-۹]/g, digit => String(digit.charCodeAt(0) & 15));
+    const digits = mobile.replace(/\D/g, '');
+    if (!/^\+?[\d\s()-]+$/.test(mobile) || !/^[0-9]{7,15}$/.test(digits)) {
       phone.setCustomValidity(t('Enter a valid phone number.', 'أدخل رقم هاتف صالحاً.'));
       phone.reportValidity();
       return;
@@ -852,7 +860,7 @@
     const body = {
       provider_id: profile.id,
       customer_name: name,
-      customer_phone: fields.customer_phone.value.trim(),
+      customer_phone: (mobile.startsWith('+') ? '+' : '') + digits,
       city: 'To be agreed',
       session_type: contactSessions[type],
       service_name: ['nutritionist', 'physiotherapist', 'sports_massage_therapist'].includes(type) ? fields.service_name.value : '',
@@ -895,7 +903,7 @@
     $('#contactClose').addEventListener('click', () => $('#coachContact').close());
     const contactForm = $('#coachContactForm');
     contactForm.addEventListener('submit', submitContact);
-    contactForm.elements.customer_phone.addEventListener('input', event => event.target.setCustomValidity(''));
+    contactForm.addEventListener('input', event => event.target.setCustomValidity?.(''));
     $('#followPublic')?.addEventListener('click', async () => {
       if (!profile) return;
       if (!profile.viewer?.authenticated || !tokenFromStorage()) {
@@ -948,6 +956,8 @@
       if (!profile) { failure = 404; setUnavailable(); return; }
       renderProfile();
       mountSocialTabs();
+      const intent = new URLSearchParams(location.search).get('contact');
+      if (intent === 'coaching' || intent === 'message') openContact(intent);
       document.querySelectorAll('[data-social-panel]').forEach(panel => {panel.hidden = panel.dataset.socialPanel !== 'about';});
       whenIdle(loadCommunityPosts);
       whenIdle(loadCoachBlogs);

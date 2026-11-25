@@ -8,13 +8,12 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('coach directory uses compact horizontal cards with real details and no emojis', () => {
+test('coach directory uses portrait-led cards with real details and no emojis', () => {
   const html = read('coaches.html');
   assert.match(html, /\.grid\{display:grid;grid-template-columns:repeat\(3,/);
-  assert.match(html, /grid-template-columns:120px minmax\(0,1fr\)/);
-  assert.match(html, /\.photo\{width:120px;height:160px/);
-  assert.match(html, /grid-template-columns:90px minmax\(0,1fr\)/);
-  assert.match(html, /\.photo\{width:90px;height:120px\}/);
+  const css = read('assets/css/coach-directory.css');
+  assert.match(css, /\.card\s*\{\s*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(css, /\.photo\s*\{\s*width: 100%/);
   assert.match(html, /object-fit:cover;object-position:center top/);
   assert.match(html, /verified-badge/);
   assert.match(html, /addFact\('pin'/);
@@ -22,7 +21,7 @@ test('coach directory uses compact horizontal cards with real details and no emo
   assert.match(html, /addFact\('globe'/);
   assert.match(html, /addFact\('list'/);
   assert.match(html, /'View Profile'/);
-  assert.match(html, /'Send Request'/);
+  assert.match(html, /request.href=view.href\+'&contact=coaching'/);
   assert.doesNotMatch(html, /🏃|🏁|📍|MZ ACTIVE APPROVED/);
 });
 
