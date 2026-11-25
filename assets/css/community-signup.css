@@ -6,8 +6,20 @@ body.community-page:not(.home-page) {
   --line: #e2d3ab;
   --community-petrol: #103638;
   --community-field: #fff;
+  background: var(--bg);
+  color: var(--text);
   color-scheme: light;
 }
+.community-page > header,
+.community-page > footer { background: var(--community-petrol); color: #fff; }
+.community-page header .site-language-control {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; border: 1px solid #71938d; border-radius: 999px;
+  min-height: 36px; padding: 4px 9px;
+}
+.community-page header .site-language-control svg{width:16px;height:16px}
+.community-page .card { background: var(--panel); border-color: var(--line); }
+.community-page main .note, .community-page main .lead { color: var(--muted); }
 .community-page header nav {
   display: flex;
   align-items: center;
