@@ -26,8 +26,9 @@ h1{margin:0;color:#f2b718;font-size:clamp(24px,4vw,36px)}
 <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c">
 <meta name="apple-mobile-web-app-title" content="MZA">
 <script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
+<link rel="stylesheet" href="assets/css/smart-profile.css?v=20261125a">
 </head>
-<body><div class="wrap">
+<body class="smart-pacer-profile"><header class="smart-pacer-header"><a href="index.html"><img src="assets/brand/mzactive-logo.webp" alt="MZActive"></a><a href="pacer.html" data-en="All Pacers" data-ar="جميع المرافقين">All Pacers</a></header><div class="wrap">
 <a href="pacer.html" style="color:#f2b718">Pacers</a>
 <section class="card" id="profileCard"><p data-en="Loading Pacer profile…" data-ar="جارٍ تحميل ملف منظّم الوتيرة…">جارٍ التحميل…</p></section>
 </div>
@@ -44,8 +45,9 @@ const card=document.getElementById('profileCard');
   const p=d.pacer;
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n};
   const photo=el(p.has_photo?'img':'div',undefined,'photo');
-  if(p.has_photo){photo.alt='';photo.src=apiBase+'/api/pacers/'+encodeURIComponent(p.id)+'/photo?v='+encodeURIComponent(p.photo_updated_at||'');}
-  const head=el('div',undefined,'head'),info=el('div');
+  if(p.has_photo){photo.alt=p.display_name;photo.onerror=()=>photo.replaceWith(el('div',undefined,'photo'));photo.src=apiBase+'/api/pacers/'+encodeURIComponent(p.id)+'/photo?v='+encodeURIComponent(p.photo_updated_at||'');}
+  const head=el('div',undefined,'head'),info=el('div',undefined,'pacer-identity');
+  const brand=el('div',undefined,'smart-profile-brand');const logo=el('img');logo.src='assets/brand/mzactive-logo.webp';logo.alt='MZActive';brand.append(logo,el('span',t('Pacer profile','ملف المرافق')));info.append(brand);
   info.append(el('h1',p.display_name),el('p',[p.city,p.country].filter(Boolean).join(', ')));
   if(p.verified)info.append(el('p',t('✓ Verified Pacer','✓ مرافق موثّق')));
   if(p.bio)info.append(el('p',p.bio));if(p.achievements)info.append(el('p',p.achievements));head.append(photo,info);
