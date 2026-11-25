@@ -4,11 +4,11 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MZA Coach Studio</title><meta name="robots" content="noindex,nofollow"><link rel="manifest" href="/manifest.json"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#103638"><script src="/assets/js/pwa-register.js?v=20261121b" defer></script><link rel="stylesheet" href="/assets/css/coach-studio-v2.css?v=20261125c">
 <script src="/assets/js/api-base.js" defer></script><script src="/assets/js/auth-session.js?v=20261120h" defer></script>
-<script src="/assets/js/exercise-library.js?v=20261125a" defer></script><script src="/assets/js/coach-studio-v2.js?v=20261125d" defer></script>
+<script src="/assets/js/exercise-library.js?v=20261125a" defer></script><script src="/assets/js/coach-studio-v2.js?v=20261125e" defer></script>
 </head>
 <body>
 <header class="top"><a href="/" class="brand">MZA <small>COACH STUDIO</small></a><div class="top-actions"><a id="classic" href="/dashboard.html?legacy=1&studio=0#myProfile">My profile</a><button id="lang" type="button">العربية</button><button id="logout" type="button" hidden>Sign out</button></div></header>
-<main id="gate" class="gate" aria-live="polite"><h1>Coach Studio</h1><p id="gateMessage">Checking your coach account…</p><a href="/dashboard.html#loginForm" class="primary">Sign in</a></main>
+<main id="gate" class="gate" aria-live="polite"><h1>Coach Studio</h1><p id="gateMessage">Checking your coach account…</p><a id="gateAction" href="/dashboard.html#loginForm" class="primary" hidden>Sign in</a><noscript><a href="/dashboard.html#loginForm" class="primary">Sign in</a></noscript></main>
 <div id="studio" class="studio" hidden>
 <aside class="sidebar"><p class="eyebrow" id="navTitle">WORKSPACE</p><nav aria-label="Coach workspace" id="nav"></nav><div class="sidefoot"><a href="/dashboard.html?legacy=1&studio=0" id="otherTools">Profile, messages & other tools</a></div></aside>
 <main class="content" id="content"><div id="notice" role="status" aria-live="polite"></div><div id="screen"></div></main>

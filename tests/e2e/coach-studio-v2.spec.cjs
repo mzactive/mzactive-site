@@ -21,7 +21,9 @@ test('pacer cannot see coach workspace',async({page})=>{await open(page,{type:'p
 test('language switches to Arabic',async({page})=>{await open(page);await choose(page);await page.locator('#lang').click();await expect(page.locator('html')).toHaveAttribute('dir','rtl');await expect(page.getByRole('heading',{name:'تقويم التدريب'})).toBeVisible()});
 
 
-test('signed out visitor cannot access the workspace',async({page})=>{await open(page,{signedIn:false});await expect(page.getByText('This workspace is available to approved coaches.',{exact:false})).toBeVisible();await expect(page.locator('#studio')).toBeHidden()});
+test('signed out visitor goes straight to the single sign-in form',async({page})=>{await open(page,{signedIn:false});await expect(page).toHaveURL(/\/dashboard\.html#loginForm$/);await expect(page.locator('#loginForm')).toBeVisible();await expect(page.locator('#registerForm')).toBeHidden();await expect(page.locator('#gate')).toHaveCount(0)});
+test('expired session goes straight to sign-in',async({page})=>{await open(page,{overrides:{'GET /api/me/access':json({error:'unauthorized'},401)}});await expect(page).toHaveURL(/\/dashboard\.html#loginForm$/);await expect(page.locator('#loginForm')).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('mzactive-provider-session')||sessionStorage.getItem('mzactive-provider-session'))).toBeNull()});
+test('network or API failure does not force a second login',async({page})=>{await open(page,{overrides:{'GET /api/dashboard':json({error:'unavailable'},503)}});await expect(page.locator('#gateMessage')).toContainText('Your workspace could not load.');await expect(page.locator('#gateAction')).toHaveText('Try again');await expect(page).toHaveURL(/\/coach-studio\.html$/);expect(await page.evaluate(()=>sessionStorage.getItem('mzactive-provider-session'))).toBeTruthy()});
 
 test('workout library creates reusable sessions without an athlete and assigns independent copies',async({page})=>{
  await open(page);await expect(page.locator('#studio')).toBeVisible();
