@@ -202,7 +202,7 @@ test('Pacer bookings accept only training and race sessions', async () => {
 
   for (const session_type of ['training', 'race']) {
     await call('bookings', 'POST', {
-      provider_id: id, customer_name: 'Test athlete', customer_phone: '55555555', city: 'Doha',
+      provider_id: id, customer_name: 'Test athlete', customer_phone: session_type === 'training' ? '55555555' : '55555556', city: 'Doha',
       session_type, distance: '10K', target_pace: '4:30/km', goal_summary: 'Pacing request', consent: true,
     }, null, 201);
   }

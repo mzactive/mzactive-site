@@ -339,6 +339,8 @@
         const data=await fetch(API+'/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:form.get('email'),password:form.get('password')})}).then(async response=>{const result=await response.json();if(!response.ok)throw Error(result.error||w().failed);return result});
         if(typeof data.token!=='string'||!data.token)throw Error(w().failed);
         window.MZActiveAuth.store(data);$('loginPassword').value='';checkingSession();notice('');
+        const destination=window.MZActiveAuth.destination(data);
+        if(destination && destination!=='/dashboard.html'){location.replace(destination);return}
         await start();
       }catch(error){notice(error.message==='invalid_credentials'?(lang==='ar'?'بيانات الدخول غير صحيحة.':'Email or password is incorrect.'):error.message)}
       finally{loginBusy=false;submit.disabled=false}

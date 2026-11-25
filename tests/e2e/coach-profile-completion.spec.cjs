@@ -94,7 +94,7 @@ test('coach dashboard shows required checklist, gold bar, and links to real fiel
     },
   });
   await seedSession(page, { storage: 'local' });
-  await page.goto('/dashboard.html');
+  await page.goto('/dashboard.html?legacy=1');
 
   const panel = page.locator('#coachProfilePanel .profile-completion');
   await expect(panel).toBeVisible();
@@ -180,7 +180,7 @@ test('admin portal and coach dashboard display the same backend completion perce
       },
     });
     await seedSession(coachPage, { storage: 'local' });
-    await coachPage.goto('/dashboard.html');
+    await coachPage.goto('/dashboard.html?legacy=1');
     const coachPercent = coachPage.locator('#coachProfilePanel .profile-completion-percent');
     await expect(coachPercent).toHaveText('40%');
     assertOfflineSafe(coachMock);
@@ -205,7 +205,7 @@ test('Arabic coach completion is RTL, localized, and touch-sized on mobile', asy
     },
   });
   await seedSession(page, { storage: 'local' });
-  await page.goto('/dashboard.html');
+  await page.goto('/dashboard.html?legacy=1');
 
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   const panel = page.locator('#coachProfilePanel .profile-completion');

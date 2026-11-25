@@ -35,7 +35,7 @@ async function openDashboard(page, options = {}) {
   });
   if (options.arabic) await page.addInitScript(() => localStorage.setItem('mzactive-language-manual', 'ar'));
   await seedSession(page, { storage: 'session' });
-  await page.goto('/dashboard.html');
+  await page.goto('/dashboard.html?legacy=1');
   await expect(page.locator('#myProfilePanel')).toBeVisible();
   return mock;
 }
@@ -117,10 +117,11 @@ test('one tap delivery sends a saved program to a connected athlete', async ({ p
         counts: { pending: 0, active: 1, completed: 0 },
       }),
       'POST /api/dashboard/programs/prog-e2e/send': json({ sent: true, program_id: 'prog-e2e', sent_at: '2026-11-24T10:00:00.000Z' }),
+      'GET /api/connections': json({ connections: [{ id: 'conn-active-1', coach_user_id: 'coach-e2e', athlete_user_id: 'conn-active-1', status: 'accepted', workspace_status: 'open' }] }),
     },
   });
   await seedSession(page, { storage: 'session' });
-  await page.goto('/dashboard.html');
+  await page.goto('/dashboard.html?legacy=1');
   await expect(page.locator('#coachMyAthletes')).toBeVisible();
   await page.locator('#athleteTabs').getByRole('button', { name: 'Active Athletes' }).click();
   const card = page.locator('.athlete-row[data-connection-id="conn-active-1"]');

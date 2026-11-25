@@ -54,21 +54,22 @@ textarea{min-height:80px}
 <script>
 const apiBase=window.MZACTIVE_API_BASE||'';
 const t=(en,ar)=>document.documentElement.lang==='ar'?ar:en;
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $=id=>document.getElementById(id);
 const token=()=>localStorage.getItem('mzactive-provider-session')||sessionStorage.getItem('mzactive-provider-session')||'';
 async function api(path,options={}){const r=await fetch(apiBase+path,{...options,headers:{'content-type':'application/json',authorization:'Bearer '+token(),...(options.headers||{})}});const d=await r.json();if(!r.ok)throw Error(d.error||'failed');return d}
-function statusLabel(s){return ({received:t('Pending','معلق'),accepted:t('Accepted','مقبول'),declined:t('Declined','مرفوض'),completed:t('Completed','مكتمل'),cancelled:t('Cancelled','ملغي')})[s]||s}
-function requestCard(q,actions){const el=document.createElement('article');el.className='request';el.innerHTML=`<strong>${q.service_name||q.goal_summary||t('Pacing request','طلب تنسيق')}</strong><p>${[q.preferred_date,q.city,q.distance,q.target_pace].filter(Boolean).join(' · ')}</p><p class="status">${statusLabel(q.status)}</p>`;if(actions){const box=document.createElement('div');box.className='actions';for(const [s,label] of [['accepted',t('Accept','قبول')],['declined',t('Decline','رفض')],['completed',t('Complete','إكمال')],['cancelled',t('Cancel','إلغاء')]]){const b=document.createElement('button');b.className='btn';b.textContent=label;b.onclick=()=>update(q.id,s);box.append(b)}el.append(box)}return el}
+function statusLabel(s){return ({pending:t('Pending','معلق'),received:t('Pending','معلق'),accepted:t('Accepted','مقبول'),declined:t('Declined','مرفوض'),completed:t('Completed','مكتمل'),cancelled:t('Cancelled','ملغي')})[s]||esc(s)}
+function requestCard(q,actions){const el=document.createElement('article');el.className='request';el.innerHTML=`<strong>${esc(q.event_name||q.service_name||q.goal_summary||t('Pacing request','طلب تنسيق'))}</strong><p>${esc([q.date,q.preferred_date,q.location,q.city,q.distance,q.target_pace,q.target_time].filter(Boolean).join(' · '))}</p>${q.message?`<p>${esc(q.message)}</p>`:''}<p class="status">${statusLabel(q.status)}</p>`;if(actions){const box=document.createElement('div');box.className='actions';for(const [s,label] of [['accepted',t('Accept','قبول')],['declined',t('Decline','رفض')],['completed',t('Complete','إكمال')],['cancelled',t('Cancel','إلغاء')]]){const b=document.createElement('button');b.className='btn';b.textContent=label;b.onclick=()=>update(q.id,s);box.append(b)}el.append(box)}return el}
 async function update(id,status){await api('/api/pacer/requests/'+id,{method:'PATCH',body:JSON.stringify({status})});await load()}
 async function load(){try{
  const p=await api('/api/pacer/profile');const d=p.profile;
- $('profile').innerHTML=`<h3>${d.display_name}</h3><p>${[d.city,d.country].filter(Boolean).join(', ')}</p>${d.verified?`<p class="status">✓ ${t('Verified Pacer','منظّم موثّق')}</p>`:''}`;
+ $('profile').innerHTML=`<h3>${esc(d.display_name)}</h3><p>${esc([d.city,d.country].filter(Boolean).join(', '))}</p>${d.verified?`<p class="status">✓ ${t('Verified Pacer','منظّم موثّق')}</p>`:''}`;
  $('availabilityInput').value=d.availability||'';$('bioInput').value=d.bio||'';
- $('pacesView').innerHTML=Object.entries(d.paces||{}).map(([k,v])=>`<p><strong>${k}</strong>: ${v}</p>`).join('')||t('No pacing ranges yet.','لا توجد نطاقات وتيرة بعد.');
+ $('pacesView').innerHTML=Object.entries(d.paces||{}).map(([k,v])=>`<p><strong>${esc(k)}</strong>: ${esc(v)}</p>`).join('')||t('No pacing ranges yet.','لا توجد نطاقات وتيرة بعد.');
  const r=await api('/api/pacer/requests');const reqs=r.requests||[];
- $('pendingList').replaceChildren(...reqs.filter(q=>q.status==='received').map(q=>requestCard(q,true)));
+ $('pendingList').replaceChildren(...reqs.filter(q=>!q.status||q.status==='pending'||q.status==='received').map(q=>requestCard(q,true)));
  $('acceptedList').replaceChildren(...reqs.filter(q=>q.status==='accepted').map(q=>requestCard(q,false)));
- $('eventsList').replaceChildren(...reqs.filter(q=>q.status==='accepted'&&q.preferred_date).map(q=>requestCard(q,false)));
+ $('eventsList').replaceChildren(...reqs.filter(q=>q.status==='accepted'&&(q.date||q.preferred_date)).map(q=>requestCard(q,false)));
  $('notices').textContent=t('No new notifications.','لا توجد إشعارات جديدة.');
  }catch(e){$('profile').textContent=e.message}}
 $('profileForm').onsubmit=async e=>{e.preventDefault();await api('/api/pacer/profile',{method:'PUT',body:JSON.stringify({availability:$('availabilityInput').value,bio:$('bioInput').value})});await load()};

@@ -672,6 +672,17 @@ function cleanStringList(value, allowed, max = 12) {
   return [...new Set((Array.isArray(value) ? value : []).map((item) => pacerText(item, 60)).filter((item) => !allowed || allowed.includes(item)))].slice(0, max);
 }
 const PACER_DISTANCES = ['5K', '10K', 'Half Marathon', 'Marathon', 'Ultra Running', 'Community Runs'];
+const PACER_DISTANCE_KM = { '5K': 5, '10K': 10, 'Half Marathon': 21.1, 'Marathon': 42.2, 'Ultra Running': 50, 'Community Runs': 5 };
+function pacerFinishTimes(paces) {
+  return Object.entries(paces || {}).map(([name, value]) => {
+    const match = /^(\d{1,2}):([0-5]\d)/.exec(String(value));
+    const km = PACER_DISTANCE_KM[name];
+    if (!match || !km) return '';
+    const seconds = Math.round((Number(match[1]) * 60 + Number(match[2])) * km);
+    const hours = Math.floor(seconds / 3600), minutes = Math.floor((seconds % 3600) / 60);
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  }).filter(Boolean);
+}
 async function publicPacers(url, request, env, id = '') {
   const q = text(url.searchParams.get('q') || '', 80).toLowerCase();
   const country = text(url.searchParams.get('country') || '', 80).toLowerCase();
@@ -680,6 +691,7 @@ async function publicPacers(url, request, env, id = '') {
   const pace = text(url.searchParams.get('pace') || '', 20);
   const availability = text(url.searchParams.get('availability') || '', 40).toLowerCase();
   const language = text(url.searchParams.get('language') || '', 40).toLowerCase();
+  const finishTime = text(url.searchParams.get('time') || '', 12);
   if (id) {
     const row = await env.DB.prepare("SELECT * FROM pacer_profiles WHERE id=? AND status='approved'").bind(id).first();
     return row ? reply(request, env, { pacer: pacerPublic(row) }) : reply(request, env, { error: 'pacer_not_found' }, 404);
@@ -689,9 +701,11 @@ async function publicPacers(url, request, env, id = '') {
     const haystack = [p.display_name, p.city, p.country, p.bio, p.experience, (p.distances || []).join(' '), (p.languages || []).join(' ')].join(' ').toLowerCase();
     const distances = (p.distances || []).map((item) => String(item));
     const paces = Object.values(p.paces || {}).map((item) => String(item));
+    const estimated = pacerFinishTimes(p.paces);
     return (!q || haystack.includes(q)) && (!country || p.country.toLowerCase().includes(country)) &&
       (!city || p.city.toLowerCase().includes(city)) && (!distance || distances.some((item) => item.toLowerCase().includes(distance.toLowerCase()))) &&
-      (!pace || paces.some((item) => item.includes(pace))) && (!availability || (p.availability || '').toLowerCase().includes(availability)) &&
+      (!pace || paces.some((item) => item.includes(pace))) && (!finishTime || estimated.some((item) => item.includes(finishTime))) &&
+      (!availability || (p.availability || '').toLowerCase().includes(availability)) &&
       (!language || (p.languages || []).some((item) => String(item).toLowerCase().includes(language)));
   });
   return reply(request, env, { pacers });
@@ -737,7 +751,9 @@ async function pacerRegister(request, env) {
       JSON.stringify(distances), JSON.stringify(paces), pacerText(body?.availability, 2000),
       JSON.stringify(cleanSocialLinks(body?.social_links)), now, now).run();
   try { await createNotification(env, user.id, 'pacer_application_received', 'Pacer application received', 'Your Pacer profile is pending review.', 'pacer_profile', id); } catch {}
-  return reply(request, env, { created: true, id, status: 'pending' }, 201);
+  return issueSession(request, env, user.id, user.email || email, 'provider', 201, {
+    created: true, id, pacer_profile_id: id, status: 'pending', pacer_status: 'pending',
+  });
 }
 async function ownerPacer(request, env) {
   const auth = await authenticated(request, env);
@@ -772,7 +788,7 @@ async function publicPacerRequest(request, env) {
   const event = pacerText(body?.event_name, 140), date = text(body?.date, 10), distance = pacerText(body?.distance, 60);
   const pace = pacerText(body?.target_pace, 30), targetTime = pacerText(body?.target_time, 20);
   const location = pacerText(body?.location, 140), message = pacerText(body?.message, 2000);
-  if (!name || !phone || !event || !date || !distance || !location) return reply(request, env, { error: 'invalid_request' }, 400);
+  if (!name || !phone || !event || !distance || !location) return reply(request, env, { error: 'invalid_request' }, 400);
   const id = randomId(), now = new Date().toISOString();
   const viewer = await currentUser(request, env);
   const goal = [event, distance, pace ? `Pace ${pace}` : '', targetTime ? `Target ${targetTime}` : '', message].filter(Boolean).join(' · ');
@@ -780,7 +796,17 @@ async function publicPacerRequest(request, env) {
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`)
     .bind(id, providerId, viewer?.id || null, name, email || null, phone, location, event, date, distance, pace || null, targetTime || null, message, now, now).run();
   try { await createNotification(env, provider.user_id, 'pacer_request_received', 'New pacing request', `${name} · ${distance}`, 'pacer_request', id); } catch {}
-  return reply(request, env, { request_id: id, status: 'received' }, 201);
+  if (email) {
+    try {
+      await queueCoachEmail(env, {
+        eventKey: `pacer-request:${id}`,
+        to: email,
+        subject: 'MZ Active pacing request received / تم استلام طلب تنسيق الوتيرة',
+        body: `Hi ${name},\n\nWe received your pacing request for ${event} (${distance}). It is pending review; no payment has been collected and no booking is confirmed. We will contact you about availability.\n\nمرحباً ${name}،\n\nاستلمنا طلب تنسيق الوتيرة لـ ${event} (${distance}). الطلب قيد المراجعة ولم يتم تحصيل دفع أو تأكيد الحجز. سنتواصل معك بشأن التوفر.\n\nMZ Active · Train Smart. Perform Strong.`,
+      });
+    } catch {}
+  }
+  return reply(request, env, { request_id: id, status: 'pending' }, 201);
 }
 async function pacerPhotoUpload(request, env) {
   const auth = await authenticated(request, env);
@@ -953,7 +979,7 @@ async function safeEqual(left, right) {
   return diff === 0;
 }
 
-async function issueSession(request, env, userId, email, role, status = 200) {
+async function issueSession(request, env, userId, email, role, status = 200, extra = {}) {
   const token = b64(crypto.getRandomValues(new Uint8Array(32)));
   const stored = await env.DB.prepare("SELECT role,is_super_admin FROM users WHERE id=?").bind(userId).first();
   await env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(Math.floor(Date.now()/1000)).run();
@@ -968,6 +994,7 @@ async function issueSession(request, env, userId, email, role, status = 200) {
     super_admin: access.super_admin,
     dashboard_path: access.dashboard_path,
     management: access.management,
+    ...extra,
   }, status);
 }
 
@@ -1378,7 +1405,11 @@ function aiBrainEmailText(title, lines) {
 async function runAiBrainDailyReport(env, scheduledTime = Date.now(), options = {}) {
   const settings = await aiBrainSettings(env);
   const clock = qatarClock(scheduledTime);
-  if (!options.force && clock.time !== settings.report_time) return { skipped: "not_due", time: clock.time };
+  if (!options.force) {
+    const minutes = (value) => { const [h, m] = String(value || '00:00').split(':').map(Number); return h * 60 + (m || 0); };
+    const delay = minutes(clock.time) - minutes(settings.report_time);
+    if (delay < 0 || delay >= 60) return { skipped: "not_due", time: clock.time, report_time: settings.report_time };
+  }
   const existing = await env.DB.prepare("SELECT id FROM ai_brain_reports WHERE report_date=?").bind(clock.date).first();
   if (existing && !options.force) return { skipped: "already_sent", report_date: clock.date };
   const since = settings.last_report_at || new Date(scheduledTime - 86400000).toISOString();
@@ -1414,11 +1445,15 @@ async function runAiBrainDailyReport(env, scheduledTime = Date.now(), options = 
     ...recommendations.map((item) => `- ${item}`),
     "All figures come from live MZ Active database records. No payment or WhatsApp action was taken.",
   ]);
-  const reportId = randomId(), now = new Date().toISOString();
-  await env.DB.prepare(`INSERT OR IGNORE INTO ai_brain_reports
+  const now = new Date().toISOString();
+  const currentReport = await env.DB.prepare('SELECT id FROM ai_brain_reports WHERE report_date=?').bind(clock.date).first();
+  const reportId = currentReport?.id || randomId();
+  if (!currentReport) await env.DB.prepare(`INSERT INTO ai_brain_reports
     (id,report_date,report_time,summary,counts_json,recommendations_json,email_status,created_at)
     VALUES(?,?,?,?,?,?,'pending',?)`)
     .bind(reportId, clock.date, settings.report_time, summary, JSON.stringify(counts), JSON.stringify(recommendations), now).run();
+  else await env.DB.prepare('UPDATE ai_brain_reports SET summary=?,counts_json=?,recommendations_json=? WHERE id=?')
+    .bind(summary, JSON.stringify(counts), JSON.stringify(recommendations), reportId).run();
   const delivery = await queueAiBrainEmail(env, {
     eventKey: `daily-report:${clock.date}:${options.force ? "manual" : "scheduled"}`,
     subject: `MZ AI Brain daily report — ${clock.date}`,
@@ -2465,11 +2500,28 @@ async function createBooking(request, env) {
     body.provider_category = professionalLabel(provider.provider_type, "en");
     body.provider_whatsapp = visibility.includes("whatsapp") ? provider.public_whatsapp : null;
   }
+  const duplicateWindow = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const preferredDate = text(body.preferred_date, 10);
+  const duplicate = await env.DB.prepare(`SELECT id FROM booking_requests
+    WHERE customer_phone=? AND COALESCE(provider_id,'')=? AND goal_summary=? AND COALESCE(preferred_date,'')=?
+      AND created_at>=? AND status NOT IN ('cancelled','declined')
+    ORDER BY created_at DESC LIMIT 1`).bind(phone, providerId || '', goal, preferredDate, duplicateWindow).first();
+  if (duplicate) return reply(request, env, { error: 'duplicate_request', request_id: duplicate.id }, 409);
   const id = randomId();
   const viewer = await currentUser(request, env);
   const customerUserId = viewer && await isMemberAccount(env, viewer) ? viewer.id : null;
   await env.DB.prepare(`INSERT INTO booking_requests(id,provider_id,customer_user_id,customer_name,customer_email,customer_phone,city,preferred_date,goal_summary,consent_at,status,created_at,payment_status,session_type,service_name,distance,target_pace,program_duration_months)
     VALUES(?,?,?,?,?,?,?,?,?,?,'received',?,'pending_payment',?,?,?,?,?)`).bind(id,providerId,customerUserId,name,email||null,phone,city,text(body.preferred_date,10)||null,goal,new Date().toISOString(),new Date().toISOString(),sessionType,serviceName,distance,targetPace,programDuration).run();
+  if (email) {
+    try {
+      await queueCoachEmail(env, {
+        eventKey: `booking-request:${id}`,
+        to: email,
+        subject: 'MZ Active request received / تم استلام طلبك',
+        body: `Hi ${name},\n\nWe received your request${body.provider_name ? ` with ${body.provider_name}` : ''}. It is pending review; no payment has been collected and nothing is confirmed yet. We will contact you about availability.\n\nمرحباً ${name}،\n\nاستلمنا طلبك${body.provider_name ? ` مع ${body.provider_name}` : ''}. الطلب قيد المراجعة ولم يتم تحصيل أي دفع أو تأكيد بعد. سنتواصل معك بشأن التوفر.\n\nMZ Active · Train Smart. Perform Strong.`,
+      });
+    } catch {}
+  }
   let coachOwnerId = null, coachOwnerType = null;
   if (providerId) {
     const owner = await env.DB.prepare("SELECT user_id,provider_type FROM provider_profiles WHERE id=?").bind(providerId).first();

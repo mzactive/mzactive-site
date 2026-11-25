@@ -130,4 +130,5 @@ function fetchProviders(url){const controller=typeof AbortController==='function
 function loadProviders(){loaded=false;failed=false;render();const query=applied.type?`?type=${encodeURIComponent(applied.type)}`:'';fetchProviders(`${API_BASE}/api/providers${query}`).then(r=>{if(!r.ok)throw new Error('directory_unavailable');return r.json()}).then(data=>{profiles=Array.isArray(data.providers)?data.providers.filter(p=>p.provider_type!=='pacer'):[];loaded=true;render();if(location.hash.startsWith('#coach-'))requestAnimationFrame(()=>document.querySelector(location.hash)?.scrollIntoView({behavior:'smooth',block:'center'}))}).catch(()=>{loaded=true;failed=true;render()})}loadProviders();
 </script>
 <script src="assets/js/site-language.js?v=20261120h"></script>
+<script src="assets/js/management-contact.js?v=20261125a" defer></script>
 <script src="assets/js/assistant-chat-v2.js?v=20261122b" defer></script><script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script></body></html>

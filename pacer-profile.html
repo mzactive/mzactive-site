@@ -28,13 +28,14 @@ h1{margin:0;color:#f2b718;font-size:clamp(24px,4vw,36px)}
 <script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
 </head>
 <body><div class="wrap">
-<a href="pacers.html" style="color:#f2b718">Pacers</a>
+<a href="pacer.html" style="color:#f2b718" data-en="Pacers" data-ar="المرافقون">Pacers</a>
 <section class="card" id="profileCard"><p data-en="Loading Pacer profile…" data-ar="جارٍ تحميل ملف منظّم الوتيرة…">جارٍ التحميل…</p></section>
 </div>
 <script src="assets/js/site-language.js?v=20261120h"></script>
 <script>
 const apiBase=window.MZACTIVE_API_BASE||'';
 const t=(en,ar)=>document.documentElement.lang==='ar'?ar:en;
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const id=new URLSearchParams(location.search).get('id')||'';
 const card=document.getElementById('profileCard');
 (async()=>{
@@ -50,7 +51,7 @@ const card=document.getElementById('profileCard');
   if(paces)metrics.push([paces,t('Sustainable pace','الوتيرة المستدامة')]);
   if(p.availability)metrics.push([p.availability,t('Availability','التاحة')]);
   if((p.languages||[]).length)metrics.push([p.languages.join(' · '),t('Languages','اللغات')]);
-  card.innerHTML=`<div class="head">${photo}<div><h1>${p.display_name}</h1><p>${[p.city,p.country].filter(Boolean).join(', ')}</p>${p.verified?`<p style="color:#f2b718">✓ ${t('Verified Pacer','منظّم وتيرة موثّق')}</p>`:''}<p>${p.bio||''}</p>${p.achievements?`<p>${p.achievements}</p>`:''}</div></div><div class="grid">${metrics.map(([v,l])=>`<div class="metric"><b>${v}</b><span>${l}</span></div>`).join('')}</div><div class="actions"><a class="button" href="pacer.html?provider=${encodeURIComponent(p.id)}#request">${t('Request a Pacer','اطلب منظّم وتيرة')}</a><button class="button secondary" id="shareBtn">${t('Share Profile','مشاركة الملف')}</button></div>`;
+  card.innerHTML=`<div class="head">${photo}<div><h1>${esc(p.display_name)}</h1><p>${esc([p.city,p.country].filter(Boolean).join(', '))}</p>${p.verified?`<p style="color:#f2b718">✓ ${t('Verified Pacer','منظّم وتيرة موثّق')}</p>`:''}<p>${esc(p.bio)}</p>${p.achievements?`<p>${esc(p.achievements)}</p>`:''}</div></div><div class="grid">${metrics.map(([v,l])=>`<div class="metric"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}</div><div class="actions"><a class="button" href="pacer.html?provider=${encodeURIComponent(p.id)}#request">${t('Request a Pacer','اطلب منظّم وتيرة')}</a><button class="button secondary" id="shareBtn">${t('Share Profile','مشاركة الملف')}</button></div>`;
   document.getElementById('shareBtn').onclick=async()=>{const url=location.href;try{if(navigator.share)await navigator.share({title:p.display_name,url});else{await navigator.clipboard.writeText(url);document.getElementById('shareBtn').textContent=t('Link copied.','تم نسخ الرابط.')}}catch{}};
  }catch(e){card.textContent=t('Could not load this profile.','تعذر تحميل الملف.')}
 })();

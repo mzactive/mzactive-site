@@ -99,3 +99,141 @@ test('Pacer registration, approval, directory and requests are independent from 
   const other = await call(env, 'pacer/requests/' + request.data.request_id, 'PATCH', { status: 'declined' });
   assert.equal(other.status, 401);
 });
+
+test('Pacer registration issues a session for photo upload and accepts flexible request dates', async () => {
+  const { db, env } = makeEnv();
+  const register = await call(env, 'pacer/register', 'POST', {
+    display_name: 'Pacer Two', email: 'pacer2@example.test', password: 'pacer-password',
+    phone: '55555557', country: 'Qatar', city: 'Doha', distances: ['10K'],
+    paces: { '10K': '05:30' }, consent: true,
+  });
+  assert.equal(register.status, 201);
+  assert.ok(register.data.token, 'registration returns a usable session token');
+  assert.equal(register.data.status, 'pending');
+  assert.equal(register.data.pacer_status, 'pending');
+  assert.ok(register.data.pacer_profile_id);
+
+  // The issued token must authenticate the protected photo endpoint.
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 73, 72, 68, 82]);
+  const photo = await worker.fetch(new Request('https://api.example.test/api/pacer/profile/photo', {
+    method: 'PUT',
+    headers: { origin: 'https://mzactive.com', authorization: `Bearer ${register.data.token}`, 'content-type': 'image/png' },
+    body: png,
+  }), env);
+  assert.equal(photo.status, 200, await photo.text());
+  const row = db.prepare('SELECT photo_bytes,photo_content_type FROM pacer_profiles WHERE id=?').get(register.data.pacer_profile_id);
+  assert.equal(row.photo_content_type, 'image/png');
+
+  // Approve so public requests can be created.
+  const admin = 'admin-user-2';
+  db.prepare('INSERT INTO users(id,email,password_hash,role,created_at) VALUES(?,?,?,?,?)')
+    .run(admin, env.ADMIN_EMAILS, 'hash', 'admin', new Date().toISOString());
+  const adminToken = await tokenFor(db, admin, 'admin2');
+  const approved = await call(env, 'admin/pacers/' + register.data.pacer_profile_id, 'PATCH', { status: 'approved', verified: true }, adminToken);
+  assert.equal(approved.status, 200);
+
+  // The UI labels date as optional; the API must accept a flexible request.
+  const request = await call(env, 'pacer/requests', 'POST', {
+    provider_id: register.data.pacer_profile_id, customer_name: 'Flexible Runner',
+    customer_phone: '55555558', event_name: 'Community run', distance: '10K',
+    location: 'Doha', message: 'Flexible date',
+  });
+  assert.equal(request.status, 201);
+  assert.equal(request.data.status, 'pending', 'response status matches the stored status');
+  const stored = db.prepare('SELECT date,status FROM pacer_requests WHERE id=?').get(request.data.request_id);
+  assert.equal(stored.status, 'pending');
+  assert.equal(stored.date, '');
+});
+
+test('Pacer directory filters by location, pace, availability, language and finishing time', async () => {
+  const { db, env } = makeEnv();
+  const register = await call(env, 'pacer/register', 'POST', {
+    display_name: 'Filter Pacer', email: 'filter@example.test', password: 'pacer-password',
+    phone: '55555559', country: 'Qatar', city: 'Doha', languages: ['Arabic'],
+    distances: ['10K'], paces: { '10K': '05:00' }, availability: 'Weekends', consent: true,
+  });
+  assert.equal(register.status, 201);
+  const admin = 'filter-admin';
+  db.prepare('INSERT INTO users(id,email,password_hash,role,created_at) VALUES(?,?,?,?,?)')
+    .run(admin, env.ADMIN_EMAILS, 'hash', 'admin', new Date().toISOString());
+  const adminToken = await tokenFor(db, admin, 'filteradmin');
+  const approved = await call(env, `admin/pacers/${register.data.id}`, 'PATCH', { status: 'approved', verified: true }, adminToken);
+  assert.equal(approved.status, 200);
+
+  const match = await call(env, 'pacers?city=Doha&distance=10K&pace=05:00&time=00:50&availability=Weekends&language=Arabic');
+  assert.equal(match.data.pacers.length, 1);
+  const miss = await call(env, 'pacers?time=03:00');
+  assert.equal(miss.data.pacers.length, 0);
+});
+
+test('identical repeated booking requests are deduplicated but distinct requests are kept', async () => {
+  const { db, env } = makeEnv();
+  const user = 'booking-user';
+  db.prepare('INSERT INTO users(id,email,password_hash,role,created_at) VALUES(?,?,?,?,?)')
+    .run(user, 'booking@example.test', 'hash', 'provider', new Date().toISOString());
+  const provider = 'booking-provider';
+  db.prepare(`INSERT INTO provider_profiles(id,user_id,provider_type,display_name,city,country,bio,status,program_durations_json,updated_at,created_at)
+    VALUES(?,?,?,?,?,?,?,'approved','[]',?,?)`).run(provider, user, 'coach', 'Booking Coach', 'Doha', 'Qatar', 'Coaching bio', new Date().toISOString(), new Date().toISOString());
+  const booking = {
+    provider_id: provider, customer_name: 'Repeat Runner', customer_phone: '55557777',
+    city: 'Doha', session_type: 'training', service_name: 'Coaching',
+    goal_summary: 'Repeated request', consent: true,
+  };
+  const first = await call(env, 'bookings', 'POST', booking);
+  assert.equal(first.status, 201);
+  const duplicate = await call(env, 'bookings', 'POST', booking);
+  assert.equal(duplicate.status, 409);
+  assert.equal(duplicate.data.error, 'duplicate_request');
+  const distinct = await call(env, 'bookings', 'POST', { ...booking, goal_summary: 'A different goal' });
+  assert.equal(distinct.status, 201);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM booking_requests').get().count, 2);
+});
+
+test('a requester confirmation email is queued once for coaching and pacing requests', async () => {
+  const { db, env } = makeEnv();
+  env.RESEND_API_KEY = 'test-only';
+  env.EMAIL_FROM = 'MZ Active <no-reply@example.test>';
+  const sent = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    const body = JSON.parse(options?.body || '{}');
+    sent.push({ to: Array.isArray(body.to) ? body.to[0] : body.to, subject: body.subject });
+    return new Response(JSON.stringify({ id: 'email-' + sent.length }), { status: 200 });
+  };
+  try {
+    const user = 'email-user';
+    db.prepare('INSERT INTO users(id,email,password_hash,role,created_at) VALUES(?,?,?,?,?)')
+      .run(user, 'email-owner@example.test', 'hash', 'provider', new Date().toISOString());
+    const provider = 'email-provider';
+    db.prepare(`INSERT INTO provider_profiles(id,user_id,provider_type,display_name,city,country,bio,status,program_durations_json,updated_at,created_at)
+      VALUES(?,?,?,?,?,?,?,'approved','[]',?,?)`)
+      .run(provider, user, 'coach', 'Email Coach', 'Doha', 'Qatar', 'Coaching bio', new Date().toISOString(), new Date().toISOString());
+    const booking = await call(env, 'bookings', 'POST', {
+      provider_id: provider, customer_name: 'Email Runner', customer_email: 'runner@example.test',
+      customer_phone: '55558888', city: 'Doha', session_type: 'training', service_name: 'Coaching',
+      goal_summary: 'Email confirmation check', consent: true,
+    });
+    assert.equal(booking.status, 201);
+    assert.ok(sent.some(m => m.to === 'runner@example.test' && /MZ Active request received/.test(m.subject)));
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM coach_notification_outbox WHERE event_key=?').get(`booking-request:${booking.data.request_id}`).count, 1);
+
+    const pacer = await call(env, 'pacer/register', 'POST', {
+      display_name: 'Email Pacer', email: 'pacer-email@example.test', password: 'pacer-password',
+      phone: '55558999', city: 'Doha', consent: true,
+    });
+    assert.equal(pacer.status, 201);
+    const admin = 'email-admin';
+    db.prepare('INSERT INTO users(id,email,password_hash,role,created_at) VALUES(?,?,?,?,?)')
+      .run(admin, env.ADMIN_EMAILS, 'hash', 'admin', new Date().toISOString());
+    const adminToken = await tokenFor(db, admin, 'emailadmin');
+    await call(env, `admin/pacers/${pacer.data.id}`, 'PATCH', { status: 'approved', verified: true }, adminToken);
+    const pacing = await call(env, 'pacer/requests', 'POST', {
+      provider_id: pacer.data.id, customer_name: 'Email Runner', customer_email: 'runner2@example.test',
+      customer_phone: '55558777', event_name: '10K race', distance: '10K', location: 'Doha',
+    });
+    assert.equal(pacing.status, 201);
+    assert.ok(sent.some(m => m.to === 'runner2@example.test' && /pacing request received/i.test(m.subject)));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

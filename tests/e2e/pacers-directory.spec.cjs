@@ -31,7 +31,8 @@ test('approved Pacers render from the independent directory with a working reque
   await expect(page.locator('#pacerGrid')).toContainText('4:30');
   await expect(page.locator('#pacerGrid')).toContainText('5K');
   await expect(page.locator('#pacerEmpty')).toBeHidden();
-  await expect(page.locator('#pacerGrid .pacer-card a.btn')).toHaveAttribute('href', 'pacer.html?provider=pacer-e2e#request');
+  await expect(page.locator('#pacerGrid .pacer-card a.btn').last()).toHaveAttribute('href', 'pacer.html?provider=pacer-e2e#request');
+  await expect(page.locator('#pacerGrid .pacer-card a.profile-link')).toHaveAttribute('href', 'pacer-profile.html?id=pacer-e2e');
   assertOfflineSafe(mock);
 });
 
@@ -128,4 +129,25 @@ test('Pacer request creates a real independent request', async ({ page }) => {
   await page.locator('#bookingConsent').check();
   await page.locator('#bookingSubmit').click();
   await expect.poll(() => mock.calls.some(c => c.method === 'POST' && c.path === '/api/pacer/requests' && c.body.provider_id === 'pacer-e2e')).toBe(true);
+});
+
+test('directory filters call the independent API with all supported criteria', async ({ page }) => {
+  const mock = await installApiMock(page, {
+    overrides: { 'GET /api/pacers': json({ pacers: [] }) },
+  });
+  await page.goto('/pacer.html');
+  await page.locator('#filterCity').fill('Doha');
+  await page.locator('#filterDistance').selectOption('Marathon');
+  await page.locator('#filterPace').fill('05:30');
+  await page.locator('#filterTime').fill('03:50');
+  await page.locator('#filterAvailability').fill('Weekends');
+  await page.locator('#filterLanguage').selectOption('Arabic');
+  await page.locator('#pacerFilters button[type="submit"]').click();
+  await expect.poll(() => {
+    const call = mock.calls.find(c => c.method === 'GET' && c.path === '/api/pacers' && Object.keys(c.query || {}).length);
+    if (!call) return false;
+    return call.query.city === 'Doha' && call.query.distance === 'Marathon' && call.query.pace === '05:30' &&
+      call.query.time === '03:50' && call.query.availability === 'Weekends' && call.query.language === 'Arabic';
+  }).toBe(true);
+  assertOfflineSafe(mock);
 });

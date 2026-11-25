@@ -80,7 +80,7 @@ test('registered coach can publish, book, edit and re-submit a moderated profile
   const {provider:updated} = await call(path);
   assert.equal(updated.verified,false); assert.equal(updated.whatsapp_number,null);
   assert.deepEqual(updated.gallery_slots,[]); assert.equal(updated.has_profile_photo,0);
-  const privateBooking = await call('bookings','POST',{...booking,program_duration_months:null},null,201);
+  const privateBooking = await call('bookings','POST',{...booking,customer_phone:'+97455556666',program_duration_months:null},null,201);
   assert.equal(privateBooking.provider_whatsapp,null);
   await call('admin/athletes','GET',undefined,coach,403);
   await call('admin/history','GET',undefined,null,401);

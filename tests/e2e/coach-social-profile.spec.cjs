@@ -183,7 +183,7 @@ test('Arabic directory cards keep the compact layout with RTL labels', async ({ 
   await expect(card).toBeVisible();
   await expect(card).toContainText('معتمد');
   await expect(card).toContainText('عرض الملف');
-  await expect(card).toContainText('إرسال طلب');
+  await expect(card).toContainText('تواصل مع المدرب');
   await expect(card).toContainText('Doha, Qatar');
   const direction = await card.evaluate(el => getComputedStyle(el).direction);
   expect(direction).toBe('rtl');

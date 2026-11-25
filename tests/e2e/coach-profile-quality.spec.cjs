@@ -177,8 +177,8 @@ test('new profile really uses light cards and real cover fallback, not global da
     name: getComputedStyle(document.querySelector('#name')).color,
     button: getComputedStyle(document.querySelector('#book')).backgroundColor,
   }));
-  expect(theme.background).toBe('rgb(245, 247, 246)');
-  expect(theme.heading).toBe('rgb(255, 255, 255)');
+  expect(theme.background).toBe('rgb(234, 243, 239)');
+  expect(theme.heading).toBe('rgb(247, 251, 248)');
   expect(theme.name).toBe('rgb(23, 51, 47)');
   expect(theme.button).toBe('rgb(16, 54, 56)');
   await expect(page.locator('.cover-wrap')).toHaveClass(/no-personal-cover/);
@@ -187,7 +187,7 @@ test('new profile really uses light cards and real cover fallback, not global da
   await expect(page.locator('#bio')).toBeVisible();
   await expect(page.locator('#profileTabs')).toBeHidden();
   await expect(page.locator('#profileSocialTabs')).toBeVisible();
-  await expect(page.locator('#book')).toHaveAttribute('href',/provider=/);
+  await expect(page.locator('#book')).toHaveAttribute('href','#coachContact');
   await expect(page.locator('#profilePostsPanel')).toBeHidden();
   await page.locator('[data-social-tab=posts]').click();
   await expect(page.locator('#profilePostsPanel')).toBeVisible();

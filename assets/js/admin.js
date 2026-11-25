@@ -1594,7 +1594,7 @@
         if(p.status==='approved')c.append(button(t('Suspend','تعليق'),async()=>{await api('admin/pacers/'+encodeURIComponent(p.id),{method:'PATCH',body:{status:'suspended',verified:false}});await render()}));
         if(p.status==='suspended'||p.status==='rejected')c.append(button(t('Reactivate','إعادة تفعيل'),async()=>{await api('admin/pacers/'+encodeURIComponent(p.id),{method:'PATCH',body:{status:'pending',verified:false}});await render()}));
       }
-      try{const reqs=await api('admin/pacer-requests');group(root,t('Pacer pacing requests','طلبات تنسيق الوتيرة'),reqs.requests,(r,q)=>card(r,q.event_name||q.service_name||q.goal_summary,[q.preferred_date,q.city,q.distance,q.target_pace,q.status].filter(Boolean).join(' · '),q.id))}catch{}
+      try{const reqs=await api('admin/pacer-requests');group(root,t('Pacer pacing requests','طلبات تنسيق الوتيرة'),reqs.requests,(r,q)=>card(r,q.event_name||q.service_name||q.goal_summary,[q.date,q.location,q.city,q.distance,q.target_pace,q.status].filter(Boolean).join(' · '),q.id))}catch{}
       return;
     }
     if(tab==='messages'){const d=await api('admin/messages');root.append(node('p',t('Message previews stay private. This view shows only conversation metadata for moderation.','تبقى معاينات الرسائل خاصة. تعرض هذه الشاشة بيانات المحادثة فقط للإشراف.'),'muted'));group(root,t('Unread and recent messages','الرسائل غير المقروءة والأخيرة'),d.messages,messageCard);return}

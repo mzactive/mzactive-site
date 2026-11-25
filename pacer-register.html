@@ -5,6 +5,7 @@
 <title data-en="Become a Pacer | MZ Active" data-ar="انضم كمنظّم وتيرة الجري | MZ Active">انضم كمنظّم وتيرة الجري | MZ Active</title>
 <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h">
 <script src="assets/js/api-base.js?v=20261120f"></script>
+<script src="assets/js/auth-session.js?v=20261120h"></script>
 <script src="assets/js/language-preference.js?v=20261120c"></script>
 <style>
 body{margin:0;background:#091d21;color:#f0f5f3;font:16px/1.6 Arial,sans-serif}
@@ -87,9 +88,11 @@ byId('pacerForm').addEventListener('submit',async e=>{
   try{
     const r=await fetch(apiBase+'/api/pacer/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();if(!r.ok)throw Error(d.error||'failed');
+    window.MZActiveAuth?.store(d);
     const photo=byId('photo').files[0];
-    if(photo){const fd=new FormData();fd.append('photo',photo);await fetch(apiBase+'/api/pacer/profile/photo',{method:'PUT',body:fd,headers:{authorization:localStorage.getItem('mzactive-provider-session')||sessionStorage.getItem('mzactive-provider-session')||''}})}
-    status.textContent=d.status==='pending'?'Application submitted. Your profile is awaiting review.':'تم الإرسال';
+    if(photo){const upload=await fetch(apiBase+'/api/pacer/profile/photo',{method:'PUT',body:photo,headers:{'content-type':photo.type||'image/jpeg',authorization:window.MZActiveAuth?.token?.()||''}});if(!upload.ok){let info={};try{info=await upload.json()}catch{};throw Error(info.error||'photo_upload_failed')}}
+    const destination=window.MZActiveAuth?.destination?.(d)||'/providers.html';
+    status.innerHTML='';status.append(document.createTextNode(d.status==='pending'?'Application submitted. Your profile is awaiting review. ':'تم الإرسال. '));const link=document.createElement('a');link.href=destination;link.textContent=document.documentElement.lang==='ar'?'افتح مساحتي':'Open my workspace';status.append(link);
   }catch(err){status.textContent=err.message}
 });
 </script>
