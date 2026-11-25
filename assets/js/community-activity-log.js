@@ -92,18 +92,39 @@
   }
   opener.addEventListener('click',()=>{
     panel.hidden=!panel.hidden;opener.setAttribute('aria-expanded',String(!panel.hidden));
-    if(!panel.hidden){ $('privateActivityDate').value ||= today();load();panel.scrollIntoView({block:'start',behavior:'smooth'}); }
+    if(!panel.hidden){ $('postForm').hidden=true; $('privateActivityDate').value ||= today();load();panel.scrollIntoView({block:'start',behavior:'smooth'}); }
     else{++sequence;form.hidden=true;list.replaceChildren();}
   });
+  $('closeActivityLog')?.addEventListener('click',()=>{ if(!panel.hidden) opener.click(); opener.focus(); });
   form.addEventListener('submit',async event=>{
     event.preventDefault();const submit=form.querySelector('[type=submit]');submit.disabled=true;
     const distance=$('privateActivityDistance').value;
     try {
       await api('activities','POST',{sport:$('privateActivitySport').value,activity_date:$('privateActivityDate').value,duration_minutes:Number($('privateActivityDuration').value),distance_km:distance?Number(distance):null,notes:$('privateActivityNotes').value,shared_connection_id:$('privateActivityCoach').value||null});
-      form.reset();$('privateActivityDate').value=today();await load();status(t('Activity saved.','تم حفظ النشاط.'));
+      form.reset();$('privateActivityDate').value=today();await load();loadWeek();status(t('Activity saved.','تم حفظ النشاط.'));
     } catch { status(t('Unable to save activity. Check your information and try again.','تعذّر حفظ النشاط. تحقق من المعلومات وحاول مجدداً.')); }
     finally { submit.disabled=false; }
   });
+  async function loadWeek() {
+    const session = token();
+    const labels = ['socialWeekCount','socialWeekDistance','socialWeekTime'];
+    labels.forEach(id=>$(id).textContent='—');
+    if (!session) { $('socialWeekStatus').textContent=t('Sign in to view your activity totals.','سجّل الدخول لعرض إحصاءات أنشطتك.'); return; }
+    try {
+      const data = await api('activities');
+      if (session !== token()) return;
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-6);
+      const start = [cutoff.getFullYear(),String(cutoff.getMonth()+1).padStart(2,'0'),String(cutoff.getDate()).padStart(2,'0')].join('-');
+      const own=(data.activities||[]).filter(a=>a.is_owner && a.activity_date>=start && a.activity_date<=today());
+      $('socialWeekCount').textContent=String(own.length);
+      $('socialWeekDistance').textContent=own.reduce((sum,a)=>sum+Number(a.distance_km||0),0).toFixed(1)+' km';
+      $('socialWeekTime').textContent=Math.round(own.reduce((sum,a)=>sum+Number(a.duration_minutes||0),0))+' min';
+      $('socialWeekStatus').textContent='';
+    } catch { if(session===token()) $('socialWeekStatus').textContent=t('Activity totals unavailable.','إحصاءات الأنشطة غير متاحة.'); }
+  }
+  loadWeek();
+  window.addEventListener('storage',event=>{if(event.key==='mzactive-provider-session')loadWeek();});
+  document.addEventListener('mzactive:language-change',loadWeek);
   document.addEventListener('mzactive:language-change',()=>{if(!panel.hidden&&token())render();});
   window.addEventListener('storage',event=>{if(event.key==='mzactive-provider-session'&&!panel.hidden){form.reset();load();}});
 })();
