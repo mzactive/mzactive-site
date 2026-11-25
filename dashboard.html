@@ -42,7 +42,7 @@
       <form id="registerForm" class="panel form-grid" hidden><h2 data-en="Create a member account" data-ar="إنشاء حساب عضو">Create a member account</h2><div class="field"><label for="memberName" data-en="Your name" data-ar="اسمك">Your name</label><input id="memberName" name="display_name" maxlength="80" autocomplete="name" required></div><div class="field"><label for="memberEmail" data-en="Email" data-ar="البريد الإلكتروني">Email</label><input id="memberEmail" name="email" type="email" autocomplete="email" required></div><div class="field"><label for="memberPassword" data-en="Password (8 characters or more)" data-ar="كلمة المرور (٨ أحرف على الأقل)">Password (8 characters or more)</label><input id="memberPassword" name="password" type="password" minlength="8" autocomplete="new-password" required></div><label class="inline"><input name="consent" type="checkbox" required><span><span data-en="I agree to the" data-ar="أوافق على">I agree to the</span> <a href="privacy.html" data-en="privacy notice" data-ar="إشعار الخصوصية">privacy notice</a></span></label><button data-en="Create account" data-ar="إنشاء الحساب">Create account</button><p class="muted" data-en="You can join a coach’s team after signing in. No health or diet details are requested." data-ar="يمكنك الانضمام إلى فريق المدرب بعد الدخول. لا نطلب معلومات صحية أو غذائية.">You can join a coach’s team after signing in. No health or diet details are requested.</p></form>
     </section>
     <section id="dashboard" class="hidden">
-      <div class="dashboard-top"><div><div class="eyebrow" id="roleLabel"></div><h2 id="welcome"></h2></div><div class="actions"><a id="writeProgramJump" class="btn hidden" href="#whatsappTrainingForm" data-en="Write a Program" data-ar="اكتب برنامجاً">Write a Program</a><button id="workspaceJump" class="secondary hidden" type="button" data-en="Private workspace" data-ar="مساحة العمل الخاصة">Private workspace</button><a id="editCoachProfile" class="btn secondary hidden" href="providers.html#provider-portal" data-en="Edit profile" data-ar="تعديل الملف">Edit profile</a><span data-account-menu></span><button id="signOut" class="secondary" data-en="Sign out" data-ar="تسجيل الخروج">Sign out</button></div></div>
+      <div class="dashboard-top"><div><div class="eyebrow" id="roleLabel"></div><h2 id="welcome"></h2></div><div class="actions"><a id="writeProgramJump" class="btn hidden" href="#whatsappTrainingForm" data-en="Write a Program" data-ar="اكتب برنامجاً">Write a Program</a><button id="workspaceJump" class="secondary hidden" type="button" data-en="Private workspace" data-ar="مساحة العمل الخاصة">Private workspace</button><a id="editCoachProfile" class="btn secondary hidden" href="providers.html?edit=1#provider-portal" data-en="Edit profile" data-ar="تعديل الملف">Edit profile</a><span data-account-menu></span><button id="signOut" class="secondary" data-en="Sign out" data-ar="تسجيل الخروج">Sign out</button></div></div>
       <nav id="coachTopNav" class="coach-top-nav hidden" aria-label="Coach navigation">
         <div class="coach-top-menus">
           <details class="coach-menu" data-menu="dashboard">
@@ -116,7 +116,7 @@
               <a href="#whatsappTrainingForm" data-create="program" data-en="Create Training Program" data-ar="أنشئ برنامجاً تدريبياً">Create Training Program</a>
             </div></details>
             <button id="openCoachSettings" class="secondary" type="button" data-en="Settings" data-ar="الإعدادات">Settings</button>
-            <details class="more-options"><summary data-en="More options" data-ar="خيارات أكثر">More options</summary><div class="create-menu-list"><a href="providers.html#provider-portal" data-en="Edit professional details" data-ar="تعديل البيانات المهنية">Edit professional details</a><a id="ownPublicProfileLink" href="coach.html" target="_blank" rel="noopener noreferrer" data-en="View public profile" data-ar="عرض الملف العام">View public profile</a></div></details>
+            <details class="more-options"><summary data-en="More options" data-ar="خيارات أكثر">More options</summary><div class="create-menu-list"><a href="providers.html?edit=1#provider-portal" data-en="Edit professional details" data-ar="تعديل البيانات المهنية">Edit professional details</a><a id="ownPublicProfileLink" href="coach.html" target="_blank" rel="noopener noreferrer" data-en="View public profile" data-ar="عرض الملف العام">View public profile</a></div></details>
           </div>
         </div>
         <nav id="ownProfileTabs" class="profile-social-tabs" role="tablist" aria-label="Coach profile sections">
@@ -435,8 +435,8 @@
 <script src="assets/js/community-workspace.js?v=20261120e" defer></script>
 <script src="assets/js/coach-dashboard.js?v=20261125-inbox" defer></script>
 <script src="assets/js/coach-social-dashboard.js?v=20261125a" defer></script>
-<script src="assets/js/coach-strava-nav.js?v=20261125-inbox" defer></script>
-<script src="assets/js/coach-request-inbox.js?v=20261125a" defer></script>
+<script src="assets/js/coach-strava-nav.js?v=20261125-edit" defer></script>
+<script src="assets/js/coach-request-inbox.js?v=20261125b" defer></script>
 <script src="assets/js/coach-studio-workspace.js?v=20261125f" defer></script>
 <script src="assets/js/athlete-profile.js?v=20261125a" defer></script>
 <script src="/assets/js/workout-video.js?v=20261125-workout-links" defer></script><script src="/assets/js/athlete-training-calendar.js?v=20261125-workout-links" defer></script>
