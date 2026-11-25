@@ -50,3 +50,44 @@ body.smart-pacer-profile #profileCard .metric span{color:#dcebe6!important}
 body.smart-pacer-profile #profileCard .button{background:#e8c779!important;color:#091d21!important}
 body.smart-pacer-profile #profileCard .button.secondary{background:transparent!important;color:#e8c779!important;border-color:#b79652!important}
 @media(max-width:600px){body.smart-pacer-profile #profileCard .head{grid-template-columns:minmax(0,1fr) minmax(92px,36%);gap:12px}body.smart-pacer-profile #profileCard .smart-profile-brand{margin-bottom:10px;flex-direction:column;align-items:flex-start}body.smart-pacer-profile #profileCard .smart-profile-brand img{width:96px}body.smart-pacer-profile #profileCard h1{font-size:23px}body.smart-pacer-profile #profileCard .grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Reference composition: editorial poster above an independent action bar. */
+body.mza-coach-public .profile-heading.public-heading{background:#091d21!important;border-color:#416b65}
+body.mza-coach-public .profile-heading.public-heading .identity-row{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);grid-template-areas:"copy photo" "actions actions";max-width:850px;margin:0 auto;padding:clamp(16px,3vw,30px);gap:14px 24px;background:linear-gradient(125deg,#091d21,#103538);align-items:stretch}
+body.mza-coach-public .public-heading .identity-copy{display:flex;flex-direction:column;justify-content:center}
+body.mza-coach-public .public-heading .smart-profile-brand{align-items:flex-start;gap:10px;margin:0 0 14px;padding:0 0 12px;border-bottom:1px solid #b7965266}
+body.mza-coach-public .public-heading .smart-profile-brand img{width:86px;max-width:28%}
+.poster-title{display:flex;flex-direction:column;line-height:.99;font-weight:900;letter-spacing:-.025em;font-size:clamp(22px,4vw,45px);overflow-wrap:anywhere}
+.poster-title strong{color:#e8c779!important;font:inherit}
+.poster-title span{color:#fff!important;font:inherit}
+.poster-bio,.poster-credentials,.poster-person{display:none}
+body.mza-coach-public .public-heading .poster-bio:not([hidden]){display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden;color:#e8c779!important;font-size:13px;line-height:1.55;margin:0 0 12px}
+body.mza-coach-public .public-heading .poster-credentials:not([hidden]){display:grid;gap:7px;list-style:none;margin:0;padding:12px;border:1px solid #b79652;border-radius:10px;color:#f0f5f3;font-size:12px}
+body.mza-coach-public .public-heading .poster-credentials li{position:relative;padding-inline-start:17px;overflow-wrap:anywhere;color:#f0f5f3!important;line-height:1.4}
+body.mza-coach-public .public-heading .poster-credentials li::before{content:"›";position:absolute;inset-inline-start:0;top:0;color:#e8c779;font-weight:900}
+body.mza-coach-public .public-heading .identity-photo-wrap{position:relative;display:flex;flex-direction:column;align-self:stretch;justify-content:flex-end;aspect-ratio:auto;min-height:280px;border:0;border-radius:0;background:transparent;overflow:hidden}
+body.mza-coach-public .public-heading .identity-photo-wrap .portrait,body.mza-coach-public .public-heading .identity-photo-wrap .avatar-fallback{width:100%;height:auto;aspect-ratio:3/4;object-fit:cover;object-position:center top;border-radius:8px;background:#205456}
+body.mza-coach-public .public-heading .poster-person{display:grid;gap:4px;text-align:center;padding:14px 0 0}
+body.mza-coach-public .public-heading .poster-person strong{font-size:clamp(20px,3vw,34px);line-height:1.08;color:#e8c779!important;text-transform:uppercase;overflow-wrap:anywhere}
+body.mza-coach-public .public-heading .poster-person span{color:#f0f5f3;font-size:12px;font-weight:700}
+body.mza-coach-public .public-heading .name-line{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+body.mza-coach-public .public-heading .headline{font-size:13px;margin:10px 0 3px}
+body.mza-coach-public .public-heading .location{font-size:12px}
+body.mza-coach-public .public-heading .specialty-list,body.mza-coach-public .public-heading .profile-stats{display:none}
+body.mza-coach-public .public-heading .profile-actions{grid-area:actions;display:flex!important;flex-wrap:wrap;gap:8px;justify-content:center;padding-top:14px;border-top:1px solid #b7965266}
+body.mza-coach-public:not(.home-page) .public-heading .profile-actions .button{flex:1 1 125px;width:auto!important;min-height:44px;padding:8px 12px;font-size:12px}
+body.mza-coach-public .profile-social-tabs{background:#f3f6f4}
+body.mza-coach-public:not(.home-page){background:#f3f6f4!important}
+body.mza-coach-public .site-header{background:#091d21!important}
+body.mza-coach-public .site-header .main-nav a,body.mza-coach-public .site-header .language-toggle{color:#e8c779!important}
+@media(max-width:600px){
+body.mza-coach-public .profile-heading.public-heading .identity-row{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:12px;padding:14px}
+body.mza-coach-public .public-heading .smart-profile-brand{flex-direction:column;align-items:flex-start;gap:6px}
+body.mza-coach-public .public-heading .smart-profile-brand img{width:65px;max-width:100%}
+.poster-title{font-size:clamp(18px,5vw,26px)}
+body.mza-coach-public .public-heading .identity-photo-wrap{min-height:0}
+body.mza-coach-public .public-heading .poster-bio:not([hidden]){font-size:11px;-webkit-line-clamp:4}
+body.mza-coach-public .public-heading .poster-credentials:not([hidden]){padding:8px;font-size:10px;gap:4px}
+body.mza-coach-public .public-heading .poster-person strong{font-size:18px}
+body.mza-coach-public .public-heading .poster-person span{font-size:10px}
+}

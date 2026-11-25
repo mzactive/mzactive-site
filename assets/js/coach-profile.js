@@ -94,6 +94,19 @@
     q('.profile-page').setAttribute('aria-busy', 'false');
     document.title = `${p.display_name} | MZ Active`;
     $('#name').textContent = p.display_name || '';
+    const posterRole = $('#posterRole'), posterName = $('#posterName'), posterSpecialty = $('#posterSpecialty');
+    if (posterRole) posterRole.textContent = ({coach:t('COACH','مدرب'),bodybuilding_coach:t('COACH','مدرب'),pacer:t('PACER','مرافق'),physiotherapist:t('PHYSIOTHERAPIST','أخصائي علاج طبيعي'),sports_massage_therapist:t('MASSAGE SPECIALIST','مختص تدليك رياضي'),nutritionist:t('NUTRITIONIST','أخصائي تغذية')}[p.provider_type] || roleName(p));
+    if (posterName) posterName.textContent = p.display_name || '';
+    if (posterSpecialty) posterSpecialty.textContent = roleName(p);
+    const posterBio = $('#posterBio'), posterCredentials = $('#posterCredentials');
+    if (posterBio) { posterBio.textContent = p.bio || ''; posterBio.hidden = !p.bio; }
+    if (posterCredentials) {
+      const entries = [Number(p.experience_years)>0 ? p.experience_years+t(' years experience',' سنوات خبرة') : '', String(p.qualifications || '').trim(), p.credentials?.certificate_name, p.credentials?.certificate_issuer, p.credentials?.license_issuer, ...(p.specialties || [])].filter(Boolean);
+      posterCredentials.replaceChildren(...entries.slice(0,5).map(value=>node('li',value)));
+      posterCredentials.hidden = !posterCredentials.children.length;
+    }
+    const back = q('.back-to-coaches');
+    if (back && ['physiotherapist','sports_massage_therapist','nutritionist'].includes(p.provider_type)) {back.href='specialists.html?type='+encodeURIComponent(p.provider_type);back.textContent=t('← All specialists','جميع المختصين ←');back.dataset.en='← All specialists';back.dataset.ar='جميع المختصين ←';}
     $('#headline').textContent = [roleName(p), ...(p.specialties || []).slice(0, 2)].filter(Boolean).join(' · ');
     $('#location').textContent = [p.city, p.country].filter(Boolean).join(t(', ',', '));
     $('#tagline').textContent = p.bio || '';

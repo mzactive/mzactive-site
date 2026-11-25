@@ -9,7 +9,7 @@
   <script src="assets/js/language-preference.js?v=20261120c" defer></script>
   <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h">
   <link rel="stylesheet" href="assets/css/coach-profile.css?v=20261125-contact-colors">
-  <link rel="stylesheet" href="assets/css/smart-profile.css?v=20261125a">
+  <link rel="stylesheet" href="assets/css/smart-profile.css?v=20261125-poster">
 <link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
 
 </head>
@@ -42,9 +42,9 @@
           <div class="identity-photo-wrap">
             <div id="avatarFallback" class="avatar-fallback" aria-hidden="true"></div>
             <img id="portrait" class="portrait" hidden alt="">
-            <span class="photo-verified" id="photoVerified" hidden aria-label="Verified coach">✓</span>
+            <div class="poster-person" aria-hidden="true"><strong id="posterName"></strong><span id="posterSpecialty"></span></div><span class="photo-verified" id="photoVerified" hidden aria-label="Verified coach">✓</span>
           </div>
-          <div class="identity-copy"><div class="smart-profile-brand"><img src="assets/brand/mzactive-logo.webp" alt="MZActive"><span data-en="Professional profile" data-ar="الملف المهني">Professional profile</span></div>
+          <div class="identity-copy"><div class="smart-profile-brand"><div class="poster-title"><strong id="posterRole">COACH</strong><span data-en="PROFILE" data-ar="الملف المهني">PROFILE</span></div><img src="assets/brand/mzactive-logo.webp" alt="MZActive"></div><p id="posterBio" class="poster-bio" data-user-content hidden></p><ul id="posterCredentials" class="poster-credentials" data-user-content hidden></ul>
             <div class="name-line"><h1 id="name" dir="auto"></h1><span id="verified" class="verified-badge" hidden><span aria-hidden="true">✓</span><span data-en="Verified Coach" data-ar="مدرب موثّق">Verified Coach</span></span></div>
             <p id="headline" class="headline"></p>
             <p id="location" class="location"></p>
