@@ -44,14 +44,14 @@ html[dir="rtl"] .identity-copy,html[dir="rtl"] .surface,html[dir="rtl"] .create-
    global theme. Same API, real profile images, one main content navigation. */
 body.mza-coach-public:not(.home-page){
  --bg:#f5f7f6;--panel:#fff;--panel2:#eef4f1;--text:#17332f;--muted:#5d706b;--line:#dce6e1;--shadow-card:none;
- color-scheme:light;background:#f5f7f6!important;color:#17332f!important
+ color-scheme:light;background:#eaf3ef!important;color:#17332f!important
 }
 body.mza-coach-public .site-header{background:#103638!important;color:#fff!important;border:0;box-shadow:none}
 body.mza-coach-public .site-header .header-main{max-width:1160px;min-height:68px}
 body.mza-coach-public .site-header .brand img{width:150px}
 body.mza-coach-public .page-shell{width:min(1120px,100%);padding:24px 24px 72px}
 body.mza-coach-public .back-to-coaches{display:inline-block;font-size:13px;font-weight:700;color:#41645b;margin:0 0 14px}
-body.mza-coach-public:not(.home-page) .profile-page section:not(.hero),body.mza-coach-public:not(.home-page) .profile-unavailable{background:#fff!important}
+body.mza-coach-public:not(.home-page) .profile-page section:not(.hero),body.mza-coach-public:not(.home-page) .profile-unavailable{background:#f7fbf8!important}
 body.mza-coach-public .profile-heading{border-radius:16px;box-shadow:none;border:1px solid #dce6e1}
 body.mza-coach-public .cover-wrap{height:180px;background:#103638}
 body.mza-coach-public .cover-wrap.no-personal-cover{height:112px;background:linear-gradient(115deg,#103638,#215652 75%,#b79652 160%)}
@@ -126,3 +126,42 @@ body.mza-coach-public .owner-private-tools .profile-tabs a{color:#103638!importa
 body.mza-coach-public .owner-private-tools .right-rail{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 body.mza-coach-public .owner-private-tools .surface{padding:16px;border-radius:12px;box-shadow:none;margin-top:12px;background:white!important}
 body.mza-coach-public .owner-private-tools .create-card{box-shadow:none;margin-top:12px}
+
+/* Guest contact uses the same light petrol and gold palette as the profile. */
+.coach-contact {
+  box-sizing: border-box;
+  width: min(34rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  overflow: auto;
+  background: #f0f8f5;
+  color: #143834;
+  border: 1px solid #9dbdb3;
+  border-radius: 1rem;
+  padding: clamp(1rem, 4vw, 1.75rem);
+  box-shadow: 0 20px 70px #102e2a4d;
+}
+.coach-contact::backdrop { background: #09272ac2; }
+.coach-contact .contact-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.coach-contact h2, .coach-contact p { color: #143834; }
+.coach-contact .contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr)); gap: .75rem; }
+.coach-contact label { display: grid; gap: .35rem; margin-block: .75rem; font-weight: 600; }
+.coach-contact label[hidden], .coach-contact [hidden] { display: none !important; }
+.coach-contact input:not([type=checkbox]), .coach-contact select, .coach-contact textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid #8caea4;
+  border-radius: .55rem;
+  padding: .55rem .7rem;
+  color: #143834;
+  background: #fafffc;
+  font: inherit;
+  font-size: 1rem;
+}
+.coach-contact .contact-consent { display: flex; align-items: flex-start; gap: .5rem; font-weight: 400; }
+.coach-contact .contact-consent input { margin-block-start: .3rem; accent-color: #1d6157; }
+.coach-contact a { color: #13594d; text-decoration: underline; }
+.coach-contact button:focus-visible, .coach-contact input:focus-visible, .coach-contact textarea:focus-visible, .coach-contact select:focus-visible { outline: 2px solid #1b6558; outline-offset: 2px; }
+
+body.mza-coach-public .profile-actions [hidden] { display: none !important; }
+.coach-contact #contactSubmit { background: #dfb64e; color: #15332d; border-color: #dfb64e; }
