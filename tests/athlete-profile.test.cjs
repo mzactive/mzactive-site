@@ -24,6 +24,6 @@ test('private athlete profile reuses owner-only sports profile data and keeps pr
   assert.match(js, /if \(!data \|\| data\.role !== 'member'\) return/);
   assert.match(js, /completed_at/);
   assert.match(css, /\.athlete-profile-panel \.athlete-identity/);
-  assert.match(html, /athlete-profile\.js\?v=20261124b/);
+  assert.match(html, /athlete-profile\.js\?v=20261125a/);
   assert.match(html, /workspace\.css\?v=20261124e/);
 });

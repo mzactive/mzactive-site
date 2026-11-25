@@ -12,3 +12,12 @@
 .mza-exercise-prescription:empty{display:none}
 #studioWorkoutForm .mza-exercise-picker p{margin:0}
 @media(max-width:480px){.mza-exercise-filters{grid-template-columns:1fr}.mza-exercise-panel{gap:8px}}
+
+.mza-week-shortcuts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+.mza-week-shortcuts[hidden]{display:none!important}
+.mza-week-shortcuts select{min-width:0;max-width:100%}
+.mza-week-shortcuts p{flex-basis:100%;margin:0;font-size:.85rem}
+.studio-day .mza-session-shortcut{font-size:.75rem;padding:4px 6px;width:100%;white-space:normal}
+
+.mza-template-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.mza-template-row strong{flex-basis:100%;overflow-wrap:anywhere}

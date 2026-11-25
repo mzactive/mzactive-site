@@ -68,3 +68,52 @@ test('approved bodybuilding coaches can use the exercise library',async({page})=
  await open(page,'bodybuilding_coach');
  await expect(page.locator('#studioExerciseLibrary')).toBeVisible();
 });
+
+test('copy week keeps source, shifts dates, and never overwrites existing workouts',async({page})=>{
+ await open(page);
+ await page.locator('#programDurationUnit').selectOption('weeks');
+ await page.locator('#programDurationValue').fill('3');
+ await page.locator('#programDurationValue').dispatchEvent('change');
+ await page.evaluate(()=>{const x=document.querySelector('[data-day=monday]');x.value='Easy 5 km';x.dispatchEvent(new Event('input',{bubbles:true}));});
+ await page.locator('#programCopyWeek').click();
+ const options=await page.locator('#programCopyWeekTarget option').evaluateAll(xs=>xs.map(x=>x.value));
+ await page.locator('#programCopyWeekTarget').selectOption(options[1]);
+ await page.locator('#programPasteWeek').click();
+ await expect(page.locator('#programWeekLabel')).toContainText('2 /');
+ await expect(page.locator('#weekMonday')).toHaveValue('Easy 5 km');
+ await page.locator('#programPasteWeek').click();
+ await expect(page.locator('#programShortcutStatus')).toContainText('already has workouts');
+ await page.locator('#programPrevWeek').click();
+ await expect(page.locator('#weekMonday')).toHaveValue('Easy 5 km');
+ const p=await page.evaluate(()=>window.MZActiveProgramEditor.payload());
+ expect(p.weeks).toHaveLength(2);expect(p.weeks[0].sessions[0].session_date).not.toEqual(p.weeks[1].sessions[0].session_date);
+});
+test('copy individual workout offers editable paste before applying',async({page})=>{
+ await open(page);
+ await page.evaluate(()=>{const x=document.querySelector('[data-day=monday]');x.value='Easy 5 km';x.dispatchEvent(new Event('input',{bubbles:true}));});
+ await page.locator('[data-copy-workout=monday]').click();
+ if(await page.locator('[data-paste-workout=tuesday]').isHidden())await page.locator('.studio-mobile-days button').nth(1).click();
+ await page.locator('[data-paste-workout=tuesday]').click();
+ await expect(page.locator('#studioDetails')).toHaveValue('Easy 5 km');
+ await page.locator('#studioApply').click();
+ await expect(page.locator('#weekTuesday')).toHaveValue(/Easy 5 km/);
+ await expect(page.locator('#weekMonday')).toHaveValue('Easy 5 km');
+});
+
+test('date-independent template can be saved and reused after clearing new draft',async({page})=>{
+ await open(page);
+ await page.evaluate(()=>{const x=document.querySelector('[data-day=monday]');x.value='Easy 5 km';x.dispatchEvent(new Event('input',{bubbles:true}));});
+ await page.locator('#programTemplates').click();
+ const dialog=page.locator('#programTemplatesDialog');
+ await dialog.getByLabel('Template name').fill('10K base');
+ await dialog.getByRole('button',{name:'Save current program as template'}).click();
+ await expect(dialog.getByText('10K base · 1 workouts')).toBeVisible();
+ await dialog.getByRole('button',{name:'Use template'}).click();
+ await expect(dialog.getByRole('status')).toContainText('empty new program');
+ await dialog.getByRole('button',{name:'Close'}).click();
+ await page.evaluate(()=>{const x=document.querySelector('[data-day=monday]');x.value='';x.dispatchEvent(new Event('input',{bubbles:true}));});
+ await page.locator('#programTemplates').click();
+ await dialog.getByRole('button',{name:'Use template'}).click();
+ await expect(dialog).not.toBeVisible();
+ await expect(page.locator('#weekMonday')).toHaveValue('Easy 5 km');
+});

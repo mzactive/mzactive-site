@@ -18,7 +18,8 @@
 </style><style>.coach-community-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}@media(max-width:760px){.coach-community-actions{grid-template-columns:1fr}}</style><link rel="stylesheet" href="assets/css/coaching-studio.css?v=20261115-doha-runner">
 <link rel="stylesheet" href="assets/css/program-document.css?v=20261122a">
 <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h"><link rel="stylesheet" href="assets/css/workspace.css?v=20261124e"><link rel="stylesheet" href="assets/css/auth.css?v=20261120f"><link rel="stylesheet" href="assets/css/account-menu.css?v=20261120h"><link rel="stylesheet" href="assets/css/premium-login.css?v=20261121a"><link rel="stylesheet" href="assets/css/profile-completion.css?v=20261122c"><script src="assets/js/api-base.js?v=20261120f"></script><script src="assets/js/auth-session.js?v=20261120h"></script>
-<link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091d21"><script src="/assets/js/pwa-register.js?v=20261121b" defer></script><link rel="stylesheet" href="assets/css/exercise-library.css?v=20261125a">
+<link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091d21"><script src="/assets/js/pwa-register.js?v=20261121b" defer></script><link rel="stylesheet" href="assets/css/exercise-library.css?v=20261125b">
+<link rel="stylesheet" href="assets/css/athlete-training-calendar.css?v=20261125a">
 </head>
 <body><script src="assets/js/language-preference.js?v=20261120c"></script>
   <header><div class="wrap"><a class="brand" href="index.html"><img src="assets/brand/mzactive-logo.webp" alt="MZ Active"></a><nav class="nav"><a href="index.html" data-en="Home" data-ar="الرئيسية">Home</a><a href="coaches.html" data-en="Find a Coach" data-ar="ابحث عن مدرب">Find a Coach</a><a href="pacer.html" data-en="Pacers" data-ar="المرافقون">Pacers</a><a href="providers.html" data-en="Join as a Coach" data-ar="انضم كمدرب">Join as a Coach</a><button class="lang-toggle" id="lang" type="button">العربية</button></nav></div></header>
@@ -258,6 +259,7 @@
         resend.href=programWhatsAppUrl(p);resend.target='_blank';resend.rel='noopener noreferrer';
         actions.append(reuse,resend);week.append(actions);
       }athlete.append(week)}details.append(athlete)}host.append(details)}
+    document.addEventListener('mzactive:athlete-log-updated',event=>{if(event.detail?.role==='member')renderProgramHistory(event.detail.programs||[],false)});
     async function loadDashboard(){notice(w().pleaseWait);const data=await api('/api/dashboard');window.mzStudioDashboard=data;setSignedIn(true);const admin=data.role==='admin',coach=data.role==='provider';$('coachPanel').classList.toggle('hidden',!coach&&!admin);$('memberPanel').classList.toggle('hidden',data.role!=='member');$('roleLabel').textContent=admin?w().admin:coach?w().coach:w().member;$('welcome').textContent=admin?w().adminWelcome:coach?w().coachWelcome:w().memberWelcome;$('teamsHeading').textContent=admin?w().allTeams:w().coachTeamsTitle||'Your teams';$('coachProfilePanel').classList.toggle('hidden',admin);$('myProfilePanel').classList.toggle('hidden',!coach);$('whatsappTrainingForm').classList.toggle('hidden',admin);$('writeProgramJump').classList.toggle('hidden',!coach);$('editCoachProfile').classList.toggle('hidden',!coach);$('coachBlogDetails').classList.toggle('hidden',!coach);$('coachAiPanel').classList.toggle('hidden',!coach);$('coachBlogForm').classList.toggle('hidden',!coach);$('coachAssignment').classList.toggle('hidden',!admin);$('teamCoach').required=admin;$('teamHelp').textContent=admin?w().adminTeamHelp:w().coachTeamHelp;if(admin){const select=$('teamCoach');select.replaceChildren();for(const person of data.coaches||[]){const option=document.createElement('option');option.value=person.user_id;option.textContent=person.display_name;select.append(option)}$('createTeamForm').querySelector('button').disabled=!(data.coaches||[]).length}if(coach){populateProgramTargets(data.teams);renderProgramHistory(data.programs||[],true)}if(data.role==='member')renderProgramHistory(data.programs||[],false);const target=$(coach||admin?'coachTeams':'memberTeams');target.replaceChildren();for(const team of data.teams||[])target.append(coach||admin?renderCoachTeam(team):renderMemberTeam(team));if((coach||admin)&&!(data.teams||[]).length)target.append(node('div','empty',admin?w().noAdminTeams:w().createTeam));if(data.role==='member'&&!(data.teams||[]).length)target.append(node('div','empty',w().noTeams));if(coach){await loadCoachProfileLink();await loadCoachBlogPosts()}notice('');document.dispatchEvent(new CustomEvent('mzactive:dashboard-loaded',{detail:data}));return data}
     function renderProgramProgress(team,coach){
       const root=node('section','program-progress');root.append(node('h4','subhead',w().programTitle));
@@ -373,14 +375,15 @@
 <script src="assets/js/auth-ui.js?v=20261120f" defer></script>
 <script src="assets/js/program-document.js?v=20261122a" defer></script>
 <script src="assets/js/exercise-library.js?v=20261125a" defer></script>
-<script src="assets/js/exercise-picker.js?v=20261125a" defer></script>
-<script src="assets/js/coaching-studio.js?v=20261125a" defer></script>
-<script src="assets/js/program-editor-enhancements.js?v=20261124b" defer></script>
+<script src="assets/js/exercise-picker.js?v=20261125b" defer></script>
+<script src="assets/js/coaching-studio.js?v=20261125b" defer></script>
+<script src="assets/js/program-editor-enhancements.js?v=20261125c" defer></script>
 <script src="assets/js/community-workspace.js?v=20261120e" defer></script>
 <script src="assets/js/coach-dashboard.js?v=20261124d" defer></script>
 <script src="assets/js/coach-social-dashboard.js?v=20261124d" defer></script>
-<script src="assets/js/coach-strava-nav.js?v=20261124b" defer></script>
-<script src="assets/js/athlete-profile.js?v=20261124b" defer></script>
+<script src="assets/js/coach-strava-nav.js?v=20261125a" defer></script>
+<script src="assets/js/athlete-profile.js?v=20261125a" defer></script>
+<script src="assets/js/athlete-training-calendar.js?v=20261125a" defer></script>
 <script src="assets/js/coach-contact.js?v=20261122c" defer></script>
 <script src="assets/js/profile-completion.js?v=20261122c" defer></script>
 <script src="assets/js/coach-community.js?v=20261121n" defer></script>
