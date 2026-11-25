@@ -75,16 +75,17 @@
         quickSend.onclick = () => sendDialog(null, 'mzactive', a.id);
         actions.append(quickSend);
         const create = el('a', 'btn secondary', t('create')); create.href = '#whatsappTrainingForm'; create.onclick = () => prefill(a); actions.append(create);
-        const calendar = el('a', 'btn secondary', t('calendar')); calendar.href = '#flexProgramHistory'; actions.append(calendar);
+        const calendar = el('a', 'btn secondary', t('calendar')); calendar.href = '#flexProgramHistory'; calendar.onclick=()=>document.dispatchEvent(new CustomEvent('mzactive:studio-navigate',{detail:'history'})); actions.append(calendar);
         const close = el('button', 'secondary', t('close')); close.type = 'button'; close.onclick = () => closeRelationship(a.id); actions.append(close);
       } else {
-        const calendar = el('a', 'btn secondary', t('calendar')); calendar.href = '#flexProgramHistory'; actions.append(calendar);
+        const calendar = el('a', 'btn secondary', t('calendar')); calendar.href = '#flexProgramHistory'; calendar.onclick=()=>document.dispatchEvent(new CustomEvent('mzactive:studio-navigate',{detail:'history'})); actions.append(calendar);
       }
       card.append(actions); host.append(card);
     }
   }
 
   function prefill(a) {
+    document.dispatchEvent(new CustomEvent('mzactive:studio-navigate',{detail:'calendar'}));
     const name = $('trainingClientName'); if (name) name.value = a.display_name || '';
     const athlete = $('programAthlete'); if (athlete && [...athlete.options].some(o => o.value === a.id)) athlete.value = a.id;
     $('whatsappTrainingForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -191,7 +192,12 @@
       confirm.disabled = true;
       try {
         const payload = { channel: c };
-        if (c === 'mzactive') payload.athlete_user_id = selected;
+        if (c === 'mzactive') {
+          const connections = await api('/api/connections');
+          const connection = (connections.connections || []).find(row => row.id === selected && row.status === 'accepted' && row.workspace_status !== 'closed');
+          if (!connection?.athlete_user_id) throw new Error(lang() === 'ar' ? 'تعذر التحقق من الرياضي المتصل. حدّث الصفحة وحاول مجدداً.' : 'Could not verify the connected athlete. Refresh and try again.');
+          payload.athlete_user_id = connection.athlete_user_id;
+        }
         if (c === 'email') payload.recipient_email = emailInput.value.trim();
         if (c === 'whatsapp') payload.recipient_phone = phoneInput.value.trim();
         const result = await api('/api/dashboard/programs/' + encodeURIComponent(state.programId) + '/send', { method: 'POST', body: JSON.stringify(payload) });
@@ -211,7 +217,7 @@
       const b = el('button', 'btn secondary', t('send')); b.type = 'button'; b.dataset.sendProgram = '1';
       b.onclick = () => sendDialog(card.dataset.programId);
       const edit = el('button', 'btn secondary', lang() === 'ar' ? 'تعديل البرنامج' : 'Edit program'); edit.type = 'button';
-      edit.onclick = () => { const program = (window.mzStudioDashboard?.programs || []).find(p => p.id === card.dataset.programId); if (program && window.MZActiveProgramEditor) window.MZActiveProgramEditor.loadProgram(program); };
+      edit.onclick = () => { const program = (window.mzStudioDashboard?.programs || []).find(p => p.id === card.dataset.programId); if (program && window.MZActiveProgramEditor) { document.dispatchEvent(new CustomEvent('mzactive:studio-navigate',{detail:'calendar'})); window.MZActiveProgramEditor.loadProgram(program); } };
       card.append(b, edit);
     });
   }

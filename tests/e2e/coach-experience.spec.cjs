@@ -45,6 +45,7 @@ test('coach sends a saved program to an active athlete', async ({ page }) => {
     overrides: {
       'GET /api/me/access': coachAccess,
       'GET /api/dashboard': () => json(dashboard),
+      'GET /api/connections': json({connections:[{id:'conn-e2e-2',athlete_user_id:'athlete-e2e-2',status:'accepted',workspace_status:'active'}]}),
       'POST /api/dashboard/programs/prog-e2e/send': json({ sent: true, program_id: 'prog-e2e', sent_at: '2026-11-23T12:00:00.000Z', href: '/dashboard.html?program=prog-e2e#athleteProgramHistory' }),
     },
   });
@@ -57,7 +58,7 @@ test('coach sends a saved program to an active athlete', async ({ page }) => {
   await expect(dialog.locator('#sendProgramSelect')).toHaveValue('prog-e2e');
   await dialog.getByRole('button', { name: 'Choose an athlete' }).click();
   await dialog.getByRole('button', { name: 'Send program' }).click();
-  await expect.poll(() => mock.calls.some(call => call.method === 'POST' && call.path === '/api/dashboard/programs/prog-e2e/send' && call.body?.athlete_user_id === 'conn-e2e-2')).toBe(true);
+  await expect.poll(() => mock.calls.some(call => call.method === 'POST' && call.path === '/api/dashboard/programs/prog-e2e/send' && call.body?.athlete_user_id === 'athlete-e2e-2')).toBe(true);
   assertOfflineSafe(mock);
 });
 

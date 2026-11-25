@@ -61,7 +61,7 @@
     if(!navigator.share){$('programDocShare').hidden=true;fallback.classList.remove('hidden')}else{$('programDocShare').hidden=false;fallback.classList.add('hidden')}
     $('programDocumentDialog').showModal();
   }
-  window.MZActiveStudio={openDocumentPreview};
+  window.MZActiveStudio={openDocumentPreview,openExercise:(day,id)=>{if(!window.MZAExercisePicker?.isAuthorized()||!days.includes(day))return;openEditor(day);exercisePicker?.open(id);}};
   $('programDocClose')?.addEventListener('click',()=>$('programDocumentDialog').close());
   $('programDocDocx')?.addEventListener('click',()=>{const doc=window.MZAProgramDocument,payload=doc.load();if(!payload){$('programDocStatus').textContent=t('This preview has expired. Return to the coaching studio and prepare the program again.','انتهت صلاحية هذه المعاينة. عد إلى استوديو التدريب وأعد تجهيز البرنامج.');return}doc.downloadDocx(payload);$('programDocStatus').textContent=t('Document downloaded.','تم تنزيل المستند.')});
   $('programDocPdf')?.addEventListener('click',()=>{$('programDocStatus').textContent=t('Opening the print dialog — choose “Save as PDF”.','جارٍ فتح نافذة الطباعة — اختر «حفظ كملف PDF».');setTimeout(()=>window.print(),50)});
