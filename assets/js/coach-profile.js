@@ -233,6 +233,7 @@
     if (p.viewer?.owner) exposeOwnerTools(p);
     else if (p.viewer?.can_message) buildViewerActions(p);
     q('.profile-layout')?.classList.add('public-layout');
+    const layout=q('.profile-layout');if(layout&&!layout.dataset.activePanel)layout.dataset.activePanel='overview';
     if (p.viewer?.owner) q('.profile-heading')?.classList.add('owner-preview');
     q('.profile-heading')?.classList.toggle('public-heading', !(p.viewer?.owner));
   }
@@ -793,6 +794,7 @@
     for (const button of tabs.querySelectorAll('.social-tab')) {
       button.addEventListener('click', () => {
         const key = button.dataset.socialTab;
+        const layout=q('.profile-layout');if(layout)layout.dataset.activePanel=key;
         for (const tab of tabs.querySelectorAll('.social-tab')) tab.setAttribute('aria-selected', String(tab === button));
         document.querySelectorAll('[data-social-panel]').forEach(panel => { panel.hidden = key === 'overview' ? panel.dataset.socialPanel !== 'about' : panel.dataset.socialPanel !== key; });
         q('.profile-layout')?.scrollIntoView({ behavior:'smooth', block:'start' });
