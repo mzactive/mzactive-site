@@ -45,7 +45,7 @@ wrap.addEventListener('keydown',event=>{if(event.key==='Enter'&&event.target.mat
 wrap.addEventListener('toggle',()=>{if(wrap.open)render();else panel.replaceChildren();});
 document.addEventListener('mzactive:language-change',()=>{if(wrap.open)render();else summary.textContent=tr('Add exercise from library','إضافة تمرين من المكتبة');});
 summary.textContent=tr('Add exercise from library','إضافة تمرين من المكتبة');
-return {open(){if(!owner())return;query='';category='all';customOnly=false;selected=null;wrap.open=true;render();},reset(){wrap.open=false;panel.replaceChildren();selected=null;query='';category='all';customOnly=false;}};
+return {open(id){if(!owner())return;query='';category='all';customOnly=false;selected=[...lib.catalog,...customs()].find(x=>x.id===id)||null;wrap.open=true;render();},reset(){wrap.open=false;panel.replaceChildren();selected=null;query='';category='all';customOnly=false;}};
 }
-window.MZAExercisePicker={mount,isAuthorized:()=>Boolean(owner()),templateStorageKey:()=>owner()?("mza-program-templates-v1:"+owner()):""};
+window.MZAExercisePicker={mount,listCustom:()=>customs(),isAuthorized:()=>Boolean(owner()),templateStorageKey:()=>owner()?("mza-program-templates-v1:"+owner()):""};
 })();

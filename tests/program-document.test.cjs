@@ -33,13 +33,13 @@ const payload = {
 test('professional document pipeline is wired into the coaching studio', () => {
   assert.match(html, /program-document\.js\?v=/);
   assert.match(html, /program-document\.css\?v=/);
-  assert.match(html, /coaching-studio\.js\?v=20261125b/);
+  assert.match(html, /coaching-studio\.js\?v=20261125d/);
   assert.match(html, /id="programDocumentDialog"/);
   assert.match(html, /id="programDocPdf"/);
   assert.match(html, /id="programDocDocx"/);
   assert.match(html, /id="programDocShare"/);
   assert.match(html, /id="programDocFallback"/);
-  assert.match(studio, /MZActiveStudio=\{openDocumentPreview\}/);
+  assert.match(studio, /MZActiveStudio=\{openDocumentPreview(?:,|\})/);
   assert.match(studio, /docLang=payload\.lang==='ar'\?'ar':'en'/);
   assert.match(studio, /Preview professional document/);
   assert.doesNotMatch(html, /const url='https:\/\/wa\.me\/'\+phone\?'text='\+encodeURIComponent\(message\),fallback=\$\('whatsappFallback'\)/);

@@ -20,11 +20,14 @@ await studio.locator('[data-studio-section=athletes]').click();
 await expect(studio.locator('#coachMyAthletes')).toBeVisible();
 await expect(studio.locator('#whatsappTrainingForm')).toBeHidden();
 await studio.locator('[data-studio-section=library]').click();
+await expect(studio.locator('#mzaExerciseBrowser')).toBeVisible();
+await studio.getByRole('searchbox',{name:'Search exercises'}).fill('goblet');
+await studio.locator('#mzaExerciseBrowser').getByRole('button',{name:'Add to workout',exact:true}).click();
 await expect(page.locator('#mzaExercisePicker')).toBeVisible();
 await page.locator('#studioClose').click();
 await studio.locator('[data-studio-section=templates]').click();
-await expect(page.locator('#programTemplatesDialog')).toBeVisible();
-await page.locator('#programTemplatesDialog').getByRole('button',{name:'Close',exact:true}).click();
+await expect(studio.locator('#mzaTemplateBrowser')).toBeVisible();
+await studio.locator('.mza-nav-more summary').click();
 await studio.locator('[data-studio-section=ai]').click();
 await expect(studio.locator('#coachAiPanel')).toBeVisible();
 await studio.locator('[data-studio-section=teams]').click();
@@ -34,7 +37,7 @@ await expect(studio.locator('#whatsappTrainingForm')).toBeVisible();
 expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2)).toBe(true);
 });
 test('studio entry is available on existing dashboard only for verified coaches',async({page})=>{
-await open(page,'coach','/dashboard.html');await expect(page.locator('#mzaOpenCoachStudio')).toHaveAttribute('href','dashboard.html?studio=1');
+await open(page,'coach','/dashboard.html?studio=0');await expect(page.locator('#mzaOpenCoachStudio')).toHaveAttribute('href','dashboard.html?studio=1');
 await expect(page.locator('#mzaCoachStudio')).toHaveCount(0);
 });
 test('pacer does not get dedicated coach workspace',async({page})=>{
@@ -49,4 +52,37 @@ await studio.getByRole('button',{name:'العربية',exact:true}).click();
 await expect(studio.locator('#mzaStudioSectionTitle')).toHaveText('الرياضيون');
 await expect(studio.locator('#coachMyAthletes')).toBeVisible();
 await expect(page.locator('html')).toHaveAttribute('dir','rtl');
+});
+
+test('approved coach opens the clean workspace by default',async({page})=>{
+ await open(page,'coach','/dashboard.html');
+ const studio=page.locator('#mzaCoachStudio');
+ await expect(studio).toBeVisible();
+ await expect(studio.locator('#mzaProgramSetup')).toBeVisible();
+ await expect(studio.locator('#whatsappTrainingForm')).toBeVisible();
+ await expect(studio.locator('#mzaExerciseBrowser')).toBeHidden();
+});
+
+test('program library applies a reusable copy without overwriting a draft',async({page})=>{
+ await open(page);
+ const studio=page.locator('#mzaCoachStudio');
+ await expect(studio).toBeVisible();
+ await page.evaluate(()=>{const el=document.querySelector('[data-day=monday]');el.value='Easy 5 km';el.dispatchEvent(new Event('input',{bubbles:true}));});
+ await studio.locator('[data-studio-section=templates]').click();
+ const library=studio.locator('#mzaTemplateBrowser');
+ await library.getByRole('button',{name:'Save current as template'}).click();
+ const dialog=page.locator('#programTemplatesDialog');
+ await dialog.getByLabel('Template name').fill('5K base');
+ await dialog.getByRole('button',{name:'Save current program as template'}).click();
+ await dialog.getByRole('button',{name:'Close',exact:true}).click();
+ await expect(library.getByText('5K base',{exact:true})).toBeVisible();
+ await library.getByRole('button',{name:'Add to calendar'}).click();
+ await expect(library.getByRole('status')).toContainText('Start an empty new program');
+ await studio.locator('[data-studio-section=calendar]').click();
+ page.once('dialog',d=>d.accept());
+ await studio.locator('#studioNewProgram').click();
+ await studio.locator('[data-studio-section=templates]').click();
+ await library.getByRole('button',{name:'Add to calendar'}).click();
+ await expect(studio.locator('#whatsappTrainingForm')).toBeVisible();
+ await expect(page.locator('#weekMonday')).toHaveValue('Easy 5 km');
 });
