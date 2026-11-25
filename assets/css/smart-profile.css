@@ -91,3 +91,20 @@ body.mza-coach-public .public-heading .poster-credentials:not([hidden]){padding:
 body.mza-coach-public .public-heading .poster-person strong{font-size:18px}
 body.mza-coach-public .public-heading .poster-person span{font-size:10px}
 }
+
+/* Explicitly outrank the global light profile theme. Keep the actual name visible
+   even when an older script is cached, and avoid oversized portraits. */
+body.mza-coach-public:not(.home-page) .public-heading .poster-title #posterRole,
+body.mza-coach-public:not(.home-page) .public-heading #posterName{color:#e8c779!important}
+body.mza-coach-public:not(.home-page) .public-heading .poster-title span{color:#fff!important}
+body.mza-coach-public .public-heading .identity-copy{justify-content:flex-start}
+body.mza-coach-public .public-heading .name-line{position:static;width:auto;height:auto;overflow:visible;clip-path:none;margin:10px 0 0}
+body.mza-coach-public:not(.home-page) .public-heading .name-line h1{color:#e8c779!important;font-size:clamp(20px,3vw,32px)}
+body.mza-coach-public .public-heading .identity-row{max-width:760px;align-items:start}
+body.mza-coach-public .public-heading .identity-photo-wrap{justify-content:flex-start;min-height:0}
+body.mza-coach-public .public-heading .identity-photo-wrap .portrait{max-height:340px;aspect-ratio:3/4;object-fit:cover}
+body.mza-coach-public .public-heading .poster-person:has(#posterName:empty){display:none}
+body.mza-coach-public .public-heading .poster-credentials:not([hidden]){margin-block:12px}
+body.mza-coach-public .public-heading .identity-copy:has(#posterName:not(:empty)) .name-line{position:static}
+body.mza-coach-public .public-heading .profile-stats{display:flex;gap:12px}
+@media(max-width:600px){body.mza-coach-public .public-heading .identity-photo-wrap .portrait{max-height:240px}body.mza-coach-public .public-heading .identity-copy .name-line h1{font-size:20px}}
