@@ -108,6 +108,11 @@ test('approved coaches publish cover images, achievements and community posts im
   assert.ok((await call('community/challenges')).challenges.some(item => item.id === challenge.id));
 
   await call('coaches/' + profileId + '/follow', 'POST', {}, member.token);
+  await call('community/posts?scope=following', 'GET', undefined, undefined, 401);
+  const followingFeed = await call('community/posts?scope=following', 'GET', undefined, member.token);
+  assert.ok(followingFeed.posts.some(item => item.id === post.id));
+  assert.ok(!followingFeed.posts.some(item => item.id === challenge.id));
+  assert.equal((await call('community/posts?scope=following', 'GET', undefined, coach.token)).posts.length, 0);
   const followed = (await call('providers/' + profileId)).provider;
   assert.equal(followed.follower_count, 1);
   assert.equal(followed.is_following, false);
