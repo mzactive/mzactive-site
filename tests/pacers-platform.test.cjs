@@ -13,7 +13,11 @@ const navPages = [
 test('Pacers is a top-level navigation destination on every core page', () => {
   for (const page of navPages) {
     const html = read(page);
-    assert.match(html, /href="pacer\.html" data-en="Pacers" data-ar="المرافقون"/, page);
+    if(page === "index.html") {
+      assert.match(html, /<summary data-en="Pacers" data-ar="المرافقون">Pacers<\/summary>/);
+      assert.match(html, /href="pacer\.html" data-en="Find a Pacer"/);
+      assert.match(html, /href="pacer-register\.html"/);
+    } else assert.match(html, /href="pacer\.html" data-en="Pacers" data-ar="المرافقون"/, page);
   }
   assert.match(read('assets/js/site-language.js'), /'Pacers':'المرافقون'/);
 });
