@@ -133,3 +133,18 @@ body.mza-coach-public .public-heading .smart-profile-brand img{width:64px;inset-
 body.mza-coach-public .public-heading .identity-photo-wrap{padding-top:43px}
 body.mza-coach-public .public-heading .poster-credentials li{font-size:10px}
 }
+
+/* Unified compact profile: one identity, no redundant overview. */
+body.mza-coach-public:not(.home-page) .public-heading .name-line{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%)!important}
+body.mza-coach-public:not(.home-page) .public-heading :is(.headline,.location,.specialty-list,.profile-stats){display:none!important}
+body.mza-coach-public:not(.home-page) .public-heading .poster-details{display:grid;gap:6px;margin:8px 0;color:#f0f5f3;font-size:12px}
+body.mza-coach-public .poster-details>div{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:8px;border-bottom:1px solid #b7965233;padding:4px 0}
+body.mza-coach-public:not(.home-page) .poster-details dt{color:#e8c779!important;font-weight:600}
+body.mza-coach-public:not(.home-page) .poster-details dd{margin:0;color:#f0f5f3!important;overflow-wrap:anywhere}
+body.mza-coach-public .poster-links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:8px}
+body.mza-coach-public:not(.home-page) .poster-links a{color:#e8c779!important;font-size:12px;text-decoration:underline;overflow-wrap:anywhere}
+body.mza-coach-public:has(.public-heading) .profile-layout[data-active-panel="overview"]{display:none}
+body.mza-coach-public .public-heading .identity-row{max-width:none!important;border-radius:14px 14px 0 0}
+body.mza-coach-public:not(.home-page) .profile-heading.public-heading{max-width:800px;background:#091d21!important;overflow:hidden}
+body.mza-coach-public .public-heading .profile-social-tabs{justify-content:center}
+@media(max-width:600px){body.mza-coach-public:not(.home-page) .public-heading .poster-details{font-size:11px}body.mza-coach-public .poster-details>div{grid-template-columns:1fr;gap:1px}body.mza-coach-public .public-heading .profile-social-tabs{justify-content:flex-start}}
