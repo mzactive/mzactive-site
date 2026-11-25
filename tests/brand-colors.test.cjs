@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const appDir = process.env.MZA_APP_DIR ||
   '/Users/mohcinezt/Documents/Codex/2026-11-14/referenced-chatgpt-conversation-this-is-an/mobile';
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
+const appAvailable = changed => changed.every(file => fs.existsSync(path.join(appDir,file)));
 const readApp = file => fs.readFileSync(path.join(appDir, file), 'utf8');
 
 // Files where divergent brand hex values were replaced. The test file itself is
@@ -50,7 +51,7 @@ test('changed site files contain no divergent brand hex values', () => {
   }
 });
 
-test('changed app files contain no divergent brand hex values', () => {
+test('changed app files contain no divergent brand hex values', {skip: !process.env.MZA_APP_DIR && !appAvailable(changedAppFiles) ? 'Native app checkout not part of website repository' : false}, () => {
   for (const file of changedAppFiles) {
     const match = readApp(file).match(forbiddenBrandHex);
     assert.ok(!match, `${file} still contains divergent brand color ${match && match[0]}`);
@@ -94,7 +95,7 @@ test('authoritative landing tokens remain unchanged in homepage.css', () => {
   }
 });
 
-test('mobile app C object uses the landing palette and keeps functional colors', () => {
+test('mobile app C object uses the landing palette and keeps functional colors', {skip: !process.env.MZA_APP_DIR && !appAvailable(changedAppFiles) ? 'Native app checkout not part of website repository' : false}, () => {
   const app = readApp('App.tsx');
   const declaration = app.match(/const C = \{([^}]*)\}/);
   assert.ok(declaration, 'App.tsx must define the C token object');
