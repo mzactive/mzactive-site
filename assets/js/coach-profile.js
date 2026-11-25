@@ -97,20 +97,22 @@
     $('#headline').textContent = [roleName(p), ...(p.specialties || []).slice(0, 2)].filter(Boolean).join(' · ');
     $('#location').textContent = [p.city, p.country].filter(Boolean).join(t(', ',', '));
     $('#tagline').textContent = p.bio || '';
-    $('#tagline').hidden = !p.bio;
+    $('#tagline').hidden = true;
     $('#verified').hidden = !(p.verified === true);
-    $('#photoVerified').hidden = !(p.verified === true);
+    $('#photoVerified').hidden = true;
     $('#coachType').textContent = roleName(p);
 
     const cover = $('#coverPhoto');
+    q('.cover-wrap')?.classList.toggle('no-personal-cover', !(p.has_cover || privateCoverPreview));
     if (cover) {
       cover.onerror = () => {
         cover.onerror = null;
-        cover.src = 'assets/images/mzactive-coaching-session.jpg';
+        q('.cover-wrap')?.classList.add('no-personal-cover');
       };
+      cover.closest('picture')?.querySelectorAll('source').forEach(source => source.remove());
       if (privateCoverPreview) cover.src = privateCoverPreview;
       else if (p.has_cover) cover.src = `${endpoint}/cover?v=${encodeURIComponent(p.cover_updated_at || '')}`;
-      else cover.src = 'assets/images/mzactive-coaching-session.jpg';
+      else cover.removeAttribute('src');
     }
     const avatarFallback = $('#avatarFallback');
     avatarFallback.textContent = initials(p.display_name);
@@ -205,7 +207,8 @@
     document.dispatchEvent(new CustomEvent('mzactive:coach-profile-rendered', { detail: { id: p.id } }));
     if (p.viewer?.owner) exposeOwnerTools(p);
     else if (p.viewer?.can_message) buildViewerActions(p);
-    q('.profile-layout')?.classList.toggle('public-layout', !(p.viewer?.owner));
+    q('.profile-layout')?.classList.add('public-layout');
+    if (p.viewer?.owner) q('.profile-heading')?.classList.add('owner-preview');
     q('.profile-heading')?.classList.toggle('public-heading', !(p.viewer?.owner));
   }
 
@@ -223,7 +226,7 @@
     if (!actions || $('#editProfile')) return;
     const edit = node('a', undefined, 'button button-gold');
     edit.id = 'editProfile';
-    edit.href = 'dashboard.html#editCoachProfile';
+    edit.href = 'coach-studio.html?view=profile';
     const editGlyph = node('span', '✎');
     editGlyph.setAttribute('aria-hidden', 'true');
     edit.append(editGlyph, node('span', t('Edit profile','تعديل الملف')));
@@ -330,6 +333,14 @@
       upcoming.append(upcomingHeading, upcomingList);
       rail.append(create, glance, upcoming);
     }
+    // Keep authenticated owner tools out of the actual public profile layout.
+    const privateTools = node('details', undefined, 'owner-private-tools');
+    privateTools.id = 'ownerPrivateTools';
+    privateTools.append(node('summary', t('Additional private management tools','أدوات الإدارة الخاصة الإضافية')));
+    if (tabs) privateTools.append(tabs);
+    for (const item of [rail, $('#bookings'), $('#analytics')]) if (item) privateTools.append(item);
+    q('.profile-layout').after(privateTools);
+    $('#book').hidden = true;
     changePhoto.addEventListener('click', () => photoInput.click());
     photoInput.addEventListener('change', event => uploadPhoto(event.target.files?.[0]));
     changeCover.addEventListener('click', () => $('#coverInput').click());
@@ -341,7 +352,7 @@
     if (!actions || $('#followCoach')) return;
     const publicFollow = $('#followPublic');
     if (publicFollow) publicFollow.hidden = true;
-    const token = localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey) || '';
+    const token = tokenFromStorage();
     if (!token) return;
     const follow = node('button', t(p.is_following ? 'Following' : 'Follow', p.is_following ? 'متابَع' : 'متابعة'), 'button button-light');
     follow.id = 'followCoach';
@@ -386,7 +397,7 @@
     if (!root) return;
     root.replaceChildren();
     const events = communityEvents || [];
-    const token = localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey) || '';
+    const token = tokenFromStorage();
     for (const event of events) {
       const card = node('article', undefined, 'card');
       card.append(node('strong', event.title || event.body.slice(0, 80)));
@@ -559,7 +570,7 @@
     renderUpcomingSessions(sessions);
   }
   async function exposeOwnerTools(p) {
-    const token = localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey) || '';
+    const token = tokenFromStorage();
     if (!token || ownerToken === token) return;
     try {
       const me = await api('/api/me/profile', token);
@@ -671,6 +682,7 @@
       privateCoverPreview = URL.createObjectURL(file);
       $('#coverPhoto').src = privateCoverPreview;
       profile.has_cover = true;
+      q('.cover-wrap')?.classList.remove('no-personal-cover');
       profile.cover_updated_at = result.updated_at;
       output.textContent = result.status === 'approved'
         ? t('Cover photo published.','تم نشر صورة الغلاف.')
@@ -698,7 +710,7 @@
     };
     add(p.follower_count, t('Followers','متابعون'));
     add(Number(p.experience_years) > 0 ? p.experience_years : null, t('Years experience','سنوات خبرة'));
-    add((p.program_durations || []).length, t('Programs','برامج'));
+    add((p.program_durations || []).length, t('Program durations','مدد البرامج'));
     root.hidden = root.children.length === 0;
   }
   function renderCoachPrograms(p) {
@@ -741,13 +753,13 @@
   function paintFollow(p) {
     const button = $('#followPublic');
     if (!button) return;
-    button.hidden = Boolean(p.viewer?.owner) || Boolean(p.viewer?.authenticated && tokenFromStorage());
+    button.hidden = Boolean(p.viewer?.owner) || Boolean(p.viewer?.can_message && tokenFromStorage());
     const label = button.querySelector('span');
     if (label) label.textContent = p.is_following ? t('Following','متابَع') : t('Follow','متابعة');
     button.setAttribute('aria-pressed', p.is_following ? 'true' : 'false');
   }
   function tokenFromStorage() {
-    return localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey) || '';
+    return sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey) || '';
   }
   function mountSocialTabs() {
     const tabs = $('#profileSocialTabs');
@@ -757,8 +769,9 @@
       button.addEventListener('click', () => {
         const key = button.dataset.socialTab;
         for (const tab of tabs.querySelectorAll('.social-tab')) tab.setAttribute('aria-selected', String(tab === button));
-        document.querySelectorAll('[data-social-panel]').forEach(panel => { panel.hidden = key !== 'overview' && panel.dataset.socialPanel !== key; });
+        document.querySelectorAll('[data-social-panel]').forEach(panel => { panel.hidden = key === 'overview' ? panel.dataset.socialPanel !== 'about' : panel.dataset.socialPanel !== key; });
         q('.profile-layout')?.scrollIntoView({ behavior:'smooth', block:'start' });
+        q('.profile-layout')?.classList.toggle('focused-section', !['overview','about'].includes(key));
       });
     }
   }
@@ -806,13 +819,16 @@
   async function load() {
     if (!/^[\w-]{36}$/.test(id)) { failure = 404; setUnavailable(); return; }
     try {
-      const response = await fetchWithTimeout(endpoint, { headers:{ accept:'application/json' } });
+      const token = tokenFromStorage();
+      let response = await fetchWithTimeout(endpoint, { headers:{ accept:'application/json', ...(token ? { authorization: 'Bearer '+token } : {}) }, cache:'no-store' });
+      if (token && response.status === 401) response = await fetchWithTimeout(endpoint, {headers:{accept:'application/json'},cache:'no-store'});
       if (!response.ok) { failure = response.status; setUnavailable(); return; }
       const payload = await response.json();
       profile = payload.provider || null;
       if (!profile) { failure = 404; setUnavailable(); return; }
       renderProfile();
       mountSocialTabs();
+      document.querySelectorAll('[data-social-panel]').forEach(panel => {panel.hidden = panel.dataset.socialPanel !== 'about';});
       whenIdle(loadCommunityPosts);
       whenIdle(loadCoachBlogs);
     } catch {

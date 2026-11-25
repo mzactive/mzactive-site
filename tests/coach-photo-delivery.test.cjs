@@ -48,8 +48,8 @@ test('provider portal explains photo limits and preserves existing files on fail
 
 test('public coach profile uses stored images with safe local fallbacks', () => {
   assert.ok(profileJs.includes("else if (p.has_cover) cover.src = `${endpoint}/cover?v=${encodeURIComponent(p.cover_updated_at || '')}`;"));
-  assert.ok(profileJs.includes("else cover.src = 'assets/images/mzactive-coaching-session.jpg';"));
-  assert.match(profileJs, /cover\.onerror = \(\) => \{[\s\S]{0,160}cover\.src = 'assets\/images\/mzactive-coaching-session\.jpg'/);
+  assert.ok(profileJs.includes("else cover.removeAttribute('src');"));
+  assert.match(profileJs, /cover\.onerror = \(\) => \{[\s\S]{0,160}classList\.add\('no-personal-cover'\)/);
   assert.match(profileJs, /const avatarFallback = \$\('#avatarFallback'\);/);
   assert.match(profileJs, /The photo is larger than 1 MB\. Choose a smaller image; your existing photo was kept\./);
   assert.match(profileJs, /The cover is larger than 1 MB\. Choose a smaller image; your existing cover was kept\./);

@@ -8,11 +8,11 @@
   <title>Coach profile | MZ Active</title>
   <script src="assets/js/language-preference.js?v=20261120c" defer></script>
   <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h">
-  <link rel="stylesheet" href="assets/css/coach-profile.css?v=20261125a">
+  <link rel="stylesheet" href="assets/css/coach-profile.css?v=20261125b">
 <link rel="manifest" href="/manifest.json"><link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png?v=20261120c"><link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MZA"><meta name="theme-color" content="#091D21"><script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
 <link rel="preload" as="image" href="assets/images/responsive/mzactive-coaching-session-960w.webp" type="image/webp" media="(max-width: 760px)" fetchpriority="high">
 <link rel="preload" as="image" href="assets/images/responsive/mzactive-coaching-session-1280w.webp" type="image/webp" media="(min-width: 761px)" fetchpriority="high"></head>
-<body>
+<body class="mza-coach-public">
   <header class="site-header">
     <div class="header-main">
       <a class="brand" href="index.html" aria-label="MZ Active home"><img src="assets/brand/mzactive-logo.webp" alt="MZ Active" width="687" height="216"></a>
@@ -28,11 +28,12 @@
   </header>
 
   <main class="page-shell">
+    <a class="back-to-coaches" href="coaches.html" data-en="← All coaches" data-ar="جميع المدربين ←">← All coaches</a>
     <p id="notice" class="load-notice" role="status" aria-live="polite" data-en="Loading coach profile…" data-ar="جارٍ تحميل ملف المدرب…">Loading coach profile…</p>
 
     <article class="profile-page" aria-busy="true">
       <section class="profile-card profile-heading" aria-labelledby="name">
-        <div class="cover-wrap">
+        <div class="cover-wrap no-personal-cover">
           <picture class="responsive-photo" style="display:contents"><source type="image/webp" srcset="assets/images/responsive/mzactive-coaching-session-320w.webp 320w, assets/images/responsive/mzactive-coaching-session-640w.webp 640w, assets/images/responsive/mzactive-coaching-session-960w.webp 960w, assets/images/responsive/mzactive-coaching-session-1280w.webp 1280w" sizes="(max-width: 760px) 100vw, min(960px, 80vw)"><img id="coverPhoto" class="cover-photo" src="assets/images/mzactive-coaching-session.jpg" alt="MZ Active group training in Doha" width="1280" height="720" decoding="async" fetchpriority="high"></picture>
           <!-- Owner photo controls are created only after the API confirms ownership. -->
         </div>
@@ -46,7 +47,7 @@
             <div class="name-line"><h1 id="name" dir="auto"></h1><span id="verified" class="verified-badge" hidden><span aria-hidden="true">✓</span><span data-en="Verified Coach" data-ar="مدرب موثّق">Verified Coach</span></span></div>
             <p id="headline" class="headline"></p>
             <p id="location" class="location"></p>
-            <p id="tagline" class="tagline" data-user-content></p>
+            <p id="tagline" class="tagline" data-user-content hidden></p>
             <div id="specialties" class="specialty-list" data-user-content></div>
             <div id="profileStats" class="profile-stats" data-user-content></div>
           </div>
@@ -56,7 +57,7 @@
                  only after the API identifies the viewer. Public visitors receive
                  Share profile and Request a session only. -->
             <button id="share" class="button button-light" type="button"><span aria-hidden="true">↗</span><span data-en="Share profile" data-ar="مشاركة الملف">Share profile</span></button>
-            <a id="book" class="button button-primary" href="#"><span data-en="Request a session" data-ar="اطلب جلسة تدريب">Request a session</span></a>
+            <a id="book" class="button button-primary" href="#"><span data-en="Request coaching" data-ar="اطلب التدريب">Request coaching</span></a>
           </div>
         </div>
         <nav id="profileTabs" class="profile-tabs" aria-label="Coach profile sections">
@@ -68,28 +69,24 @@
           <button type="button" class="social-tab" data-social-tab="posts" role="tab" aria-selected="false" data-en="Posts" data-ar="المنشورات">Posts</button>
           <button type="button" class="social-tab" data-social-tab="blogs" role="tab" aria-selected="false" data-en="Blogs" data-ar="المقالات">Blogs</button>
           <button type="button" class="social-tab" data-social-tab="programs" role="tab" aria-selected="false" data-en="Programs" data-ar="البرامج">Programs</button>
-          <button type="button" class="social-tab" data-social-tab="about" role="tab" aria-selected="false" data-en="About" data-ar="نبذة">About</button>
+          <button type="button" class="social-tab" data-social-tab="about" role="tab" aria-selected="false" data-en="Credentials" data-ar="المؤهلات">Credentials</button>
         </nav>
       </section>
 
       <div class="profile-layout" id="overview">
         <aside class="left-rail" aria-label="Coach details" data-social-panel="about">
-          <section class="surface about-card">
-            <h2 data-en="About" data-ar="نبذة">About</h2>
-            <p id="bio" class="profile-bio" data-user-content></p>
-            <p id="bioEmpty" class="empty-copy" hidden data-en="No public biography has been added." data-ar="لم تتم إضافة نبذة عامة بعد.">No public biography has been added.</p>
-          </section>
+
           <section class="surface">
             <h2 data-en="Credentials & experience" data-ar="المؤهلات والخبرة">Credentials & experience</h2>
             <dl id="facts" class="facts"></dl>
             <p id="credentialsEmpty" class="empty-copy" hidden data-en="No public credentials or experience details have been added." data-ar="لم تتم إضافة مؤهلات أو تفاصيل خبرة عامة.">No public credentials or experience details have been added.</p>
           </section>
-          <section class="surface">
+          <section class="surface" data-hide-empty="achievementsEmpty">
             <h2 data-en="Achievements" data-ar="الإنجازات">Achievements</h2>
             <div id="achievementsList" class="services-list" data-user-content></div>
             <p id="achievementsEmpty" class="empty-copy" data-en="No published achievements have been added." data-ar="لم تتم إضافة إنجازات منشورة بعد.">No published achievements have been added.</p>
           </section>
-          <section class="surface">
+          <section class="surface" data-hide-empty="socialEmpty">
             <h2 data-en="Links" data-ar="الروابط">Links</h2>
             <div id="socialLinks" class="social-list" data-user-content></div>
             <p id="socialEmpty" class="empty-copy" hidden data-en="No public social links have been added." data-ar="لم تتم إضافة روابط اجتماعية عامة.">No public social links have been added.</p>
@@ -97,8 +94,13 @@
         </aside>
 
         <div class="main-column">
-          <section class="surface services-card" data-social-panel="about">
-            <div class="section-heading"><div><p class="eyebrow" data-en="COACH PROFILE" data-ar="ملف المدرب">COACH PROFILE</p><h2 data-en="Coaching approach" data-ar="نهج التدريب">Coaching approach</h2></div><span id="coachType" class="type-pill"></span></div>
+          <section class="surface about-card" data-social-panel="about">
+            <h2 data-en="About" data-ar="نبذة">About</h2>
+            <p id="bio" class="profile-bio" data-user-content></p>
+            <p id="bioEmpty" class="empty-copy" hidden data-en="No public biography has been added." data-ar="لم تتم إضافة نبذة عامة بعد.">No public biography has been added.</p>
+          </section>
+          <section class="surface services-card" data-social-panel="about" data-hide-empty="servicesEmpty">
+            <div class="section-heading"><div><p class="eyebrow" data-en="COACH PROFILE" data-ar="ملف المدرب">COACH PROFILE</p><h2 data-en="Coaching services" data-ar="خدمات التدريب">Coaching services</h2></div><span id="coachType" class="type-pill"></span></div>
             <div id="services" class="services-list" data-user-content></div>
             <p id="servicesEmpty" class="empty-copy" hidden data-en="No public services have been listed." data-ar="لم تتم إضافة خدمات عامة.">No public services have been listed.</p>
           </section>
@@ -162,7 +164,7 @@
 </footer>
 
   <script src="assets/js/api-base.js" defer></script>
-  <script src="assets/js/coach-profile.js?v=20261125a" defer></script>
+  <script src="assets/js/coach-profile.js?v=20261125b" defer></script>
   <script src="assets/js/site-language.js?v=20261120h" defer></script>
   <script src="assets/js/management-contact.js"></script><script src="assets/js/whatsapp-chat.js" defer></script>
   <script src="assets/js/assistant-chat-v2.js?v=20261122b" defer></script>

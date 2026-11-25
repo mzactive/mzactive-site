@@ -31,7 +31,7 @@ test('public cover instruction strip is removed without touching cover media', (
 test('public layout fills the page while owner rail remains reserved', () => {
   assert.match(css, /\.profile-layout\.public-layout\{grid-template-columns:minmax\(260px,320px\) minmax\(0,1fr\)\}/);
   assert.match(css, /\.profile-layout,\.profile-layout\.public-layout\{grid-template-columns:minmax\(0,1fr\)/);
-  assert.match(profileJs, /classList\.toggle\('public-layout', !\(p\.viewer\?\.owner\)\)/);
+  assert.match(profileJs, /classList\.add\('public-layout'\)/);
 });
 
 test('Momo assistant is compact, localized, and honest when unavailable', () => {
