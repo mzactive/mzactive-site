@@ -645,6 +645,20 @@
     if(p.photos?.length)c.append(node('small',t('Photos','الصور')+': '+p.photos.join(', ')));
     const actions={pending:[['published',t('Publish','نشر')],['hidden',t('Hide','إخفاء')]],published:[['hidden',t('Hide','إخفاء')]],hidden:[['published',t('Restore','استعادة')]]};
     for(const [status,text] of (actions[p.status]||[]))c.append(button(text,()=>save('admin/community/posts/'+p.id,{status})));
+    if(managementIsAdmin&&['event','group_session'].includes(p.kind)&&p.status==='published'&&p.visibility==='public'&&!p.cancelled_at&&Date.parse(p.starts_at)>Date.now()){
+      const announce=button(t('Announce by email','أعلن بالبريد الإلكتروني'),async()=>{
+        announce.disabled=true;
+        try{
+          const result=await api('admin/community/events/'+encodeURIComponent(p.id)+'/announce',{method:'POST'});
+          notice(result.already_announced?t('This event was already announced.','تم الإعلان عن هذه الفعالية سابقاً.'):
+            t(`Event email queued for ${result.queued} confirmed subscribers.`,`أُضيف إعلان الفعالية إلى قائمة الإرسال لـ${result.queued} من المشتركين المؤكدين.`),'success');
+        }catch(error){
+          announce.disabled=false;
+          notice(error.message==='email_unavailable'?t('Email delivery is temporarily unavailable.','إرسال البريد الإلكتروني غير متاح مؤقتاً.'):errorMessage(error),'error');
+        }
+      });
+      c.append(announce);
+    }
     return c;
   }
   function communityComment(root,c){

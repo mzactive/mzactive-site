@@ -14,10 +14,6 @@
     header{display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid #343434}
     header img{width:150px;max-width:40vw}
     nav a{margin-left:12px;font-size:14px}
-    .hero{padding:70px 0;background:linear-gradient(90deg,#091d21 20%,#091d21cc),url('assets/images/mzactive-community-run.jpg') center/cover}
-    @supports (background-image: image-set(url("assets/images/responsive/mzactive-community-run-768w.webp") type("image/webp"))){
-      .hero{background-image:linear-gradient(90deg,#091d21 20%,#091d21cc),image-set(url("assets/images/responsive/mzactive-community-run-768w.webp") type("image/webp") 1x)}
-    }
     h1{font-size:clamp(40px,7vw,72px);line-height:1.07}
     h1 span,.eyebrow{color:#f2b718}
     .lead{max-width:650px;font-size:19px}
@@ -106,9 +102,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="MZA">
   <script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
-  <link rel="preload" as="image" href="assets/images/responsive/mzactive-community-run-768w.webp" type="image/webp" fetchpriority="high">
+  <link rel="stylesheet" href="assets/css/community-signup.css?v=20261125-event-alerts">
 </head>
-<body>
+<body class="community-page">
 <script src="assets/js/language-preference.js?v=20261120c"></script>
 <header>
   <a href="index.html"><img src="assets/brand/mzactive-logo.webp" alt="MZActive"></a>
@@ -121,11 +117,58 @@
 </header>
 <main>
   <section class="hero">
-    <p class="eyebrow" data-en="MZACTIVE SPORTS COMMUNITY · QATAR" data-ar="مجتمع MZACTIVE الرياضي · قطر">MZACTIVE SPORTS COMMUNITY · QATAR</p>
-    <h1><span data-en="Move Together." data-ar="نتحرك معاً.">Move Together.</span><br><span data-en="Belong Together." data-ar="ننتمي معاً.">Belong Together.</span></h1>
-    <p class="lead" data-en="A welcoming sports community for all ages and abilities. Discover group running, walking, fitness and inclusive activities in Qatar." data-ar="مجتمع رياضي للجميع في قطر. اكتشف الجري والمشي الجماعي واللياقة والأنشطة الدامجة.">A welcoming sports community for all ages and abilities. Discover group running, walking, fitness and inclusive activities in Qatar.</p>
-    <p class="arabic" hidden>الرياضة تجمعنا والانتماء يقوّينا. مجتمع رياضي شامل لمختلف الأعمار والمستويات في قطر.</p>
-    <a class="button" href="#discover" data-en="Explore Communities" data-ar="اكتشف المجتمعات">Explore Communities</a>
+    <div class="community-hero-copy">
+    <h1 data-en="Community" data-ar="المجتمع">Community</h1>
+    <p class="lead" data-en="Share your training and find people to move with in Qatar." data-ar="شارك تدريباتك وتعرّف على أشخاص يشاركونك النشاط في قطر.">Share your training and find people to move with in Qatar.</p>
+    <div class="community-hero-links">
+      <a href="#feed" data-en="Activity feed" data-ar="آخر الأنشطة">Activity feed</a>
+      <a href="#upcoming" data-en="Events" data-ar="الفعاليات">Events</a>
+      <a href="#discover" data-en="Groups" data-ar="المجموعات">Groups</a>
+    </div>
+    </div>
+    <section id="join" class="event-alert-card" aria-labelledby="eventAlertTitle">
+      <h2 id="eventAlertTitle" data-en="Join the community" data-ar="انضم إلى المجتمع">Join the community</h2>
+      <p data-en="Get new event announcements by email." data-ar="تلقَّ إعلانات الفعاليات الجديدة بالبريد الإلكتروني.">Get new event announcements by email.</p>
+      <div id="communityAuthActions" class="community-auth-actions">
+        <a class="button" href="dashboard.html?next=%2Fcommunity.html#registerForm" data-en="Sign up" data-ar="أنشئ حساباً">Sign up</a>
+        <a class="button alt" href="dashboard.html?next=%2Fcommunity.html#loginForm" data-en="Log in" data-ar="سجّل الدخول">Log in</a>
+      </div>
+      <button id="eventAlertSignup" class="button" type="button" data-en="Subscribe to event emails" data-ar="اشترك في رسائل الفعاليات" hidden>Subscribe to event emails</button>
+      <p id="eventAlertStatus" role="status" aria-live="polite" data-language-skip data-user-content></p>
+    </section>
+  </section>
+
+  <section id="feed">
+    <h2 data-en="Community feed" data-ar="خلاصة المجتمع">Community feed</h2>
+    <nav id="communitySocialTabs" class="fb-feed-tabs" aria-label="Community sections" role="tablist">
+      <button type="button" class="social-tab" data-feed-tab="feed" aria-selected="true" data-en="Feed" data-ar="الخلاصة">Feed</button>
+      <button type="button" class="social-tab" data-feed-tab="groups" aria-selected="false" data-en="Groups" data-ar="المجموعات">Groups</button>
+      <button type="button" class="social-tab" data-feed-tab="blogs" aria-selected="false" data-en="Blogs" data-ar="المقالات">Blogs</button>
+      <button type="button" class="social-tab" data-feed-tab="challenges" aria-selected="false" data-en="Challenges" data-ar="التحديات">Challenges</button>
+    </nav>
+    <div class="fb-composer"><label for="fbComposerText" data-en="Share your sporting journey…" data-ar="شارك رحلتك الرياضية…">Share your sporting journey…</label><input id="fbComposerText" maxlength="4000" aria-label="Share your sporting journey"><div class="fb-composer-actions">
+      <button type="button" data-compose="photo" data-en="Photo" data-ar="صورة">Photo</button>
+      <button type="button" data-compose="video" data-en="Video" data-ar="فيديو">Video</button>
+      <button type="button" data-compose="event" data-en="Event" data-ar="فعالية">Event</button>
+      <a href="dashboard.html#whatsappTrainingForm" data-compose="program" data-en="Program" data-ar="برنامج">Program</a>
+    </div></div>
+    <p id="feedNotice" class="note" role="status" aria-live="polite" data-en="Real posts, events and group sessions appear here after MZ Active moderation." data-ar="تظهر المنشورات والفعاليات والحصص الجماعية الحقيقية هنا بعد إشراف MZ Active.">Real posts, events and group sessions appear here after MZ Active moderation.</p>
+    <p id="signInPrompt"><span data-en="Sign in from your dashboard to publish, like, comment and join group sessions." data-ar="سجّل الدخول من لوحة التحكم للنشر والإعجاب والتعليق والانضمام إلى الحصص الجماعية.">Sign in from your dashboard to publish, like, comment and join group sessions.</span> <a href="dashboard.html" data-en="Open dashboard" data-ar="افتح لوحة التحكم">Open dashboard</a></p>
+    <form id="postForm" class="card feed-form" hidden>
+      <p id="composerCommunityLabel" class="note"></p>
+      <p id="postAccessNotice" class="note" hidden></p>
+      <label><span data-en="Post type" data-ar="نوع المنشور">Post type</span><select id="postKind"><option value="post" data-en="Update" data-ar="تحديث">Update</option><option value="event" data-en="Event" data-ar="فعالية">Event</option><option value="group_session" data-en="Group session" data-ar="جلسة جماعية">Group session</option></select></label>
+      <label><span data-en="Your post" data-ar="منشورك">Your post</span><textarea id="postBody" maxlength="4000" rows="4" required></textarea></label>
+      <div class="feed-filters"><label><span data-en="Sport" data-ar="الرياضة">Sport</span><select id="postSport"><option value="" data-en="General" data-ar="عام">General</option><option value="running">Running</option><option value="walking">Walking</option><option value="fitness">Fitness</option><option value="strength">Strength</option><option value="cycling">Cycling</option><option value="swimming">Swimming</option><option value="padel">Padel</option><option value="triathlon">Triathlon</option><option value="hyrox">Hyrox</option><option value="boxing">Boxing</option><option value="kickboxing">Kickboxing</option><option value="football">Football</option><option value="other">Other</option></select></label><label id="postStartsWrap" hidden><span data-en="Starts at" data-ar="يبدأ في">Starts at</span><input id="postStartsAt" type="datetime-local"></label></div>
+      <div id="postEventFields" class="feed-filters" hidden><label><span data-en="Location" data-ar="المكان">Location</span><input id="postLocation" maxlength="120"></label><label><span data-en="Capacity" data-ar="السعة">Capacity</span><input id="postCapacity" type="number" min="1" max="10000"></label></div>
+      <label><span data-en="Photos (up to 3)" data-ar="الصور (حتى ٣ صور)">Photos (up to 3)</span><input id="postPhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple></label>
+      <button class="button" type="submit" data-en="Publish or submit" data-ar="انشر أو أرسل للمراجعة">Publish or submit</button>
+    </form>
+    <div class="feed-filters"><label><span data-en="Show" data-ar="عرض">Show</span><select id="feedKind"><option value="" data-en="All activity" data-ar="كل الأنشطة">All activity</option><option value="post" data-en="Updates" data-ar="تحديثات">Updates</option><option value="event" data-en="Events" data-ar="فعاليات">Events</option><option value="group_session" data-en="Group sessions" data-ar="جلسات جماعية">Group sessions</option><option value="challenge" data-en="Challenges" data-ar="تحديات">Challenges</option></select></label><label><span data-en="Sport" data-ar="الرياضة">Sport</span><select id="feedSport"><option value="" data-en="All sports" data-ar="كل الرياضات">All sports</option><option value="running">Running</option><option value="walking">Walking</option><option value="fitness">Fitness</option><option value="strength">Strength</option><option value="cycling">Cycling</option><option value="swimming">Swimming</option><option value="padel">Padel</option><option value="triathlon">Triathlon</option><option value="hyrox">Hyrox</option><option value="boxing">Boxing</option><option value="kickboxing">Kickboxing</option><option value="football">Football</option><option value="other">Other</option></select></label></div>
+    <div id="feedList" class="grid" data-user-content data-feed-panel="feed"></div>
+    <div id="communityBlogs" class="grid" data-user-content data-feed-panel="blogs" hidden></div>
+    <p id="communityBlogsEmpty" class="note" hidden data-en="No published articles yet." data-ar="لا توجد مقالات منشورة بعد.">No published articles yet.</p>
+    <p id="feedEmpty" class="note" data-en="No published community posts yet." data-ar="لا توجد منشورات مجتمعية منشورة بعد.">No published community posts yet.</p>
   </section>
 
   <section id="activities">
@@ -254,39 +297,6 @@
     </div>
   </section>
 
-  <section id="feed">
-    <h2 data-en="Community feed" data-ar="خلاصة المجتمع">Community feed</h2>
-    <nav id="communitySocialTabs" class="fb-feed-tabs" aria-label="Community sections" role="tablist">
-      <button type="button" class="social-tab" data-feed-tab="feed" aria-selected="true" data-en="Feed" data-ar="الخلاصة">Feed</button>
-      <button type="button" class="social-tab" data-feed-tab="groups" aria-selected="false" data-en="Groups" data-ar="المجموعات">Groups</button>
-      <button type="button" class="social-tab" data-feed-tab="blogs" aria-selected="false" data-en="Blogs" data-ar="المقالات">Blogs</button>
-      <button type="button" class="social-tab" data-feed-tab="challenges" aria-selected="false" data-en="Challenges" data-ar="التحديات">Challenges</button>
-    </nav>
-    <div class="fb-composer"><label for="fbComposerText" data-en="Share your sporting journey…" data-ar="شارك رحلتك الرياضية…">Share your sporting journey…</label><input id="fbComposerText" maxlength="4000" aria-label="Share your sporting journey"><div class="fb-composer-actions">
-      <button type="button" data-compose="photo" data-en="Photo" data-ar="صورة">Photo</button>
-      <button type="button" data-compose="video" data-en="Video" data-ar="فيديو">Video</button>
-      <button type="button" data-compose="event" data-en="Event" data-ar="فعالية">Event</button>
-      <a href="dashboard.html#whatsappTrainingForm" data-compose="program" data-en="Program" data-ar="برنامج">Program</a>
-    </div></div>
-    <p id="feedNotice" class="note" role="status" aria-live="polite" data-en="Real posts, events and group sessions appear here after MZ Active moderation." data-ar="تظهر المنشورات والفعاليات والحصص الجماعية الحقيقية هنا بعد إشراف MZ Active.">Real posts, events and group sessions appear here after MZ Active moderation.</p>
-    <p id="signInPrompt"><span data-en="Sign in from your dashboard to publish, like, comment and join group sessions." data-ar="سجّل الدخول من لوحة التحكم للنشر والإعجاب والتعليق والانضمام إلى الحصص الجماعية.">Sign in from your dashboard to publish, like, comment and join group sessions.</span> <a href="dashboard.html" data-en="Open dashboard" data-ar="افتح لوحة التحكم">Open dashboard</a></p>
-    <form id="postForm" class="card feed-form" hidden>
-      <p id="composerCommunityLabel" class="note"></p>
-      <p id="postAccessNotice" class="note" hidden></p>
-      <label><span data-en="Post type" data-ar="نوع المنشور">Post type</span><select id="postKind"><option value="post" data-en="Update" data-ar="تحديث">Update</option><option value="event" data-en="Event" data-ar="فعالية">Event</option><option value="group_session" data-en="Group session" data-ar="جلسة جماعية">Group session</option></select></label>
-      <label><span data-en="Your post" data-ar="منشورك">Your post</span><textarea id="postBody" maxlength="4000" rows="4" required></textarea></label>
-      <div class="feed-filters"><label><span data-en="Sport" data-ar="الرياضة">Sport</span><select id="postSport"><option value="" data-en="General" data-ar="عام">General</option><option value="running">Running</option><option value="walking">Walking</option><option value="fitness">Fitness</option><option value="strength">Strength</option><option value="cycling">Cycling</option><option value="swimming">Swimming</option><option value="padel">Padel</option><option value="triathlon">Triathlon</option><option value="hyrox">Hyrox</option><option value="boxing">Boxing</option><option value="kickboxing">Kickboxing</option><option value="football">Football</option><option value="other">Other</option></select></label><label id="postStartsWrap" hidden><span data-en="Starts at" data-ar="يبدأ في">Starts at</span><input id="postStartsAt" type="datetime-local"></label></div>
-      <div id="postEventFields" class="feed-filters" hidden><label><span data-en="Location" data-ar="المكان">Location</span><input id="postLocation" maxlength="120"></label><label><span data-en="Capacity" data-ar="السعة">Capacity</span><input id="postCapacity" type="number" min="1" max="10000"></label></div>
-      <label><span data-en="Photos (up to 3)" data-ar="الصور (حتى ٣ صور)">Photos (up to 3)</span><input id="postPhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple></label>
-      <button class="button" type="submit" data-en="Publish or submit" data-ar="انشر أو أرسل للمراجعة">Publish or submit</button>
-    </form>
-    <div class="feed-filters"><label><span data-en="Show" data-ar="عرض">Show</span><select id="feedKind"><option value="" data-en="All activity" data-ar="كل الأنشطة">All activity</option><option value="post" data-en="Updates" data-ar="تحديثات">Updates</option><option value="event" data-en="Events" data-ar="فعاليات">Events</option><option value="group_session" data-en="Group sessions" data-ar="جلسات جماعية">Group sessions</option><option value="challenge" data-en="Challenges" data-ar="تحديات">Challenges</option></select></label><label><span data-en="Sport" data-ar="الرياضة">Sport</span><select id="feedSport"><option value="" data-en="All sports" data-ar="كل الرياضات">All sports</option><option value="running">Running</option><option value="walking">Walking</option><option value="fitness">Fitness</option><option value="strength">Strength</option><option value="cycling">Cycling</option><option value="swimming">Swimming</option><option value="padel">Padel</option><option value="triathlon">Triathlon</option><option value="hyrox">Hyrox</option><option value="boxing">Boxing</option><option value="kickboxing">Kickboxing</option><option value="football">Football</option><option value="other">Other</option></select></label></div>
-    <div id="feedList" class="grid" data-user-content data-feed-panel="feed"></div>
-    <div id="communityBlogs" class="grid" data-user-content data-feed-panel="blogs" hidden></div>
-    <p id="communityBlogsEmpty" class="note" hidden data-en="No published articles yet." data-ar="لا توجد مقالات منشورة بعد.">No published articles yet.</p>
-    <p id="feedEmpty" class="note" data-en="No published community posts yet." data-ar="لا توجد منشورات مجتمعية منشورة بعد.">No published community posts yet.</p>
-  </section>
-
   <section id="sportsProfileSection">
     <h2 data-en="Your sports profile" data-ar="ملفك الرياضي">Your sports profile</h2>
     <p class="note" data-en="Optional. Used only for private coach communication. Garmin support is a public profile link only; no credentials or health data are collected." data-ar="اختياري. يُستخدم للتواصل الخاص مع المدرب. يدعم Garmin عبر رابط عام فقط؛ لا تُجمع بيانات دخول أو صحية.">Optional. Used only for private coach communication. Garmin support is a public profile link only; no credentials or health data are collected.</p>
@@ -315,8 +325,8 @@
     </form>
   </section>
 
-  <section id="join">
-    <h2 data-en="Join Our Community" data-ar="انضم إلى مجتمعنا">Join Our Community</h2>
+  <section id="member-account">
+    <h2 data-en="Post and join groups" data-ar="انشر وانضم إلى المجموعات">Post and join groups</h2>
     <p data-en="Create a member account from your dashboard, then publish posts, join sessions and receive in-app notifications." data-ar="أنشئ حساب عضو من لوحة التحكم، ثم انشر المنشورات وانضم إلى الحصص وتلقَّ الإشعارات داخل التطبيق.">Create a member account from your dashboard, then publish posts, join sessions and receive in-app notifications.</p>
     <p class="arabic" hidden>أنشئ حساب عضو من لوحة التحكم، ثم انشر المنشورات وانضم إلى الحصص وتلقَّ الإشعارات داخل التطبيق.</p>
     <p class="note" data-en="Community creation is active immediately for signed-in members and coaches. Member posts are moderated by MZ Active. No payment is collected here." data-ar="يتم تفعيل المجتمعات فوراً للأعضاء والمدربين المسجلين. تخضع منشورات الأعضاء لإشراف MZ Active. لا يتم تحصيل أي دفع هنا.">Community creation is active immediately for signed-in members and coaches. Member posts are moderated by MZ Active. No payment is collected here.</p>
@@ -379,5 +389,6 @@
 <script src="assets/js/community-social.js?v=20261124a" defer></script>
 <script src="assets/js/site-language.js?v=20261120h"></script>
 <script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script>
+<script src="assets/js/community-event-signup.js?v=20261125-event-alerts" defer></script>
 </body>
 </html>

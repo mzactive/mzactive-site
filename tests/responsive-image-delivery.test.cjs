@@ -127,13 +127,9 @@ test('coach-login background retains the original JPEG fallback and selects exis
   }
 });
 
-test('community hero preloads its dedicated format-gated WebP background', () => {
-  for (const [page, asset] of [
-    ['community.html', 'mzactive-community-run-768w.webp'],
-  ]) {
-    const html = read(page);
-    assert.ok(html.includes(`rel="preload" as="image" href="assets/images/responsive/${asset}" type="image/webp"`), page);
-    assert.ok(html.includes(`@supports (background-image: image-set(url("assets/images/responsive/${asset}") type("image/webp")))`), page);
-    assert.ok(fs.existsSync(path.join(root, 'assets/images/responsive', asset)), asset);
-  }
+test('community opens the feed with a compact, image-free introduction', () => {
+  const html = read('community.html');
+  assert.match(html, /community-signup\.css\?v=/);
+  assert.doesNotMatch(html, /rel="preload" as="image"[^>]*mzactive-community-run/);
+  assert.ok(html.indexOf('id="feed"') < html.indexOf('id="discover"'));
 });
