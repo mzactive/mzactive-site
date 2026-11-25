@@ -269,3 +269,20 @@ test('the community page keeps Arabic RTL discovery and placeholders', async ({ 
   await expect(page.locator('#communityList')).toContainText('Doha Morning Runners');
   assertOfflineSafe(mock);
 });
+
+test('community uses standard login and signed-in members can request event emails', async ({page})=>{
+  const mock = await installApiMock(page,{
+    overrides:{'POST /api/community/event-alerts':json({ok:true},202)},
+  });
+  await page.goto('/community.html');
+  await expect(page.locator('#join a[href$="#registerForm"]')).toBeVisible();
+  await expect(page.locator('#join a[href$="#loginForm"]')).toBeVisible();
+  await expect(page.locator('#eventAlertSignup')).toBeHidden();
+  await seedSession(page,{storage:'local'});
+  await page.reload();
+  await expect(page.locator('#communityAuthActions')).toBeHidden();
+  await page.locator('#eventAlertSignup').click();
+  await expect(page.locator('#eventAlertStatus')).toContainText('Check your email');
+  expect(mock.calls.find(c=>c.path==='/api/community/event-alerts').body).toEqual({language:'en'});
+  assertOfflineSafe(mock);
+});

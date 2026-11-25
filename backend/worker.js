@@ -1,3 +1,4 @@
+import { handleCommunityEventAlerts, deliverCommunityEventAlerts } from "./community-event-alerts.js";
 import { wellnessApi } from "./athlete-wellness.js";
 import { coachLibraryApi } from "./coach-library.js";
 import { ATHLETE_INVITATION_TTL_DAYS, onboardingIncomplete, lastActivityAt, isActive, coachMatches, invitationEmail } from "./athlete-crm.js";
@@ -1245,12 +1246,12 @@ function whatsappLink(number, message) {
   return `https://wa.me/${digits}?text=${encodeURIComponent(text(message, 1200))}`;
 }
 
-async function sendManagementEmail(env, to, subject, message) {
+async function sendManagementEmail(env, to, subject, message, idempotencyKey = "") {
   if (!emailDeliveryConfigured(env)) return { ok: false, error: "email_unavailable" };
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json", ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}) },
       body: JSON.stringify({
         from: env.EMAIL_FROM,
         to: [to],
@@ -5460,12 +5461,19 @@ async function handleCommunityApi(request, env, url) {
   return null;
 }
 
+const communityEventAlertApi = {
+  authenticated, emailDeliveryConfigured, emailValue, isSuperAdmin, rateLimit, rateLimitScoped,
+  randomId, readJson, reply, sendEmail: sendManagementEmail, sha256, text,
+};
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const cors = corsHeaders(request, env);
     if (!cors) return json({ error: "origin_not_allowed" }, 403);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: Object.fromEntries(cors) });
+    const eventAlertResponse = await handleCommunityEventAlerts(request, env, url, communityEventAlertApi, ctx);
+    if (eventAlertResponse) return eventAlertResponse;
     const invitationResponse = await handleAthleteInvitationApi(request, env, url);
     if (invitationResponse) return invitationResponse;
     const communityResponse = await handleCommunityApi(request, env, url);
@@ -5606,6 +5614,7 @@ export default {
     return reply(request, env, { error: "not_found" }, 404);
   },
   async scheduled(event, env) {
+    try { await deliverCommunityEventAlerts(env, communityEventAlertApi); } catch { /* never block other scheduled tasks */ }
     // Failed welcome deliveries retry safely; approval itself is never retried.
     try { await retryCoachWelcomeEmails(env); } catch { /* never block the scheduled analysis */ }
     try { await runMomoCoachFollowUps(env); } catch { /* never block the scheduled analysis */ }

@@ -65,11 +65,13 @@ test('community page scripts parse', () => {
   new Function(js);
 });
 
-test('the homepage community CTA uses the working member signup flow', () => {
+test('community opens the activity feed and keeps standard signup and login', () => {
   assert.match(index, /href="community\.html#join"[^>]*data-en="Join the community"/);
-  assert.match(html, /<section id="join">[\s\S]*?href="dashboard\.html#registerForm"/);
+  assert.match(html, /href="dashboard\.html\?next=%2Fcommunity\.html#registerForm"/);
+  assert.match(html, /href="dashboard\.html\?next=%2Fcommunity\.html#loginForm"/);
+  assert.match(html, /id="eventAlertSignup"[^>]*hidden/);
+  assert.ok(html.indexOf('id="feed"') < html.indexOf('id="discover"'));
   assert.doesNotMatch(index, /href="community-signup\.html"/);
   assert.match(signup, /http-equiv="refresh" content="0;url=dashboard\.html#registerForm"/);
   assert.match(signup, /window\.location\.href='dashboard\.html#registerForm'/);
-  assert.doesNotMatch(signup, /Registration is not yet connected to the server/);
 });

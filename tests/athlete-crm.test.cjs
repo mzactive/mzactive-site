@@ -21,7 +21,7 @@ test('the management portal exposes an Athletes tab with cache-busted CRM assets
   assert.match(adminHtml, /id="nav"/);
   assert.match(adminHtml, /id="view"/);
   assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261123a/);
-  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261123a/);
+  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261125-event-alerts/);
   assert.match(adminJs, /athletes:\['Athletes','الرياضيون'\]/);
   assert.match(adminJs, /athletes:'management\.coaches'/);
 });
