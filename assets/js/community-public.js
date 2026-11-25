@@ -23,7 +23,7 @@ function render(){
 }
 async function load(){status.textContent=t('Loading public profiles…','جارٍ تحميل الملفات العامة…');try{
  const response=await fetch(window.MZACTIVE_API_BASE+'/api/providers',{headers:{accept:'application/json'}});if(!response.ok)throw Error('unavailable');
- const data=await response.json();const eligible=(data.providers||[]).filter(p=>p.id&&p.display_name&&['coach','pacer'].includes(p.provider_type));profiles=[...eligible.filter(p=>p.provider_type==='coach').slice(0,3),...eligible.filter(p=>p.provider_type==='pacer').slice(0,3)];render();
+ const data=await response.json();const eligible=(data.providers||[]).filter(p=>p.id&&p.display_name&&['coach','pacer'].includes(p.provider_type));profiles=[...eligible.filter(p=>p.provider_type==='coach'),...eligible.filter(p=>p.provider_type==='pacer')];render();
  }catch{status.textContent=t('Public profiles are temporarily unavailable.','الملفات العامة غير متاحة مؤقتاً.');}}
  document.addEventListener('mzactive:language-change',()=>{if(profiles.length)render();});load();
 })();
