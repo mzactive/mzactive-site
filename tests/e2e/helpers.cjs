@@ -455,6 +455,18 @@ function defaultApiHandler(ctx, state) {
     });
   }
 
+  if (Array.isArray(state.libraryItems)&&urlPath==='/api/dashboard/coach-library'&&method==='GET')return json({library_version:1,items:state.libraryItems});
+  if(urlPath==='/api/dashboard/coach-library'&&method==='GET')return json({error:'not_found'},404);
+  const libraryMatch=/^\/api\/dashboard\/coach-library\/(exercise|workout|program)\/([a-zA-Z0-9-]+)$/.exec(urlPath);
+  if(Array.isArray(state.libraryItems)&&libraryMatch&&['PUT','DELETE'].includes(method)){
+    const [,kind,id]=libraryMatch,at=state.libraryItems.findIndex(x=>x.kind===kind&&x.id===id),current=state.libraryItems[at];
+    if((current?.revision||0)!==ctx.body?.revision)return json({error:'library_conflict'},409);
+    if(method==='DELETE'){if(at<0)return json({error:'library_conflict'},409);state.libraryItems.splice(at,1);return json({deleted:true});}
+    if(ctx.body?.item?.id!==id)return json({error:'invalid_library_item'},400);
+    const row={kind,id,item:ctx.body.item,revision:(current?.revision||0)+1,updated_at:'2026-11-25T07:00:00Z'};
+    if(at<0)state.libraryItems.push(row);else state.libraryItems[at]=row;
+    return json(row);
+  }
   if (urlPath === '/api/dashboard') return json(state.dashboard);
   if (urlPath === '/api/me/profile') return json({ profile: state.profile });
   if (urlPath.startsWith('/api/providers')) return json({ providers: state.providers });
@@ -570,6 +582,7 @@ function defaultApiHandler(ctx, state) {
  */
 async function installApiMock(page, options = {}) {
   const state = {
+    libraryItems: options.libraryItems || null,
     calls: [],
     blocked: [],
     whatsapp: [],

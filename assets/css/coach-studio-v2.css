@@ -7,3 +7,5 @@ dialog{position:fixed;inset:0;margin:auto;overscroll-behavior:contain;scroll-pad
 /* Calendar library drawer: keep the workflow in one workspace. */
 @media(min-width:951px){dialog.library-drawer{inset:0 0 0 auto;margin:0;width:min(460px,95vw);height:100dvh;max-height:100dvh;border-radius:12px 0 0 12px;padding:22px;overflow:auto}html[dir=rtl] dialog.library-drawer{inset:0 auto 0 0;border-radius:0 12px 12px 0}dialog.library-drawer::backdrop{background:#0b282b4d}}
 .library-drawer .list{margin:10px 0}.library-drawer h3{font-size:14px;margin:20px 0 8px}.library-drawer>input{width:100%}.library-drawer .listrow{padding:9px}.library-drawer .listrow button{white-space:normal}
+
+.library-storage{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;padding:8px 12px;background:#fff;border:1px solid var(--line);border-radius:8px}.library-error{color:#a03728;font-weight:600}
