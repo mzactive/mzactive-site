@@ -2495,14 +2495,18 @@ async function createBooking(request, env) {
       deepLink = coachConnectionId ? `https://mzactive.com/dashboard.html?connection=${coachConnectionId}#myAthletes` : null;
     }
   }
-  if (deepLink) {
+  if (coachOwnerId) {
     const coachUser = await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(coachOwnerId).first();
-    await queueCoachEmail(env, {
-      eventKey: `booking_received:${id}`,
-      to: coachUser?.email || "",
-      subject: "New coaching request on MZ Active",
-      body: `A member sent you a coaching request on MZ Active.\n\nOpen the exact request: ${deepLink}`,
-    });
+    const requestLink = `https://mzactive.com/dashboard.html?booking=${encodeURIComponent(id)}#coachBookingInbox`;
+    // The booking exists for both guests and registered athletes. Never require a connection to alert its owner.
+    try {
+      await queueCoachEmail(env, {
+        eventKey: `booking_received:${id}`,
+        to: coachUser?.email || "",
+        subject: "MZActive — New coaching request / طلب تدريب جديد",
+        body: `You have a new request from ${name}. Review the request and respond in your secure dashboard.\n\nلديك طلب جديد. راجع الطلب ورد عليه في لوحة التحكم.\n\n${requestLink}`,
+      });
+    } catch { /* A saved booking must remain successful if email delivery is unavailable. */ }
   }
   return reply(request, env, { request_id: id, connection_id: coachConnectionId, status: "received_pending_payment", provider_name: body.provider_name || "MZ Active Champion Pacer", provider_category: body.provider_category || "Sports Coach", provider_whatsapp: body.provider_whatsapp || null, provider_type: coachOwnerType || null, deep_link: deepLink }, 201);
 }
