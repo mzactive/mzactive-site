@@ -49,6 +49,9 @@ test('registered coach can publish, book, edit and re-submit a moderated profile
   await call('me/profile','PUT',edit,coach);
   const image = new Uint8Array(readFileSync(new URL('../assets/brand/mzactive-logo.webp',import.meta.url)));
   await call('me/profile/photo','PUT',image,coach);
+  assert.deepEqual(await call('me/profile/photo','GET',undefined,coach),image);
+  await call('me/profile/photo','GET',undefined,null,401);
+  await call('me/profile/photo','GET',undefined,admin,401);
   await call('me/profile/gallery/1','PUT',image,coach);
   await call(path,'GET',undefined,null,404);
   await call(path+'/gallery/1','GET',undefined,null,404);
@@ -81,7 +84,8 @@ test('registered coach can publish, book, edit and re-submit a moderated profile
   finally { globalThis.fetch = originalFetch; delete env.RESEND_API_KEY; delete env.EMAIL_FROM; }
   assert.equal(sent.length,1);
   assert.ok(JSON.stringify(sent[0]).includes('coach@example.test'));
-  assert.ok(JSON.stringify(sent[0]).includes(saved.request_id));
+  assert.ok(JSON.stringify(sent[0]).includes('view=requests#coachBookingInbox'));
+  assert.ok(!JSON.stringify(sent[0]).includes(saved.request_id));
   assert.ok((await call('dashboard/bookings','GET',undefined,coach)).bookings.some(b=>b.id===saved.request_id));
   assert.ok((await call('dashboard/notifications','GET',undefined,coach)).notifications.some(n=>n.entity_id===saved.request_id && n.type==='booking_received'));
 
