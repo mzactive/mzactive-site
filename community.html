@@ -148,13 +148,31 @@
       <button type="button" class="social-tab" data-feed-tab="challenges" aria-selected="false" data-en="Challenges" data-ar="التحديات">Challenges</button>
     </nav>
     <div class="fb-composer"><label for="fbComposerText" data-en="Share your sporting journey…" data-ar="شارك رحلتك الرياضية…">Share your sporting journey…</label><input id="fbComposerText" maxlength="4000" aria-label="Share your sporting journey"><div class="fb-composer-actions">
-      <button type="button" class="activity-primary" data-compose="activity" data-en="+ Log activity" data-ar="+ سجّل نشاطاً">+ Log activity</button>
+      <button type="button" class="activity-primary" id="openPrivateActivities" aria-controls="privateActivityPanel" aria-expanded="false" data-en="+ Log activity" data-ar="+ سجّل نشاطاً">+ Log activity</button>
+      <button type="button" data-compose="activity" data-en="Share workout" data-ar="شارك تمريناً">Share workout</button>
       <button type="button" data-compose="post" data-en="Write a post" data-ar="اكتب منشوراً">Write a post</button>
       <button type="button" data-compose="photo" data-en="Photo" data-ar="صورة">Photo</button>
       
       <button type="button" data-compose="event" data-en="Event" data-ar="فعالية">Event</button>
       
     </div></div>
+    <section id="privateActivityPanel" class="card" hidden aria-labelledby="privateActivityHeading">
+      <h3 id="privateActivityHeading" data-en="My activity log" data-ar="سجل أنشطتي">My activity log</h3>
+      <p class="note" data-en="Activities are private by default. You can share an activity with one accepted coach or revoke access at any time. Public community posts are separate." data-ar="الأنشطة خاصة افتراضياً. يمكنك مشاركة نشاط مع مدرب مرتبط بك بعد قبول الطلب وإلغاء المشاركة في أي وقت. المنشورات العامة منفصلة.">Activities are private by default. You can share an activity with one accepted coach or revoke access at any time. Public community posts are separate.</p>
+      <p id="activityLogStatus" class="note" role="status" aria-live="polite" data-user-content></p>
+      <form id="privateActivityForm" class="feed-form" hidden>
+        <div class="activity-fields">
+          <label><span data-en="Sport" data-ar="الرياضة">Sport</span><select id="privateActivitySport" required><option value="running" data-en="Running" data-ar="الجري">Running</option><option value="cycling" data-en="Cycling" data-ar="ركوب الدراجات">Cycling</option><option value="swimming" data-en="Swimming" data-ar="السباحة">Swimming</option><option value="walking" data-en="Walking" data-ar="المشي">Walking</option><option value="strength" data-en="Strength" data-ar="القوة">Strength</option><option value="other" data-en="Other" data-ar="أخرى">Other</option></select></label>
+          <label><span data-en="Date" data-ar="التاريخ">Date</span><input id="privateActivityDate" type="date" required></label>
+          <label><span data-en="Duration (min)" data-ar="المدة (دقيقة)">Duration (min)</span><input id="privateActivityDuration" type="number" min="0.1" max="1440" step="0.1" inputmode="decimal" required></label>
+          <label><span data-en="Distance (km, optional)" data-ar="المسافة (كم، اختياري)">Distance (km, optional)</span><input id="privateActivityDistance" type="number" min="0.01" max="1000" step="0.01" inputmode="decimal"></label>
+        </div>
+        <label><span data-en="Notes (optional)" data-ar="ملاحظات (اختياري)">Notes (optional)</span><textarea id="privateActivityNotes" rows="2" maxlength="2000"></textarea></label>
+        <label><span data-en="Who can see it?" data-ar="من يمكنه رؤيته؟">Who can see it?</span><select id="privateActivityCoach"><option value="" data-en="Only me — private" data-ar="أنا فقط — خاص">Only me — private</option></select></label>
+        <button class="button small" type="submit" data-en="Save activity" data-ar="احفظ النشاط">Save activity</button>
+      </form>
+      <div id="privateActivityList" data-user-content></div>
+    </section>
     <p id="feedNotice" class="note" role="status" aria-live="polite" data-en="Real posts, events and group sessions appear here after MZ Active moderation." data-ar="تظهر المنشورات والفعاليات والحصص الجماعية الحقيقية هنا بعد إشراف MZ Active.">Real posts, events and group sessions appear here after MZ Active moderation.</p>
     <p id="signInPrompt"><span data-en="Sign in from your dashboard to publish, like, comment and join group sessions." data-ar="سجّل الدخول من لوحة التحكم للنشر والإعجاب والتعليق والانضمام إلى الحصص الجماعية.">Sign in from your dashboard to publish, like, comment and join group sessions.</span> <a href="dashboard.html" data-en="Open dashboard" data-ar="افتح لوحة التحكم">Open dashboard</a></p>
     <form id="postForm" class="card feed-form" hidden>
@@ -388,9 +406,10 @@
   document.addEventListener('mzactive:language-change',event=>{lang=event.detail.lang;render()});render();
 })();
 </script>
-<script src="assets/js/community-feed.js?v=20261125-activity" defer></script>
+<script src="assets/js/community-feed.js?v=20261125-activity2" defer></script>
 <script src="assets/js/community-groups.js?v=20261125-locale" defer></script>
-<script src="assets/js/community-social.js?v=20261125-activity" defer></script>
+<script src="assets/js/community-social.js?v=20261125-activity2" defer></script>
+<script src="assets/js/community-activity-log.js?v=20261125a" defer></script>
 <script src="assets/js/site-language.js?v=20261120h"></script>
 <script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script>
 <script src="assets/js/community-event-signup.js?v=20261125-event-alerts" defer></script>
