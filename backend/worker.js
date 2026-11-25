@@ -2504,7 +2504,7 @@ async function createBooking(request, env) {
         eventKey: `booking_received:${id}`,
         to: coachUser?.email || "",
         subject: "MZActive — New coaching request / طلب تدريب جديد",
-        body: `You have a new request from ${name}. Review the request and respond in your secure dashboard.\n\nلديك طلب جديد. راجع الطلب ورد عليه في لوحة التحكم.\n\n${requestLink}`,
+        body: `You have a new request from ${name}. Review the request and respond in your secure dashboard.\n\nلديك طلب جديد. راجع الطلب ورد عليه في لوحة التحكم.\n\n${requestLink}${deepLink ? `\n\nAthlete connection / ارتباط الرياضي: ${deepLink}` : ""}`,
       });
     } catch { /* A saved booking must remain successful if email delivery is unavailable. */ }
   }
