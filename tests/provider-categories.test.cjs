@@ -36,6 +36,8 @@ test('directory and homepage render category labels and verified credentials saf
   assert.match(directory, /license_verified/);
   assert.match(directory, /"credentials"/);
 
+  const home = read('index.html');
+  for (const type of ['physiotherapist','sports_massage_therapist','nutritionist']) assert.ok(home.includes('coaches.html?type='+type));
   const homepage = read('assets/js/homepage.js');
   assert.match(homepage, /professional_category\?\.ar/);
   assert.match(homepage, /professional_category\?\.en/);
