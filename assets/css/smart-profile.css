@@ -91,3 +91,45 @@ body.mza-coach-public .public-heading .poster-credentials:not([hidden]){padding:
 body.mza-coach-public .public-heading .poster-person strong{font-size:18px}
 body.mza-coach-public .public-heading .poster-person span{font-size:10px}
 }
+
+/* Explicitly outrank the global light profile theme. Keep the actual name visible
+   even when an older script is cached, and avoid oversized portraits. */
+body.mza-coach-public:not(.home-page) .public-heading .poster-title #posterRole,
+body.mza-coach-public:not(.home-page) .public-heading #posterName{color:#e8c779!important}
+body.mza-coach-public:not(.home-page) .public-heading .poster-title span{color:#fff!important}
+body.mza-coach-public .public-heading .identity-copy{justify-content:flex-start}
+body.mza-coach-public .public-heading .name-line{position:static;width:auto;height:auto;overflow:visible;clip-path:none;margin:10px 0 0}
+body.mza-coach-public:not(.home-page) .public-heading .name-line h1{color:#e8c779!important;font-size:clamp(20px,3vw,32px)}
+body.mza-coach-public .public-heading .identity-row{max-width:760px;align-items:start}
+body.mza-coach-public .public-heading .identity-photo-wrap{justify-content:flex-start;min-height:0}
+body.mza-coach-public .public-heading .identity-photo-wrap .portrait{max-height:340px;aspect-ratio:3/4;object-fit:cover}
+body.mza-coach-public .public-heading .poster-person:has(#posterName:empty){display:none}
+body.mza-coach-public .public-heading .poster-credentials:not([hidden]){margin-block:12px}
+body.mza-coach-public .public-heading .identity-copy:has(#posterName:not(:empty)) .name-line{position:static}
+body.mza-coach-public .public-heading .profile-stats{display:flex;gap:12px}
+@media(max-width:600px){body.mza-coach-public .public-heading .identity-photo-wrap .portrait{max-height:240px}body.mza-coach-public .public-heading .identity-copy .name-line h1{font-size:20px}}
+
+/* Compact square-poster reference composition, with reliable contrast against global theme. */
+body.mza-coach-public:not(.home-page) .profile-heading.public-heading .identity-row{max-width:650px;width:100%;padding:24px;gap:12px 18px;grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);background:linear-gradient(150deg,#091d21,#103538)}
+body.mza-coach-public .profile-heading.public-heading{max-width:700px;margin-inline:auto}
+body.mza-coach-public .public-heading .identity-copy{justify-content:flex-start;align-self:stretch}
+body.mza-coach-public:not(.home-page) .public-heading .poster-title strong{color:#e8c779!important}
+body.mza-coach-public:not(.home-page) .public-heading .poster-title span{color:#fff!important}
+body.mza-coach-public .public-heading .smart-profile-brand{position:relative;display:block;padding:0 0 12px;margin:0 0 12px;border:0}
+body.mza-coach-public .public-heading .smart-profile-brand img{position:absolute;inset-inline-end:-86%;top:0;width:85px;max-width:none;z-index:2}
+body.mza-coach-public .public-heading .poster-title{font-size:clamp(22px,4vw,42px);letter-spacing:-.03em}
+body.mza-coach-public .public-heading .identity-photo-wrap{padding-top:54px;min-height:0;justify-content:flex-start;align-self:start;overflow:visible}
+body.mza-coach-public .public-heading .identity-photo-wrap .portrait,body.mza-coach-public .public-heading .identity-photo-wrap .avatar-fallback{aspect-ratio:3/4;max-height:285px;object-fit:cover}
+body.mza-coach-public:not(.home-page) .public-heading .poster-person strong{color:#e8c779!important}
+body.mza-coach-public .public-heading .poster-person{padding-top:8px}
+body.mza-coach-public .public-heading .poster-credentials:not([hidden]){margin-block:10px;gap:5px}
+body.mza-coach-public .public-heading .poster-credentials li{font-size:12px}
+body.mza-coach-public .public-heading .profile-actions{gap:6px}
+body.mza-coach-public:not(.home-page) .public-heading .profile-actions .button{flex:1 1 95px;font-size:11px}
+@media(max-width:600px){
+body.mza-coach-public:not(.home-page) .profile-heading.public-heading .identity-row{padding:14px;gap:10px}
+body.mza-coach-public .public-heading .poster-title{font-size:clamp(19px,5.8vw,30px)}
+body.mza-coach-public .public-heading .smart-profile-brand img{width:64px;inset-inline-end:-77%}
+body.mza-coach-public .public-heading .identity-photo-wrap{padding-top:43px}
+body.mza-coach-public .public-heading .poster-credentials li{font-size:10px}
+}
