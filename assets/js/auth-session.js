@@ -2,12 +2,13 @@
  * type and destination; this helper never infers a role from a form control. */
 (() => {
   const KEY = 'mzactive-provider-session';
-  const DESTINATIONS = new Set(['/admin.html', '/providers.html', '/dashboard.html']);
+  const DESTINATIONS = new Set(['/admin.html', '/providers.html', '/dashboard.html', '/pacer-dashboard.html']);
 
   const destination = (data) => {
     const path = data?.dashboard_path;
     if (DESTINATIONS.has(path)) return path;
     if (data?.management?.enabled || data?.user?.role === 'admin') return '/admin.html';
+    if (data?.account_type === 'pacer') return '/pacer-dashboard.html';
     if (data?.account_type === 'provider' || data?.user?.role === 'provider') return '/providers.html';
     return '/dashboard.html';
   };

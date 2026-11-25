@@ -3,7 +3,8 @@
 const { test, expect } = require('./pw.cjs');
 const { installApiMock, json } = require('./helpers.cjs');
 
-test('SAMLA calculator renders official stages and results', async ({ page }) => {
+test('SAMLA calculator renders official stages and results in English when selected', async ({ page }) => {
+  await page.addInitScript(() => { try { localStorage.setItem('mzactive-language-manual', 'en'); } catch {} });
   await page.goto('/samla/');
   await expect(page.locator('#stageRows tr')).toHaveCount(7);
   await expect(page.locator('#totals')).toContainText('200.0');
@@ -12,6 +13,7 @@ test('SAMLA calculator renders official stages and results', async ({ page }) =>
 });
 
 test('SAMLA AI distribution and independent calculators work', async ({ page }) => {
+  await page.addInitScript(() => { try { localStorage.setItem('mzactive-language-manual', 'en'); } catch {} });
   await installApiMock(page, {
     overrides: {
       'POST /api/samla/ai-strategy': json({ answer: 'Estimated strategy: start conservatively, hold steady pacing, fuel regularly, and keep transitions short. This is not a guarantee.' }),
@@ -53,4 +55,19 @@ test('SAMLA page supports Arabic RTL and English', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.locator('body')).toContainText('صمله 200');
   await expect(page.locator('body')).toContainText('احسب');
+});
+
+test('SAMLA defaults to Arabic for first-time visitors and keeps values on language switch', async ({ page }) => {
+  await page.goto('/samla/');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await expect(page.locator('body')).toContainText('صمله 200');
+  await expect(page.locator('#stageRows tr')).toHaveCount(7);
+  await expect(page.locator('#totals')).toContainText('وقت الإنهاء');
+  await page.locator('details.collapsible >> summary', { hasText: 'الكربوهيدرات' }).click();
+  await page.locator('#carbWeight').fill('72');
+  await page.locator('#carbButton').click();
+  const before = await page.locator('#carbWeight').inputValue();
+  await page.locator('#lang').click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  expect(await page.locator('#carbWeight').inputValue()).toBe(before);
 });

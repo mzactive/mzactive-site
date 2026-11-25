@@ -1569,11 +1569,18 @@
     if(tab==='settings'){await settingsSection(root);return}
     if(tab==='bookings'){const d=await api('admin/applications');group(root,t('Recent and open requests','الطلبات المفتوحة والأخيرة'),d.bookings,booking);return}
     if(tab==='pacers'){
-      if(!applications)applications=await api('admin/applications');
-      root.append(node('p',t('Review Pacer applications and the real booking requests linked to them. Private contact details stay with the approved profile.','راجع طلبات المرافقين وطلبات الحجز المرتبطة بها. تبقى بيانات التواصل الخاصة مع الملف المعتمد.'),'muted'));
-      renderCoaches(root,'pacer');
-      const d=applications;
-      group(root,t('Pacer booking requests','طلبات حجز المرافقين'),(d.bookings||[]).filter(b=>b.provider_type==='pacer'),booking);
+      root.append(node('p',t('Independent Pacer review. Pacer approval is separate from Coach approval. Private contact details stay with the approved profile.','مراجعة مستقلة لمنظّمي الوتيرة. الموافقة مستقلة عن موافقة المدربين. تبقى بيانات التواصل الخاصة مع الملف المعتمد.'),'muted'));
+      const data=await api('admin/pacers');
+      const grid=node('div',null,'grid');root.append(grid);
+      for(const p of data.pacers||[]){
+        const c=card(grid,p.display_name,[p.city,p.country,p.status,p.verified?t('Verified','موثّق'):t('Not verified','غير موثّق')].filter(Boolean).join(' · '),p.id);
+        c.append(node('p',null,[p.experience,(p.distances||[]).join(' · ')].filter(Boolean).join(' · ')));
+        if(p.status!=='approved')c.append(button(t('Approve','موافقة'),async()=>{await api('admin/pacers/'+encodeURIComponent(p.id),{method:'PATCH',body:{status:'approved',verified:true}});await render()}));
+        if(p.status!=='rejected')c.append(button(t('Reject','رفض'),async()=>{await api('admin/pacers/'+encodeURIComponent(p.id),{method:'PATCH',body:{status:'rejected',verified:false}});await render()}));
+        if(p.status==='approved')c.append(button(t('Suspend','تعليق'),async()=>{await api('admin/pacers/'+encodeURIComponent(p.id),{method:'PATCH',body:{status:'suspended',verified:false}});await render()}));
+        if(p.status==='suspended'||p.status==='rejected')c.append(button(t('Reactivate','إعادة تفعيل'),async()=>{await api('admin/pacers/'+encodeURIComponent(p.id),{method:'PATCH',body:{status:'pending',verified:false}});await render()}));
+      }
+      try{const reqs=await api('admin/pacer-requests');group(root,t('Pacer pacing requests','طلبات تنسيق الوتيرة'),reqs.requests,(r,q)=>card(r,q.event_name||q.service_name||q.goal_summary,[q.preferred_date,q.city,q.distance,q.target_pace,q.status].filter(Boolean).join(' · '),q.id))}catch{}
       return;
     }
     if(tab==='messages'){const d=await api('admin/messages');root.append(node('p',t('Message previews stay private. This view shows only conversation metadata for moderation.','تبقى معاينات الرسائل خاصة. تعرض هذه الشاشة بيانات المحادثة فقط للإشراف.'),'muted'));group(root,t('Unread and recent messages','الرسائل غير المقروءة والأخيرة'),d.messages,messageCard);return}

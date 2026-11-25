@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title data-en="Pacer profile | MZ Active" data-ar="ملف منظّم الوتيرة | MZ Active">ملف منظّم الوتيرة | MZ Active</title>
+<link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h">
+<script src="assets/js/language-preference.js?v=20261120c"></script>
+<style>
+body{margin:0;background:#091d21;color:#f0f5f3;font:16px/1.6 Arial,sans-serif}
+.wrap{width:min(900px,92%);margin:auto;padding:24px 0 60px}
+.card{background:#103538;border:1px solid #2e6567;border-radius:16px;padding:20px;margin-bottom:16px}
+.head{display:grid;grid-template-columns:120px 1fr;gap:18px;align-items:center}
+.photo{width:120px;height:160px;object-fit:cover;border-radius:12px;border:1px solid #f2b718;background:#205456}
+h1{margin:0;color:#f2b718;font-size:clamp(24px,4vw,36px)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px}
+.metric{background:#091d21;border:1px solid #2e6567;border-radius:12px;padding:12px;text-align:center}
+.metric b{display:block;color:#f2b718;overflow-wrap:anywhere}
+.metric span{display:block;color:#b8cbc6;font-size:12px;margin-top:4px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:10px 20px;border-radius:12px;background:#f2b718;color:#091d21;font-weight:900;text-decoration:none;border:0;cursor:pointer}
+.button.secondary{background:#103538;color:#f0f5f3;border:1px solid #2e6567}
+@media(max-width:600px){.head{grid-template-columns:88px 1fr}.photo{width:88px;height:118px}}
+</style>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c">
+<meta name="apple-mobile-web-app-title" content="MZA">
+<script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
+</head>
+<body><div class="wrap">
+<a href="pacers.html" style="color:#f2b718">Pacers</a>
+<section class="card" id="profileCard"><p data-en="Loading Pacer profile…" data-ar="جارٍ تحميل ملف منظّم الوتيرة…">جارٍ التحميل…</p></section>
+</div>
+<script src="assets/js/site-language.js?v=20261120h"></script>
+<script>
+const apiBase=window.MZACTIVE_API_BASE||'';
+const t=(en,ar)=>document.documentElement.lang==='ar'?ar:en;
+const id=new URLSearchParams(location.search).get('id')||'';
+const card=document.getElementById('profileCard');
+(async()=>{
+ try{
+  const r=await fetch(apiBase+'/api/pacers/'+encodeURIComponent(id));const d=await r.json();
+  if(!r.ok||!d.pacer){card.textContent=t('Pacer profile unavailable.','ملف منظّم الوتيرة غير متاح.');return}
+  const p=d.pacer;
+  const photo=p.has_photo?`<img class="photo" src="${apiBase}/api/pacers/${encodeURIComponent(p.id)}/photo?v=${encodeURIComponent(p.photo_updated_at||'')}" alt="">`:'<div class="photo"></div>';
+  const metrics=[];
+  if(p.experience)metrics.push([p.experience,t('Running experience','خبرة الجري')]);
+  if((p.distances||[]).length)metrics.push([p.distances.join(' · '),t('Supported distances','المسافات المدعومة')]);
+  const paces=Object.entries(p.paces||{}).map(([k,v])=>`${k}: ${v}`).join(' · ');
+  if(paces)metrics.push([paces,t('Sustainable pace','الوتيرة المستدامة')]);
+  if(p.availability)metrics.push([p.availability,t('Availability','التاحة')]);
+  if((p.languages||[]).length)metrics.push([p.languages.join(' · '),t('Languages','اللغات')]);
+  card.innerHTML=`<div class="head">${photo}<div><h1>${p.display_name}</h1><p>${[p.city,p.country].filter(Boolean).join(', ')}</p>${p.verified?`<p style="color:#f2b718">✓ ${t('Verified Pacer','منظّم وتيرة موثّق')}</p>`:''}<p>${p.bio||''}</p>${p.achievements?`<p>${p.achievements}</p>`:''}</div></div><div class="grid">${metrics.map(([v,l])=>`<div class="metric"><b>${v}</b><span>${l}</span></div>`).join('')}</div><div class="actions"><a class="button" href="pacer.html?provider=${encodeURIComponent(p.id)}#request">${t('Request a Pacer','اطلب منظّم وتيرة')}</a><button class="button secondary" id="shareBtn">${t('Share Profile','مشاركة الملف')}</button></div>`;
+  document.getElementById('shareBtn').onclick=async()=>{const url=location.href;try{if(navigator.share)await navigator.share({title:p.display_name,url});else{await navigator.clipboard.writeText(url);document.getElementById('shareBtn').textContent=t('Link copied.','تم نسخ الرابط.')}}catch{}};
+ }catch(e){card.textContent=t('Could not load this profile.','تعذر تحميل الملف.')}
+})();
+</script>
+</body>
+</html>

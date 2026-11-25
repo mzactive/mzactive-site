@@ -2,6 +2,11 @@
   const storageKey = 'mzactive-language-manual';
   const isLanguage = value => value === 'en' || value === 'ar';
   const detectLanguage = () => {
+    // SAMLA primarily serves Arabic-speaking athletes in Qatar. On a first
+    // visit with no explicit preference, default this campaign to Arabic.
+    // Explicit manual choices (stored above) always take priority.
+    const path = typeof location !== 'undefined' && location ? String(location.pathname || '') : '';
+    if (/(\/|^)samla(\/|$|\.html$)/i.test(path)) return 'ar';
     const preferred = navigator.languages?.[0] || navigator.language || '';
     return /^ar(?:-|$)/i.test(preferred) ? 'ar' : 'en';
   };

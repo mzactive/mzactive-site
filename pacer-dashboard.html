@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title data-en="My Pacer Dashboard | MZ Active" data-ar="لوحة منظّم الوتيرة | MZ Active">لوحة منظّم الوتيرة | MZ Active</title>
+<link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h">
+<script src="assets/js/api-base.js?v=20261120f"></script>
+<script src="assets/js/language-preference.js?v=20261120c"></script>
+<script src="assets/js/auth-session.js?v=20261120h"></script>
+<style>
+body{margin:0;background:#091d21;color:#f0f5f3;font:16px/1.6 Arial,sans-serif}
+.wrap{width:min(1000px,94%);margin:auto;padding:20px 0 60px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.top img{width:140px}
+.card{background:#103538;border:1px solid #2e6567;border-radius:16px;padding:18px;margin:14px 0}
+.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin:14px 0}
+.menu a,.menu button{display:block;min-height:46px;padding:10px 12px;border:1px solid #2e6567;border-radius:12px;background:#091d21;color:#f0f5f3;text-decoration:none;font:inherit;text-align:start;cursor:pointer}
+label{display:grid;gap:6px;margin:10px 0;color:#b8cbc6;font-size:14px}
+input,textarea{width:100%;padding:10px;border:1px solid #3b7779;border-radius:10px;background:#091d21;color:#f0f5f3;font:inherit}
+textarea{min-height:80px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 16px;border:0;border-radius:12px;background:#f2b718;color:#091d21;font:inherit;font-weight:900;cursor:pointer;text-decoration:none}
+.request{border:1px solid #2e6567;border-radius:12px;padding:12px;margin:8px 0;background:#091d21}
+.request .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.status{font-weight:800;color:#f2b718}
+</style>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png?v=20261120c">
+<meta name="apple-mobile-web-app-title" content="MZA">
+<script src="/assets/js/pwa-register.js?v=20261121b" defer></script>
+</head>
+<body><div class="wrap">
+<div class="top"><a href="index.html"><img src="assets/brand/mzactive-logo.webp" alt="MZ Active"></a><div><button class="btn" id="signout" data-en="Sign Out" data-ar="تسجيل الخروج">تسجيل الخروج</button></div></div>
+<h1 data-en="My Pacer Dashboard" data-ar="لوحة منظّم الوتيرة">لوحة منظّم الوتيرة</h1>
+<div class="menu">
+<a href="#myProfile" data-en="My Profile" data-ar="ملفي">ملفي</a>
+<a href="pacer-register.html#edit" data-en="Edit Profile" data-ar="تعديل الملف">تعديل الملف</a>
+<a href="#availability" data-en="My Availability" data-ar="تاحتي">تاحتي</a>
+<a href="#paces" data-en="Pacing Distances and Speeds" data-ar="المسافات والسرعات">المسافات والسرعات</a>
+<a href="#requests" data-en="Incoming Pacing Requests" data-ar="طلبات التنسيق الواردة">طلبات التنسيق</a>
+<a href="#accepted" data-en="Accepted Requests" data-ar="الطلبات المقبولة">الطلبات المقبولة</a>
+<a href="#events" data-en="Upcoming Events" data-ar="الفعاليات القادمة">الفعاليات القادمة</a>
+<a href="#notifications" data-en="Notifications" data-ar="الإشعارات">الإشعارات</a>
+<a href="account.html" data-en="Account Settings" data-ar="إعدادات الحساب">إعدادات الحساب</a>
+</div>
+<section class="card" id="myProfile"><h2 data-en="My Profile" data-ar="ملفي">ملفي</h2><div id="profile"></div></section>
+<section class="card" id="availability"><h2 data-en="My Availability" data-ar="تاحتي">تاحتي</h2><form id="profileForm"><label><span data-en="Availability" data-ar="التاحة">التاحة</span><textarea id="availabilityInput"></textarea></label><label><span data-en="Bio" data-ar="النبذة">النبذة</span><textarea id="bioInput"></textarea></label><button class="btn" type="submit" data-en="Save profile" data-ar="حفظ الملف">حفظ الملف</button></form></section>
+<section class="card" id="paces"><h2 data-en="Pacing Distances and Speeds" data-ar="المسافات والسرعات">المسافات والسرعات</h2><div id="pacesView"></div></section>
+<section class="card" id="requests"><h2 data-en="Incoming Pacing Requests" data-ar="طلبات التنسيق الواردة">طلبات التنسيق</h2><div id="pendingList"></div></section>
+<section class="card" id="accepted"><h2 data-en="Accepted Requests" data-ar="الطلبات المقبولة">الطلبات المقبولة</h2><div id="acceptedList"></div></section>
+<section class="card" id="events"><h2 data-en="Upcoming Events" data-ar="الفعاليات القادمة">الفعاليات القادمة</h2><div id="eventsList"></div></section>
+<section class="card" id="notifications"><h2 data-en="Notifications" data-ar="الإشعارات">الإشعارات</h2><p id="notices"></p></section>
+</div>
+<script src="assets/js/site-language.js?v=20261120h"></script>
+<script>
+const apiBase=window.MZACTIVE_API_BASE||'';
+const t=(en,ar)=>document.documentElement.lang==='ar'?ar:en;
+const $=id=>document.getElementById(id);
+const token=()=>localStorage.getItem('mzactive-provider-session')||sessionStorage.getItem('mzactive-provider-session')||'';
+async function api(path,options={}){const r=await fetch(apiBase+path,{...options,headers:{'content-type':'application/json',authorization:'Bearer '+token(),...(options.headers||{})}});const d=await r.json();if(!r.ok)throw Error(d.error||'failed');return d}
+function statusLabel(s){return ({received:t('Pending','معلق'),accepted:t('Accepted','مقبول'),declined:t('Declined','مرفوض'),completed:t('Completed','مكتمل'),cancelled:t('Cancelled','ملغي')})[s]||s}
+function requestCard(q,actions){const el=document.createElement('article');el.className='request';el.innerHTML=`<strong>${q.service_name||q.goal_summary||t('Pacing request','طلب تنسيق')}</strong><p>${[q.preferred_date,q.city,q.distance,q.target_pace].filter(Boolean).join(' · ')}</p><p class="status">${statusLabel(q.status)}</p>`;if(actions){const box=document.createElement('div');box.className='actions';for(const [s,label] of [['accepted',t('Accept','قبول')],['declined',t('Decline','رفض')],['completed',t('Complete','إكمال')],['cancelled',t('Cancel','إلغاء')]]){const b=document.createElement('button');b.className='btn';b.textContent=label;b.onclick=()=>update(q.id,s);box.append(b)}el.append(box)}return el}
+async function update(id,status){await api('/api/pacer/requests/'+id,{method:'PATCH',body:JSON.stringify({status})});await load()}
+async function load(){try{
+ const p=await api('/api/pacer/profile');const d=p.profile;
+ $('profile').innerHTML=`<h3>${d.display_name}</h3><p>${[d.city,d.country].filter(Boolean).join(', ')}</p>${d.verified?`<p class="status">✓ ${t('Verified Pacer','منظّم موثّق')}</p>`:''}`;
+ $('availabilityInput').value=d.availability||'';$('bioInput').value=d.bio||'';
+ $('pacesView').innerHTML=Object.entries(d.paces||{}).map(([k,v])=>`<p><strong>${k}</strong>: ${v}</p>`).join('')||t('No pacing ranges yet.','لا توجد نطاقات وتيرة بعد.');
+ const r=await api('/api/pacer/requests');const reqs=r.requests||[];
+ $('pendingList').replaceChildren(...reqs.filter(q=>q.status==='received').map(q=>requestCard(q,true)));
+ $('acceptedList').replaceChildren(...reqs.filter(q=>q.status==='accepted').map(q=>requestCard(q,false)));
+ $('eventsList').replaceChildren(...reqs.filter(q=>q.status==='accepted'&&q.preferred_date).map(q=>requestCard(q,false)));
+ $('notices').textContent=t('No new notifications.','لا توجد إشعارات جديدة.');
+ }catch(e){$('profile').textContent=e.message}}
+$('profileForm').onsubmit=async e=>{e.preventDefault();await api('/api/pacer/profile',{method:'PUT',body:JSON.stringify({availability:$('availabilityInput').value,bio:$('bioInput').value})});await load()};
+$('signout').onclick=async()=>{try{await fetch(apiBase+'/api/auth/logout',{method:'POST'})}catch{}localStorage.removeItem('mzactive-provider-session');sessionStorage.removeItem('mzactive-provider-session');location.assign('/index.html')};
+load();
+</script>
+</body>
+</html>
