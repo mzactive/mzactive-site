@@ -94,6 +94,10 @@
       for (const profile of profiles.slice(0, 4)) {
         const publicFields = new Set(Array.isArray(profile.public_fields) ? profile.public_fields : []);
         const card = node('a', 'coach-card');
+        const brand = node('img', 'smart-card-brand');
+        brand.src = 'assets/brand/mzactive-logo.webp';
+        brand.alt = '';
+        card.append(brand);
         if (profile.has_profile_photo && publicFields.has('profile_photo')) {
           const image = node('img', 'coach-card-photo');
           image.src = `${api}/api/providers/${encodeURIComponent(profile.id)}/photo?v=${encodeURIComponent(profile.profile_photo_updated_at || '')}`;
