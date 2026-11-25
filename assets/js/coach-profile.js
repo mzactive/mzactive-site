@@ -99,12 +99,24 @@
     if (posterName) posterName.textContent = p.display_name || '';
     if (posterSpecialty) posterSpecialty.textContent = roleName(p);
     const posterBio = $('#posterBio'), posterCredentials = $('#posterCredentials');
-    if (posterBio) { posterBio.textContent = p.bio || ''; posterBio.hidden = !p.bio; }
+    if (posterBio) { const description=String(p.bio||'').trim(); const meaningful=description&&!/^Profile awaiting completion by the provider\.?$/i.test(description); posterBio.textContent=meaningful?description:''; posterBio.hidden=!meaningful; }
     if (posterCredentials) {
       const entries = [Number(p.experience_years)>0 ? p.experience_years+t(' years experience',' سنوات خبرة') : '', String(p.qualifications || '').trim(), p.credentials?.certificate_name, p.credentials?.certificate_issuer, p.credentials?.license_issuer, ...(p.specialties || [])].filter(Boolean);
       posterCredentials.replaceChildren(...entries.slice(0,5).map(value=>node('li',value)));
       posterCredentials.hidden = !posterCredentials.children.length;
     }
+    const details=$('#posterDetails');
+    if(details){
+      details.replaceChildren();
+      addFact(details,t('Location','الموقع'),[p.city,p.country].filter(Boolean).join(', '));
+      addFact(details,t('Languages','اللغات'),(p.languages||[]).join(' · '));
+      addFact(details,t('Session format','نوع الجلسة'),({online:t('Online','عن بُعد'),'in-person':t('In person','حضوري'),both:t('Online & in person','عن بُعد وحضوري')}[p.coaching_mode]||''));
+      addFact(details,t('Program lengths','مدد البرامج'),(p.program_durations||[]).map(m=>m+t(' mo',' شهر')).join(' · '));
+      addFact(details,t('Services','الخدمات'),(p.services||[]).join(' · '));
+      details.hidden=!details.children.length;
+    }
+    const posterLinks=$('#posterLinks');
+    if(posterLinks){posterLinks.replaceChildren();for(const raw of p.social_links||[]){const url=safeProfileUrl(raw);if(!url)continue;const link=node('a',url.hostname.replace(/^www\./,'')+' ↗');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer nofollow';posterLinks.append(link)}}
     const back = q('.back-to-coaches');
     if (back && ['physiotherapist','sports_massage_therapist','nutritionist'].includes(p.provider_type)) {back.href='specialists.html?type='+encodeURIComponent(p.provider_type);back.textContent=t('← All specialists','جميع المختصين ←');back.dataset.en='← All specialists';back.dataset.ar='جميع المختصين ←';}
     $('#headline').textContent = [roleName(p), ...(p.specialties || []).slice(0, 2)].filter(Boolean).join(' · ');
@@ -161,7 +173,6 @@
     addFact(facts, t('Experience','الخبرة'), Number(p.experience_years) > 0 ? `${p.experience_years}${t(' years',' سنوات')}` : '');
     addFact(facts, t('Coaching mode','أسلوب التدريب'), ({online:t('Online','عن بُعد'),'in-person':t('In person','حضوري'),both:t('Online & in person','عن بُعد وحضوري')}[p.coaching_mode] || ''));
     addFact(facts, t('Program lengths','مدد البرامج'), (p.program_durations || []).map(months => `${months}${t(' mo',' شهر')}`).join(' · '));
-    addFact(facts, t('Indicative rate','السعر الاسترشادي'), p.indicative_rate_qar ? `${p.indicative_rate_qar}${t(' QAR',' ر.ق.')}` : '');
     const qualifications = String(p.qualifications || '').trim();
     if (qualifications) addFact(facts, t('Qualifications','المؤهلات'), qualifications);
     if (p.credentials) {
