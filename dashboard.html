@@ -369,9 +369,10 @@
     document.addEventListener('mzactive:language-change',event=>{lang=event.detail.lang;if(token())loadDashboard().catch(error=>notice(error.message))});
     async function openCoachStudio(access){
       const params=new URLSearchParams(location.search);
-      const deep=params.has('connection')||params.has('program')||!!(location.hash&&!['#loginForm','#registerForm','#signup','#login'].includes(location.hash));
+      const nativeView=['#myProfile','#editCoachProfile'].includes(location.hash)?'profile':location.hash==='#myAthletes'?'athletes':'';
+      const deep=params.has('program')||(!nativeView&&(params.has('connection')||!!(location.hash&&!['#loginForm','#registerForm','#signup','#login'].includes(location.hash))));
       if(params.get('legacy')==='1'||deep||access?.account_type!=='provider')return false;
-      try{const result=await api('/api/me/profile');if(result.profile?.status==='approved'&&['coach','bodybuilding_coach'].includes(result.profile.provider_type)){location.replace('/coach-studio.html');return true}}catch{}
+      try{const result=await api('/api/me/profile');if(result.profile?.status==='approved'&&['coach','bodybuilding_coach'].includes(result.profile.provider_type)){location.replace('/coach-studio.html'+(nativeView?'?view='+nativeView:''));return true}}catch{}
       return false;
     }
     async function start(){if(!token())return;try{const access=await api('/api/me/access');const destination=window.MZActiveAuth.destination(access);if(destination!=='/dashboard.html'){location.assign(destination);return}if(await openCoachStudio(access))return;window.MZActiveAccountMenu?.refresh();await loadDashboard()}catch(error){localStorage.removeItem(key);sessionStorage.removeItem(key);setSignedIn(false);notice(error.message)}}
