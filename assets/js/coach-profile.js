@@ -206,6 +206,8 @@
     if (p.viewer?.owner) exposeOwnerTools(p);
     else if (p.viewer?.can_message) buildViewerActions(p);
     q('.profile-layout')?.classList.toggle('public-layout', !(p.viewer?.owner));
+    const legacyTabs = $('profileTabs');
+    if (legacyTabs) legacyTabs.hidden = !(p.viewer?.owner);
   }
 
   function actionButton(label, className, id) {

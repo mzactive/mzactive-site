@@ -65,8 +65,8 @@ test('public coach profile exposes real stats, follow and social tabs', () => {
   assert.match(js, /\/api\/coaches\/\$\{encodeURIComponent\(id\)\}\/follow/);
   assert.match(css, /\.profile-stats\{/);
   assert.match(css, /\.profile-social-tabs \.social-tab\[aria-selected="true"\]/);
-  assert.match(html, /coach-profile\.css\?v=20261124b/);
-  assert.match(html, /coach-profile\.js\?v=20261124a/);
+  assert.match(html, /coach-profile\.css\?v=20261124d/);
+  assert.match(html, /coach-profile\.js\?v=20261124b/);
 });
 
 test('public blog feed can scope articles to one approved coach provider', () => {
@@ -124,4 +124,21 @@ test('private profile shows a real following count from the authenticated API', 
   assert.match(js, /t\('Following', 'متابَعون'\)/);
   assert.match(worker, /path === "\/api\/me\/following\/count"/);
   assert.match(worker, /SELECT COUNT\(\*\) AS count FROM user_follows WHERE follower_user_id=\?/);
+});
+
+test('public coach profile uses the approved portfolio layout without emojis', () => {
+  const html = read('coach.html');
+  const css = read('assets/css/coach-profile.css');
+  for (const marker of ['portfolio-hero', 'portfolio-copy', 'portfolio-portrait', 'portrait-frame', 'portfolio-eyebrow', 'portfolio-section']) {
+    assert.match(html, new RegExp(marker), marker);
+  }
+  assert.match(html, /data-en="Request Coaching" data-ar="اطلب تدريباً"/);
+  assert.match(html, /id="book" class="button button-primary"/);
+  assert.match(html, /id="share" class="button button-light"/);
+  assert.match(css, /\.profile-heading \.portfolio-hero\{display:grid;grid-template-columns:minmax\(0,1\.35fr\)/);
+  assert.match(css, /\.portfolio-portrait \.portrait-frame\{position:relative;aspect-ratio:3\/4/);
+  assert.match(css, /\.portfolio-portrait\{[^}]*max-width:350px\}/);
+  assert.match(css, /html\[dir="rtl"\] \.portfolio-portrait\{justify-self:start\}/);
+  const hero = html.slice(0, html.indexOf('<nav id="profileTabs"'));
+  assert.doesNotMatch(hero, /Request a session|Share profile|↗|🏃|🏁|📍/);
 });

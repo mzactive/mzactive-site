@@ -129,11 +129,24 @@ test('public coach profile shows real stats, social tabs and a visible follow ac
   await expect(page.locator('#share')).toBeVisible();
   const header = await page.evaluate(() => {
     const cover = document.querySelector('.cover-wrap').getBoundingClientRect();
-    const avatar = document.querySelector('.identity-photo-wrap').getBoundingClientRect();
-    return { coverHeight: Math.round(cover.height), overlap: Math.round(cover.bottom - avatar.top) };
+    const portrait = document.querySelector('.portfolio-portrait .portrait-frame').getBoundingClientRect();
+    const copy = document.querySelector('.portfolio-copy').getBoundingClientRect();
+    return {
+      coverHeight: Math.round(cover.height),
+      portraitRatio: +(portrait.width / portrait.height).toFixed(2),
+      portraitX: Math.round(portrait.x), copyX: Math.round(copy.x),
+      portraitY: Math.round(portrait.y), copyY: Math.round(copy.y),
+      rtl: document.documentElement.dir === 'rtl',
+      viewport: window.innerWidth,
+    };
   });
-  expect(header.coverHeight).toBeLessThan(250);
-  expect(header.overlap, JSON.stringify(header)).toBeGreaterThan(20);
+  expect(header.coverHeight).toBeLessThan(100);
+  expect(header.portraitRatio).toBeCloseTo(0.75, 1);
+  if (header.viewport > 900) {
+    expect(header.rtl ? header.portraitX < header.copyX : header.portraitX > header.copyX).toBe(true);
+  } else {
+    expect(header.portraitY).toBeLessThan(header.copyY);
+  }
 
   await page.locator('#profileSocialTabs [data-social-tab="blogs"]').click();
   await expect(page.locator('#profileBlogsPanel')).toBeVisible();
