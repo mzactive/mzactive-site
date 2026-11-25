@@ -3,6 +3,7 @@ import { wellnessApi } from "./athlete-wellness.js";
 import { coachLibraryApi } from "./coach-library.js";
 import { ATHLETE_INVITATION_TTL_DAYS, onboardingIncomplete, lastActivityAt, isActive, coachMatches, invitationEmail } from "./athlete-crm.js";
 import { handleCommunityGroupsApi } from "./community-groups.js";
+import { handleActivityLog } from "./activity-log.js";
 import { handleAiCoachApi } from "./ai-coach.js";
 import { cleanAssessment, analyzeAssessment, buildStarterPlan, mondayOf, assessmentFingerprint, buildAdvice, analyzeRaceResult, formatPace } from "./run-iq.js";
 
@@ -4918,6 +4919,8 @@ async function handleCommunityApi(request, env, url) {
     const viewer = await currentUser(request, env);
     if (method === "GET") {
       const kind = text(url.searchParams.get("kind") || "", 30), sport = text(url.searchParams.get("sport") || "", 40);
+      const followingOnly = url.searchParams.get("scope") === "following";
+      if (followingOnly && !viewer) return reply(request, env, { error: "unauthorized" }, 401);
       const coachId = text(url.searchParams.get("coach_id") || "", 36);
       let coachUser = "";
       if (coachId) coachUser = (await env.DB.prepare("SELECT user_id FROM provider_profiles WHERE id=? AND status='approved'").bind(coachId).first())?.user_id || "";
@@ -4925,8 +4928,9 @@ async function handleCommunityApi(request, env, url) {
         WHERE p.status='published' AND ${publicVisibility("u")} AND (p.community_id IS NULL OR EXISTS(
           SELECT 1 FROM communities c WHERE c.id=p.community_id AND c.status='active' AND c.visibility='public'))
         AND (?='' OR p.kind=?) AND (?='' OR p.sport=?) AND (?='' OR p.author_user_id=?)
+        AND (?=0 OR EXISTS(SELECT 1 FROM user_follows f WHERE f.follower_user_id=? AND f.coach_user_id=p.author_user_id))
         ORDER BY COALESCE(p.published_at,p.created_at) DESC LIMIT 100`)
-        .bind(kind, COMMUNITY_KINDS.includes(kind) ? kind : kind, sport, sport, coachUser, coachUser).all();
+        .bind(kind, kind, sport, sport, coachUser, coachUser, followingOnly ? 1 : 0, viewer?.id || "").all();
       return reply(request, env, { posts: await enrichPosts(env, rows.results, viewer?.id || "") });
     }
     const auth = await authenticated(request, env);
@@ -5476,6 +5480,8 @@ export default {
     if (eventAlertResponse) return eventAlertResponse;
     const invitationResponse = await handleAthleteInvitationApi(request, env, url);
     if (invitationResponse) return invitationResponse;
+    const activityLogResponse = await handleActivityLog(request, env, url, { authenticated, reply, text, readJson, randomId, sports: SPORTS });
+    if (activityLogResponse) return activityLogResponse;
     const communityResponse = await handleCommunityApi(request, env, url);
     if (communityResponse) return communityResponse;
     const communityGroupsResponse = await handleCommunityGroupsApi(request, env, url, {

@@ -205,14 +205,36 @@
     else notice(t('Reporting is unavailable right now.', 'الإبلاغ غير متاح الآن.'));
   }
 
+  function activityStats(distance, minutes, sport) {
+    const d = Number(distance), m = Number(minutes);
+    if (!Number.isFinite(d) || !Number.isFinite(m) || d < .01 || d > 1000 || m < .1 || m > 1440) return null;
+    const sec = Math.round(m * 60 / d);
+    const pace = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0') + ' /km';
+    return { distance: d.toFixed(2), duration: m.toFixed(1), rate: sport === 'cycling' ? (d * 60 / m).toFixed(1) + ' km/h' : pace };
+  }
+  function updateActivityEstimate() {
+    const s = activityStats($('activityDistance').value, $('activityDuration').value, $('postSport').value);
+    $('activityEstimate').textContent = s ? s.distance + ' km · ' + s.duration + ' min · ' + s.rate : '';
+  }
   function renderPost(post) {
     const card = node('article', undefined, 'card feed-card');
     card.dataset.userContent = '';
+    card.id = 'post-' + post.id;
     const head = node('div', undefined, 'team-head');
     head.append(node('strong', post.author_name || 'MZ Active member'), node('small', [kindLabel(post.kind), formatDate(post.published_at || post.created_at)].filter(Boolean).join(' · ')));
     card.append(head);
     if (post.title && post.title !== post.body) card.append(node('strong', post.title));
-    card.append(node('p', post.body));
+    const body = String(post.body || '');
+    const activity = /^\[MZA activity\] ([\d.]+) km \| ([\d.]+) min \| (\d{4}-\d{2}-\d{2})\n([\s\S]*)$/.exec(body);
+    const stats = activity && activityStats(activity[1], activity[2], post.sport);
+    if (stats) {
+      card.append(node('strong', t('Workout', 'تمرين') + ' · ' + activity[3], 'activity-date'));
+      const grid = node('div', undefined, 'activity-stat-grid');
+      for (const [label, value] of [[t('Distance','المسافة'), stats.distance + ' km'], [t('Time','المدة'), stats.duration + ' min'], [post.sport === 'cycling' ? t('Speed','السرعة') : t('Pace','الوتيرة'), stats.rate]]) {
+        const cell = node('div'); cell.append(node('small', label), node('strong', value)); grid.append(cell);
+      }
+      card.append(grid, node('p', activity[4]));
+    } else card.append(node('p', body));
     if (post.photos?.length) {
       const photos = node('div', undefined, 'feed-photos');
       for (const slot of post.photos) {
@@ -229,7 +251,7 @@
     if (post.cancelled_at) card.append(node('small', t('Cancelled', 'ملغى')));
     if (post.kind === 'event' || post.kind === 'group_session') card.append(node('small', `${t('Going', 'مشارك')}: ${post.going || 0} · ${t('Interested', 'مهتم')}: ${post.interested || 0}`));
     const actions = node('div', undefined, 'feed-actions');
-    actions.append(actionButton(`${post.liked ? '♥' : '♡'} ${post.likes || 0}`, () => toggleLike(post), !token));
+    actions.append(actionButton(`${post.liked ? '♥' : '♡'} ${t('Kudos', 'تشجيع')} ${post.likes || 0}`, () => toggleLike(post), !token));
     actions.append(actionButton(`${t('Comments', 'التعليقات')} (${post.comments || 0})`, () => toggleComments(card, post)));
     actions.append(actionButton(t('Share', 'مشاركة'), async () => {
       const url = new URL('community.html', location.href);
@@ -260,8 +282,20 @@
     return (items || []).filter(post => (!kind || post.kind === kind) && (!sport || post.sport === sport));
   }
 
+  let feedRequest = 0;
   async function loadFeed() {
+    const requestId = ++feedRequest;
+    const following = !communityState.id && document.querySelector('[data-feed-tab="following"]')?.getAttribute('aria-selected') === 'true';
+    const root = $('feedList');
+    root.replaceChildren();
+    $('feedEmpty').hidden = true;
+    if (following && !token) {
+      $('feedEmpty').textContent = t('Sign in to see posts from coaches you follow.', 'سجّل الدخول لمشاهدة منشورات المدربين الذين تتابعهم.');
+      $('feedEmpty').hidden = false;
+      return;
+    }
     const params = new URLSearchParams();
+    if (following) params.set('scope', 'following');
     if ($('feedKind').value) params.set('kind', $('feedKind').value);
     if ($('feedSport').value) params.set('sport', $('feedSport').value);
     try {
@@ -275,10 +309,11 @@
         data = await api(`/community/posts${query ? '?' + query : ''}`);
         posts = data.posts || [];
       }
-      const root = $('feedList');
+      if (requestId !== feedRequest) return;
       root.replaceChildren(...posts.map(renderPost));
-      $('feedEmpty').hidden = posts.length > 0;
-    } catch (error) { notice(error.message); }
+      $('feedEmpty').textContent = following ? t('No posts from followed coaches yet.', 'لا توجد منشورات من المدربين الذين تتابعهم بعد.') : t('No published community posts yet.', 'لا توجد منشورات مجتمعية منشورة بعد.');
+      $('feedEmpty').hidden = posts.length > 0 || document.querySelector('[data-feed-tab="blogs"]')?.getAttribute('aria-selected') === 'true';
+    } catch (error) { if (requestId === feedRequest) { notice(error.message); $('feedEmpty').textContent = t('Unable to load feed. Try again.', 'تعذّر تحميل الموجز. حاول مجدداً.'); $('feedEmpty').hidden = false; } }
   }
 
   function syncComposerFields() {
@@ -286,6 +321,8 @@
     $('postStartsWrap').hidden = !timed;
     $('postEventFields').hidden = !timed;
     $('postStartsAt').required = timed;
+    $('activityMetrics').hidden = kind !== 'post';
+    if (kind !== 'post') $('activityMetrics').open = false;
   }
 
   function syncComposerAccess() {
@@ -315,6 +352,14 @@
     if (!body) return;
     const kind = $('postKind').value, timed = ['event', 'group_session'].includes(kind);
     const payload = { kind, body, sport: $('postSport').value, language: language.get() };
+    const distance = $('activityDistance').value, duration = $('activityDuration').value, date = $('activityDate').value;
+    if (kind === 'post' && $('activityMetrics').open && (distance || duration || date)) {
+      const stats = activityStats(distance, duration, payload.sport);
+      if (!stats || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !payload.sport) {
+        notice(t('Choose a sport, valid distance, duration and activity date.', 'اختر الرياضة والمسافة والمدة والتاريخ الصحيح.')); return;
+      }
+      payload.body = '[MZA activity] ' + stats.distance + ' km | ' + stats.duration + ' min | ' + date + '\n' + body;
+    }
     if (timed) {
       if (!$('postStartsAt').value) { notice(t('Choose a valid start time.', 'اختر وقت بداية صحيحاً.')); return; }
       payload.starts_at = new Date($('postStartsAt').value).toISOString();
@@ -336,6 +381,8 @@
         await api(`/community/posts/${encodeURIComponent(result.id)}/photos/${index + 1}`, { method: 'PUT', headers: { 'content-type': file.type }, body: file });
       }
       form.reset();
+      $('activityMetrics').open = false;
+      updateActivityEstimate();
       syncComposerFields();
       notice(result.status === 'published'
         ? t('Published. Your post is now visible in the community.', 'تم النشر. أصبح منشورك ظاهراً في المجتمع.')
@@ -478,6 +525,7 @@
   });
   window.addEventListener('mzactive:community-refresh', () => loadFeed());
   $('postKind').addEventListener('change', syncComposerFields);
+  for (const id of ['activityDistance', 'activityDuration', 'postSport']) $(id).addEventListener('input', updateActivityEstimate);
   $('postForm').addEventListener('submit', createPost);
   $('sportsForm').addEventListener('submit', saveSportsProfile);
   $('sportsPhotoUpload').addEventListener('click', uploadSportsPhoto);

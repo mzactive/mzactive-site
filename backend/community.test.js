@@ -108,6 +108,11 @@ test('approved coaches publish cover images, achievements and community posts im
   assert.ok((await call('community/challenges')).challenges.some(item => item.id === challenge.id));
 
   await call('coaches/' + profileId + '/follow', 'POST', {}, member.token);
+  await call('community/posts?scope=following', 'GET', undefined, undefined, 401);
+  const followingFeed = await call('community/posts?scope=following', 'GET', undefined, member.token);
+  assert.ok(followingFeed.posts.some(item => item.id === post.id));
+  assert.ok(!followingFeed.posts.some(item => item.id === challenge.id));
+  assert.equal((await call('community/posts?scope=following', 'GET', undefined, coach.token)).posts.length, 0);
   const followed = (await call('providers/' + profileId)).provider;
   assert.equal(followed.follower_count, 1);
   assert.equal(followed.is_following, false);
@@ -180,5 +185,38 @@ test('coach booking inbox, feedback and admin moderation respect permissions', a
   const pending = await call('community/posts', 'POST', { kind: 'post', body: 'Needs moderation' }, member.token, 201);
   await call('admin/community/posts/' + pending.id, 'PATCH', { status: 'hidden' }, admin.token);
   assert.equal((await call('community/posts')).posts.some(item => item.id === pending.id), false);
+  db.close();
+});
+
+test('private activities are owner-only by default and coach access is explicit and revocable', async () => {
+  const { call, coach, admin, member, profileId, db } = await approvedFixtures();
+  const stranger = await call('auth/register', 'POST', { email: 'stranger@example.test', password, consent: true, account_type: 'member' }, null, 201);
+  await call('me/activities', 'GET', undefined, undefined, 401);
+  const payload = { sport:'running', activity_date:'2026-11-25', distance_km:10, duration_minutes:45, notes:'Private run' };
+  const activity = await call('me/activities','POST',payload,member.token,201);
+  assert.equal((await call('me/activities','GET',undefined,member.token)).activities[0].id, activity.id);
+  for (const user of [coach, stranger, admin]) {
+    assert.equal((await call('me/activities','GET',undefined,user.token)).activities.length,0);
+    await call('me/activities/'+activity.id,'PATCH',{shared_connection_id:null},user.token,404);
+    await call('me/activities/'+activity.id,'DELETE',undefined,user.token,404);
+  }
+  const connection = await call('connections','POST',{coach_id:profileId},member.token,201);
+  await call('me/activities/'+activity.id,'PATCH',{shared_connection_id:connection.id},member.token,403);
+  await call('connections/'+connection.id,'PATCH',{status:'accepted'},coach.token);
+  assert.ok((await call('me/activity-coaches','GET',undefined,member.token)).coaches.some(c=>c.id===connection.id));
+  await call('me/activities/'+activity.id,'PATCH',{shared_connection_id:connection.id},member.token);
+  const shared = (await call('me/activities','GET',undefined,coach.token)).activities;
+  assert.equal(shared.length,1);
+  assert.equal(shared[0].id,activity.id);
+  assert.equal(shared[0].is_owner,0);
+  assert.equal(shared[0].shared_connection_id,null);
+  assert.equal((await call('me/activities','GET',undefined,stranger.token)).activities.length,0);
+  assert.ok(!(await call('community/posts')).posts.some(p=>p.body.includes('Private run')));
+  await call('me/activities/'+activity.id,'PATCH',{shared_connection_id:null},member.token);
+  assert.equal((await call('me/activities','GET',undefined,coach.token)).activities.length,0);
+  await call('me/activities','POST',{...payload,duration_minutes:-1},member.token,400);
+  await call('me/activities','POST',{...payload,activity_date:'2026-02-31'},member.token,400);
+  await call('me/activities/'+activity.id,'DELETE',undefined,member.token);
+  assert.equal((await call('me/activities','GET',undefined,member.token)).activities.length,0);
   db.close();
 });

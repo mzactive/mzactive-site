@@ -16,7 +16,21 @@
       return;
     }
     if (!form) return;
-    form.hidden = false;
+    if (form.hidden) {
+      $('postAccessNotice')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (kind === 'activity') {
+      $('postKind').value = 'post';
+      $('postKind').dispatchEvent(new Event('change', { bubbles: true }));
+      $('activityMetrics').open = true;
+      const now = new Date();
+      $('activityDate').value = [now.getFullYear(), String(now.getMonth()+1).padStart(2,'0'), String(now.getDate()).padStart(2,'0')].join('-');
+    } else if (kind === 'post') {
+      $('postKind').value = 'post';
+      $('postKind').dispatchEvent(new Event('change', { bubbles: true }));
+      $('activityMetrics').open = false;
+    }
     form.scrollIntoView({ behavior: 'smooth', block: 'center' });
     if (kind === 'photo') $('postPhotos')?.click();
     else if (kind === 'event') {
@@ -75,7 +89,7 @@
     if (key === 'challenges' && $('feedKind')) {
       $('feedKind').value = 'challenge';
       $('feedKind').dispatchEvent(new Event('change', { bubbles: true }));
-    } else if (key === 'feed' && $('feedKind')) {
+    } else if ((key === 'feed' || key === 'following') && $('feedKind')) {
       $('feedKind').value = '';
       $('feedKind').dispatchEvent(new Event('change', { bubbles: true }));
     }

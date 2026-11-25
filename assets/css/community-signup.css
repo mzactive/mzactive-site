@@ -104,3 +104,60 @@ body.community-page:not(.home-page) main :is(input,textarea)::placeholder { colo
   .community-page header nav { gap: 8px 12px; }
   .community-page header nav a { margin: 0; }
 }
+
+/* Activity-first community; retain existing IDs and server-backed interactions. */
+body.community-page:not(.home-page){--bg:#f2f5f1;--panel:#fff;--line:#dce4de;--community-field:#fff}
+.community-page main{max-width:1100px;margin:auto;padding:24px clamp(12px,3vw,32px)}
+.community-page main [hidden]{display:none!important}
+.community-page .hero{background:#e8efea;border-color:#d7e4da;gap:16px;margin-block:0 24px;padding:18px}
+.community-page .hero h1{font-size:clamp(25px,4vw,39px)}
+.community-page .hero #join{padding:16px!important}
+.community-page .activity-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.community-page .activity-heading h2{margin:0;line-height:1.25;font-size:clamp(24px,4vw,34px)}
+.community-page .activity-eyebrow{font-size:11px;letter-spacing:.14em;font-weight:800;color:#806022;margin:0 0 4px}
+.community-page .activity-profile{font-size:14px;text-decoration:underline;text-underline-offset:4px;color:#17433b}
+.community-page #feed{max-width:740px;margin-inline:auto}
+.community-page #feedList{max-width:none;gap:12px}
+.community-page .fb-feed-tabs{flex-wrap:nowrap;overflow-x:auto;gap:6px;margin-top:12px}
+.community-page .fb-feed-tabs .social-tab{flex:0 0 auto;border-radius:8px;border-color:transparent}
+.community-page .fb-composer{background:#fff;padding:16px;box-shadow:0 1px 4px #14352c0b}
+.community-page .fb-composer-actions .activity-primary{background:#103638;color:#fff;border-color:#103638;font-weight:700}
+.community-page .feed-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.community-page .feed-card{padding:18px;gap:12px;background:#fff;box-shadow:0 2px 8px #14352c08}
+.community-page .feed-card .team-head{display:grid;gap:2px}
+.community-page .feed-card .team-head strong{font-size:16px}
+.community-page .feed-card .team-head small,.community-page .feed-card>small{color:#516c64}
+.community-page .feed-card>p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.community-page .feed-photos{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px}
+.community-page .feed-photos img{width:100%;height:auto;max-height:340px;aspect-ratio:4/3;object-fit:cover}
+.community-page .feed-actions{border-top:1px solid #e6ebe7;padding-top:10px;gap:6px}
+.community-page .feed-actions button{border-color:transparent;background:#f1f5f2;min-height:44px;flex:1 0 auto}
+.community-page .feed-actions button:hover:not(:disabled){background:#e2ede5}
+.community-page .activity-metrics{border:1px solid #dce4de;border-radius:12px;padding:12px;background:#f6f8f5}
+.community-page .activity-metrics summary{cursor:pointer;font-weight:700;min-height:32px}
+.community-page .activity-fields,.community-page .activity-stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.community-page .activity-stat-grid{padding:12px 0;border-block:1px solid #e6ebe7}
+.community-page .activity-stat-grid>div{display:grid;gap:2px;min-width:0}
+.community-page .activity-stat-grid small{color:#516c64;font-size:12px}
+.community-page .activity-stat-grid strong{font-size:clamp(15px,3.6vw,23px);line-height:1.2;overflow-wrap:anywhere;direction:ltr;text-align:start}
+.community-page .activity-date{font-size:14px;color:#17433b}
+.community-page .activity-estimate{font-weight:700;margin:8px 0 0;direction:ltr;text-align:start}
+body.community-page:not(.home-page) main :is(input,textarea,select){color:#17342e!important}
+@media(max-width:600px){
+ .community-page .hero{padding:14px;margin-bottom:18px}
+ .community-page .hero .lead{font-size:14px}
+ .community-page .hero .community-hero-links{display:none}
+ .community-page .hero #join{padding:12px!important}
+ .community-page .feed-card{padding:14px}
+ .community-page .activity-fields{grid-template-columns:1fr 1fr}
+ .community-page .activity-fields label:last-child{grid-column:1/-1}
+ .community-page .feed-actions button{font-size:13px;padding-inline:8px}
+}
+
+.community-page #privateActivityPanel{scroll-margin-top:16px;margin:0 0 16px}
+.community-page #privateActivityPanel h3{margin:0 0 8px}
+.community-page #privateActivityPanel .activity-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.community-page #privateActivityPanel .activity-fields label:last-child{grid-column:auto}
+.community-page .private-activity-card{padding:16px 0;border-top:1px solid #dce4de;display:grid;gap:8px}
+.community-page .private-activity-card>p{white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.community-page .private-activity-card .activity-stat-grid{grid-template-columns:repeat(auto-fit,minmax(85px,1fr))}

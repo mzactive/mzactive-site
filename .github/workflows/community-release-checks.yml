@@ -1,0 +1,33 @@
+name: Community release checks
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'community.html'
+      - 'assets/js/community-*.js'
+      - 'assets/css/community-signup.css'
+      - 'backend/**'
+      - 'tests/**'
+      - '.github/workflows/community-release-checks.yml'
+permissions:
+  contents: read
+jobs:
+  community-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: |
+          node --check assets/js/community-feed.js
+          node --check assets/js/community-social.js
+          node --check assets/js/community-activity-log.js
+          node --check backend/activity-log.js
+          node --check backend/worker.js
+      - name: Static regression tests
+        run: npm run test:static
+      - name: Backend regression tests
+        run: npm run test:backend
