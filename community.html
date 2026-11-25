@@ -329,7 +329,7 @@
       </ol>
       <p class="note" data-en="Your age range, gender, city and sports interests are optional. Marketing updates require separate consent." data-ar="الفئة العمرية والجنس والمدينة والرياضات المفضلة اختيارية. الرسائل التسويقية تتطلب موافقة منفصلة.">Your age range, gender, city and sports interests are optional. Marketing updates require separate consent.</p>
     </div>
-    <a class="button" href="dashboard.html" data-en="Open dashboard" data-ar="افتح لوحة التحكم">Open dashboard</a>
+    <a class="button" href="dashboard.html#registerForm" data-en="Create a member account" data-ar="أنشئ حساب عضو">Create a member account</a>
   </section>
 </main>
 <footer>
@@ -359,6 +359,7 @@
   const button=document.createElement('button');button.type='button';button.className='lang-toggle';button.setAttribute('aria-label','Change language');
   document.querySelector('header nav').append(button);
   function render(){
+    document.title=lang==='ar'?'مجتمع MZ Active الرياضي | قطر':'MZActive Sports Community | Qatar';
     document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
     document.body.dir=document.documentElement.dir;document.body.classList.toggle('rtl',lang==='ar');
     document.querySelectorAll('.arabic').forEach(el=>el.hidden=true);
@@ -374,7 +375,7 @@
 })();
 </script>
 <script src="assets/js/community-feed.js?v=20261124b" defer></script>
-<script src="assets/js/community-groups.js?v=20261121n" defer></script>
+<script src="assets/js/community-groups.js?v=20261125-locale" defer></script>
 <script src="assets/js/community-social.js?v=20261124a" defer></script>
 <script src="assets/js/site-language.js?v=20261120h"></script>
 <script src="assets/js/pwa-install-v2.js?v=20261122a" defer></script>

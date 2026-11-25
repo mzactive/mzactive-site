@@ -76,13 +76,19 @@ test('preselected Pacer requests use real distances and pacing units', async ({ 
 
 test('Run IQ promo card is visible and links to the assessment', async ({ page }) => {
   const mock = await installApiMock(page, {
-    overrides: { 'GET /api/pacers': json({ pacers: [] }) },
+    overrides: { 'GET /api/pacers': json({ pacers: [] }), 'GET /api/run-iq/coaches': json({ coaches: [] }) },
   });
   await page.goto('/pacer.html');
+  const hero = page.locator('.hero-photo img');
+  await expect(hero).toBeVisible();
+  await expect.poll(() => hero.evaluate(img => img.naturalWidth)).toBeGreaterThan(0);
+  await expect.poll(() => hero.evaluate(img => img.currentSrc)).toContain('qatar-finish-line');
   const promo = page.locator('#runiqPromo');
   await expect(promo).toBeVisible();
   await expect(promo).toContainText("What's Your Running Pace?");
-  await expect(promo.locator('a.btn')).toHaveAttribute('href', 'https://mzactive.com/run-iq.html');
+  await promo.getByRole('link', { name: 'Discover My Pace' }).click();
+  await expect(page).toHaveURL(/run-iq\.html#assessment$/);
+  await expect(page.locator('#qLevel')).toBeVisible();
   assertOfflineSafe(mock);
 });
 
@@ -97,6 +103,11 @@ test('Arabic mode renders the Pacers page in RTL with translated copy', async ({
 
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.locator('body')).toHaveClass(/rtl/);
+  await expect(page.locator('#runiqPromo')).toContainText('تقييم مجاني دون الحاجة إلى حساب.');
+  await expect(page.locator('#runiqPromo a')).toHaveText('اكتشف وتيرتي');
+  await expect(page.locator('label[for="name"]')).toHaveText('اسمك *');
+  await expect(page.locator('label[for="bookingConsent"], #bookingConsent + span')).toContainText('أوافق');
+  await expect(page.locator('#bookingSubmit')).toHaveText('أرسل الطلب ↗');
   await expect(page.locator('#pacerEmpty')).toContainText('ملفات أول المرافقين قيد المراجعة.');
   await expect(page.locator('#pacerEmpty a.btn')).toHaveText('انضم كمنظّم وتيرة الجري');
   assertOfflineSafe(mock);

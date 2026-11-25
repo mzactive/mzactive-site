@@ -127,41 +127,73 @@ body.mza-coach-public .owner-private-tools .right-rail{display:grid;grid-templat
 body.mza-coach-public .owner-private-tools .surface{padding:16px;border-radius:12px;box-shadow:none;margin-top:12px;background:white!important}
 body.mza-coach-public .owner-private-tools .create-card{box-shadow:none;margin-top:12px}
 
-/* Guest contact uses the same light petrol and gold palette as the profile. */
-.coach-contact {
+/* Keep the guest form on the light profile palette when the global theme is dark. */
+#coachContact {
+  --contact-surface: #f0f8f5;
+  --contact-border: #658b83;
+  --contact-action: #103638;
+  color-scheme: light;
   box-sizing: border-box;
   width: min(34rem, calc(100% - 2rem));
   max-height: calc(100% - 2rem);
   overflow: auto;
-  background: #f0f8f5;
-  color: #143834;
-  border: 1px solid #9dbdb3;
+  background-color: var(--contact-surface) !important;
+  color: var(--cp-ink) !important;
+  border: 1px solid var(--contact-border) !important;
   border-radius: 1rem;
   padding: clamp(1rem, 4vw, 1.75rem);
   box-shadow: 0 20px 70px #102e2a4d;
 }
-.coach-contact::backdrop { background: #09272ac2; }
-.coach-contact .contact-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.coach-contact h2, .coach-contact p { color: #143834; }
+#coachContact::backdrop { background: #09272a99; }
+.coach-contact .contact-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+#coachContact h2 { margin: 0; color: var(--cp-ink) !important; overflow-wrap: anywhere; }
+.coach-contact p { color: var(--cp-ink); }
 .coach-contact .contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr)); gap: .75rem; }
 .coach-contact label { display: grid; gap: .35rem; margin-block: .75rem; font-weight: 600; }
 .coach-contact label[hidden], .coach-contact [hidden] { display: none !important; }
-.coach-contact input:not([type=checkbox]), .coach-contact select, .coach-contact textarea {
-  box-sizing: border-box;
+#coachContact :is(input:not([type="checkbox"]), select, textarea) {
+  color-scheme: light;
   width: 100%;
   min-height: 2.75rem;
-  border: 1px solid #8caea4;
-  border-radius: .55rem;
+  border: 1px solid var(--contact-border) !important;
+  border-radius: .55rem !important;
   padding: .55rem .7rem;
-  color: #143834;
-  background: #fafffc;
+  color: var(--cp-ink) !important;
+  background-color: var(--contact-surface) !important;
   font: inherit;
   font-size: 1rem;
+  font-weight: 400;
+}
+#coachContact select option {
+  color: var(--cp-ink);
+  background-color: var(--contact-surface);
 }
 .coach-contact .contact-consent { display: flex; align-items: flex-start; gap: .5rem; font-weight: 400; }
-.coach-contact .contact-consent input { margin-block-start: .3rem; accent-color: #1d6157; }
+#coachContact input[type="checkbox"] { margin-block-start: .3rem; accent-color: var(--contact-action); }
 .coach-contact a { color: #13594d; text-decoration: underline; }
-.coach-contact button:focus-visible, .coach-contact input:focus-visible, .coach-contact textarea:focus-visible, .coach-contact select:focus-visible { outline: 2px solid #1b6558; outline-offset: 2px; }
+
+#coachContact #contactClose,
+#coachContact #contactSubmit {
+  min-height: 2.75rem;
+  border: 1px solid var(--contact-action) !important;
+  border-radius: .55rem;
+}
+#coachContact #contactClose {
+  flex: 0 0 auto;
+  min-width: 2.75rem;
+  background-color: var(--contact-surface) !important;
+  color: var(--contact-action) !important;
+}
+#coachContact #contactSubmit {
+  background-color: var(--contact-action) !important;
+  color: #fff !important;
+}
+#coachContact #contactSubmit:hover:not(:disabled) { background-color: #215652 !important; }
+#coachContact #contactClose:hover { background-color: #e0ede8 !important; }
+#coachContact :is(a, button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--contact-action);
+  outline-offset: 2px;
+}
+#contactStatus:empty { margin: 0; }
 
 body.mza-coach-public .profile-actions [hidden] { display: none !important; }
-.coach-contact #contactSubmit { background: #dfb64e; color: #15332d; border-color: #dfb64e; }
