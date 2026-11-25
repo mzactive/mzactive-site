@@ -52,8 +52,24 @@ body{background:#f3f5f3;color:#17342e}header{background:#091d21f7} .wrap{width:m
 @media(max-width:390px){.directory-results .pacer-grid{grid-template-columns:1fr}.pacer-photo{height:200px}}
 
 </style>
+<style>
+/* Scope palette to each surface so shared theme cannot wash out light cards. */
+body.pacer-page:not(.home-page){background-color:#f3f6f3!important}
+body.pacer-page :is(#choose,#services,#champions,#runiqPromo){--bg:#f3f6f3;--panel:#fff;--panel2:#e8efea;--text:#17342e;--muted:#526b63;--line:#dce4df;--gold:#f2b718;color:var(--text);color-scheme:light;background-color:var(--bg)!important;border-color:var(--line)}
+body.pacer-page #runiqPromo{--bg:#e8efea}
+body.pacer-page :is(#choose,#services,#champions,#runiqPromo) :is(h1,h2,h3,h4,strong,legend){color:#17342e!important}
+body.pacer-page :is(#choose,#services,#champions,#runiqPromo) :is(p,label,small,.note,.fine){color:#526b63}
+body.pacer-page #champions :is(input,select){color:#17342e!important;background-color:#fff!important;border-color:#cbd9d0!important;color-scheme:light}
+body.pacer-page #champions input::placeholder{color:#526b63!important}
+body.pacer-page #champions select option{color:#17342e;background:#fff}
+body.pacer-page #champions .pacer-card .btn{background-color:#103538!important;color:#fff!important;border-color:#103538!important}
+body.pacer-page #champions .pacer-card .btn:hover{background-color:#205456!important}
+body.pacer-page #champions .empty-note{background:#fff;color:#526b63}
+body.pacer-page :is(#join,#request,#how){--bg:#091d21;--panel:#103538;--text:#f0f5f3;--muted:#b8cbc6;--line:#2e6567;background-color:#091d21!important}
+body.pacer-page .hero .btn.ghost{background-color:transparent!important;color:#fff!important;border-color:#a8c3bd!important}
+</style>
 </head>
-<body><script src="assets/js/language-preference.js?v=20261120c"></script>
+<body class="pacer-page"><script src="assets/js/language-preference.js?v=20261120c"></script>
 <header><div class="wrap nav"><a class="brand" href="index.html"><img src="assets/brand/mzactive-logo.webp" alt="MZ Active"></a><nav class="main-nav" aria-label="Primary navigation"><a href="index.html" data-en="Home" data-ar="الرئيسية">Home</a><a href="coaches.html" data-en="Find a Coach" data-ar="ابحث عن مدرب">Find a Coach</a><a href="pacer.html" data-en="Pacers" data-ar="المرافقون" aria-current="page">Pacers</a><a href="community.html" data-en="Community" data-ar="المجتمع">Community</a><a href="providers.html" data-en="Join as a Coach" data-ar="انضم كمدرب">Join as a Coach</a></nav><div class="nav-actions"><a class="nav-cta" href="#request" data-en="BOOK A PACER ↗" data-ar="احجز مرافقاً ↗">BOOK A PACER ↗</a><button class="lang-toggle" id="lang" type="button" data-en="العربية" data-ar="English">العربية</button></div></div></header>
 <main>
 <section class="hero">
