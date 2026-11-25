@@ -5,3 +5,5 @@ External candidate: https://github.com/yuhonas/free-exercise-db declares the Unl
 The picker appends readable session text to the existing program editor and uses existing save/send endpoints. No backend migration or production deployment is needed to test this branch.
 
 The expanded MVP includes copy/paste individual workouts and weeks, date-relative browser-local program templates, new-program reset, and an athlete weekly calendar with completion logs written through the existing authorized completion API. Templates exclude dedicated athlete identity fields, but free-text workout instructions may contain personal information; avoid adding it. Real browser mobile testing is simulated Chromium, not physical devices. No production deployment or full TrainHeroic feature parity is claimed.
+
+Coach workspace: approved sports/bodybuilding coaches can open a dedicated full-width workspace at dashboard.html?studio=1, using the same authenticated data and existing editor. The legacy dashboard remains reachable and the workspace is opt-in pending production validation.
