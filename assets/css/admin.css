@@ -147,3 +147,115 @@ html[dir="rtl"] .sidebar-toggle span{transform:rotate(180deg)}
 .admin-toast .btn{min-height:34px;padding:.25rem .6rem;font-size:.78rem}
 .trash-row .athlete-meta{flex:1 1 240px}
 body.rtl .quick-menu-list{inset-inline-start:0;inset-inline-end:auto}
+
+/* MZA Management Studio — light workspace, authentic gold logo and dark navigation.
+   Only authenticated admin surfaces are affected; login and public pages are unchanged. */
+body.portal-active{
+  color-scheme:light;--bg:#f2f7f5;--panel:#fff;--panel2:#e6efeb;
+  --text:#17383a;--muted:#546f6b;--line:#d5e3de;--line-2:#b9d1c9;
+  --gold:#b48b32;--lime:#277c70;--shadow-card:0 4px 18px #183a3710;
+}
+body.portal-active .portal-sidebar{
+  --bg:#092729;--panel:#133c3d;--text:#f4faf7;--muted:#b7d0c8;--line:#2f5453;--gold:#e6bf65;
+  background:linear-gradient(165deg,#103638,#09292b);border-color:#214849;
+  border-radius:16px;padding:12px 10px;box-shadow:0 8px 24px #12333118;
+}
+body.portal-active .portal-shell{gap:clamp(14px,2vw,28px);margin-top:10px}
+body.portal-active .portal-main{min-width:0}
+body.portal-active #nav{gap:3px}
+body.portal-active #nav button{border-radius:8px;font-weight:600;min-height:43px;padding:8px 10px;font-size:14px}
+body.portal-active #nav button[aria-current=true]{background:#e8bf63;color:#163638;border-color:#e8bf63;font-weight:750}
+body.portal-active #nav button:hover:not([aria-current=true]){background:#ffffff12}
+body.portal-active .nav-icon{width:24px;height:24px;flex-basis:24px;background:transparent;color:inherit;border-radius:0}
+body.portal-active .nav-icon svg{width:19px;height:19px;display:block}
+body.portal-active #nav button[aria-current=true] .nav-icon{background:transparent;color:#163638}
+body.portal-active .sidebar-foot button,body.portal-active .sidebar-foot a{border-radius:8px}
+body.portal-active .portal-topbar{padding:4px 0 20px;border-bottom:1px solid var(--line);margin-bottom:18px}
+body.portal-active .portal-heading h2{font-size:clamp(24px,2.6vw,34px);letter-spacing:-.035em;font-weight:750}
+body.portal-active .portal-heading p{font-size:13px;margin-top:4px;color:var(--muted)}
+body.portal-active .portal-main button,body.portal-active .portal-main a.link,body.portal-active dialog button{border-radius:9px;font-weight:600;font-size:13px}
+body.portal-active .portal-main button:hover,body.portal-active dialog button:hover{border-color:#739b91;background:#edf5f1}
+body.portal-active .portal-main button:focus-visible,body.portal-active dialog button:focus-visible{outline:2px solid #9b7527;outline-offset:2px}
+body.portal-active .portal-main input:not([type=checkbox]):not([type=radio]),body.portal-active .portal-main select,body.portal-active .portal-main textarea,body.portal-active dialog input:not([type=checkbox]):not([type=radio]),body.portal-active dialog select,body.portal-active dialog textarea{
+  background:#fff!important;color:#17383a!important;border:1px solid #cbdcd5!important;color-scheme:light;border-radius:9px;min-height:44px;
+}
+body.portal-active input::placeholder,body.portal-active textarea::placeholder{color:#657b76!important}
+body.portal-active .portal-main .btn,body.portal-active .portal-main .button,body.portal-active .portal-main button[type=submit],body.portal-active dialog .btn,body.portal-active dialog button[type=submit]{
+  background:#174b46!important;color:#fff!important;border-color:#174b46!important;
+}
+body.portal-active .portal-main .btn:hover,body.portal-active .portal-main button[type=submit]:hover,body.portal-active dialog .btn:hover{background:#225e55!important}
+body.portal-active .coach-filters{display:flex;background:#e7efeb;border:1px solid #d5e3de;border-radius:12px;padding:5px;gap:5px;width:fit-content;max-width:100%;margin:0 0 14px}
+body.portal-active .coach-filters button{background:transparent;color:#49635e;border:1px solid transparent;min-height:39px;padding:8px 15px;font-weight:650}
+body.portal-active .coach-filters button.active{background:#fff;color:#143a37;border-color:#d2dfd9;box-shadow:0 2px 6px #183a3710}
+body.portal-active .coach-search{max-width:100%;margin:0 0 13px;box-shadow:0 1px 2px #183a3705}
+body.portal-active .coach-list{gap:0;border:1px solid var(--line);border-radius:13px;background:white;box-shadow:0 4px 16px #183a3708}
+body.portal-active .coach-card{border:0;border-block-end:1px solid var(--line);border-radius:0;overflow:visible;background:white}
+body.portal-active .coach-card:first-child{border-start-start-radius:13px;border-start-end-radius:13px}
+body.portal-active .coach-card:last-child{border-block-end:0;border-end-start-radius:13px;border-end-end-radius:13px}
+body.portal-active .coach-card[open]{border-block-end:1px solid #c8dcd4;background:#f6faf8}
+body.portal-active .coach-summary{display:flex;flex-wrap:nowrap;gap:12px;min-height:79px;padding:13px 16px;border-radius:10px;align-items:center}
+body.portal-active .coach-summary:hover{background:#f3f8f5}
+body.portal-active .coach-summary .avatar{width:44px;height:44px;background:#e5f0eb;border:1px solid #cfdfd8;color:#275e54;font-size:13px}
+body.portal-active .coach-identity{display:flex;flex-direction:column;flex:1 1 220px;min-width:0;gap:4px}
+body.portal-active .coach-name{font-size:15px;font-weight:750;color:#17383a;line-height:1.3}
+body.portal-active .coach-meta{font-size:12px;line-height:1.4;flex:none;order:initial}
+body.portal-active .coach-summary .quick-menu{order:4}
+body.portal-active .coach-summary .quick-menu-trigger{color:#385b53;background:#f7faf9;border:1px solid #d5e3de}
+body.portal-active .coach-summary::after{order:5;margin-inline-start:0;color:#52756d;content:'›';font-size:23px;font-weight:500;line-height:1}
+body.portal-active .coach-card[open] .coach-summary::after{transform:rotate(90deg)}
+body.portal-active[dir=rtl] .coach-summary::after,html[dir=rtl] body.portal-active .coach-summary::after{transform:rotate(180deg)}
+html[dir=rtl] body.portal-active .coach-card[open] .coach-summary::after{transform:rotate(90deg)}
+body.portal-active .coach-status-group{display:flex;flex-direction:column;align-items:flex-start;gap:5px;flex:0 1 152px;min-width:0}
+body.portal-active .coach-status-group .email-status{font-size:11px;line-height:1.35}
+body.portal-active .badge{font-size:11px;line-height:1.4;padding:4px 9px;font-weight:700}
+body.portal-active .badge-approved{color:#176344;background:#e9f5ed;border-color:#c1e4ce}
+body.portal-active .badge-pending,body.portal-active .badge-incomplete{color:#805b13;background:#fff4dc;border-color:#e9d39c}
+body.portal-active .badge-rejected,body.portal-active .badge-suspended,body.portal-active .badge-removed{color:#982f36;background:#fcecec;border-color:#efc6c6}
+body.portal-active .email-sent{color:#286b4c}
+body.portal-active .email-queued,body.portal-active .email-pending,body.portal-active .incomplete-note,body.portal-active .incomplete-tag{color:#805b13}
+body.portal-active .email-failed,body.portal-active .completeness-tag.is-incomplete{color:#9e4428}
+body.portal-active .completeness-tag{font-size:12px;line-height:1.4;color:#2c6659;flex:0 1 145px;margin:0}
+body.portal-active .coach-details{border-top:1px solid #d6e3dd;padding:18px 20px;background:#f7faf8;border-radius:0 0 12px 12px}
+body.portal-active .coach-details .photo-slot{margin:0 10px 12px 0;vertical-align:middle}
+body.portal-active .coach-details .thumb{width:auto;max-width:160px;max-height:145px;border-radius:12px;margin:0;object-fit:contain;border:1px solid var(--line)}
+body.portal-active .admin-upload-field{padding:14px;border:1px dashed #afc9bf;border-radius:10px;background:white;margin:12px 0;font-size:13px;font-weight:700}
+body.portal-active .admin-upload-field small{display:block;font-size:12px;font-weight:400;margin:5px 0 10px}
+body.portal-active .admin-upload-field input[type=file]{padding:7px;font-size:12px}
+body.portal-active input[type=file]::file-selector-button{background:#e7f0eb;color:#174b46;border:0;border-radius:6px;padding:7px 9px;margin-inline-end:8px;font-weight:650}
+body.portal-active .coach-details .approve-action{background:#174b46;color:white;border-color:#174b46}
+body.portal-active .dashboard-grid{gap:14px;margin-block:10px 22px}
+body.portal-active .dashboard-card,body.portal-active .command-card,body.portal-active .command-panel,body.portal-active .crm-section{background:#fff!important;border:1px solid var(--line);border-radius:13px;box-shadow:0 4px 16px #173d3808;padding:16px}
+body.portal-active .dashboard-card.needs-attention{border-color:#d4dfd9;border-block-start:3px solid #be994e}
+body.portal-active .dashboard-card-label{font-size:12px;font-weight:650;color:#536f68}
+body.portal-active .dashboard-card .metric{font-size:clamp(25px,3vw,34px);font-weight:750;letter-spacing:-.035em;color:#164b45!important}
+body.portal-active .dashboard-card-sub{font-size:12px;margin-top:3px}
+body.portal-active .dashboard-card button{margin-top:8px;align-self:flex-start;background:#eaf3ef;color:#205d51;border-color:#d5e4dd}
+body.portal-active .overview-grid,body.portal-active .overview-stack{gap:14px}
+body.portal-active .panel-head h3{color:#17383a!important;font-size:15px}
+body.portal-active .action-row,body.portal-active .empty-state,body.portal-active .program-row,body.portal-active .contact-tools,body.portal-active .athlete-table th{background:#f5f9f7!important}
+body.portal-active .contact-tools{border-color:var(--line)}
+body.portal-active .contact-missing,body.portal-active #notice[data-kind=error]{color:#9e3538}
+body.portal-active #notice[data-kind=success]{color:#176344}
+body.portal-active .portal-main .account-danger-zone,body.portal-active [data-account-manage]>.account-danger{background:#fff4f3;border-color:#e8c9c7}
+body.portal-active .portal-main .danger-action,body.portal-active dialog .danger-action{color:#9c3034;border-color:#e4bfc0;background:#fff}
+body.portal-active .portal-main .account-danger-zone summary,body.portal-active [data-account-manage]>.account-danger>summary{color:#9c3034}
+body.portal-active .notification-panel{background:#fff;color:#17383a;border-color:#cdded6;box-shadow:0 14px 40px #173d3822}
+body.portal-active .notification-panel header{background:#fff!important;color:#17383a!important}
+body.portal-active .notification-panel button{color:#17383a;background:#f0f6f2;border-color:#d5e3de}
+body.portal-active .quick-menu-list{box-shadow:0 10px 28px #173d3822}
+body.portal-active .quick-menu-item:hover{background:#e9f3ed;color:#17383a}
+@media(max-width:1180px){body.portal-active .coach-summary{flex-wrap:wrap;gap:9px}body.portal-active .coach-identity{flex:1 1 40%}body.portal-active .coach-status-group{flex:0 1 auto}body.portal-active .completeness-tag{flex:0 1 auto}}
+@media(max-width:650px){body.portal-active .portal-topbar{padding-bottom:12px;margin-bottom:12px}body.portal-active .coach-summary{display:grid;grid-template-columns:38px minmax(0,1fr) auto auto;gap:7px 9px;padding:12px;min-height:90px}body.portal-active .coach-summary .avatar{width:38px;height:38px;grid-column:1;grid-row:1}body.portal-active .coach-identity{grid-column:2;grid-row:1}body.portal-active .coach-status-group{grid-column:2;grid-row:2;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center}body.portal-active .coach-summary .quick-menu{grid-column:3;grid-row:1}body.portal-active .coach-summary::after{grid-column:4;grid-row:1}body.portal-active .completeness-tag{grid-column:2/-1;grid-row:3}body.portal-active .coach-filters{width:100%;gap:4px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}body.portal-active .coach-filters button{padding:6px;min-height:40px}body.portal-active .coach-details{padding:12px}body.portal-active .dashboard-card{padding:12px}body.portal-active .dashboard-grid{gap:8px}body.portal-active .coach-meta{font-size:11px}body.portal-active .coach-name{font-size:14px}}
+body.portal-active{--radius-control:9px;--radius-card:13px}
+body.portal-active>header{background:#103638!important;color:#f4faf7!important}
+body.portal-active>header .bar>button,body.portal-active>header .notification-bell{background:#174749;color:#f4faf7;border-color:#456d67;border-radius:9px}
+body.portal-active>header #language{color:#f0cb78!important;border-color:#a68a49!important}
+body.portal-active .notification-panel footer{background:#f5f9f7!important;color:#17383a!important}
+body.portal-active .crm-error,body.portal-active .crm-status[data-tone=error]{color:#9c3034}
+body.portal-active .portal-main .coach-details .approve-action:hover{background:#225e55;color:#fff}
+body.portal-active .portal-main .danger-action:hover,body.portal-active dialog .danger-action:hover{background:#fcecec;color:#982f36}
+body.portal-active .portal-main .coach-summary .quick-menu-trigger{min-height:40px;min-width:40px}
+body.portal-active .portal-main .coach-filters button.active:hover{background:#fff}
+body.portal-active .portal-main .athlete-filter.active{color:white;background:#174b46;border-color:#174b46}
+body.portal-active .portal-main .account-events h4{color:#17383a!important}
+@media(max-width:650px){body.portal-active .portal-main .coach-summary .quick-menu-trigger{min-width:44px;min-height:44px}body.portal-active .portal-main .coach-identity{overflow-wrap:anywhere}}

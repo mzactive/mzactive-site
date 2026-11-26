@@ -5,7 +5,9 @@
   const base = window.MZACTIVE_API_BASE;
   const tabs = {overview:['Overview','نظرة عامة'],athletes:['Athletes','الرياضيون'],coaches:['Coaches','المدربون'],pacers:['Pacers','المرافقون'],bookings:['Bookings','الحجوزات'],programs:['Training Programs','برامج التدريب'],messages:['Messages','الرسائل'],community:['Community','المجتمع'],articles:['Articles','المقالات'],trash:['Trash','المهملات'],ai:['AI Brain','المساعد الذكي'],reports:['Reports & Activity','التقارير والنشاط'],settings:['Settings','الإعدادات']};
   const TAB_PERMISSIONS = {athletes:'management.coaches',coaches:'management.coaches',pacers:'management.coaches',bookings:'management.bookings',programs:'management.coaches',messages:'management.coaches',community:'management.community',articles:'management.articles',trash:'management.view',ai:'management.ai',reports:'management.audit',settings:'super_admin'};
-  const tabIcons = {overview:'◈',athletes:'♙',coaches:'◎',pacers:'↗',bookings:'▣',programs:'▤',messages:'✉',community:'◍',articles:'▤',trash:'♲',ai:'✦',reports:'↺',settings:'⚙'};
+  const tabIcons = {overview:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',athletes:'M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M17 11a4 4 0 0 0 0-8 M22 21v-2a4 4 0 0 0-3-4',coaches:'M12 3 2 8l10 5 10-5-10-5 M6 10v6c4 4 8 4 12 0v-6 M22 8v6',pacers:'M3 18h18 M3 12h12 M3 6h6 M17 3l4 3-4 3 M21 6h-7',bookings:'M5 5h14a2 2 0 0 1 2 2v13H3V7a2 2 0 0 1 2-2 M7 3v4 M17 3v4 M3 10h18 M8 15l2 2 5-5',programs:'M6 3h12v18H6z M9 7h6 M9 11h6 M9 15h6',messages:'M3 5h18v14H3z M3 5l9 8 9-8',community:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2 M4 5a3 3 0 0 0 0 6 M20 5a3 3 0 0 1 0 6',articles:'M5 3h14v18H5z M8 7h8 M8 11h8 M8 15h5',trash:'M3 6h18 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7',ai:'M12 2l2.8 7.2L22 12l-7.2 2.8L12 22l-2.8-7.2L2 12l7.2-2.8L12 2z',reports:'M3 3v18h18 M7 16v-4 M12 16V7 M17 16v-7',settings:'M4 7h16 M4 17h16 M8 4v6 M16 14v6'};
+  function navIcon(id){const box=node('span',null,'nav-icon');box.setAttribute('aria-hidden','true');const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('fill','none');svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width','1.65');svg.setAttribute('stroke-linecap','round');svg.setAttribute('stroke-linejoin','round');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',tabIcons[id]||tabIcons.overview);svg.append(path);box.append(svg);return box}
+
   const tabSubtitles = {
     overview:['Live records and decisions across your permitted areas.','سجلات وقرارات مباشرة ضمن صلاحياتك.'],
     coaches:['Review applications and verified professional credentials.','مراجعة الطلبات وبيانات الاعتماد الموثقة.'],
@@ -224,7 +226,7 @@
     c.append(a);
   }
   function upload(c,p,path='photo',text=t('Upload or replace portrait (1 MB)','رفع الصورة الشخصية أو استبدالها (١ ميغابايت)')){
-    const label=node('label',text),f=node('input');
+    const label=node('label',text,'admin-upload-field'),f=node('input');
     f.type='file';f.accept='image/jpeg,image/png,image/webp';
     const help=node('small',t('JPG, PNG or WebP · maximum 1 MB. An invalid file leaves the existing photo unchanged.','JPG أو PNG أو WebP · بحد أقصى ١ ميغابايت. الملف غير الصالح لا يغيّر الصورة الحالية.'));
     label.append(help,f);c.append(label);
@@ -568,15 +570,15 @@
   function coachCard(root,p,status){
     const details=node('details',null,'coach-card'),summary=node('summary',null,'coach-summary');
     details.dataset.recordId=p.id;
-    summary.append(avatar(p.display_name),node('span',p.display_name,'coach-name'));
+    const identity=node('span',null,'coach-identity');identity.append(node('span',p.display_name,'coach-name'));summary.append(avatar(p.display_name),identity);
     if(p.user_id&&managementIsAdmin)summary.append(quickMenu([
       {label:t('View profile','عرض الملف'),onClick:()=>{details.open=true}},
       {label:t('Move to Trash','نقل إلى المهملات'),onClick:()=>trashAccount(p.user_id,p.display_name,()=>{applications=null;return render()})},
     ]));
     const meta=node('span',[name(p.provider_type),[p.city,p.country].filter(Boolean).join(', '),p.email].filter(Boolean).join(' · '),'coach-meta');
-    summary.append(meta,badge(status==='removed'?'suspended':status,status==='pending'&&!p.profile_complete?'incomplete':''));
-    if(status==='pending'&&!p.profile_complete)summary.append(node('small',t('Incomplete','غير مكتمل'),'incomplete-tag'));
-    const mail=emailStatusLine(p);if(mail)summary.append(mail);
+    identity.append(meta);const statusGroup=node('span',null,'coach-status-group');statusGroup.append(badge(status==='removed'?'suspended':status,status==='pending'&&!p.profile_complete?'incomplete':''));summary.append(statusGroup);
+    if(status==='pending'&&!p.profile_complete)statusGroup.append(node('small',t('Incomplete','غير مكتمل'),'incomplete-tag'));
+    const mail=emailStatusLine(p);if(mail)statusGroup.append(mail);
     const completeness=node('small',t('Completeness: —','اكتمال الملف: —'),'completeness-tag');
     summary.append(completeness);
     completenessIndicator(p,completeness).then(result=>{
@@ -1617,7 +1619,7 @@
     const [h,ai]=await Promise.all([api('admin/history'),api('admin/agents')]);const events=[...h.events,...ai.activity].sort((a,b)=>b.created_at.localeCompare(a.created_at));
     group(root,t('Recent decisions and activity','آخر القرارات والأنشطة'),events.slice(0,100),(r,e)=>card(r,e.action?name(e.action):e.entity_type==='provider_profile'?t('Coach profile','ملف المدرب'):e.entity_type==='registration'?t('New registration','تسجيل جديد'):t('Booking','حجز'),[date(e.created_at),e.action?name(e.agent_type):name(e.from_status),e.to_status?name(e.to_status):''].filter(Boolean).join(' · ')));
   }
-  async function render(){const n=++sequence;staticLabels();$('nav').replaceChildren();const available=Object.entries(tabs).filter(([id])=>managementIsAdmin||!TAB_PERMISSIONS[id]||managementPermissions.includes(TAB_PERMISSIONS[id]));if(!available.some(([id])=>id===tab))tab='overview';for(const [id,v] of available){const b=node('button');b.type='button';b.dataset.navTab=id;b.title=t(...v);b.setAttribute('aria-label',t(...v));b.setAttribute('aria-current',id===tab);b.append(node('span',tabIcons[id]||'•','nav-icon'),node('span',t(...v),'nav-label'));b.onclick=()=>{closeMobileNav();return go(id)};$('nav').append(b)}paintNotificationBadges();const params=new URLSearchParams();if(tab!=='overview')params.set('tab',tab);if(recordId)params.set('record',recordId);history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:''));$('title').textContent=t(...tabs[tab]);$('portalSubtitle').textContent=t(...(tabSubtitles[tab]||tabSubtitles.overview));$('view').textContent=t('Loading…','جارٍ التحميل…');const root=node('div');try{await paint(root);if(n===sequence){$('view').replaceChildren(root);focusRecord()}}catch(err){if(n===sequence||$('workspace').hidden)notice(errorMessage(err));if(n===sequence)$('view').replaceChildren(retryButton(t('Retry','إعادة المحاولة'),render))}}
+  async function render(){const n=++sequence;staticLabels();$('nav').replaceChildren();const available=Object.entries(tabs).filter(([id])=>managementIsAdmin||!TAB_PERMISSIONS[id]||managementPermissions.includes(TAB_PERMISSIONS[id]));if(!available.some(([id])=>id===tab))tab='overview';for(const [id,v] of available){const b=node('button');b.type='button';b.dataset.navTab=id;b.title=t(...v);b.setAttribute('aria-label',t(...v));b.setAttribute('aria-current',id===tab);b.append(navIcon(id),node('span',t(...v),'nav-label'));b.onclick=()=>{closeMobileNav();return go(id)};$('nav').append(b)}paintNotificationBadges();const params=new URLSearchParams();if(tab!=='overview')params.set('tab',tab);if(recordId)params.set('record',recordId);history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:''));$('title').textContent=t(...tabs[tab]);$('portalSubtitle').textContent=t(...(tabSubtitles[tab]||tabSubtitles.overview));$('view').textContent=t('Loading…','جارٍ التحميل…');const root=node('div');try{await paint(root);if(n===sequence){$('view').replaceChildren(root);focusRecord()}}catch(err){if(n===sequence||$('workspace').hidden)notice(errorMessage(err));if(n===sequence)$('view').replaceChildren(retryButton(t('Retry','إعادة المحاولة'),render))}}
   async function open(){
     try {
       const [,access,overview] = await Promise.all([api('admin/history'),api('me/access'),api('admin/dashboard')]);

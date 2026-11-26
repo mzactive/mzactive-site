@@ -73,5 +73,5 @@ test('all changed assets carrying behavior changes are version-busted', () => {
   assert.match(html, /assistant-chat-v2\.js\?v=/);
   assert.match(read('providers.html'), /password-policy\.js\?v=/);
   const admin = read('admin.html');
-  assert.match(admin, /admin\.js\?v=20261125-event-alerts/);
+  assert.match(admin, /admin\.js\?v=20261126-professional/);
 });

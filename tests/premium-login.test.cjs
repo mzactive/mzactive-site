@@ -18,8 +18,8 @@ test('both sign-in pages load the premium stylesheet and the original gold logo'
     assert.match(html, /class="premium-auth__head"/, name);
     assert.match(html, /class="premium-auth__intro" data-en=/, name);
   }
-  assert.match(admin, /admin\.js\?v=20261125-event-alerts/);
-  assert.match(admin, /admin\.css\?v=20261123a/);
+  assert.match(admin, /admin\.js\?v=20261126-professional/);
+  assert.match(admin, /admin\.css\?v=20261126-professional/);
   assert.doesNotMatch(css, /filter\s*:/);
 });
 
