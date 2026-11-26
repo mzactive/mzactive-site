@@ -500,6 +500,36 @@
       if(e.message==='profile_changed_reload_review')refreshApplications();
     }finally{inFlight.delete(k)}
   }
+  function verificationControl(p){
+    const box=node('section',null,'coach-verification');
+    const head=node('div',null,'verification-head');
+    const known=p.verified===0||p.verified===1||typeof p.verified==='boolean';
+    const verified=Boolean(p.verified);
+    head.append(node('h4',t('Professional verification','التوثيق المهني')),node('span',known?(verified?t('Verified','موثّق'):t('Not verified','غير موثّق')):t('Status unavailable','الحالة غير متاحة'),'badge '+(known&&verified?'badge-approved':'badge-unverified')));
+    box.append(head,node('p',t('The public verification badge is separate from account approval, visibility and access.','علامة التوثيق العامة مستقلة عن اعتماد الحساب وظهوره وصلاحية الدخول.')));
+    if(!managementIsAdmin||!known||!p.updated_at)return box;
+    const open=button(verified?t('Remove verification','إزالة التوثيق'):t('Grant verification','منح التوثيق'),()=>{
+      form.hidden=false;open.hidden=true;reason.focus();
+    });open.classList.add('verification-action');
+    const form=node('form',null,'verification-form');form.hidden=true;
+    const label=node('label',t('Reason for this decision','سبب القرار')),reason=node('textarea');reason.required=true;reason.maxLength=300;reason.rows=2;label.append(reason);
+    const confirmation=node('label',null,'verification-confirm'),check=node('input');check.type='checkbox';check.required=true;
+    confirmation.append(check,t(verified?'I confirm removal of the public badge.':'I have checked the coach’s identity and professional credentials.',verified?'أؤكد إزالة علامة التوثيق العامة.':'تحققت من هوية المدرب ومؤهلاته المهنية.'));
+    const actions=node('div',null,'actions'),submit=node('button',t('Confirm decision','تأكيد القرار'));submit.type='submit';
+    const cancel=button(t('Cancel','إلغاء'),()=>{form.reset();form.hidden=true;open.hidden=false;open.focus()});
+    const status=node('p',null,'crm-status');status.setAttribute('role','status');actions.append(submit,cancel);form.append(label,confirmation,actions,status);
+    form.onsubmit=async e=>{e.preventDefault();if(!reason.value.trim()||!check.checked)return;submit.disabled=true;cancel.disabled=true;
+      try{const result=await api('admin/providers/'+encodeURIComponent(p.id)+'/verification',{method:'PATCH',body:{verified:!verified,reason:reason.value.trim(),review_version:p.updated_at}});
+        if(result.verified!==!verified||!result.updated_at)throw Error('verification_not_confirmed');
+        p.verified=result.verified;p.updated_at=result.updated_at;
+        box.replaceWith(verificationControl(p));
+        const tag=document.querySelector('[data-record-id="'+CSS.escape(p.id)+'"] .verification-badge');
+        if(tag){tag.textContent=p.verified?t('Verified','موثّق'):t('Not verified','غير موثّق');tag.classList.toggle('badge-approved',p.verified);tag.classList.toggle('badge-unverified',!p.verified)}
+        notice(t('Verification updated. Account access was not changed.','تم تحديث التوثيق دون تغيير صلاحية الحساب.'),'success');
+      }catch(error){status.textContent=error.message==='profile_changed_reload_review'?t('Profile changed. Reload before trying again.','تغير الملف. أعد التحميل قبل المحاولة.'):t('Verification was not confirmed. Please refresh and try again.','لم يتم تأكيد التوثيق. حدّث الصفحة وحاول مجدداً.');submit.disabled=false;cancel.disabled=false}
+    };
+    box.append(open,form);return box;
+  }
   function fillCoachCard(details,p,status){
     if(details.dataset.filled)return;details.dataset.filled='1';
     const c=node('div',null,'coach-details'),licensed=['nutritionist','physiotherapist','sports_massage_therapist'].includes(p.provider_type);
@@ -547,6 +577,7 @@
       const profilePath=p.provider_type==='pacer'?'pacer.html?provider='+encodeURIComponent(p.id):'coach.html?id='+encodeURIComponent(p.id);
       const publicLink=link(t('Public profile','الملف العام'),profilePath);publicLink.target='_blank';publicLink.rel='noopener noreferrer';c.append(publicLink);
       const line=emailStatusLine(p);if(line)c.append(line);
+      if(['coach','bodybuilding_coach'].includes(p.provider_type))c.append(verificationControl(p));
     }
     if(status==='rejected'||status==='removed'){
       if(p.review_note)c.append(node('p',p.review_note));
@@ -577,6 +608,7 @@
     ]));
     const meta=node('span',[name(p.provider_type),[p.city,p.country].filter(Boolean).join(', '),p.email].filter(Boolean).join(' · '),'coach-meta');
     identity.append(meta);const statusGroup=node('span',null,'coach-status-group');statusGroup.append(badge(status==='removed'?'suspended':status,status==='pending'&&!p.profile_complete?'incomplete':''));summary.append(statusGroup);
+    if(status==='approved'&&['coach','bodybuilding_coach'].includes(p.provider_type)&&(p.verified===0||p.verified===1||typeof p.verified==='boolean'))statusGroup.append(node('span',p.verified?t('Verified','موثّق'):t('Not verified','غير موثّق'),'badge verification-badge '+(p.verified?'badge-approved':'badge-unverified')));
     if(status==='pending'&&!p.profile_complete)statusGroup.append(node('small',t('Incomplete','غير مكتمل'),'incomplete-tag'));
     const mail=emailStatusLine(p);if(mail)statusGroup.append(mail);
     const completeness=node('small',t('Completeness: —','اكتمال الملف: —'),'completeness-tag');

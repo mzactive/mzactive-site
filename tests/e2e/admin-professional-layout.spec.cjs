@@ -12,3 +12,15 @@ test('admin workspace has readable light surfaces and compact coach identity on 
  await page.screenshot({path:testInfo.outputPath('admin-professional-coaches.png'),fullPage:true});
  await card.locator('summary').click();await expect(card.locator('.admin-upload-field').first()).toBeVisible();assertOfflineSafe(mock);
 });
+
+test('admin can remove and grant verification independently from approval',async({page})=>{
+ const id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';let verified=1,version='2026-11-26T10:00:00Z';
+ const profile={id,user_id:'e2e-coach',provider_type:'coach',display_name:'Example Coach',city:'Doha',country:'Qatar',status:'approved',profile_complete:1};
+ const mock=await installApiMock(page,{overrides:{'GET /api/me/access':json({user:{id:'e2e-admin',email:'admin@example.invalid',role:'admin'},super_admin:true,account_type:'admin',management:{enabled:true,permissions:[]}}),'GET /api/admin/applications':()=>json({providers:[],approved_providers:[{...profile,verified,updated_at:version}],rejected_providers:[],suspended_providers:[],bookings:[]}),['PATCH /api/admin/providers/'+id+'/verification']:ctx=>{expect(ctx.body.review_version).toBe(version);expect(ctx.body.reason).toBeTruthy();verified=Number(ctx.body.verified);version=verified?'2026-11-26T10:02:00Z':'2026-11-26T10:01:00Z';return json({updated:true,verified:Boolean(verified),updated_at:version})}}});
+ await seedSession(page,{storage:'session'});await page.goto('/admin.html');await clickAdminTab(page,'coaches');await page.getByRole('button',{name:/^Approved \(1\)$/}).click();
+ const card=page.locator('.coach-card');await card.locator('summary').click();const panel=card.locator('.coach-verification');
+ await panel.getByRole('button',{name:'Remove verification'}).click();await panel.getByLabel('Reason for this decision').fill('Credentials being reviewed');await panel.getByRole('checkbox').check();await panel.getByRole('button',{name:'Confirm decision'}).click();
+ await expect(card.locator('.verification-badge')).toHaveText('Not verified');await expect(card.locator('.coach-status-group')).toContainText('Approved');
+ await panel.getByRole('button',{name:'Grant verification'}).click();await panel.getByLabel('Reason for this decision').fill('Credentials confirmed');await panel.getByRole('checkbox').check();await panel.getByRole('button',{name:'Confirm decision'}).click();await expect(card.locator('.verification-badge')).toHaveText('Verified');
+ expect(mock.calls.filter(c=>c.method==='PATCH'&&c.path.endsWith('/verification'))).toHaveLength(2);assertOfflineSafe(mock);
+});

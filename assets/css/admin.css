@@ -259,3 +259,11 @@ body.portal-active .portal-main .coach-filters button.active:hover{background:#f
 body.portal-active .portal-main .athlete-filter.active{color:white;background:#174b46;border-color:#174b46}
 body.portal-active .portal-main .account-events h4{color:#17383a!important}
 @media(max-width:650px){body.portal-active .portal-main .coach-summary .quick-menu-trigger{min-width:44px;min-height:44px}body.portal-active .portal-main .coach-identity{overflow-wrap:anywhere}}
+body.portal-active .coach-verification{background:#fff!important;border:1px solid #d5e3de;border-radius:12px;padding:15px;margin:14px 0}
+body.portal-active .verification-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+body.portal-active .verification-head h4{margin:0;font-size:15px}
+body.portal-active .badge-unverified{color:#536f6b;background:#f1f5f3;border-color:#d5e3de}
+body.portal-active .verification-action{background:#edf5f1;color:#174b46;border-color:#bbd4c9}
+body.portal-active .verification-confirm{display:flex;align-items:flex-start;gap:9px;font-size:13px}
+body.portal-active .verification-confirm input{flex:none;width:19px;height:19px;accent-color:#174b46}
+body.portal-active .verification-form{max-width:none}
