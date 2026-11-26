@@ -1,6 +1,7 @@
 'use strict';
 
 const { test, expect } = require('./pw.cjs');
+const {installApiMock,json}=require('./helpers.cjs');
 
 const SPORTS = [
   ['running', 'Running'],
@@ -11,9 +12,9 @@ const SPORTS = [
   ['triathlon', 'Triathlon'],
   ['hyrox', 'HYROX'],
   ['crossfit', 'CrossFit'],
-  ['padel', 'Padel'],
-  ['boxing', 'Boxing'],
-  ['kickboxing', 'Kickboxing'],
+  ['racket-sports', 'Racket Sports'],
+  ['martial-arts', 'Martial Arts'],
+  ['team-sports', 'Team Sports'],
 ];
 
 async function openHomepage(page) {
@@ -27,10 +28,10 @@ async function openHomepage(page) {
     }
   });
   await page.goto('/index.html?sport-photo-verify=1');
-  await expect(page.locator('.sport-grid')).toBeVisible();
-  await page.locator('.sport-card').last().scrollIntoViewIfNeeded();
+  await expect(page.locator('.sport-grid').first()).toBeVisible();
+  await page.locator('.sport-grid').first().locator('.sport-card').last().scrollIntoViewIfNeeded();
   await page.waitForFunction(
-    () => Array.from(document.querySelectorAll('.sport-card img')).every((img) => img.complete && img.naturalWidth > 0),
+    () => Array.from(document.querySelector('.sport-grid').querySelectorAll('.sport-card img')).every((img) => img.complete && img.naturalWidth > 0),
     null,
     { timeout: 20000 },
   );
@@ -39,7 +40,7 @@ async function openHomepage(page) {
 test('explore-by-sport cards load local photos and keep the shared card design', async ({ page }) => {
   await openHomepage(page);
 
-  const cards = page.locator('.sport-card');
+  const cards = page.locator('.sport-grid').first().locator('.sport-card');
   await expect(cards).toHaveCount(11);
 
   const details = await cards.evaluateAll((elements) => elements.map((card) => {
@@ -79,11 +80,11 @@ test('explore-by-sport cards load local photos and keep the shared card design',
   });
 
   const boxing = details[9];
-  const kickboxing = details[10];
+  const team = details[10];
   expect(boxing.src).toContain('assets/images/sports/boxing.webp');
-  expect(kickboxing.src).toContain('assets/images/sports/kickboxing.webp');
+  expect(team.src).toContain('assets/images/sports/team-sports.webp');
   expect(boxing.currentSrc).toContain('assets/images/responsive/sports/boxing-');
-  expect(kickboxing.currentSrc).toContain('assets/images/responsive/sports/kickboxing-');
+  expect(team.currentSrc).toContain('assets/images/responsive/sports/team-sports-');
   expect(details[1].src).toContain('women-fitness.jpg');
   expect(details[2].src).toContain('assets/images/sports/bodybuilding.jpg');
   expect(details[2].src).not.toContain('women-fitness');
@@ -96,8 +97,47 @@ test('every explore-by-sport card remains clickable', async ({ page }) => {
   for (const [sport] of SPORTS) {
     const key = sport === 'bodybuilding_coach' ? 'type' : 'sport';
     await page.locator(`.sport-card[href="coaches.html?${key}=${sport}"]`).click();
+    if (['racket-sports','martial-arts','team-sports'].includes(sport)) {
+      const dialog=page.locator('#group-'+sport);
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('link',{name:'View all coaches'}).click();
+    }
     await expect(page).toHaveURL(new RegExp(`coaches\\.html\\?${key}=${sport}$`));
     await page.goBack();
-    await expect(page.locator('.sport-grid')).toBeVisible();
+    await expect(page.locator('.sport-grid').first()).toBeVisible();
   }
+});
+
+test('group selectors expose all disciplines and close without navigating', async ({page})=>{
+ await openHomepage(page);
+ for (const [group, choices] of Object.entries({'martial-arts':['Boxing','Kickboxing','MMA','Karate','Judo','Taekwondo','Brazilian Jiu-Jitsu'],'team-sports':['Football','Handball','Basketball','Volleyball'],'racket-sports':['Padel','Tennis']})) {
+   await page.locator('.sport-card[href="coaches.html?sport='+group+'"]').click();
+   const d=page.locator('#group-'+group);await expect(d).toBeVisible();
+   for(const choice of choices) await expect(d.getByRole('link',{name:choice,exact:true})).toBeVisible();
+   await d.getByRole('button',{name:'Close'}).click();await expect(d).not.toBeVisible();
+ }
+ await page.locator('.sport-card[href="coaches.html?sport=team-sports"]').click();
+ await page.locator('#group-team-sports').getByRole('link',{name:'Handball',exact:true}).click();
+ await expect(page).toHaveURL(/coaches\.html\?sport=handball$/);
+});
+
+test('group and individual directory filters match only public relevant specialties', async ({page})=>{
+ const profiles=[['box','Boxing coach','Boxing'],['kick','Kickboxing coach','Kickboxing'],['hand','Handball coach','كرة اليد'],['foot','Football coach','Football'],['karate','Karate coach','الكاراتيه'],['tennis','Tennis coach','Tennis'],['padel','Padel coach','Padel'],['hidden','Hidden specialty','Handball']].map(([id,display_name,specialty])=>({id,display_name,provider_type:'coach',specialties:[specialty],public_fields:id==='hidden'?['city']:['specialties','city'],city:'Doha',country:'Qatar'}));
+ await installApiMock(page,{overrides:{'GET /api/providers':json({providers:profiles})}});
+ for(const [sport,ids] of [['boxing',['box']],['martial-arts',['box','kick','karate']],['handball',['hand']],['team-sports',['hand','foot']],['racket-sports',['tennis','padel']]]) {
+  await page.goto('/coaches.html?sport='+sport);
+  await expect(page.locator('#grid article')).toHaveCount(ids.length);
+  for(const id of ids) await expect(page.locator('#coach-'+id)).toBeVisible();
+ }
+});
+test('Arabic category picker translates its choices and preserves language on directory navigation',async({page})=>{
+ await page.addInitScript(()=>localStorage.setItem('mzactive-language-manual','ar'));
+ await openHomepage(page);
+ await expect(page.locator('html')).toHaveAttribute('dir','rtl');
+ await page.locator('.sport-card[href="coaches.html?sport=team-sports"]').click();
+ const d=page.locator('#group-team-sports');await expect(d.getByRole('heading',{name:'الرياضات الجماعية'})).toBeVisible();
+ await d.getByRole('link',{name:'كرة اليد',exact:true}).click();
+ await expect(page).toHaveURL(/coaches\.html\?sport=handball$/);
+ await expect(page.locator('html')).toHaveAttribute('dir','rtl');
+ await expect(page.locator('#sportFilter')).toHaveValue('handball');
 });

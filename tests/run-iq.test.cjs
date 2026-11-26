@@ -25,7 +25,8 @@ test('Run IQ is a Resources item and preserves the training programme route', ()
   const resources = home.split('data-en="Resources"')[1].split('</details>')[0];
   assert.match(resources, /run-iq\.html/);
   assert.doesNotMatch(resources, /training-programmes\.html/);
-  assert.match(home, /href="training-programmes\.html"[^>]*data-en="Training programs"/);
+  assert.doesNotMatch(home, /href="training-programmes\.html"[^>]*data-en="Training programs"/);
+  assert.ok(read("training-programmes.html").length > 0, "existing training programme route remains available");
 });
 
 test('RunIQ 2.0 keeps guest results free and uses existing infrastructure', () => {

@@ -16,9 +16,9 @@ const expectedSports = [
   ['triathlon', 'Triathlon'],
   ['hyrox', 'HYROX'],
   ['crossfit', 'CrossFit'],
-  ['padel', 'Padel'],
-  ['boxing', 'Boxing'],
-  ['kickboxing', 'Kickboxing'],
+  ['racket-sports', 'Racket Sports'],
+  ['martial-arts', 'Martial Arts'],
+  ['team-sports', 'Team Sports'],
 ];
 
 function sportGrid() {
@@ -56,18 +56,18 @@ test('all eleven sport cards are clickable photo cards with no placeholder icons
   });
 });
 
-test('boxing and kickboxing use locally hosted licensed photographs with matching responsive variants', () => {
+test('martial arts and team sports use locally hosted licensed photographs with matching responsive variants', () => {
   const expected = {
-    boxing: { width: '1000', height: '562' },
-    kickboxing: { width: '1000', height: '666' },
+    boxing: { width: '1000', height: '562', group: 'martial-arts', version: '20261122' },
+    'team-sports': { width: '1000', height: '666', group: 'team-sports', version: '20261126' },
   };
 
   for (const [sport, dimensions] of Object.entries(expected)) {
-    const card = sportCards().find((entry) => entry.includes(`sport=${sport}`));
+    const card = sportCards().find((entry) => entry.includes(`sport=${dimensions.group}`));
     assert.ok(card, `${sport} card exists`);
 
     const img = card.match(/<img\b[^>]*>/)?.[0] ?? '';
-    assert.match(img, new RegExp(`src="assets/images/sports/${sport}\\.webp\\?v=20261122"`), `${sport} uses a cache-busted local WebP master`);
+    assert.match(img, new RegExp(`src="assets/images/sports/${sport}\\.webp\\?v=${dimensions.version}"`), `${sport} uses a cache-busted local WebP master`);
     assert.match(img, /alt=""/, `${sport} keeps the decorative image alt used by other sport cards`);
     assert.match(img, /loading="lazy" decoding="async" fetchpriority="low"/, `${sport} keeps the card loading behavior`);
     assert.match(img, new RegExp(`width="${dimensions.width}" height="${dimensions.height}"`), `${sport} declares the optimized image dimensions`);

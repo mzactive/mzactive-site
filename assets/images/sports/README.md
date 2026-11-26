@@ -18,3 +18,5 @@ at quality 80, with a 1000-pixel maximum dimension. Each source and its reuse
 status was checked through the source provider's metadata and linked to its source page.
 
 - `running.webp`: [Marathon Runners](https://commons.wikimedia.org/wiki/File:Marathon_Runners.jpg), Chris Brown, Zürich Marathon 2008, [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/). Resized and WebP-compressed, including responsive variants. Illustrative sports-category photo; no affiliation with MZActive or Qatar is implied. Attribution is also displayed in the homepage footer.
+
+- team-sports.webp: [Air Force vs. Harvard men's soccer (43918009345)](https://commons.wikimedia.org/wiki/File:Air_Force_vs._Harvard_men%27s_soccer_(43918009345).jpg), U.S. Air Force photo/Bill Evans, public domain in the United States. SHA-1 verified against Wikimedia Commons (3e463b5b5c46cfec8ca519341aa650a7ab9d8697). Resized and converted to WebP; illustrative photo, no affiliation implied.
