@@ -241,6 +241,16 @@ const MOMO_SEARCH_ALIASES = [
   { key: "boxing", terms: ["boxing", "boxer", "ملاكمة", "ملاكم"] },
   { key: "kickboxing", terms: ["kickboxing", "muay", "thai", "كيك", "بوكس", "كيكبوكس", "مواب", "تايلاند"] },
   { key: "padel", terms: ["padel", "بادل"] },
+  { key: "tennis", terms: ["tennis", "تنس"] },
+  { key: "mma", terms: ["mma", "mixed martial arts", "الفنون القتالية المختلطة"] },
+  { key: "karate", terms: ["karate", "كاراتيه"] },
+  { key: "judo", terms: ["judo", "جودو"] },
+  { key: "taekwondo", terms: ["taekwondo", "تايكوندو", "تايكواندو"] },
+  { key: "jiu-jitsu", terms: ["jiu-jitsu", "jiujitsu", "bjj", "جيوجيتسو"] },
+  { key: "football", terms: ["football", "soccer", "كرة القدم"] },
+  { key: "handball", terms: ["handball", "كرة اليد"] },
+  { key: "basketball", terms: ["basketball", "كرة السلة"] },
+  { key: "volleyball", terms: ["volleyball", "الكرة الطائرة"] },
   { key: "doha", terms: ["doha", "الدوحة", "دوحة"] },
   { key: "lusail", terms: ["lusail", "لوسيل"] },
   { key: "qatar", terms: ["qatar", "قطر", "القطر"] },
@@ -258,6 +268,10 @@ function momoSearchTokens(message) {
     for (const alias of MOMO_SEARCH_ALIASES) {
       if (alias.terms.some(term => piece.includes(term) || term.includes(piece))) tokens.add(alias.key);
     }
+  }
+  const full = String(message || "").normalize("NFKC").toLowerCase();
+  for (const alias of MOMO_SEARCH_ALIASES) {
+    if (alias.terms.some(term => term.includes(" ") && full.includes(term))) tokens.add(alias.key);
   }
   return [...tokens];
 }
