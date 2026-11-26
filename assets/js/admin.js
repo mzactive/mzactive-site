@@ -36,7 +36,7 @@
   const metrics = {pending_provider_profiles:['Coach applications','طلبات المدربين'],open_booking_requests:['Open bookings','طلبات الحجز المفتوحة'],pending_coach_articles:['Articles for review','مقالات للمراجعة'],unlinked_programs:['Programs without athlete access','برامج غير مرتبطة بحساب'],approved_providers:['Approved providers','مقدمو الخدمة المعتمدون'],registered_athletes:['Athlete accounts','حسابات الرياضيين'],active_training_teams:['Training teams','فرق التدريب'],pending_community_posts:['Posts for review','منشورات للمراجعة'],pending_community_comments:['Comments on posts awaiting review','تعليقات على منشورات بانتظار المراجعة'],published_community_posts:['Published posts','منشورات منشورة'],weekly_challenges:['Weekly challenges','تحديات الأسبوع']};
   const requestedTab = new URLSearchParams(location.search).get('tab');
   let tab=tabs[requestedTab]?requestedTab:'overview', sequence=0, managementPermissions=[], managementIsAdmin=false;
-  let applications=null, coachFilter='pending', coachVisible=12, refreshing=false;
+  let applications=null, coachFilter='pending', coachVisible=12, refreshing=false, coachSport='', coachLocation='';
   let dashboard=null, notificationRefreshing=false, notificationPoll=null;
   let trashFilter='all', athleteDirectory=null, athleteFilter='all', athleteSort='recent', athleteTimer=null, athleteDialog=null, openedAthleteRecord='';
   let agentsOverview=null, coachQuery='';
@@ -533,7 +533,17 @@
   function fillCoachCard(details,p,status){
     if(details.dataset.filled)return;details.dataset.filled='1';
     const c=node('div',null,'coach-details'),licensed=['nutritionist','physiotherapist','sports_massage_therapist'].includes(p.provider_type);
-    if(p.has_profile_photo)photo(c,p.id,'photo',p.display_name);
+    c.setAttribute('role','region');c.setAttribute('aria-label',t('Coach management','إدارة المدرب')+' — '+p.display_name);
+    const drawerHead=node('div',null,'coach-drawer-head'),drawerIdentity=node('div',null,'coach-drawer-identity');
+    drawerIdentity.append(node('h3',p.display_name),node('p',[name(p.provider_type),p.city,p.country].filter(Boolean).join(' · ')),badge(status==='removed'?'suspended':status));
+    const close=button('×',()=>{details.open=false;details.querySelector('summary').focus()});close.classList.add('coach-drawer-close');close.setAttribute('aria-label',t('Close coach details','إغلاق تفاصيل المدرب'));const portrait=node('div',null,'coach-drawer-portrait');if(p.has_profile_photo)photo(portrait,p.id,'photo',p.display_name);else portrait.append(avatar(p.display_name));drawerHead.append(portrait,drawerIdentity,close);c.append(drawerHead);
+    const nav=node('div',null,'coach-drawer-nav');
+    for(const [key,en,ar] of [['overview','Overview','نظرة عامة'],['media','Media','الصور'],['account','Account controls','إدارة الحساب']]){
+      if(key==='media'&&['removed','rejected'].includes(status)||key==='account'&&!p.user_id)continue;const b=button(t(en,ar),()=>{c.querySelector('[data-drawer-section="'+key+'"]')?.scrollIntoView({block:'start',behavior:'smooth'})});nav.append(b);
+    }
+    c.append(nav);
+    const overview=node('div',null,'coach-drawer-overview');overview.dataset.drawerSection='overview';const percent=node('small',t('Completeness: —','اكتمال الملف: —'),'drawer-completeness');overview.append(percent);completenessIndicator(p,percent).then(result=>{if(result&&Number.isFinite(Number(result.percent))){const bar=node('progress');bar.max=100;bar.value=Math.max(0,Math.min(100,Number(result.percent)));bar.setAttribute('aria-label',t('Profile completeness','اكتمال الملف'));overview.append(bar)}}).catch(()=>{});c.append(overview);
+
     if(p.has_cover)photo(c,p.id,'cover',p.display_name);
     if(status==='pending'){
       const credentialLines=[p.certificate_name?t('certificate','شهادة')+': '+p.certificate_name:'',p.certificate_issuer?t('issuer','الجهة المصدرة')+': '+p.certificate_issuer:'',p.certificate_number?t('number','الرقم')+': '+p.certificate_number:'',p.license_number?t('license_number','رقم الترخيص')+': '+p.license_number:'',p.license_issuer?t('license_issuer','جهة الترخيص')+': '+p.license_issuer:'',p.license_country?t('country','الدولة')+': '+p.license_country:'',p.license_expires_on?t('expiry','الانتهاء')+': '+p.license_expires_on:'',p.license_review_note?t('previous_note','ملاحظة المراجعة السابقة')+': '+p.license_review_note:''];
@@ -592,21 +602,21 @@
         if(confirm(t('Change access for ','تغيير صلاحية الوصول لـ ')+p.display_name+'؟'))return review(p,restore?'approved':'suspended',restore?{verified:true,license_verified:licensed?true:undefined}:{});
       }));
     }
-    if(status!=='removed'&&status!=='rejected'){upload(c,p);upload(c,p,'cover',t('Upload or replace cover (1 MB)','رفع صورة الغلاف أو استبدالها (١ ميغابايت)'))}
+    if(status!=='removed'&&status!=='rejected'){const media=node('div',null,'drawer-section-title');media.dataset.drawerSection='media';media.append(node('h4',t('Profile media','صور الملف')));c.append(media);upload(c,p);upload(c,p,'cover',t('Upload or replace cover (1 MB)','رفع صورة الغلاف أو استبدالها (١ ميغابايت)'))}
     if(p.submission_state==='draft')c.append(node('small',t('Draft — not yet submitted for review.','مسودة — لم تُرسل للمراجعة بعد.')));
     if(p.has_cv)cvLink(c,p);
-    mountManageAccount(c,p.user_id,{name:p.display_name,city:p.city,country:p.country},()=>{applications=null;return render()});
+    const account=node('div');account.dataset.drawerSection='account';c.append(account);mountManageAccount(account,p.user_id,{name:p.display_name,city:p.city,country:p.country},()=>{applications=null;return render()});
     details.append(c);
   }
   function coachCard(root,p,status){
     const details=node('details',null,'coach-card'),summary=node('summary',null,'coach-summary');
     details.dataset.recordId=p.id;
-    const identity=node('span',null,'coach-identity');identity.append(node('span',p.display_name,'coach-name'));summary.append(avatar(p.display_name),identity);
+    const identity=node('span',null,'coach-identity');identity.append(node('span',p.display_name,'coach-name'));const portrait=node('span',null,'coach-row-portrait');if(p.has_profile_photo)photo(portrait,p.id,'photo',p.display_name);else portrait.append(avatar(p.display_name));summary.append(portrait,identity);
     if(p.user_id&&managementIsAdmin)summary.append(quickMenu([
       {label:t('View profile','عرض الملف'),onClick:()=>{details.open=true}},
       {label:t('Move to Trash','نقل إلى المهملات'),onClick:()=>trashAccount(p.user_id,p.display_name,()=>{applications=null;return render()})},
     ]));
-    const meta=node('span',[name(p.provider_type),[p.city,p.country].filter(Boolean).join(', '),p.email].filter(Boolean).join(' · '),'coach-meta');
+    const meta=node('span',[name(p.provider_type),p.email].filter(Boolean).join(' · '),'coach-meta');const specialties=parse(p.specialties_json)||[];const spec=node('span',null,'coach-specialties');for(const value of specialties.slice(0,2))spec.append(node('span',String(value),'coach-specialty'));if(specialties.length>2)spec.append(node('span','+'+(specialties.length-2),'coach-specialty'));if(!specialties.length)spec.append(node('span','—'));summary.append(spec,node('span',[p.city,p.country].filter(Boolean).join(', ')||'—','coach-location'));
     identity.append(meta);const statusGroup=node('span',null,'coach-status-group');statusGroup.append(badge(status==='removed'?'suspended':status,status==='pending'&&!p.profile_complete?'incomplete':''));summary.append(statusGroup);
     if(status==='approved'&&['coach','bodybuilding_coach'].includes(p.provider_type)&&(p.verified===0||p.verified===1||typeof p.verified==='boolean'))statusGroup.append(node('span',p.verified?t('Verified','موثّق'):t('Not verified','غير موثّق'),'badge verification-badge '+(p.verified?'badge-approved':'badge-unverified')));
     if(status==='pending'&&!p.profile_complete)statusGroup.append(node('small',t('Incomplete','غير مكتمل'),'incomplete-tag'));
@@ -617,13 +627,13 @@
       if(result)completeness.textContent=t('Completeness: ','اكتمال الملف: ')+result.percent+'%';
     }).catch(()=>{});
     details.append(summary);
-    details.addEventListener('toggle',()=>{if(details.open)fillCoachCard(details,p,status)});
+    details.addEventListener('toggle',()=>{if(details.open){for(const other of root.querySelectorAll('.coach-card[open]'))if(other!==details)other.open=false;fillCoachCard(details,p,status)}});details.addEventListener('keydown',event=>{if(event.key==='Escape'&&details.open){details.open=false;summary.focus()}});
     root.append(details);return details;
   }
   function coachFilters(root,counts){
     const row=node('div',null,'coach-filters');
-    for(const [id,label] of [['pending','Pending'],['incomplete','Incomplete'],['approved','Approved'],['rejected','Rejected']]){
-      const b=button(t(label,id==='incomplete'?'غير مكتمل':id==='pending'?'بانتظار المراجعة':id==='approved'?'معتمدون':'مرفوضون')+' ('+(counts[id]||0)+')',()=>{coachFilter=id;coachVisible=12;render()});
+    for(const [id,label] of [['all','All coaches'],['pending','Pending'],['incomplete','Incomplete'],['approved','Approved'],['rejected','Rejected']]){
+      const b=button(t(label,id==='all'?'كل المدربين':id==='incomplete'?'غير مكتمل':id==='pending'?'بانتظار المراجعة':id==='approved'?'معتمدون':'مرفوضون')+' ('+(counts[id]||0)+')',()=>{coachFilter=id;coachVisible=12;render()});
       b.setAttribute('aria-pressed',String(coachFilter===id));
       if(coachFilter===id)b.classList.add('active');
       row.append(b);
@@ -634,20 +644,25 @@
     if(!applications){root.append(node('p',t('Loading applications…','جارٍ تحميل الطلبات…')));return}
     const matching=list=>(list||[]).filter(p=>!onlyType||p.provider_type===onlyType);
     const all={pending:matching(applications.providers).filter(p=>p.profile_complete),incomplete:matching(applications.providers).filter(p=>!p.profile_complete),approved:matching(applications.approved_providers),rejected:[...matching(applications.rejected_providers),...matching(applications.suspended_providers)]};
-    coachFilters(root,{pending:all.pending.length,incomplete:all.incomplete.length,approved:all.approved.length,rejected:all.rejected.length});
+    const stats=node('div',null,'coach-stat-grid');for(const [key,en,ar,value,ico] of [['total','Loaded profiles','الملفات المحمّلة',Object.values(all).reduce((n,rows)=>n+rows.length,0),'coaches'],['approved','Approved','معتمدون',all.approved.length,'bookings'],['pending','Awaiting review','بانتظار المراجعة',all.pending.length+all.incomplete.length,'programs'],['rejected','Rejected / suspended','مرفوضون / موقوفون',all.rejected.length,'trash']]){const tile=node('article',null,'coach-stat coach-stat-'+key);tile.append(navIcon(ico),node('strong',String(value)),node('span',t(en,ar)));stats.append(tile)}root.append(stats);
+    coachFilters(root,{all:Object.values(all).reduce((n,rows)=>n+rows.length,0),pending:all.pending.length,incomplete:all.incomplete.length,approved:all.approved.length,rejected:all.rejected.length});
     const search=node('input',null,'coach-search');search.type='search';search.maxLength=80;
     search.placeholder=t('Search coaches by name, email or city','ابحث عن المدربين بالاسم أو البريد أو المدينة');
-    search.setAttribute('aria-label',search.placeholder);search.value=coachQuery;root.append(search);
-    const rows=all[coachFilter]||all.pending;
+    search.setAttribute('aria-label',search.placeholder);search.value=coachQuery;
+    const tools=node('div',null,'coach-directory-tools');tools.append(search);
+    const filterSelect=(label,values,current)=>{const select=node('select');select.setAttribute('aria-label',label);const first=node('option',label);first.value='';select.append(first);for(const val of values){const opt=node('option',val);opt.value=val;select.append(opt)}select.value=current;return select};
+    const availableRows=Object.values(all).flat(),sportSelect=filterSelect(t('All specialties','كل التخصصات'),[...new Set(availableRows.flatMap(p=>parse(p.specialties_json)||[]).filter(Boolean))].sort(),coachSport),locationSelect=filterSelect(t('All locations','كل المواقع'),[...new Set(availableRows.map(p=>[p.city,p.country].filter(Boolean).join(', ')).filter(Boolean))].sort(),coachLocation);
+    sportSelect.onchange=()=>{coachSport=sportSelect.value;render()};locationSelect.onchange=()=>{coachLocation=locationSelect.value;render()};tools.append(sportSelect,locationSelect);root.append(tools);
+    const rows=(coachFilter==='all'?Object.values(all).flat():all[coachFilter]||all.pending).filter(p=>(!coachSport||(parse(p.specialties_json)||[]).includes(coachSport))&&(!coachLocation||[p.city,p.country].filter(Boolean).join(', ')===coachLocation));
     const empty=node('p',t('No records.','لا توجد سجلات.'));
     if(!rows.length){root.append(empty);return}
-    const list=node('div',null,'coach-list');root.append(list);
-    for(const p of rows.slice(0,coachVisible))coachCard(list,p,coachFilter==='incomplete'?'pending':coachFilter==='rejected'&&p.review_note==='Removed by owner'?'removed':coachFilter);
+    const list=node('div',null,'coach-list'),tableHead=node('div',null,'coach-table-head');for(const [en,ar] of [['Coach','المدرب'],['Specialties','التخصصات'],['Location','الموقع'],['Status','الحالة'],['Completeness','الاكتمال'],['Actions','الإجراءات']])tableHead.append(node('span',t(en,ar)));list.append(tableHead);root.append(list);
+    for(const p of rows.slice(0,coachVisible)){const current=coachFilter==='all'?Object.keys(all).find(k=>all[k].includes(p)):coachFilter;coachCard(list,p,current==='incomplete'?'pending':current==='rejected'&&p.review_note==='Removed by owner'?'removed':current)}
     const filtered=node('p',t('No coaches match this search.','لا يوجد مدربون يطابقون هذا البحث.'),'coach-search-empty');filtered.hidden=true;root.append(filtered);
     search.oninput=()=>{
       coachQuery=search.value.trim().toLowerCase();let visible=0;
       for(const c of list.querySelectorAll('.coach-card')){
-        const match=!coachQuery||c.textContent.toLowerCase().includes(coachQuery);
+        const match=!coachQuery||c.querySelector('summary').textContent.toLowerCase().includes(coachQuery);
         c.hidden=!match;if(match)visible++;
       }
       filtered.hidden=visible>0;empty.hidden=true;

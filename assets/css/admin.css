@@ -267,3 +267,135 @@ body.portal-active .verification-action{background:#edf5f1;color:#174b46;border-
 body.portal-active .verification-confirm{display:flex;align-items:flex-start;gap:9px;font-size:13px}
 body.portal-active .verification-confirm input{flex:none;width:19px;height:19px;accent-color:#174b46}
 body.portal-active .verification-form{max-width:none}
+
+/* Approved command-center layout: data-first table, full-height navigation,
+   independent management drawer. No new dependencies or fabricated metrics. */
+body.portal-active{--bg:#f8faf9;--panel:#fff;--text:#152b2e;--muted:#627675;--line:#e1e9e5;--gold:#b38c38;--shadow-card:none}
+body.portal-active main>h1{display:none}
+body.portal-active main{padding-block:0 28px;max-width:none}
+body.portal-active .portal-shell{margin:0;gap:24px;grid-template-columns:248px minmax(0,1fr)}
+body.portal-active .portal-shell.sidebar-collapsed{grid-template-columns:76px minmax(0,1fr)}
+body.portal-active .portal-sidebar{border:0;border-radius:0;background:linear-gradient(175deg,#0c3032,#092729);box-shadow:none;padding:20px 14px}
+body.portal-active .sidebar-head{padding:4px 4px 21px;gap:5px}
+body.portal-active .sidebar-logo{width:150px}
+body.portal-active #nav{gap:4px;padding-block:17px}
+body.portal-active #nav button{min-height:42px;font-size:13px;gap:10px}
+body.portal-active #nav button[aria-current=true]{background:#e2bc67;color:#183b39;border:0}
+body.portal-active .sidebar-foot{padding-top:14px}
+body.portal-active .portal-main{padding:24px 0 0;max-width:100%}
+body.portal-active .portal-topbar{border:0;padding:0 0 19px;margin:0}
+body.portal-active .portal-heading h2{font-size:clamp(26px,2.5vw,35px);color:#152b2e!important;letter-spacing:-.045em}
+body.portal-active .portal-heading p{font-size:14px}
+body.portal-active #changePasswordPanel{margin:0 0 12px;color:#627675;font-size:12px}
+body.portal-active #changePasswordPanel>summary{width:fit-content;margin-inline-start:auto;font-size:12px}
+body.portal-active .coach-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 24px}
+body.portal-active .coach-stat{padding:16px;background:#f1f8f4!important;border:1px solid #dcece3;border-radius:13px;display:grid;gap:5px}
+body.portal-active .coach-stat .nav-icon{display:grid;width:34px;height:34px;place-items:center;border-radius:50%;background:#dceee3;color:#245e4b}
+body.portal-active .coach-stat-pending{background:#fbf7ed!important;border-color:#efe5d2}
+body.portal-active .coach-stat-pending .nav-icon{background:#f5e8c8;color:#926b22}
+body.portal-active .coach-stat-rejected{background:#fcf2f1!important;border-color:#efdfdd}
+body.portal-active .coach-stat-rejected .nav-icon{background:#f5dedb;color:#a04a49}
+body.portal-active .coach-stat strong{font-size:30px;line-height:1.15;letter-spacing:-.045em;color:#152b2e!important}
+body.portal-active .coach-stat>span:last-child{font-size:12px;font-weight:600;color:#4d6762}
+body.portal-active .coach-filters{width:100%;padding:0;gap:0;margin:0 0 15px;border:0;border-bottom:1px solid #dce6e1;border-radius:0;background:transparent;flex-wrap:wrap}
+body.portal-active .coach-filters button{border:0;border-radius:0;background:transparent;box-shadow:none;min-height:45px;padding:9px 14px;border-bottom:3px solid transparent;color:#607571}
+body.portal-active .coach-filters button.active,body.portal-active .portal-main .coach-filters button.active:hover{color:#174b46;border-bottom-color:#174b46;background:transparent;box-shadow:none}
+body.portal-active .coach-directory-tools{display:flex;align-items:center;gap:9px;margin-bottom:14px;flex-wrap:wrap}
+body.portal-active .coach-directory-tools .coach-search{margin:0;flex:1 1 220px;min-width:0}
+body.portal-active .coach-directory-tools select{width:auto;max-width:220px;flex:0 1 175px;font-size:12px}
+body.portal-active .coach-list{border:1px solid #e0e8e4;background:white;border-radius:10px;box-shadow:none}
+body.portal-active .coach-table-head,body.portal-active .coach-summary{display:grid;grid-template-columns:42px minmax(120px,2.1fr) minmax(95px,1.4fr) minmax(85px,1fr) minmax(90px,1fr) minmax(80px,.85fr) 40px 12px;align-items:center;gap:10px;padding:12px 14px}
+body.portal-active .coach-table-head{background:#f1f5f3;border-radius:9px 9px 0 0;color:#536b65;font-size:11px;font-weight:700;border-bottom:1px solid #e2ebe6}
+body.portal-active .coach-table-head span:first-child{grid-column:1/3}
+body.portal-active .coach-table-head span:last-child{grid-column:7/9}
+body.portal-active .coach-card{border-radius:0!important;background:#fff!important}
+body.portal-active .coach-card:last-child{border-radius:0 0 10px 10px!important}
+body.portal-active .coach-summary{min-height:77px;border-radius:0;cursor:pointer;position:relative}
+body.portal-active .coach-card[open]>.coach-summary{background:#edf7f1;box-shadow:inset 3px 0 #26745c}
+body.portal-active .coach-row-portrait{grid-column:1;grid-row:1;display:grid;place-items:center;width:42px;height:42px}
+body.portal-active .coach-row-portrait .photo-slot{margin:0;width:42px;height:42px;display:grid;place-items:center}
+body.portal-active .coach-row-portrait .thumb{width:42px;height:42px;max-width:none;max-height:none;object-fit:cover;border-radius:50%;margin:0}
+body.portal-active .coach-row-portrait .avatar{width:42px;height:42px}
+body.portal-active .coach-identity{grid-column:2;grid-row:1;overflow-wrap:anywhere}
+body.portal-active .coach-name{font-size:14px;font-weight:750;line-height:1.3}
+body.portal-active .coach-meta{font-size:11px;color:#627675}
+body.portal-active .coach-specialties{grid-column:3;grid-row:1;display:flex;flex-wrap:wrap;gap:4px;color:#647773;font-size:11px;min-width:0;overflow-wrap:anywhere}
+body.portal-active .coach-specialty{background:#eef3f0;border:1px solid #e2ebe5;border-radius:5px;padding:3px 6px;line-height:1.3;max-width:100%;overflow-wrap:anywhere}
+body.portal-active .coach-location{grid-column:4;grid-row:1;font-size:12px;color:#4d6762;overflow-wrap:anywhere}
+body.portal-active .coach-status-group{grid-column:5;grid-row:1}
+body.portal-active .coach-summary .completeness-tag{grid-column:6;grid-row:1;font-size:11px;overflow-wrap:anywhere}
+body.portal-active .coach-summary .quick-menu{grid-column:7;grid-row:1}
+body.portal-active .coach-summary::after{grid-column:8;grid-row:1;font-size:20px}
+body.portal-active .coach-details{position:fixed;inset-block:0;inset-inline-end:0;z-index:74;width:min(480px,100vw);overflow-y:auto;overscroll-behavior:contain;background:#fff!important;border:0;border-inline-start:1px solid #e1e9e5;border-radius:0;padding:20px;box-shadow:-12px 0 48px #173d3824}
+body.portal-active .coach-drawer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;padding-bottom:14px}
+body.portal-active .coach-drawer-identity h3{font-size:22px;letter-spacing:-.025em;margin:0}
+body.portal-active .coach-drawer-identity p{font-size:13px;margin:4px 0 8px}
+body.portal-active .coach-drawer-close{font-size:22px!important;line-height:1;min-width:44px;min-height:44px;padding:4px}
+body.portal-active .coach-drawer-nav{display:flex;gap:6px;position:sticky;top:-20px;background:#fff;z-index:2;padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:15px;flex-wrap:wrap}
+body.portal-active .coach-drawer-nav button{background:#f3f7f4;border:1px solid #e0ebe4;font-size:12px;min-height:40px}
+body.portal-active .coach-drawer-overview{border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:15px;display:grid;gap:8px}
+body.portal-active .drawer-completeness{font-size:13px;font-weight:700;color:#174b46}
+body.portal-active .coach-drawer-overview progress{width:100%;height:9px;accent-color:#26745c}
+body.portal-active [data-drawer-section]{scroll-margin-top:75px}
+body.portal-active .drawer-section-title h4{font-size:15px;border-top:1px solid var(--line);padding-top:14px}
+body.portal-active .coach-details .account-manage-grid{grid-template-columns:minmax(0,1fr)}
+body.portal-active .coach-details .account-actions{grid-template-columns:minmax(0,1fr)}
+body.portal-active .coach-details .crm-section{padding:12px}
+@media(min-width:981px){
+ body.portal-active .portal-sidebar{position:fixed;inset-block:0;inset-inline-start:0;width:248px;min-height:0;overflow-y:auto;z-index:68}
+ body.portal-active .portal-shell.sidebar-collapsed .portal-sidebar{width:76px}
+ body.portal-active .portal-main{grid-column:2}
+ body.portal-active>header{margin-inline-start:248px;background:#fff!important;border-bottom:1px solid #e1e9e5}
+ body.portal-active:has(.sidebar-collapsed)>header{margin-inline-start:76px}
+ body.portal-active>header .bar{justify-content:flex-end;padding-block:9px}
+ body.portal-active>header .bar>a{display:none}
+ body.portal-active>header .bar>button,body.portal-active>header .notification-bell{color:#174b46;background:#f5f8f6;border-color:#dce6e1}
+ body.portal-active>header #language{color:#174b46!important;border-color:#dce6e1!important}
+}
+@media(min-width:1280px){
+ body.portal-active:has(.coach-card[open]) .portal-main{padding-inline-end:490px}
+ body.portal-active:has(.coach-card[open]) .coach-table-head,body.portal-active:has(.coach-card[open]) .coach-summary{grid-template-columns:38px minmax(100px,1.5fr) minmax(65px,1fr) minmax(65px,1fr) 40px 12px}
+ body.portal-active:has(.coach-card[open]) .coach-specialties,body.portal-active:has(.coach-card[open]) .coach-location,body.portal-active:has(.coach-card[open]) .coach-table-head span:nth-child(2),body.portal-active:has(.coach-card[open]) .coach-table-head span:nth-child(3){display:none}
+ body.portal-active:has(.coach-card[open]) .coach-status-group{grid-column:3}
+ body.portal-active:has(.coach-card[open]) .completeness-tag{grid-column:4}
+ body.portal-active:has(.coach-card[open]) .coach-summary .quick-menu{grid-column:5}
+ body.portal-active:has(.coach-card[open]) .coach-summary::after{grid-column:6}
+ body.portal-active:has(.coach-card[open]) .coach-table-head span:last-child{grid-column:5/7}
+}
+@media(max-width:1200px){
+ body.portal-active .coach-table-head,body.portal-active .coach-summary{grid-template-columns:40px minmax(115px,1.8fr) minmax(65px,1fr) minmax(75px,1fr) minmax(70px,1fr) 38px 12px;gap:7px;padding:12px}
+ body.portal-active .coach-specialties,body.portal-active .coach-table-head span:nth-child(2){display:none}
+ body.portal-active .coach-location{grid-column:3}
+ body.portal-active .coach-status-group{grid-column:4}
+ body.portal-active .coach-summary .completeness-tag{grid-column:5}
+ body.portal-active .coach-summary .quick-menu{grid-column:6}
+ body.portal-active .coach-summary::after{grid-column:7}
+ body.portal-active .coach-table-head span:last-child{grid-column:6/8}
+}
+@media(max-width:980px){body.portal-active .portal-shell{display:block}body.portal-active .portal-main{padding-top:16px}body.portal-active .portal-sidebar{border-radius:0;min-height:0;padding:15px 12px}}
+@media(max-width:650px){
+ body.portal-active .coach-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:18px}
+ body.portal-active .coach-stat{padding:12px;gap:4px}
+ body.portal-active .coach-stat strong{font-size:25px}
+ body.portal-active .coach-filters{display:flex;flex-wrap:wrap;gap:0}
+ body.portal-active .coach-filters button{flex:1 1 42%;padding:7px}
+ body.portal-active .coach-directory-tools select{flex:1 1 42%;max-width:none}
+ body.portal-active .coach-directory-tools .coach-search{flex:1 1 100%}
+ body.portal-active .coach-table-head{display:none}
+ body.portal-active .coach-summary{grid-template-columns:40px minmax(0,1fr) 44px 12px;gap:6px 8px;padding:12px;min-height:108px}
+ body.portal-active .coach-location{grid-column:2;grid-row:2}
+ body.portal-active .coach-status-group{grid-column:2/5;grid-row:3;flex-direction:row;flex-wrap:wrap}
+ body.portal-active .coach-summary .completeness-tag{grid-column:2/5;grid-row:4}
+ body.portal-active .coach-summary .quick-menu{grid-column:3;grid-row:1}
+ body.portal-active .coach-summary::after{grid-column:4;grid-row:1}
+ body.portal-active .coach-details{padding:15px;width:100vw}
+ body.portal-active .coach-drawer-nav{top:-15px}
+}
+@media(min-width:981px){body.portal-active .portal-shell{column-gap:24px}body.portal-active main{padding-inline:0 24px}}
+@media(min-width:981px) and (max-width:1120px){body.portal-active .coach-location,body.portal-active .coach-table-head span:nth-child(3){display:none}body.portal-active .coach-table-head,body.portal-active .coach-summary{grid-template-columns:40px minmax(100px,1.6fr) minmax(75px,1fr) minmax(65px,1fr) 40px 12px}body.portal-active .coach-status-group{grid-column:3}body.portal-active .coach-summary .completeness-tag{grid-column:4}body.portal-active .coach-summary .quick-menu{grid-column:5}body.portal-active .coach-summary::after{grid-column:6}body.portal-active .coach-table-head span:last-child{grid-column:5/7}}
+body.portal-active>footer{display:none}
+body.portal-active .coach-drawer-identity{flex:1;min-width:0}
+body.portal-active .coach-drawer-portrait{flex:0 0 68px;width:68px;height:68px}
+body.portal-active .coach-drawer-portrait .photo-slot{margin:0}
+body.portal-active .coach-drawer-portrait .thumb,body.portal-active .coach-drawer-portrait .avatar{width:68px;height:68px;max-width:68px;max-height:68px;object-fit:cover;border-radius:11px}
+@media(min-width:1280px) and (max-width:1500px){body.portal-active:has(.coach-card[open]) .coach-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

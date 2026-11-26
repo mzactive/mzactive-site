@@ -82,7 +82,7 @@ test('Manage Account is mounted in both the athlete drawer and coach cards', () 
   assert.match(adminJs, /function mountManageAccount\(host,userId,prefill=\{\},onChanged\)/);
   assert.match(adminJs, /crmAction\(t\(\.\.\.labels\.manage_account\),status/);
   assert.match(adminJs, /mountManageAccount\(body,a\.id,\{name:a\.name,city:a\.city,country:a\.country\}/);
-  assert.match(adminJs, /mountManageAccount\(c,p\.user_id,\{name:p\.display_name,city:p\.city,country:p\.country\}/);
+  assert.match(adminJs, /mountManageAccount\(account,p\.user_id,\{name:p\.display_name,city:p\.city,country:p\.country\}/);
   assert.match(adminJs, /dataset\.accountManage='1'/);
   assert.match(adminJs, /Administrative controls only\. Public profile fields are not changed here\./);
 });
@@ -115,7 +115,7 @@ test('manage account is a spacious workspace with the required section order', (
 });
 
 test('account controls are cache-busted and no production identity is hard-coded', () => {
-  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261126-professional/);
-  assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261126-professional/);
+  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261126-command-center/);
+  assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261126-command-center/);
   assert.doesNotMatch(adminJs + worker + migration, /Tamim/i);
 });
