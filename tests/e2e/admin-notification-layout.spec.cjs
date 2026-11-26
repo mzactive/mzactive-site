@@ -76,7 +76,8 @@ test('notification panel is anchored, scrollable, grouped and dismissible on eve
   // On small screens navigation is a drawer behind the bell-height toggle.
   if (view.width > 760) {
     const nav = await page.locator('#nav').boundingBox();
-    expect(nav.y).toBeGreaterThanOrEqual(box.y + box.height - 2);
+    // The fixed command-center rail stays beside the notification panel instead of below it.
+    expect(nav.y >= box.y + box.height - 2 || nav.x + nav.width <= box.x + 2 || box.x + box.width <= nav.x + 2).toBe(true);
   } else {
     const toggle = await page.locator('#mobileNavToggle').boundingBox();
     expect(toggle.y + toggle.height).toBeLessThanOrEqual(box.y + 1);
