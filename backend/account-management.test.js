@@ -498,3 +498,29 @@ test('trashing a coach preserves linked athlete programs', async () => {
     assert.equal(trash.accounts.some((a) => a.id === coach.user.id), true);
   } finally { db.close(); }
 });
+
+test('super admin grants and removes coach verification without changing approval or access', async () => {
+ const {db,env}=makeEnv();
+ try {
+  const {admin,member,coach}=await registerAccounts(env);
+  const id=db.prepare('SELECT id FROM provider_profiles WHERE user_id=?').get(coach.user.id).id;
+  await approveCoach(env,admin.token,id);
+  const get=()=>db.prepare('SELECT verified,status,updated_at FROM provider_profiles WHERE id=?').get(id);
+  const before=get(),path='admin/providers/'+id+'/verification';
+  const body={verified:false,reason:'Credential review required',review_version:before.updated_at};
+  await call(env,path,'PATCH',body,coach.token,403);
+  await call(env,path,'PATCH',body,member.token,403);
+  await call(env,path,'PATCH',{...body,reason:''},admin.token,400);
+  const removed=await call(env,path,'PATCH',body,admin.token);
+  assert.equal(removed.verified,false);assert.equal(get().status,'approved');assert.equal(get().verified,0);
+  const listing=await call(env,'admin/applications','GET',undefined,admin.token);
+  assert.equal(listing.approved_providers.find(p=>p.id===id).verified,0);
+  const publicResult=await call(env,'providers','GET',undefined);
+  assert.equal(publicResult.providers.find(p=>p.id===id).verified,false);
+  await call(env,path,'PATCH',{...body,verified:true},admin.token,409);
+  const granted=await call(env,path,'PATCH',{verified:true,reason:'Credentials confirmed',review_version:removed.updated_at},admin.token);
+  assert.equal(granted.verified,true);assert.equal(get().verified,1);assert.equal(get().status,'approved');
+  assert.equal(db.prepare('SELECT account_status FROM users WHERE id=?').get(coach.user.id).account_status,'active');
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM account_events WHERE subject_user_id=? AND action IN ('coach_verification_granted','coach_verification_removed')").get(coach.user.id).count,2);
+ } finally {db.close()}
+});

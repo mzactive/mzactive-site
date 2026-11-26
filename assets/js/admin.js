@@ -5,7 +5,9 @@
   const base = window.MZACTIVE_API_BASE;
   const tabs = {overview:['Overview','نظرة عامة'],athletes:['Athletes','الرياضيون'],coaches:['Coaches','المدربون'],pacers:['Pacers','المرافقون'],bookings:['Bookings','الحجوزات'],programs:['Training Programs','برامج التدريب'],messages:['Messages','الرسائل'],community:['Community','المجتمع'],articles:['Articles','المقالات'],trash:['Trash','المهملات'],ai:['AI Brain','المساعد الذكي'],reports:['Reports & Activity','التقارير والنشاط'],settings:['Settings','الإعدادات']};
   const TAB_PERMISSIONS = {athletes:'management.coaches',coaches:'management.coaches',pacers:'management.coaches',bookings:'management.bookings',programs:'management.coaches',messages:'management.coaches',community:'management.community',articles:'management.articles',trash:'management.view',ai:'management.ai',reports:'management.audit',settings:'super_admin'};
-  const tabIcons = {overview:'◈',athletes:'♙',coaches:'◎',pacers:'↗',bookings:'▣',programs:'▤',messages:'✉',community:'◍',articles:'▤',trash:'♲',ai:'✦',reports:'↺',settings:'⚙'};
+  const tabIcons = {overview:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',athletes:'M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M17 11a4 4 0 0 0 0-8 M22 21v-2a4 4 0 0 0-3-4',coaches:'M12 3 2 8l10 5 10-5-10-5 M6 10v6c4 4 8 4 12 0v-6 M22 8v6',pacers:'M3 18h18 M3 12h12 M3 6h6 M17 3l4 3-4 3 M21 6h-7',bookings:'M5 5h14a2 2 0 0 1 2 2v13H3V7a2 2 0 0 1 2-2 M7 3v4 M17 3v4 M3 10h18 M8 15l2 2 5-5',programs:'M6 3h12v18H6z M9 7h6 M9 11h6 M9 15h6',messages:'M3 5h18v14H3z M3 5l9 8 9-8',community:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2 M4 5a3 3 0 0 0 0 6 M20 5a3 3 0 0 1 0 6',articles:'M5 3h14v18H5z M8 7h8 M8 11h8 M8 15h5',trash:'M3 6h18 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7',ai:'M12 2l2.8 7.2L22 12l-7.2 2.8L12 22l-2.8-7.2L2 12l7.2-2.8L12 2z',reports:'M3 3v18h18 M7 16v-4 M12 16V7 M17 16v-7',settings:'M4 7h16 M4 17h16 M8 4v6 M16 14v6'};
+  function navIcon(id){const box=node('span',null,'nav-icon');box.setAttribute('aria-hidden','true');const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('fill','none');svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width','1.65');svg.setAttribute('stroke-linecap','round');svg.setAttribute('stroke-linejoin','round');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',tabIcons[id]||tabIcons.overview);svg.append(path);box.append(svg);return box}
+
   const tabSubtitles = {
     overview:['Live records and decisions across your permitted areas.','سجلات وقرارات مباشرة ضمن صلاحياتك.'],
     coaches:['Review applications and verified professional credentials.','مراجعة الطلبات وبيانات الاعتماد الموثقة.'],
@@ -224,7 +226,7 @@
     c.append(a);
   }
   function upload(c,p,path='photo',text=t('Upload or replace portrait (1 MB)','رفع الصورة الشخصية أو استبدالها (١ ميغابايت)')){
-    const label=node('label',text),f=node('input');
+    const label=node('label',text,'admin-upload-field'),f=node('input');
     f.type='file';f.accept='image/jpeg,image/png,image/webp';
     const help=node('small',t('JPG, PNG or WebP · maximum 1 MB. An invalid file leaves the existing photo unchanged.','JPG أو PNG أو WebP · بحد أقصى ١ ميغابايت. الملف غير الصالح لا يغيّر الصورة الحالية.'));
     label.append(help,f);c.append(label);
@@ -498,6 +500,36 @@
       if(e.message==='profile_changed_reload_review')refreshApplications();
     }finally{inFlight.delete(k)}
   }
+  function verificationControl(p){
+    const box=node('section',null,'coach-verification');
+    const head=node('div',null,'verification-head');
+    const known=p.verified===0||p.verified===1||typeof p.verified==='boolean';
+    const verified=Boolean(p.verified);
+    head.append(node('h4',t('Professional verification','التوثيق المهني')),node('span',known?(verified?t('Verified','موثّق'):t('Not verified','غير موثّق')):t('Status unavailable','الحالة غير متاحة'),'badge '+(known&&verified?'badge-approved':'badge-unverified')));
+    box.append(head,node('p',t('The public verification badge is separate from account approval, visibility and access.','علامة التوثيق العامة مستقلة عن اعتماد الحساب وظهوره وصلاحية الدخول.')));
+    if(!managementIsAdmin||!known||!p.updated_at)return box;
+    const open=button(verified?t('Remove verification','إزالة التوثيق'):t('Grant verification','منح التوثيق'),()=>{
+      form.hidden=false;open.hidden=true;reason.focus();
+    });open.classList.add('verification-action');
+    const form=node('form',null,'verification-form');form.hidden=true;
+    const label=node('label',t('Reason for this decision','سبب القرار')),reason=node('textarea');reason.required=true;reason.maxLength=300;reason.rows=2;label.append(reason);
+    const confirmation=node('label',null,'verification-confirm'),check=node('input');check.type='checkbox';check.required=true;
+    confirmation.append(check,t(verified?'I confirm removal of the public badge.':'I have checked the coach’s identity and professional credentials.',verified?'أؤكد إزالة علامة التوثيق العامة.':'تحققت من هوية المدرب ومؤهلاته المهنية.'));
+    const actions=node('div',null,'actions'),submit=node('button',t('Confirm decision','تأكيد القرار'));submit.type='submit';
+    const cancel=button(t('Cancel','إلغاء'),()=>{form.reset();form.hidden=true;open.hidden=false;open.focus()});
+    const status=node('p',null,'crm-status');status.setAttribute('role','status');actions.append(submit,cancel);form.append(label,confirmation,actions,status);
+    form.onsubmit=async e=>{e.preventDefault();if(!reason.value.trim()||!check.checked)return;submit.disabled=true;cancel.disabled=true;
+      try{const result=await api('admin/providers/'+encodeURIComponent(p.id)+'/verification',{method:'PATCH',body:{verified:!verified,reason:reason.value.trim(),review_version:p.updated_at}});
+        if(result.verified!==!verified||!result.updated_at)throw Error('verification_not_confirmed');
+        p.verified=result.verified;p.updated_at=result.updated_at;
+        box.replaceWith(verificationControl(p));
+        const tag=document.querySelector('[data-record-id="'+CSS.escape(p.id)+'"] .verification-badge');
+        if(tag){tag.textContent=p.verified?t('Verified','موثّق'):t('Not verified','غير موثّق');tag.classList.toggle('badge-approved',p.verified);tag.classList.toggle('badge-unverified',!p.verified)}
+        notice(t('Verification updated. Account access was not changed.','تم تحديث التوثيق دون تغيير صلاحية الحساب.'),'success');
+      }catch(error){status.textContent=error.message==='profile_changed_reload_review'?t('Profile changed. Reload before trying again.','تغير الملف. أعد التحميل قبل المحاولة.'):t('Verification was not confirmed. Please refresh and try again.','لم يتم تأكيد التوثيق. حدّث الصفحة وحاول مجدداً.');submit.disabled=false;cancel.disabled=false}
+    };
+    box.append(open,form);return box;
+  }
   function fillCoachCard(details,p,status){
     if(details.dataset.filled)return;details.dataset.filled='1';
     const c=node('div',null,'coach-details'),licensed=['nutritionist','physiotherapist','sports_massage_therapist'].includes(p.provider_type);
@@ -545,6 +577,7 @@
       const profilePath=p.provider_type==='pacer'?'pacer.html?provider='+encodeURIComponent(p.id):'coach.html?id='+encodeURIComponent(p.id);
       const publicLink=link(t('Public profile','الملف العام'),profilePath);publicLink.target='_blank';publicLink.rel='noopener noreferrer';c.append(publicLink);
       const line=emailStatusLine(p);if(line)c.append(line);
+      if(['coach','bodybuilding_coach'].includes(p.provider_type))c.append(verificationControl(p));
     }
     if(status==='rejected'||status==='removed'){
       if(p.review_note)c.append(node('p',p.review_note));
@@ -568,15 +601,16 @@
   function coachCard(root,p,status){
     const details=node('details',null,'coach-card'),summary=node('summary',null,'coach-summary');
     details.dataset.recordId=p.id;
-    summary.append(avatar(p.display_name),node('span',p.display_name,'coach-name'));
+    const identity=node('span',null,'coach-identity');identity.append(node('span',p.display_name,'coach-name'));summary.append(avatar(p.display_name),identity);
     if(p.user_id&&managementIsAdmin)summary.append(quickMenu([
       {label:t('View profile','عرض الملف'),onClick:()=>{details.open=true}},
       {label:t('Move to Trash','نقل إلى المهملات'),onClick:()=>trashAccount(p.user_id,p.display_name,()=>{applications=null;return render()})},
     ]));
     const meta=node('span',[name(p.provider_type),[p.city,p.country].filter(Boolean).join(', '),p.email].filter(Boolean).join(' · '),'coach-meta');
-    summary.append(meta,badge(status==='removed'?'suspended':status,status==='pending'&&!p.profile_complete?'incomplete':''));
-    if(status==='pending'&&!p.profile_complete)summary.append(node('small',t('Incomplete','غير مكتمل'),'incomplete-tag'));
-    const mail=emailStatusLine(p);if(mail)summary.append(mail);
+    identity.append(meta);const statusGroup=node('span',null,'coach-status-group');statusGroup.append(badge(status==='removed'?'suspended':status,status==='pending'&&!p.profile_complete?'incomplete':''));summary.append(statusGroup);
+    if(status==='approved'&&['coach','bodybuilding_coach'].includes(p.provider_type)&&(p.verified===0||p.verified===1||typeof p.verified==='boolean'))statusGroup.append(node('span',p.verified?t('Verified','موثّق'):t('Not verified','غير موثّق'),'badge verification-badge '+(p.verified?'badge-approved':'badge-unverified')));
+    if(status==='pending'&&!p.profile_complete)statusGroup.append(node('small',t('Incomplete','غير مكتمل'),'incomplete-tag'));
+    const mail=emailStatusLine(p);if(mail)statusGroup.append(mail);
     const completeness=node('small',t('Completeness: —','اكتمال الملف: —'),'completeness-tag');
     summary.append(completeness);
     completenessIndicator(p,completeness).then(result=>{
@@ -1617,7 +1651,7 @@
     const [h,ai]=await Promise.all([api('admin/history'),api('admin/agents')]);const events=[...h.events,...ai.activity].sort((a,b)=>b.created_at.localeCompare(a.created_at));
     group(root,t('Recent decisions and activity','آخر القرارات والأنشطة'),events.slice(0,100),(r,e)=>card(r,e.action?name(e.action):e.entity_type==='provider_profile'?t('Coach profile','ملف المدرب'):e.entity_type==='registration'?t('New registration','تسجيل جديد'):t('Booking','حجز'),[date(e.created_at),e.action?name(e.agent_type):name(e.from_status),e.to_status?name(e.to_status):''].filter(Boolean).join(' · ')));
   }
-  async function render(){const n=++sequence;staticLabels();$('nav').replaceChildren();const available=Object.entries(tabs).filter(([id])=>managementIsAdmin||!TAB_PERMISSIONS[id]||managementPermissions.includes(TAB_PERMISSIONS[id]));if(!available.some(([id])=>id===tab))tab='overview';for(const [id,v] of available){const b=node('button');b.type='button';b.dataset.navTab=id;b.title=t(...v);b.setAttribute('aria-label',t(...v));b.setAttribute('aria-current',id===tab);b.append(node('span',tabIcons[id]||'•','nav-icon'),node('span',t(...v),'nav-label'));b.onclick=()=>{closeMobileNav();return go(id)};$('nav').append(b)}paintNotificationBadges();const params=new URLSearchParams();if(tab!=='overview')params.set('tab',tab);if(recordId)params.set('record',recordId);history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:''));$('title').textContent=t(...tabs[tab]);$('portalSubtitle').textContent=t(...(tabSubtitles[tab]||tabSubtitles.overview));$('view').textContent=t('Loading…','جارٍ التحميل…');const root=node('div');try{await paint(root);if(n===sequence){$('view').replaceChildren(root);focusRecord()}}catch(err){if(n===sequence||$('workspace').hidden)notice(errorMessage(err));if(n===sequence)$('view').replaceChildren(retryButton(t('Retry','إعادة المحاولة'),render))}}
+  async function render(){const n=++sequence;staticLabels();$('nav').replaceChildren();const available=Object.entries(tabs).filter(([id])=>managementIsAdmin||!TAB_PERMISSIONS[id]||managementPermissions.includes(TAB_PERMISSIONS[id]));if(!available.some(([id])=>id===tab))tab='overview';for(const [id,v] of available){const b=node('button');b.type='button';b.dataset.navTab=id;b.title=t(...v);b.setAttribute('aria-label',t(...v));b.setAttribute('aria-current',id===tab);b.append(navIcon(id),node('span',t(...v),'nav-label'));b.onclick=()=>{closeMobileNav();return go(id)};$('nav').append(b)}paintNotificationBadges();const params=new URLSearchParams();if(tab!=='overview')params.set('tab',tab);if(recordId)params.set('record',recordId);history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:''));$('title').textContent=t(...tabs[tab]);$('portalSubtitle').textContent=t(...(tabSubtitles[tab]||tabSubtitles.overview));$('view').textContent=t('Loading…','جارٍ التحميل…');const root=node('div');try{await paint(root);if(n===sequence){$('view').replaceChildren(root);focusRecord()}}catch(err){if(n===sequence||$('workspace').hidden)notice(errorMessage(err));if(n===sequence)$('view').replaceChildren(retryButton(t('Retry','إعادة المحاولة'),render))}}
   async function open(){
     try {
       const [,access,overview] = await Promise.all([api('admin/history'),api('me/access'),api('admin/dashboard')]);

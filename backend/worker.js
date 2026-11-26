@@ -4346,7 +4346,7 @@ async function adminApplications(request, env, user) {
       FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE (u.account_status IS NULL OR u.account_status<>'deleted') AND p.status='pending' AND COALESCE(p.submission_state,'submitted')<>'draft' ORDER BY p.created_at LIMIT 100`).all();
     const draftProviders = await env.DB.prepare(`SELECT p.id,p.user_id,p.provider_type,p.display_name,p.country,p.city,p.submission_state,p.submitted_at,p.updated_at,u.email,${completeness}
       FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE (u.account_status IS NULL OR u.account_status<>'deleted') AND p.status='pending' AND p.submission_state='draft' ORDER BY p.created_at LIMIT 100`).all();
-    const approvedProviders = await env.DB.prepare(`SELECT p.id,p.user_id,p.provider_type,p.display_name,p.country,p.city,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
+    const approvedProviders = await env.DB.prepare(`SELECT p.id,p.user_id,p.provider_type,p.verified,p.display_name,p.country,p.city,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
       FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE (u.account_status IS NULL OR u.account_status<>'deleted') AND p.status='approved' ORDER BY p.updated_at DESC LIMIT 100`).all();
     const rejectedProviders = await env.DB.prepare(`SELECT p.id,p.user_id,p.provider_type,p.display_name,p.country,p.city,p.review_note,CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,p.profile_photo_updated_at,CASE WHEN EXISTS(SELECT 1 FROM provider_covers WHERE provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,p.updated_at,u.email,${welcomeFields}
       FROM provider_profiles p JOIN users u ON u.id=p.user_id ${welcomeJoin} WHERE (u.account_status IS NULL OR u.account_status<>'deleted') AND p.status='rejected' AND (p.review_note IS NULL OR p.review_note<>'Removed by owner') ORDER BY p.updated_at DESC LIMIT 100`).all();
@@ -4364,6 +4364,27 @@ async function adminApplications(request, env, user) {
       suspended_providers: (suspendedProviders.results || []).map((row) => applicationForViewer(row, user)),
       bookings: bookings.results || [],
     });
+  }
+  // Verification is independent of application approval, login and visibility.
+  const verificationMatch = /^\/api\/admin\/providers\/([\w-]{36})\/verification$/.exec(path);
+  if (verificationMatch && request.method === "PATCH") {
+    if (!isSuperAdmin(user)) return reply(request, env, { error: "admin_required" }, 403);
+    const body = await readJson(request);
+    const reason = text(body?.reason, 300);
+    if (typeof body?.verified !== "boolean" || !reason || typeof body.review_version !== "string" || !body.review_version) return reply(request, env, { error: "invalid_verification_request" }, 400);
+    const row = await env.DB.prepare("SELECT p.id,p.user_id,p.provider_type,p.status,p.verified,p.updated_at,u.account_status FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.id=?").bind(verificationMatch[1]).first();
+    if (!row) return reply(request, env, { error: "provider_not_found" }, 404);
+    if (!["coach","bodybuilding_coach"].includes(row.provider_type) || row.status !== "approved" || !accountActive(row.account_status)) return reply(request, env, { error: "verification_not_eligible" }, 409);
+    if (row.updated_at !== body.review_version) return reply(request, env, { error: "profile_changed_reload_review" }, 409);
+    const next = Number(body.verified);
+    if (row.verified === next) return reply(request, env, { updated:false,verified:body.verified,updated_at:row.updated_at });
+    const now = new Date().toISOString();
+    const [result] = await env.DB.batch([
+      env.DB.prepare("UPDATE provider_profiles SET verified=?,updated_at=? WHERE id=? AND status='approved' AND updated_at=? AND verified=? AND EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND (u.account_status IS NULL OR u.account_status='active'))").bind(next,now,row.id,row.updated_at,row.verified),
+      env.DB.prepare("INSERT INTO account_events(id,actor_user_id,subject_user_id,action,detail,created_at) SELECT ?,?,?,?,?,? WHERE changes()=1").bind(randomId(),user.id,row.user_id,next?"coach_verification_granted":"coach_verification_removed",JSON.stringify({reason,profile_id:row.id,previous_verified:Boolean(row.verified),verified:body.verified}),now),
+    ]);
+    if (!result.meta?.changes) return reply(request, env, { error: "profile_changed_reload_review" }, 409);
+    return reply(request, env, { updated:true,verified:body.verified,updated_at:now });
   }
   const match = /^\/api\/admin\/providers\/([\w-]{36})$/.exec(new URL(request.url).pathname);
   if (match && request.method === "PATCH") {
