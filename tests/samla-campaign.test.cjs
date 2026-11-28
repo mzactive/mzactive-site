@@ -11,7 +11,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 test('homepage has a removable SAMLA 200 campaign banner', () => {
   const html = read('index.html');
   assert.match(html, /id="samlaCampaignBanner"/);
-  assert.match(html, /data-ar="صمله 200 — كل دقيقة تصنع الفرق"/);
+  assert.match(html, /data-ar="صملة 200 — كل دقيقة تصنع الفرق"/);
   assert.match(html, /data-ar="احسب استراتيجية سباقك مجاناً"/);
   assert.match(html, /href="\/samla\/"/);
   assert.match(html, /api\/public\/campaigns\/samla/);
