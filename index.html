@@ -1208,6 +1208,7 @@ html[dir="rtl"] .footer-install { text-align: right; }
 
 .home-page .hero-copy .eyebrow,
 .home-page .step-number,
+.home-page .dialog-copy .eyebrow,
 .home-page .directory-disclaimer,
 .home-page .footer-legal { font-size: .8125rem; }
 .home-page .hero-description,
@@ -1222,7 +1223,9 @@ html[dir="rtl"] .footer-install { text-align: right; }
 .home-page .footer-brand p,
 .home-page .footer-column a,
 .home-page .footer-vision-link,
-.home-page .footer-install .footer-install-copy p { font-size: .875rem; line-height: 1.45; }
+.home-page .footer-install .footer-install-copy p,
+.home-page .dialog-copy > p:not(.eyebrow),
+.home-page .dialog-copy .button { font-size: .875rem; line-height: 1.45; }
 .home-page .step h3,
 .home-page .footer-column h2,
 .home-page .footer-install .footer-install-copy h2 { font-size: .9375rem; }
@@ -1233,7 +1236,9 @@ html[dir="rtl"] .footer-install { text-align: right; }
 .home-page .button-search,
 .home-page .recruit-copy .button,
 .home-page .community-copy .button,
+.home-page .dialog-copy .button,
 .home-page .search-field :is(input, select) { min-block-size: 44px; }
+.home-page .dialog-close { inline-size: 44px; block-size: 44px; }
 .home-page .search-field-copy strong { font-size: .8125rem; }
 .home-page .search-field :is(input, select) { font-size: 1rem; }
 .home-page .search-field-copy { min-width: 0; }
