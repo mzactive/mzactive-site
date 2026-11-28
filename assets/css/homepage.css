@@ -67,7 +67,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .brand { display: block; line-height: 0; }
 .brand img { display: block; width: clamp(115px, 12vw, 156px); height: auto; }
 .main-nav { display: flex; align-items: center; justify-content: center; gap: clamp(13px, 2.1vw, 31px); min-width: 0; white-space: nowrap; }
-.main-nav > a, .nav-resources > summary {
+.main-nav > :is(a, .current-page), .nav-resources > summary {
   position: relative;
   padding-block: 13px 11px;
   color: #e6efec;
@@ -77,7 +77,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   list-style: none;
 }
 .main-nav > a:hover, .nav-resources > summary:hover { color: var(--gold); }
-.main-nav > a[aria-current="page"]::after {
+.main-nav > .current-page { cursor: default; }
+.main-nav > .current-page::after {
   position: absolute;
   right: 0;
   bottom: 7px;
@@ -577,7 +578,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .header-inner { width: calc(100% - 34px); gap: 12px; }
   .brand img { width: 112px; }
   .main-nav { gap: 12px; }
-  .main-nav > a, .nav-resources > summary { font-size: 9px; }
+  .main-nav > :is(a, .current-page), .nav-resources > summary { font-size: 9px; }
   .auth-links a { padding-inline: 9px; }
   .search-form { gap: 5px; }
   .search-field { grid-template-columns: 16px minmax(0, 1fr); gap: 5px; padding-inline: 7px; }
@@ -630,8 +631,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     box-shadow: 0 15px 25px #0008;
   }
   .main-nav.is-open { display: flex; }
-  .main-nav > a, .nav-resources > summary { padding: 8px 3px; font-size: 11px; }
-  .main-nav > a[aria-current="page"]::after { bottom: 4px; right: auto; width: 25px; }
+  .main-nav > :is(a, .current-page), .nav-resources > summary { padding: 8px 3px; font-size: 11px; }
+  .main-nav > .current-page::after { bottom: 4px; right: auto; width: 25px; }
   .nav-resources > div { position: static; min-width: 0; padding: 4px 12px; border: 0; box-shadow: none; }
   .mobile-nav-actions { display: flex; gap: 8px; padding-top: 9px; border-top: 1px solid #ffffff25; }
   .mobile-nav-actions a { flex: 1; min-height: 31px; font-size: 10px; }
@@ -783,7 +784,7 @@ html[dir="rtl"] .footer-install { text-align: right; }
   .header-inner{min-height:56px}
   .menu-toggle{width:44px;height:44px}
   .lang-toggle{min-height:44px}
-  .main-nav > a, .nav-resources > summary{min-height:44px;display:flex;align-items:center}
+  .main-nav > :is(a, .current-page), .nav-resources > summary{min-height:44px;display:flex;align-items:center}
   .mobile-nav-actions a{min-height:44px;font-size:12px}
 }
 @media (max-width:520px){
