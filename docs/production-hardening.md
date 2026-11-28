@@ -49,6 +49,8 @@ Cloudflare reported SSL mode `full`, HSTS disabled, a browser cache TTL of 14,40
 
 WAVE identified the contrast errors on the numbered onboarding badges. The earlier production capture showed 49 small-text alerts. The side-by-side public reports above used a fresh production retest and the final staging revision. Empty alternatives on category photos and logo repetitions were reviewed against their adjacent visible labels. The hero and standalone informational photographs keep descriptive alternatives.
 
-The three recovery photos retain their original subjects and crops. The 320 px WebP derivatives total 29,668 bytes, compared with 144,475 bytes for the three former 640 px JPEG requests. The original hero still uses a single format-gated high-priority WebP request.
+The three recovery cards still use the original photographs. The 320 px WebP derivatives total 29,668 bytes, compared with 144,475 bytes for the three former 640 px JPEG requests. The original hero still uses a single format-gated high-priority WebP request.
 
 An actual staged PWA update from v9 to v10 was exercised. Choosing Later left v9 active. Explicit confirmation activated v10 and retired the previous cache. Offline navigation to the management page returned the generic offline screen. Unlisted assets and API responses stayed outside Cache Storage. Chromium and an iPhone-sized WebKit session verified the mobile UI. Native Add to Home Screen on a physical iPhone remains a device check.
+
+[SSL Labs rating guide](https://github.com/ssllabs/research/wiki/SSL-Server-Rating-Guide) · [Cloudflare minimum TLS settings](https://developers.cloudflare.com/ssl/edge-certificates/additional-options/minimum-tls/) · [Cloudflare response header transforms](https://developers.cloudflare.com/rules/transform/response-header-modification/)
