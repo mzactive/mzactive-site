@@ -1535,9 +1535,9 @@ function momoMessage(name, missing, language = "en") {
   const labels = missing.slice(0, 6).map(field => (MOMO_FIELD_LABELS[field] || [field, field])[language === "ar" ? 1 : 0]);
   const list = labels.map(label => language === "ar" ? `• ${label}` : `- ${label}`).join("\n");
   if (language === "ar") {
-    return `مرحباً ${name || "المدرب"}،\n\nلاحظنا أن ملفك في MZ Active يحتاج إلى بعض المعلومات قبل أن يكتمل ظهوره للرياضيين.\n\nالمعلومات المطلوبة:\n${list}\n\nيمكنك تحديث ملفك من هنا: ${COACH_PROFILE_URL}\n\nهذه رسالة مساعدة من Momo، مساعد MZ Active. لم يتم إرسال أي تحديث أو نشر نيابة عنك.\n\nفريق MZ Active`;
+    return `مرحباً ${name || "المدرب"}،\n\nلاحظنا أن ملفك في MZ Active يحتاج إلى بعض المعلومات قبل أن يكتمل ظهوره للرياضيين.\n\nالمعلومات المطلوبة:\n${list}\n\nيمكنك تحديث ملفك من هنا: ${COACH_PROFILE_URL}\n\nإذا احتجت إلى مساعدة في إكمال ملفك، يسعد فريق MZ Active مساعدتك. أعدّ Momo هذا التذكير لفريق الإدارة.\n\nفريق MZ Active`;
   }
-  return `Hi ${name || "Coach"},\n\nA few details are still missing from your MZ Active profile before it is complete for athletes.\n\nMissing information:\n${list}\n\nUpdate your profile here: ${COACH_PROFILE_URL}\n\nThis is an automated reminder from Momo, the MZ Active assistant. Nothing has been published or changed on your behalf.\n\nThe MZ Active Team`;
+  return `Hi ${name || "Coach"},\n\nA few details are still missing from your MZ Active profile before it is complete for athletes.\n\nMissing information:\n${list}\n\nUpdate your profile here: ${COACH_PROFILE_URL}\n\nIf you need a hand completing your profile, the MZ Active team is here to help. Momo prepared this reminder for the team.\n\nThe MZ Active Team`;
 }
 
 function momoPriority(completion, followup, now) {
@@ -1555,7 +1555,7 @@ async function runMomoCoachFollowUps(env) {
     CASE WHEN p.profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,
     CASE WHEN EXISTS(SELECT 1 FROM provider_covers c WHERE c.provider_id=p.id) THEN 1 ELSE 0 END AS has_cover,
     u.email FROM provider_profiles p JOIN users u ON u.id=p.user_id
-    WHERE p.status='approved' AND u.profile_visibility='public' ORDER BY p.updated_at DESC LIMIT 200`).all();
+    WHERE p.status='approved' AND u.account_status='active' AND u.profile_visibility='public' ORDER BY p.updated_at DESC LIMIT 200`).all();
   const now = new Date().toISOString();
   let created = 0, resolved = 0;
   for (const row of rows.results || []) {
@@ -1593,7 +1593,7 @@ async function runMomoCoachFollowUps(env) {
     }
     const taskId = randomId();
     const draft = priority === "escalated"
-      ? `${messageEn}\n\nHuman review: this coach has been reminded ${attempts} times and the profile is still incomplete.`
+      ? `${messageEn}\n\nHuman review: the profile is still incomplete after ${attempts} review checks.`
       : messageEn;
     await env.DB.batch([
       env.DB.prepare(`INSERT INTO owner_agent_tasks(id,agent_type,source,title,status,approval_status,input_json,output_json,created_at,completed_at)
@@ -1760,10 +1760,15 @@ async function publicProviders(url, request, env, id = null) {
   const rows = await env.DB.prepare(`SELECT id,user_id,verified,qualifications,services_json,coaching_mode,certificate_name,certificate_issuer,license_number,license_issuer,license_expires_on,license_status,(SELECT json_group_array(slot) FROM provider_gallery WHERE provider_id=provider_profiles.id) AS gallery_slots,provider_type,display_name,country,city,specialties_json,languages_json,bio,experience_years,indicative_rate_qar,program_durations_json,pacer_details_json,CASE WHEN profile_photo_bytes IS NOT NULL THEN 1 ELSE 0 END AS has_profile_photo,profile_photo_updated_at,whatsapp_number,whatsapp_public,social_links_json,public_fields_json
     FROM provider_profiles WHERE status='approved'
     AND NOT EXISTS(SELECT 1 FROM users u WHERE u.id=provider_profiles.user_id AND (u.profile_visibility<>'public' OR u.account_status IS NULL OR u.account_status<>'active'))
+    AND (provider_type NOT IN ('coach','bodybuilding_coach')
+      OR (? IS NOT NULL AND user_id=?)
+      OR TRIM(COALESCE(bio,'')) NOT IN ('','Profile awaiting completion by the provider.')
+      OR COALESCE(TRIM(specialties_json),'[]') NOT IN ('','[]')
+      OR COALESCE(TRIM(services_json),'[]') NOT IN ('','[]'))
     AND (provider_type NOT IN ('nutritionist','physiotherapist','sports_massage_therapist') OR (license_status='verified' AND (license_expires_on IS NULL OR license_expires_on>=date('now'))))
     AND (? IS NULL OR id=?) AND (?='' OR provider_type=?) AND (?='' OR city LIKE ?)
     AND (?='' OR display_name LIKE ? OR bio LIKE ? OR specialties_json LIKE ? OR qualifications LIKE ? OR services_json LIKE ? OR certificate_name LIKE ?) ORDER BY display_name LIMIT 50`)
-    .bind(id,id,type,type,city,`%${city}%`,query,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`).all();
+    .bind(id,id ? viewer?.id || null : null,id,id,type,type,city,`%${city}%`,query,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`,`%${query}%`).all();
   const viewerKeyPromise = id && viewer?.id ? viewerKey(request, env, viewer) : Promise.resolve("");
   const providers = await Promise.all((rows.results || []).map(async (row) => {
     const fields = cleanPublicFields(safeParse(row.public_fields_json));
@@ -1795,7 +1800,7 @@ async function publicProviders(url, request, env, id = null) {
       country: show("city") ? row.country : "", city: show("city") ? row.city : "",
       specialties: show("specialties") ? safeParse(row.specialties_json) : [],
       languages: show("languages") ? safeParse(row.languages_json) : [],
-      bio: show("bio") ? row.bio : "",
+      bio: show("bio") && row.bio?.trim() !== "Profile awaiting completion by the provider." ? row.bio : "",
       experience_years: show("experience_years") ? row.experience_years : null,
       indicative_rate_qar: show("indicative_rate_qar") ? row.indicative_rate_qar : null,
       program_durations: show("program_durations") && row.provider_type === "coach" ? safeParse(row.program_durations_json).filter((months) => [1,2,3].includes(months)) : [],
@@ -4024,10 +4029,23 @@ async function adminApplications(request, env, user) {
       await env.DB.prepare("UPDATE momo_coach_followups SET status='dismissed',updated_at=? WHERE id=?").bind(now, followup.id).run();
       return reply(request, env, { updated: true, status: "dismissed" });
     }
+    if (["dismissed", "resolved", "contacted"].includes(followup.status)) {
+      return reply(request, env, { error: "followup_closed" }, 409);
+    }
+    const profile = await env.DB.prepare(`SELECT p.*,u.email,u.account_status,u.profile_visibility
+      FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.id=?`).bind(followup.coach_profile_id).first();
+    if (!profile || profile.status !== "approved" || profile.account_status !== "active" ||
+        profile.profile_visibility !== "public" || profileCompletion(profile).complete) {
+      await env.DB.prepare("UPDATE momo_coach_followups SET status='resolved',updated_at=?,next_check_at=NULL WHERE id=?")
+        .bind(now, followup.id).run();
+      return reply(request, env, { updated: true, status: "resolved" });
+    }
     const target = await coachContactTargets(env, followup.coach_profile_id);
     if (!target?.email) return reply(request, env, { error: "coach_email_unavailable" }, 422);
-    const message = requestLanguage(request) === "ar" ? followup.message_ar : followup.message_en;
-    const result = await sendManagementEmail(env, target.email, "MZ Active · complete your profile", message);
+    const language = requestLanguage(request);
+    const message = momoMessage(target.name, profileCompletion(profile).required, language) +
+      (managementContactConfig(env).email ? "\n" + managementContactConfig(env).email : "");
+    const result = await sendManagementEmail(env, target.email, "MZ Active · complete your profile", message, `momo-${followup.id}-${followup.attempt_count}`);
     const record = await createCoachContactRecord(env, target, user, "email", "profile_support", message, result);
     await env.DB.prepare(`UPDATE momo_coach_followups SET status=?,last_contacted_at=?,task_id=?,updated_at=? WHERE id=?`)
       .bind(result.ok ? "contacted" : "escalated", now, record.id, now, followup.id).run();

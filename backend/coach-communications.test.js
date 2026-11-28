@@ -94,6 +94,14 @@ test('coach security, contact states, completeness and Momo drafts are enforced 
       review_version: (await call(env, 'admin/applications', 'GET', undefined, admin)).providers.find(p => p.id === otherId).updated_at,
     }, admin);
 
+    const directory = (await call(env, 'providers')).providers;
+    assert.ok(directory.some(provider => provider.id === profileId));
+    assert.ok(!directory.some(provider => provider.id === otherId));
+    await call(env, 'providers/' + otherId, 'GET', undefined, null, 404);
+    const emptyOwnerView = (await call(env, 'providers/' + otherId, 'GET', undefined, other)).provider;
+    assert.equal(emptyOwnerView.viewer.owner, true);
+    assert.equal(emptyOwnerView.bio, '');
+
     // Public reads are public only; ownership is server-declared and cannot be
     // inferred from a query parameter or another account's token.
     const publicView = (await call(env, 'providers/' + profileId + '?owner=1')).provider;
@@ -207,6 +215,8 @@ test('coach security, contact states, completeness and Momo drafts are enforced 
     const sentBefore = sent.length;
     await call(env, 'admin/momo-followups/' + followups[0].id + '/contact', 'POST', {}, admin);
     assert.equal(sent.length, sentBefore + 1);
+    await call(env, 'admin/momo-followups/' + followups[0].id + '/contact', 'POST', {}, admin, 409);
+    assert.equal(sent.length, sentBefore + 1);
     await call(env, 'admin/momo-followups/' + followups[0].id + '/dismiss', 'POST', {}, admin);
     const after = (await call(env, 'admin/momo-followups', 'GET', undefined, admin)).followups;
     assert.equal(after.length, 1);
@@ -220,6 +230,14 @@ test('coach security, contact states, completeness and Momo drafts are enforced 
     for (const key of ['percent', 'complete', 'required', 'recommended', 'score']) {
       assert.deepEqual(ownIncomplete[key], incomplete[key], 'admin/coach completion mismatch: ' + key);
     }
+    const finished = after[0];
+    db.prepare('UPDATE provider_profiles SET bio=?,specialties_json=? WHERE id=?')
+      .run('I coach athletes preparing for road races.', '["Running"]', finished.coach_profile_id);
+    await worker.scheduled({ scheduledTime: 6 * 3600000 }, env);
+    assert.ok((await call(env, 'providers')).providers.some(provider => provider.id === finished.coach_profile_id));
+    assert.equal((await call(env, 'admin/momo-followups', 'GET', undefined, admin)).followups.length, 0);
+    await call(env, 'admin/momo-followups/' + finished.id + '/contact', 'POST', {}, admin, 409);
+    assert.equal(sent.length, sentBefore + 1);
   } finally {
     restore();
   }
