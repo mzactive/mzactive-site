@@ -159,7 +159,7 @@ test('the Management Portal has no installation promotion or install script', ()
 });
 
 test('install assets join the offline-safe versioned shell', () => {
-  assert.match(sw, /mza-shell-v9/);
+  assert.match(sw, /mza-shell-v10/);
   assert.match(sw, /\/assets\/css\/pwa-install-v2\.css\?v=20261122a/);
   assert.match(sw, /\/assets\/js\/pwa-install-v2\.js\?v=20261122a/);
   assert.match(installCss, /#091d21/);
@@ -173,7 +173,7 @@ test('the subdirectory guide uses the same versioned PWA assets as the rest of t
   const guide = read('4-week-10k/index.html');
   assert.doesNotMatch(guide, /id="plan">div class="wrap"/);
   assert.match(guide, /id="plan"><div class="wrap"><div class="eyebrow">Four-week structure/);
-  assert.match(guide, /pwa-register\.js\?v=20261121b/);
+  assert.match(guide, /pwa-register\.js\?v=20261128a/);
   assert.match(guide, /icon-192\.png\?v=20261120c/);
   assert.match(guide, /apple-touch-icon-180\.png\?v=20261120c/);
 });

@@ -9,15 +9,11 @@ const sw = read('sw.js');
 const register = read('assets/js/pwa-register.js');
 const css = read('assets/css/site-theme.css');
 
-test('the active service worker shell cache is bumped to v9', () => {
-  assert.match(sw, /const CACHE = ['"]mza-shell-v9['"]/);
+test('the active service worker shell cache is bumped to v10', () => {
+  assert.match(sw, /const CACHE = ['"]mza-shell-v10['"]/);
   assert.doesNotMatch(sw, /const CACHE = ['"]mza-shell-v8['"]/);
   assert.match(sw, /key\.startsWith\(['"]mza-shell-['"]\) && key !== CACHE/);
   assert.match(sw, /caches\.delete\(key\)/);
-  // The previous name only survives as migration documentation.
-  const legacy = sw.split('\n').filter(line => line.includes('mza-shell-v8'));
-  assert.equal(legacy.length, 1);
-  assert.match(legacy[0], /^\/\//);
   new Function(sw);
 });
 
@@ -31,24 +27,20 @@ test('a waiting worker is never activated unconditionally in install', () => {
   assert.match(sw, /self\.clients\.claim\(\)/);
 });
 
-test('cached assets are refreshed in the background without changing versioned URLs', () => {
-  assert.match(sw, /url\.pathname\.startsWith\(['"]\/assets\/['"]\)/);
+test('only the versioned shell assets and offline page are offline fallbacks', () => {
+  assert.match(sw, /SHELL_ASSETS\.has\(url\.pathname \+ url\.search\)/);
+  assert.match(sw, /fetch\(request\)\.catch/);
   assert.match(sw, /cache\.match\(request\)/);
-  assert.match(sw, /fetch\(request\)/);
-  assert.match(sw, /cache-control/);
-  assert.match(sw, /no-store/);
-  assert.match(sw, /cache\.put\(request, copy\)/);
-  assert.match(sw, /event\.waitUntil\(fresh\)/);
-  assert.match(sw, /cached \|\| fresh\.then/);
-  // Offline navigation fallback and network-only rules remain in place.
-  assert.match(sw, /request\.mode === ['"]navigate['"]/);
+  assert.doesNotMatch(sw, /cache\.put/);
   assert.match(sw, /cache\.match\(['"]\/offline\.html['"]\)/);
   assert.match(sw, /url\.pathname\.startsWith\(['"]\/api\/['"]\)/);
+  assert.match(sw, /url\.origin !== self\.location\.origin/);
 });
 
 test('registration polls periodically and on visibility without assuming a paid service', () => {
   assert.match(register, /'serviceWorker' in navigator/);
-  assert.match(register, /register\(['"]\/sw\.js\?v=20261121b['"]/);
+  assert.match(register, /register\(['"]\/sw\.js\?v=20261128a['"]/);
+  assert.match(register, /updateViaCache: ['"]none['"]/);
   assert.match(register, /scope:\s*['"]\/['"]/);
   assert.match(register, /registration\.update\(\)\.catch/);
   assert.match(register, /setInterval\(checkForUpdate, CHECK_INTERVAL\)/);
@@ -120,7 +112,7 @@ test('service worker registration is cache-busted on every page that registers i
     const html = read(page);
     if (!html.includes('pwa-register.js')) continue;
     checked += 1;
-    assert.match(html, /pwa-register\.js\?v=20261121b/, page);
+    assert.match(html, /pwa-register\.js\?v=20261128a/, page);
     assert.doesNotMatch(html, /pwa-register\.js\?v=20261120e/, page);
   }
   assert.ok(checked >= 18, `expected every registered page to be versioned, found ${checked}`);

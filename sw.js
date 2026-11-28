@@ -1,6 +1,6 @@
 // MZA app shell. Private pages, API traffic and cross-origin requests stay network-only.
-// Cache name bumped from mza-shell-v8 to mza-shell-v9; older shell caches are retired on activate.
-const CACHE = 'mza-shell-v9';
+// Older MZA shell caches are retired only after the new worker activates.
+const CACHE = 'mza-shell-v10';
 const SHELL = [
   '/offline.html',
   '/manifest.json',
@@ -16,15 +16,17 @@ const SHELL = [
   '/assets/css/pwa-install-v2.css?v=20261122a',
   '/assets/js/pwa-install-v2.js?v=20261122a',
   '/assets/js/language-preference.js?v=20261120c',
-  '/assets/js/site-language.js?v=20261120h',
+  '/assets/js/site-language.js?v=20261128a',
   '/assets/js/api-base.js',
   '/assets/css/profile-completion.css?v=20261122c',
   '/assets/js/profile-completion.js?v=20261122c',
 ];
+const SHELL_ASSETS = new Set(SHELL.filter(path => path.startsWith('/assets/')));
 
 self.addEventListener('install', event => {
   // A new worker waits for the user to confirm the update in the page prompt.
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));
+  const requests = SHELL.map(path => new Request(new URL(path, self.location.origin), { cache: 'reload' }));
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(requests)));
 });
 
 self.addEventListener('activate', event => {
@@ -55,21 +57,13 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  if (url.pathname.startsWith('/assets/')) {
-    // Stale-while-revalidate: serve the cached copy immediately and refresh it
-    // in the background. The request URL (including its version query) stays intact.
-    const cachePromise = caches.open(CACHE);
-    const fresh = fetch(request).then(response => {
-      const cacheControl = response.headers.get('cache-control') || '';
-      if (response.ok && !cacheControl.includes('no-store')) {
-        const copy = response.clone();
-        return cachePromise.then(cache => cache.put(request, copy)).then(() => response, () => response);
-      }
-      return response;
-    }).catch(() => null);
-    event.waitUntil(fresh);
-    event.respondWith(cachePromise
-      .then(cache => cache.match(request))
-      .then(cached => cached || fresh.then(response => response || Response.error())));
+  // The offline page and its versioned dependencies are the only fallbacks.
+  // Live assets always use normal HTTP caching. No response from an arbitrary
+  // asset URL, failed request or API request can enter the offline cache.
+  if (SHELL_ASSETS.has(url.pathname + url.search)) {
+    event.respondWith(fetch(request).catch(async () => {
+      const cache = await caches.open(CACHE);
+      return (await cache.match(request)) || Response.error();
+    }));
   }
 });

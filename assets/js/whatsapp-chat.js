@@ -25,7 +25,6 @@
     if (href) {
       link.href = href;
       link.setAttribute("aria-label", label);
-      link.title = label;
       link.removeAttribute("aria-disabled");
       link.removeAttribute("tabindex");
       if (span) span.textContent = label;
@@ -34,7 +33,6 @@
       link.setAttribute("aria-disabled", "true");
       link.tabIndex = -1;
       link.setAttribute("aria-label", unavailable);
-      link.title = unavailable;
       if (span) span.textContent = unavailable;
     }
   }

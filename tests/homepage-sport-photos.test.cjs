@@ -40,7 +40,7 @@ test('all eleven sport cards are clickable photo cards with no placeholder icons
   for (const card of cards) assert.doesNotMatch(card, /<svg\b/i, 'original sports retain photos');
   const recovery=html.match(/<div class="sport-grid recovery-photo-grid">([\s\S]*?)<\/div>/)?.[1] || "";
   assert.equal((recovery.match(/class="sport-card sport-card-recovery"/g)||[]).length,3);
-  assert.equal((recovery.match(/<img src="https:\/\/images\.pexels\.com\/photos\//g)||[]).length,3);
+  assert.equal((recovery.match(/<img src="assets\/images\/sports\/[^"]+\.jpg" alt=""/g)||[]).length,3);
   assert.doesNotMatch(recovery, /<svg\b/i);
 
   cards.forEach((card, index) => {
@@ -73,7 +73,7 @@ test('martial arts and team sports use locally hosted licensed photographs with 
     assert.match(img, new RegExp(`width="${dimensions.width}" height="${dimensions.height}"`), `${sport} declares the optimized image dimensions`);
 
     const source = card.match(/<source\b[^>]*>/)?.[0] ?? '';
-    assert.match(source, new RegExp(`sizes="\\(max-width: 720px\\) 24vw, 12vw"`), `${sport} uses the shared sport-card sizes hint`);
+    assert.match(source, /sizes="\(max-width: 520px\) 31vw, \(max-width: 720px\) 24vw, 12vw"/, `${sport} uses the shared sport-card sizes hint`);
     const srcset = source.match(/srcset="([^"]+)"/)?.[1] ?? '';
     const variants = srcset.split(',').map((entry) => entry.trim().split(/\s+/));
     assert.deepEqual(variants, [320, 480, 640, 768, 960].map((width) => [
