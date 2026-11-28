@@ -17,7 +17,9 @@ test('mobile menu opens, navigates and closes without a stuck loading state', as
   await expect(page.locator('#menuToggle')).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('#mainNavigation')).toHaveClass(/is-open/);
 
-  await page.locator('#mainNavigation').getByRole('link', { name: 'Find a Coach' }).click();
+  const navigation = page.locator('#mainNavigation');
+  await navigation.locator('summary').filter({ hasText: /^Coaches$/ }).click();
+  await navigation.getByRole('link', { name: 'Find a Coach', exact: true }).click();
   await expect(page).toHaveURL(/\/coaches\.html/);
   await expect(page.locator('h1').first()).toBeVisible();
   await expect(page.locator('#empty')).not.toContainText('Loading approved profiles');
