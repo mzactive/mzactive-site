@@ -51,9 +51,9 @@ body.pacer-registration input:not([type=checkbox]){background:#fff!important;col
 <label class="consent"><input id="consent" type="checkbox" required><span data-en="I consent to processing my application and reviewing my profile before publication." data-ar="أوافق على معالجة طلبي ومراجعة ملفي قبل نشره.">I consent to processing my application and reviewing my profile before publication.</span></label>
 <button type="submit" id="submitPacer" data-en="Create my Pacer account" data-ar="أنشئ حسابي كمرافق">Create my Pacer account</button>
 <p id="status" class="status" role="status" aria-live="polite" data-user-content></p>
-<a id="continueProfile" href="dashboard.html#loginForm" hidden data-en="Sign in to complete my profile" data-ar="سجّل الدخول لإكمال ملفك">Sign in to complete my profile</a>
+<a id="continueProfile" href="dashboard.html?next=/pacer-dashboard.html#loginForm" hidden data-en="Sign in to complete my profile" data-ar="سجّل الدخول لإكمال ملفك">Sign in to complete my profile</a>
 </form>
-<p class="lead"><a href="dashboard.html#loginForm" data-en="Already have an account? Log in" data-ar="لديك حساب؟ سجّل الدخول">Already have an account? Log in</a></p>
+<p class="lead"><a href="dashboard.html?next=/pacer-dashboard.html#loginForm" data-en="Already have an account? Log in" data-ar="لديك حساب؟ سجّل الدخول">Already have an account? Log in</a></p>
 </main></div>
 <script src="assets/js/site-language.js?v=20261128a"></script>
 <script>
@@ -113,10 +113,9 @@ form.addEventListener('submit', async event => {
   try {
     const auth = window.MZActiveAuth;
     const session = await post('/api/auth/login', { email: body.email, password: body.password });
-    if (typeof session.token !== 'string' || !session.token || auth.destination(session) !== '/pacer-dashboard.html') {
-      throw new Error('pacer_session_unavailable');
-    }
-    location.assign(auth.store(session));
+    if (typeof session.token !== 'string' || !session.token) throw new Error('pacer_session_unavailable');
+    auth.store(session);
+    location.assign(continueProfile.href);
   } catch {
     status.textContent = t('Account created. Sign in to complete your Pacer profile. Your application is pending review.', 'تم إنشاء الحساب. سجّل الدخول لإكمال ملفك كمرافق. طلبك قيد المراجعة.');
     continueProfile.hidden = false;

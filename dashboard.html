@@ -408,8 +408,16 @@
       try{
         const access=await api('/api/me/access');if(token()!==current){setSignedIn(false);return}
         const destination=window.MZActiveAuth.destination(access);
-        if(destination!=='/dashboard.html'){location.replace(destination);return}
         const params=new URLSearchParams(location.search), workout=params.get('workout');
+        if(params.get('next')==='/pacer-dashboard.html' && destination==='/providers.html'){
+          try{
+            const result=await api('/api/pacer/profile');
+            if(token()===current && result.profile?.status==='pending'){location.replace('/pacer-dashboard.html');return}
+          }catch(error){
+            if(error.status!==404) throw error;
+          }
+        }
+        if(destination!=='/dashboard.html'){location.replace(destination);return}
         if(access.account_type==='member'&&window.MZActiveAuth.isWorkoutId(workout)){location.replace('/athlete-studio.html?workout='+encodeURIComponent(workout));return}
         const next=params.get('next');
         if(next==='/community.html'&&access.account_type==='member'){location.replace(next);return}
