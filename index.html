@@ -1293,8 +1293,9 @@ html[dir="rtl"] .footer-install { text-align: right; }
   }
 }
 @media (max-width: 520px) {
-  .home-page .header-inner { column-gap: 8px; }
+  .home-page .header-inner { min-height: 52px; column-gap: 8px; }
   .home-page .header-actions { gap: 5px; }
+  .home-page .header-actions :is(.lang-toggle, .mza-header-install) { padding-inline: 7px; }
   .home-page .hero-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .home-page .hero-actions .button {
     min-width: 0;
@@ -1304,8 +1305,30 @@ html[dir="rtl"] .footer-install { text-align: right; }
     text-align: center;
     white-space: normal;
   }
-  .home-page .search-field-copy strong { flex-basis: 34%; }
+  .home-page .search-form { gap: 4px; padding: 4px; }
+  .home-page .search-field {
+    grid-template-columns: 17px minmax(0, 1fr);
+    gap: 4px;
+    padding: 0 6px;
+  }
+  .home-page .search-field-copy {
+    display: grid;
+    grid-template-columns: fit-content(42%) minmax(0, 1fr);
+    gap: 5px;
+  }
+  .home-page .search-field-copy strong { font-size: .875rem; }
+  .home-page .search-field :is(input, select) { block-size: max(44px, 2.75em); }
+  .home-page .button-search { padding: 4px 10px; font-size: 1rem; }
+
   .home-page .steps { grid-template-columns: 1fr; }
+  .home-page .step {
+    grid-template-columns: 26px 20px minmax(0, 1fr);
+    column-gap: 5px;
+    padding-inline: 0;
+  }
+  .home-page .step-icon { width: 26px; height: 26px; }
+  .home-page .step h3 { font-size: 1rem; }
+  .home-page .step p { font-size: .9375rem; line-height: 1.35; }
   .home-page .sport-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 </style>
@@ -1394,7 +1417,18 @@ html[dir="rtl"] .footer-install { text-align: right; }
       .samla-campaign-banner:hover{filter:brightness(1.06)}
       .samla-campaign-banner:focus-visible{outline:3px solid #f2b718;outline-offset:3px}
       .samla-campaign-cta{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 20px;border-radius:999px;background:#f2b718;color:#091d21;font-weight:900;white-space:nowrap;box-shadow:0 8px 20px #f2b71833}
-      @media(max-width:640px){.samla-campaign-inner{flex-direction:column;align-items:flex-start}.samla-campaign-cta{width:100%;text-align:center}}
+      @media (max-width: 640px) {
+        .samla-campaign-banner { padding-block: 6px; }
+        .samla-campaign-inner { align-items: flex-start; flex-direction: column; gap: 6px; }
+        .samla-campaign-cta {
+          align-self: center;
+          max-width: 100%;
+          min-height: 44px;
+          padding: 4px 14px;
+          white-space: normal;
+          text-align: center;
+        }
+      }
     </style>
     <script>
       (function(){
