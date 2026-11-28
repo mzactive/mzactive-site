@@ -272,6 +272,17 @@
     const purpose=node('select');purpose.setAttribute('aria-label',t('Reason','السبب'));
     for(const [code,en,ar] of [['profile_support','Profile support','دعم الملف'],['bookings','Bookings','الحجوزات'],['programs','Programs','البرامج'],['technical_issue','Technical issue','مشكلة تقنية'],['other','Other','أخرى']]){const o=node('option',t(en,ar));o.value=code;purpose.append(o)}
     const message=node('textarea');message.rows=3;message.maxLength=4000;message.placeholder=t('Write the message for this coach','اكتب الرسالة لهذا المدرب');message.setAttribute('aria-label',message.placeholder);
+    const editProfileUrl='https://mzactive.com/dashboard.html#editCoachProfile';
+    const template=button(t('Use profile completion reminder','استخدم تذكير إكمال الملف'),()=>{
+      purpose.value='profile_support';
+      message.value=t(
+        'Could you take a few minutes to complete your MZ Active coach profile? Add a short bio, your specialties and the services you offer so athletes can understand how you can help.\n\nUpdate your profile: '+editProfileUrl+'\n\nIf you need a hand, contact our team. We’re here to help.',
+        'هل يمكنك تخصيص بضع دقائق لإكمال ملفك كمدرب في MZ Active؟ أضف نبذة قصيرة وتخصصاتك والخدمات التي تقدمها حتى يعرف الرياضيون كيف يمكنك مساعدتهم.\n\nحدّث ملفك: '+editProfileUrl+'\n\nإذا احتجت إلى مساعدة، تواصل مع فريقنا. نحن هنا لمساعدتك.'
+      );
+      message.focus();
+    });
+    const preparedLink=link(t('Open prepared draft','افتح المسودة المعدّة'),'#');
+    preparedLink.hidden=true;
     const statusLine=node('small',t('No contact recorded yet.','لا يوجد سجل تواصل بعد.'),'contact-state');
     const refresh=async()=>{
       const data=await api('admin/coaches/'+encodeURIComponent(p.id)+'/contacts').catch(()=>({contacts:[]}));
@@ -286,11 +297,15 @@
       const body={channel,purpose:purpose.value,message:message.value.trim(),intent};
       if(!body.message){notice(t('Write a message first.','اكتب الرسالة أولاً.'));return}
       const result=await api('admin/coaches/'+encodeURIComponent(p.id)+'/contacts',{method:'POST',body});
-      if(result.link){
-        const open=window.open(result.link,'_blank','noopener,noreferrer');
-        if(!open)notice(t('Open the prepared message from the blocked-popup link.','افتح الرسالة المعدة من رابط النافذة المحجوبة.'));
+      preparedLink.hidden=true;
+      if(result.link && /^(mailto:|https:\/\/wa\.me\/)/i.test(result.link)){
+        preparedLink.href=result.link;
+        preparedLink.hidden=false;
+        window.open(result.link,'_blank','noopener,noreferrer');
       }
-      notice(t('Draft saved. Status: ','حُفظت المسودة. الحالة: ')+stateName(result.status),'success');
+      notice(result.delivery==='provider_accepted'
+        ? t('Email accepted for delivery.','تم قبول البريد للإرسال.')
+        : t('Draft saved. Open the prepared draft to send it.','حُفظت المسودة. افتحها لإرسال الرسالة.'),'success');
       await refresh();
     };
     const mark=status=>async()=>{
@@ -303,21 +318,23 @@
     controls.append(button(t('Prepare email','إعداد بريد'),prepare('email','prepare')),button(t('Prepare WhatsApp','إعداد واتساب'),prepare('whatsapp','prepare')));
     if(config.email_delivery)controls.append(button(t('Send email','إرسال بريد'),prepare('email','send')));
     controls.append(button(t('Mark opened','تحديد كمفتوح'),mark('opened')),button(t('Mark sent','تحديد كمرسل'),mark('confirmed_sent')),button(t('Complete','إكمال'),mark('completed')));
-    box.append(purpose,message,controls,statusLine);
+    box.append(purpose,template,message,controls,preparedLink,statusLine);
     root.append(box);
     await refresh();
   }
   async function momoFollowups(root){
     const intro=node('p',t('Momo prepares rule-based profile follow-up drafts only. Nothing is sent automatically; every draft needs a human decision.','يجهّز Momo مسودات متابعة ملفات بقواعد ثابتة فقط. لا يُرسل أي شيء تلقائياً؛ كل مسودة تحتاج قراراً بشرياً.'),'momo-note');
     root.append(intro);
-    const data=await api('admin/momo-followups').catch(()=>({followups:[]}));
+    let data;
+    try{data=await api('admin/momo-followups')}
+    catch(e){root.append(node('p',errorMessage(e),'crm-error'));return}
     if(!(data.followups||[]).length){root.append(node('p',t('No open follow-ups.','لا توجد متابعات مفتوحة.'),'muted'));return}
     const list=node('div',null,'momo-list');root.append(list);
     for(const f of data.followups){
       const c=card(list,[f.coach_name,f.priority].filter(Boolean).join(' · '),f.message,f.id);
-      c.append(node('small',t('Status: ','الحالة: ')+stateName(f.status)+' · '+t('Attempts: ','المحاولات: ')+Number(f.attempt_count||0),'momo-state'));
+      c.append(node('small',t('Status: ','الحالة: ')+stateName(f.status)+' · '+t('Review cycles: ','دورات المراجعة: ')+Number(f.attempt_count||0),'momo-state'));
       if((f.missing_fields||[]).length)c.append(node('small',t('Missing: ','ناقص: ')+f.missing_fields.join(', '),'momo-missing'));
-      c.append(button(t('Send approved email','إرسال بريد بعد الموافقة'),()=>save('admin/momo-followups/'+encodeURIComponent(f.id)+'/contact',{})));
+      if(f.status!=='contacted')c.append(button(t('Send approved email','إرسال بريد بعد الموافقة'),()=>save('admin/momo-followups/'+encodeURIComponent(f.id)+'/contact',{})));
       c.append(button(t('Dismiss','تجاهل'),()=>save('admin/momo-followups/'+encodeURIComponent(f.id)+'/dismiss',{})));
     }
   }

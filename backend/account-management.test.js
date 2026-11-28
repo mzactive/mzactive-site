@@ -180,6 +180,7 @@ test('hiding a profile removes public surfaces while keeping login and records, 
     const { admin, coach } = await registerAccounts(env);
     const profileId = db.prepare('SELECT id FROM provider_profiles WHERE user_id=?').get(coach.user.id).id;
     await approveCoach(env, admin.token, profileId);
+    db.prepare('UPDATE provider_profiles SET bio=? WHERE id=?').run('Running coach in Doha.', profileId);
     const before = await call(env, 'providers');
     assert.equal(before.providers.some((p) => p.id === profileId), true);
 
@@ -505,6 +506,7 @@ test('super admin grants and removes coach verification without changing approva
   const {admin,member,coach}=await registerAccounts(env);
   const id=db.prepare('SELECT id FROM provider_profiles WHERE user_id=?').get(coach.user.id).id;
   await approveCoach(env,admin.token,id);
+  db.prepare('UPDATE provider_profiles SET bio=? WHERE id=?').run('Running coach in Doha.', id);
   const get=()=>db.prepare('SELECT verified,status,updated_at FROM provider_profiles WHERE id=?').get(id);
   const before=get(),path='admin/providers/'+id+'/verification';
   const body={verified:false,reason:'Credential review required',review_version:before.updated_at};

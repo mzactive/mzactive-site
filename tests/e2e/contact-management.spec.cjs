@@ -111,3 +111,32 @@ test('admin coach card opens a WhatsApp draft using the coach registered number'
   expect(call.body.intent).toBe('prepare');
   assertOfflineSafe(mock);
 });
+
+test('admin prepares a friendly coach profile reminder and can still open the draft if popups are blocked', async ({ page }) => {
+  const mock = await installApiMock(page, { overrides: {
+    'GET /api/me/access': adminAccess,
+    'GET /api/admin/applications': json({
+      providers: [], approved_providers: [approvedCoach()],
+      rejected_providers: [], suspended_providers: [], bookings: [],
+    }),
+    [`POST /api/admin/coaches/${COACH_ID}/contacts`]: json({
+      id: 'coach-reminder', status: 'drafted',
+      link: 'mailto:coach@example.invalid?subject=MZ%20Active',
+    }, 201),
+  } });
+  await seedSession(page, { storage: 'session' });
+  await page.goto('/admin.html');
+  await clickAdminTab(page, 'coaches');
+  await page.getByRole('button', { name: /^Approved \(1\)$/ }).click();
+  const card = page.locator(`.coach-card[data-record-id="${COACH_ID}"]`);
+  await card.locator('summary').click();
+  await card.getByRole('button', { name: 'Use profile completion reminder' }).click();
+  await expect(card.locator('.contact-tools textarea')).toHaveValue(/We’re here to help/);
+  await expect(card.locator('.contact-tools textarea')).toHaveValue(/dashboard.html#editCoachProfile/);
+  await page.evaluate(() => { window.open = () => null; });
+  await card.getByRole('button', { name: 'Prepare email' }).click();
+  await expect(card.getByRole('link', { name: 'Open prepared draft' })).toHaveAttribute('href', /^mailto:/);
+  const contact = mock.calls.find(c => c.method === 'POST' && c.path.endsWith('/contacts'));
+  expect(contact.body).toMatchObject({ channel: 'email', purpose: 'profile_support', intent: 'prepare' });
+  assertOfflineSafe(mock);
+});
