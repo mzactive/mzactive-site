@@ -121,9 +121,9 @@
   window.addEventListener('pagehide', preserveStudioDraft);
 
   const register = () => {
-    // The script URL is versioned so Cloudflare's cached canonical /sw.js
-    // cannot delay a PWA update. Bump this with each shell release.
-    navigator.serviceWorker.register('/sw.js?v=20261121b', { scope: '/' }).then(watchRegistration).catch(() => {
+    // The release query bypasses old CDN entries. Update checks also bypass
+    // the browser's HTTP cache for the worker and any imported scripts.
+    navigator.serviceWorker.register('/sw.js?v=20261128a', { scope: '/', updateViaCache: 'none' }).then(watchRegistration).catch(() => {
       // The site remains fully usable if the app shell is unavailable.
     });
   };

@@ -46,12 +46,12 @@ test('service worker keeps accounts, API traffic and private pages network-only'
 
 test('registration and offline fallback share the existing language system', () => {
   assert.match(register, /serviceWorker.*in navigator/);
-  assert.match(register, /register\(['"]\/sw\.js\?v=20261121b['"]/);
+  assert.match(register, /register\(['"]\/sw\.js\?v=20261128a['"]/);
   assert.match(register, /scope:\s*['"]\/['"]/);
   new Function(register);
   const offline = read('offline.html');
   assert.match(offline, /assets\/js\/language-preference\.js\?v=20261120c" defer/);
-  assert.match(offline, /assets\/js\/site-language\.js\?v=20261120h" defer/);
+  assert.match(offline, /assets\/js\/site-language\.js\?v=20261128a" defer/);
   assert.match(offline, /class="lang-toggle" id="siteLanguage"/);
   assert.match(offline, /data-en=/);
   assert.match(offline, /data-ar=/);
@@ -87,11 +87,11 @@ test('public footers include the compact bilingual MZA app link; the portal does
 });
 
 test('service worker cache refresh bypasses stale profile and language assets', () => {
-  assert.match(sw, /mza-shell-v9/);
+  assert.match(sw, /mza-shell-v10/);
   assert.match(sw, /\/assets\/js\/language-preference\.js\?v=20261120c/);
   assert.match(sw, /\/assets\/css\/site-theme\.css\?v=20261120h/);
   assert.match(sw, /\/assets\/css\/account-menu\.css\?v=20261120h/);
   assert.match(sw, /\/assets\/js\/account-menu\.js\?v=20261120h/);
   assert.match(sw, /\/assets\/js\/auth-session\.js\?v=20261120h/);
-  assert.match(sw, /\/assets\/js\/site-language\.js\?v=20261120h/);
+  assert.match(sw, /\/assets\/js\/site-language\.js\?v=20261128a/);
 });

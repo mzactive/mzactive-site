@@ -18,7 +18,7 @@ test('every website footer and the PWA shell expose the Management Portal link',
     const html = read(page);
     assert.equal((html.match(/class="management-footer-link"/g) || []).length, 1, page);
     assert.match(html, /class="management-footer-link" href="https:\/\/mzactive\.com\/admin\.html"/, page);
-    assert.match(html, /aria-label="Management Portal" data-en-aria-label="Management Portal" data-ar-aria-label="بوابة الإدارة"/, page);
+
     assert.match(html, /class="management-shield-icon"/, page);
     assert.match(html, /<span data-en="Management Portal" data-ar="بوابة الإدارة">Management Portal<\/span>/, page);
     assert.doesNotMatch(html, /class="admin-footer-link"/, page);

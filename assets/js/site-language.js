@@ -251,7 +251,7 @@
     toggles.forEach((toggle, index) => {
       const label = ar ? 'English' : 'العربية';
       if (toggleLabels[index].textContent !== label) toggleLabels[index].textContent = label;
-      const ariaLabel = ar ? 'التبديل إلى الإنجليزية' : 'Switch to Arabic';
+      const ariaLabel = ar ? 'English — التبديل إلى الإنجليزية' : 'العربية — Switch to Arabic';
       if (toggle.getAttribute('aria-label') !== ariaLabel) toggle.setAttribute('aria-label', ariaLabel);
     });
     document.body.querySelectorAll('.ar-only').forEach(el=>{ if(el.hidden !== !ar) el.hidden=!ar; });

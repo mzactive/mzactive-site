@@ -109,7 +109,7 @@ test('vision page carries full bilingual content and RTL language detection', ()
     assert.ok(html.includes(phrase), phrase);
   }
   assert.match(html, /assets\/js\/language-preference\.js\?v=20261120c/);
-  assert.match(html, /assets\/js\/site-language\.js\?v=20261120h/);
+  assert.match(html, /assets\/js\/site-language\.js\?v=20261128a/);
   assert.match(html, /<button class="lang-toggle" type="button"/);
   assert.match(html, /class="footer-vision-link"[^>]*aria-current="page"/);
 });

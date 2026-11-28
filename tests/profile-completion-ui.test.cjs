@@ -70,7 +70,7 @@ test('optional qualifications and private CVs do not reduce the completion score
 });
 
 test('installed MZA PWA caches the completion assets in a fresh shell', () => {
-  assert.match(sw, /const CACHE = ['"]mza-shell-v9['"]/);
+  assert.match(sw, /const CACHE = ['"]mza-shell-v10['"]/);
   assert.ok(sw.includes('/assets/css/profile-completion.css?v=20261122c'));
   assert.ok(sw.includes('/assets/js/profile-completion.js?v=20261122c'));
 });
