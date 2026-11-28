@@ -59,3 +59,16 @@ test('a signed-in user without a Pacer profile sees the Pacer application on the
   await expect(page.locator('#pacerContent')).toBeHidden();
   assertOfflineSafe(mock);
 });
+
+test('the public Pacers page offers sign-in next to registration and opens the dedicated sign-in screen', async ({ page }) => {
+  const mock = await installApiMock(page);
+  await page.goto('/pacer.html');
+  const signIn = page.getByRole('link', { name: 'Pacer sign-in' });
+  await expect(signIn).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Join as a Pacer', exact: true })).toHaveAttribute('href', 'pacer-register.html');
+  await signIn.click();
+  await expect(page.getByRole('heading', { name: 'Pacer sign-in' })).toBeVisible();
+  await expect(page.locator('#loginEmail')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Create an athlete account' })).toBeHidden();
+  assertOfflineSafe(mock);
+});

@@ -29,6 +29,9 @@
 #myProfilePanel #openCoachDashboard { display: inline-flex; align-items: center; justify-content: center; color: #14332e; }
 </style>
   <style>
+    .pacer-sign-in main > .hero,
+    .pacer-sign-in #auth :is(.auth-story, .auth-switch, .auth-coach-link, #registerForm) { display: none; }
+    .pacer-sign-in #auth.studio-auth { grid-template-columns: minmax(0, 520px); justify-content: center; }
     .athlete-workspace main > .hero { display: none; }
     .athlete-workspace #dashboard { padding-block-start: 14px; }
     .athlete-workspace .dashboard-top { margin-block: 0 12px; gap: 8px; }
@@ -419,9 +422,23 @@
       const result=await api('/api/me/profile');if(result.profile?.status==='approved'&&['coach','bodybuilding_coach'].includes(result.profile.provider_type)){location.replace('/coach-studio.html'+(nativeView?'?view='+nativeView:''));return true}
       return false;
     }
+    const pacerSignIn = new URLSearchParams(location.search).get('next') === '/pacer-dashboard.html';
+    if(pacerSignIn){
+      document.body.classList.add('pacer-sign-in');
+      const loginForm = $('loginForm');
+      const copy = [
+        [loginForm.querySelector('.premium-auth__eyebrow'), 'MZ ACTIVE / PACERS', 'MZ ACTIVE / المرافقون'],
+        [loginForm.querySelector('h2'), 'Pacer sign-in', 'دخول المرافقين'],
+        [loginForm.querySelector('.premium-auth__intro'), 'Sign in to your Pacer workspace.', 'سجّل الدخول إلى مساحة المرافق الرياضي.'],
+        [loginForm.querySelector('p.muted'), 'Use the email and password you used to apply as a Pacer.', 'استخدم البريد الإلكتروني وكلمة المرور اللذين استخدمتهما عند تقديم طلب الانضمام.'],
+      ];
+      for(const [element,en,ar] of copy){
+        element.dataset.en=en;element.dataset.ar=ar;element.textContent=lang==='ar'?ar:en;
+      }
+    }
     async function start(){
       if(sessionBusy)return;const current=token();if(!current){setSignedIn(false);return}
-      if(new URLSearchParams(location.search).get('next')==='/pacer-dashboard.html'){
+      if(pacerSignIn){
         location.replace('/pacer-dashboard.html');return
       }
       sessionBusy=true;checkingSession();
