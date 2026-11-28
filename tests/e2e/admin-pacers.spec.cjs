@@ -20,6 +20,10 @@ const pacers = json({
     status: 'pending', verified: false, experience: '10 years running',
     distances: ['10K', 'Half Marathon'], paces: { '10K': '4:30' },
     availability: 'Weekend mornings', created_at: CREATED,
+  }, {
+    id: 'approved-pacer', display_name: 'E2E Approved Pacer', status: 'approved', verified: true,
+  }, {
+    id: 'rejected-pacer', display_name: 'E2E Rejected Pacer', status: 'rejected', verified: false,
   }],
 });
 
@@ -47,5 +51,24 @@ test('Admin Portal reviews independent Pacer applications and requests', async (
   await expect(page.locator('#view')).toContainText('Independent Pacer review');
   await expect(page.locator('#view')).toContainText('10K');
   await expect(page.locator('#view')).toContainText('Race pacing');
+  const profileButton = page.getByRole('button', { name: 'View profile · E2E Pacer Applicant' });
+  await profileButton.click();
+  const dialog = page.getByRole('dialog', { name: 'E2E Pacer Applicant' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('Weekend mornings');
+  await expect(dialog).toContainText('4:30');
+  await expect(dialog.getByRole('link', { name: 'Open public profile' })).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(profileButton).toBeFocused();
+  await page.getByRole('button', { name: 'View profile · E2E Approved Pacer' }).click();
+  const approved = page.getByRole('dialog', { name: 'E2E Approved Pacer' });
+  await expect(approved.getByRole('link', { name: 'Open public profile' })).toHaveAttribute('href', '/pacer-profile.html?id=approved-pacer');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'View profile · E2E Rejected Pacer' }).click();
+  const rejected = page.getByRole('dialog', { name: 'E2E Rejected Pacer' });
+  await expect(rejected).toContainText('Rejected');
+  await expect(rejected.getByRole('link', { name: 'Open public profile' })).toHaveCount(0);
+  await expect(mock.calls.filter(call=>call.method==='PATCH')).toHaveLength(0);
   assertOfflineSafe(mock);
 });

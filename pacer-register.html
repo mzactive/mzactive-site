@@ -66,10 +66,10 @@ const button = byId('submitPacer');
 const status = byId('status');
 const continueProfile = byId('continueProfile');
 
-async function post(path, body) {
+async function post(path, body, token) {
   const response = await fetch(apiBase + path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) },
     body: JSON.stringify(body),
   });
   const data = await response.json();
@@ -93,8 +93,24 @@ form.addEventListener('submit', async event => {
     city: val('city'),
     consent: byId('consent').checked,
   };
+  let session;
   try {
-    await post('/api/pacer/register', body);
+    try {
+      await post('/api/pacer/register', body);
+    } catch (error) {
+      if (error.message !== 'account_already_exists') throw error;
+      try {
+        session = await post('/api/auth/login', { email: body.email, password: body.password });
+        if (!session.token) throw new Error('pacer_session_unavailable');
+      } catch {
+        throw error;
+      }
+      try {
+        await post('/api/pacer/register', body, session.token);
+      } catch (profileError) {
+        if (profileError.message !== 'pacer_profile_exists') throw profileError;
+      }
+    }
   } catch (error) {
     const messages = {
       account_already_exists: t('This email is already registered. Sign in with your existing account.', 'هذا البريد مسجل بالفعل. سجّل الدخول بحسابك الحالي.'),
@@ -112,10 +128,10 @@ form.addEventListener('submit', async event => {
   status.textContent = t('Account created. Opening your Pacer profile…', 'تم إنشاء الحساب. جارٍ فتح ملفك كمرافق…');
   try {
     const auth = window.MZActiveAuth;
-    const session = await post('/api/auth/login', { email: body.email, password: body.password });
+    session ||= await post('/api/auth/login', { email: body.email, password: body.password });
     if (typeof session.token !== 'string' || !session.token) throw new Error('pacer_session_unavailable');
     auth.store(session);
-    location.assign(continueProfile.href);
+    location.assign("/pacer-dashboard.html");
   } catch {
     status.textContent = t('Account created. Sign in to complete your Pacer profile. Your application is pending review.', 'تم إنشاء الحساب. سجّل الدخول لإكمال ملفك كمرافق. طلبك قيد المراجعة.');
     continueProfile.hidden = false;

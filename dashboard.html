@@ -28,6 +28,26 @@
 #myProfilePanel .own-stats > * { background: #e2f0e8; color: #173c35; border-color: #afc9bf; }
 #myProfilePanel #openCoachDashboard { display: inline-flex; align-items: center; justify-content: center; color: #14332e; }
 </style>
+  <style>
+    .pacer-sign-in main > .hero,
+    .pacer-sign-in #auth :is(.auth-story, .auth-switch, .auth-coach-link, #registerForm) { display: none; }
+    .pacer-sign-in #auth.studio-auth { grid-template-columns: minmax(0, 520px); justify-content: center; }
+    .athlete-workspace main > .hero { display: none; }
+    .athlete-workspace #dashboard { padding-block-start: 14px; }
+    .athlete-workspace .dashboard-top { margin-block: 0 12px; gap: 8px; }
+    .athlete-workspace .dashboard-top h2 { margin-block: 4px; }
+    .athlete-workspace #dashboard .panel { padding: clamp(12px, 2.3vw, 18px); margin-block: 10px; border-radius: 14px; }
+    .athlete-workspace #dashboard .panel :is(h2,h3) { margin-block: 0 8px; }
+    .athlete-workspace .athlete-cover:not(:has(img:not([hidden]))) { display: none; }
+    .athlete-workspace .athlete-cover:not(:has(img:not([hidden]))) + .athlete-identity { padding-inline: 0; }
+    .athlete-workspace .athlete-cover:not(:has(img:not([hidden]))) + .athlete-identity .athlete-photo { margin-block-start: 0; }
+    .athlete-workspace .athlete-copy { padding-block-start: 0; }
+    .athlete-workspace .athlete-copy .own-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+    .athlete-workspace .athlete-copy .own-stats b { margin-inline-end: .3em; }
+    .athlete-workspace .athlete-actions { padding-block-start: 0; }
+    .athlete-workspace .athlete-actions .btn { display: inline-flex; align-items: center; padding: 6px 12px; text-decoration: none; }
+    .athlete-workspace .profile-social-tabs { gap: 6px; padding-inline: 0; }
+  </style>
 </head>
 <body><script src="assets/js/language-preference.js?v=20261120c"></script>
   <header><div class="wrap"><a class="brand" href="index.html"><img src="assets/brand/mzactive-logo.webp" alt="MZ Active"></a><nav class="nav"><a href="index.html" data-en="Home" data-ar="الرئيسية">Home</a><a href="coaches.html" data-en="Find a Coach" data-ar="ابحث عن مدرب">Find a Coach</a><a href="pacer.html" data-en="Pacers" data-ar="المرافقون">Pacers</a><a href="providers.html" data-en="Join as a Coach" data-ar="انضم كمدرب">Join as a Coach</a><button class="lang-toggle" id="lang" type="button">العربية</button></nav></div></header>
@@ -172,13 +192,13 @@
         <details id="coachBlogDetails" class="coach-tools"><summary>Open coach blog</summary><form id="coachBlogForm" class="panel form-grid"><h2 data-en="Write a MZ Active blog post" data-ar="اكتب مقالاً في MZ Active">Write a MZ Active blog post</h2><p class="muted" data-en="Submit your own article or an AI-assisted draft. It stays private until you review it and the owner publishes it." data-ar="أرسل مقالك أو مسودة بمساعدة الذكاء الاصطناعي. يبقى خاصاً حتى تراجعه وينشره المالك.">Submit your own article or an AI-assisted draft. It stays private until you review it and the owner publishes it.</p><div class="field"><label for="coachBlogLanguage" data-en="Article language" data-ar="لغة المقال">Article language</label><select id="coachBlogLanguage" name="language"><option value="en">English</option><option value="ar">العربية</option></select></div><div class="field"><label for="coachBlogTitle" data-en="Title" data-ar="العنوان">Title</label><input id="coachBlogTitle" name="title" maxlength="120" required></div><div class="field"><label for="coachBlogSummary" data-en="Short summary" data-ar="ملخص قصير">Short summary</label><textarea id="coachBlogSummary" name="summary" maxlength="400" rows="2" required></textarea></div><div class="field"><label for="coachBlogBody" data-en="Article" data-ar="المقال">Article</label><textarea id="coachBlogBody" name="body" maxlength="8000" rows="10" required></textarea></div><button data-en="Submit article for review" data-ar="أرسل المقال للمراجعة">Submit article for review</button><div id="coachBlogPosts" class="form-grid"></div></form></details>
         <div id="coachTeamCreatePanel" class="panel"><h2 id="teamsHeading" data-en="Your teams" data-ar="فرقك">Your teams</h2><form id="createTeamForm" class="form-row"><div class="field"><label for="teamName" data-en="Team name" data-ar="اسم الفريق">Team name</label><input id="teamName" name="name" maxlength="80" required></div><div id="coachAssignment" class="field hidden"><label for="teamCoach" data-en="Assign to coach" data-ar="اختر المدرب">Assign to coach</label><select id="teamCoach" name="coach_user_id" required></select></div><button data-en="Create team" data-ar="إنشاء فريق">Create team</button></form><p id="teamHelp" class="muted" data-en="Share the team code with members so they can join." data-ar="شارك رمز الفريق مع الأعضاء ليتمكنوا من الانضمام.">Share the team code with members so they can join.</p></div><div id="coachTeams" class="cards"></div>
       </section>
-      <section id="memberPanel" class="hidden"><div class="panel"><a class="btn" href="/athlete-studio.html" data-en="Open new Athlete Studio" data-ar="افتح مساحة الرياضي الجديدة">Open new Athlete Studio</a></div>
+      <section id="memberPanel" class="hidden">
         <section id="athleteProfilePanel" class="panel athlete-profile-panel">
           <div class="athlete-cover" aria-hidden="true"></div>
           <div class="athlete-identity">
             <div class="athlete-photo"><div id="athleteAvatar" aria-hidden="true"></div><img id="athletePortrait" alt="" hidden></div>
             <div class="athlete-copy"><div class="name-line"><h2 id="athleteName" data-en="Your athlete profile" data-ar="ملفك كرياضي">Your athlete profile</h2></div><p id="athleteMeta" class="item-meta"></p><p id="athleteGoals" class="muted"></p><div id="athleteStats" class="own-stats"></div></div>
-            <div class="athlete-actions"><a class="btn" href="community.html#sportsProfileSection" data-en="Edit profile" data-ar="تعديل الملف">Edit profile</a><a class="btn secondary" href="ai-coach.html" data-en="Build a plan with MZA AI Coach" data-ar="أنشئ خطة مع مدرب MZA الذكي">Build a plan with MZA AI Coach</a></div>
+            <div class="athlete-actions"><a class="btn" href="/athlete-studio.html" data-en="Athlete Studio" data-ar="مساحة الرياضي">Athlete Studio</a><a class="btn" href="community.html#sportsProfileSection" data-en="Edit profile" data-ar="تعديل الملف">Edit profile</a><a class="btn secondary" href="ai-coach.html" data-en="Build a plan with MZA AI Coach" data-ar="أنشئ خطة مع مدرب MZA الذكي">Build a plan with MZA AI Coach</a></div>
           </div>
           <nav id="athleteProfileTabs" class="profile-social-tabs" role="tablist" aria-label="Athlete profile sections">
             <button type="button" class="social-tab" data-athlete-tab="programs" aria-selected="true" data-en="Programs" data-ar="البرامج">Programs</button>
@@ -271,7 +291,7 @@
         actions.append(reuse,resend);week.append(actions);
       }athlete.append(week)}details.append(athlete)}host.append(details)}
     document.addEventListener('mzactive:athlete-log-updated',event=>{if(event.detail?.role==='member')renderProgramHistory(event.detail.programs||[],false)});
-    async function loadDashboard(){notice(w().pleaseWait);const data=await api('/api/dashboard');window.mzStudioDashboard=data;setSignedIn(true);const admin=data.role==='admin',coach=data.role==='provider';$('coachPanel').classList.toggle('hidden',!coach&&!admin);$('memberPanel').classList.toggle('hidden',data.role!=='member');$('roleLabel').textContent=admin?w().admin:coach?w().coach:w().member;$('welcome').textContent=admin?w().adminWelcome:coach?w().coachWelcome:w().memberWelcome;$('teamsHeading').textContent=admin?w().allTeams:w().coachTeamsTitle||'Your teams';$('coachProfilePanel').classList.toggle('hidden',admin);$('myProfilePanel').classList.toggle('hidden',!coach);$('whatsappTrainingForm').classList.toggle('hidden',admin);$('writeProgramJump').classList.toggle('hidden',!coach);$('editCoachProfile').classList.toggle('hidden',!coach);$('coachBlogDetails').classList.toggle('hidden',!coach);$('coachAiPanel').classList.toggle('hidden',!coach);$('coachBlogForm').classList.toggle('hidden',!coach);$('coachAssignment').classList.toggle('hidden',!admin);$('teamCoach').required=admin;$('teamHelp').textContent=admin?w().adminTeamHelp:w().coachTeamHelp;if(admin){const select=$('teamCoach');select.replaceChildren();for(const person of data.coaches||[]){const option=document.createElement('option');option.value=person.user_id;option.textContent=person.display_name;select.append(option)}$('createTeamForm').querySelector('button').disabled=!(data.coaches||[]).length}if(coach){populateProgramTargets(data.teams);renderProgramHistory(data.programs||[],true)}if(data.role==='member')renderProgramHistory(data.programs||[],false);const target=$(coach||admin?'coachTeams':'memberTeams');target.replaceChildren();for(const team of data.teams||[])target.append(coach||admin?renderCoachTeam(team):renderMemberTeam(team));if((coach||admin)&&!(data.teams||[]).length)target.append(node('div','empty',admin?w().noAdminTeams:w().createTeam));if(data.role==='member'&&!(data.teams||[]).length)target.append(node('div','empty',w().noTeams));if(coach){await loadCoachProfileLink();await loadCoachBlogPosts()}notice('');document.dispatchEvent(new CustomEvent('mzactive:dashboard-loaded',{detail:data}));return data}
+    async function loadDashboard(){notice(w().pleaseWait);const data=await api('/api/dashboard');window.mzStudioDashboard=data;document.body.classList.toggle('athlete-workspace',data.role==='member');setSignedIn(true);const admin=data.role==='admin',coach=data.role==='provider';$('coachPanel').classList.toggle('hidden',!coach&&!admin);$('memberPanel').classList.toggle('hidden',data.role!=='member');$('roleLabel').textContent=admin?w().admin:coach?w().coach:w().member;$('welcome').textContent=admin?w().adminWelcome:coach?w().coachWelcome:w().memberWelcome;$('teamsHeading').textContent=admin?w().allTeams:w().coachTeamsTitle||'Your teams';$('coachProfilePanel').classList.toggle('hidden',admin);$('myProfilePanel').classList.toggle('hidden',!coach);$('whatsappTrainingForm').classList.toggle('hidden',admin);$('writeProgramJump').classList.toggle('hidden',!coach);$('editCoachProfile').classList.toggle('hidden',!coach);$('coachBlogDetails').classList.toggle('hidden',!coach);$('coachAiPanel').classList.toggle('hidden',!coach);$('coachBlogForm').classList.toggle('hidden',!coach);$('coachAssignment').classList.toggle('hidden',!admin);$('teamCoach').required=admin;$('teamHelp').textContent=admin?w().adminTeamHelp:w().coachTeamHelp;if(admin){const select=$('teamCoach');select.replaceChildren();for(const person of data.coaches||[]){const option=document.createElement('option');option.value=person.user_id;option.textContent=person.display_name;select.append(option)}$('createTeamForm').querySelector('button').disabled=!(data.coaches||[]).length}if(coach){populateProgramTargets(data.teams);renderProgramHistory(data.programs||[],true)}if(data.role==='member')renderProgramHistory(data.programs||[],false);const target=$(coach||admin?'coachTeams':'memberTeams');target.replaceChildren();for(const team of data.teams||[])target.append(coach||admin?renderCoachTeam(team):renderMemberTeam(team));if((coach||admin)&&!(data.teams||[]).length)target.append(node('div','empty',admin?w().noAdminTeams:w().createTeam));if(data.role==='member'&&!(data.teams||[]).length)target.append(node('div','empty',w().noTeams));if(coach){await loadCoachProfileLink();await loadCoachBlogPosts()}notice('');document.dispatchEvent(new CustomEvent('mzactive:dashboard-loaded',{detail:data}));return data}
     function renderProgramProgress(team,coach){
       const root=node('section','program-progress');root.append(node('h4','subhead',w().programTitle));
       const programs=[...(team.programs||[])].sort((a,b)=>a.week_start.localeCompare(b.week_start));
@@ -402,21 +422,30 @@
       const result=await api('/api/me/profile');if(result.profile?.status==='approved'&&['coach','bodybuilding_coach'].includes(result.profile.provider_type)){location.replace('/coach-studio.html'+(nativeView?'?view='+nativeView:''));return true}
       return false;
     }
+    const pacerSignIn = new URLSearchParams(location.search).get('next') === '/pacer-dashboard.html';
+    if(pacerSignIn){
+      document.body.classList.add('pacer-sign-in');
+      const loginForm = $('loginForm');
+      const copy = [
+        [loginForm.querySelector('.premium-auth__eyebrow'), 'MZ ACTIVE / PACERS', 'MZ ACTIVE / المرافقون'],
+        [loginForm.querySelector('h2'), 'Pacer sign-in', 'دخول المرافقين'],
+        [loginForm.querySelector('.premium-auth__intro'), 'Sign in to your Pacer workspace.', 'سجّل الدخول إلى مساحة المرافق الرياضي.'],
+        [loginForm.querySelector('p.muted'), 'Use the email and password you used to apply as a Pacer.', 'استخدم البريد الإلكتروني وكلمة المرور اللذين استخدمتهما عند تقديم طلب الانضمام.'],
+      ];
+      for(const [element,en,ar] of copy){
+        element.dataset.en=en;element.dataset.ar=ar;element.textContent=lang==='ar'?ar:en;
+      }
+    }
     async function start(){
       if(sessionBusy)return;const current=token();if(!current){setSignedIn(false);return}
+      if(pacerSignIn){
+        location.replace('/pacer-dashboard.html');return
+      }
       sessionBusy=true;checkingSession();
       try{
         const access=await api('/api/me/access');if(token()!==current){setSignedIn(false);return}
         const destination=window.MZActiveAuth.destination(access);
         const params=new URLSearchParams(location.search), workout=params.get('workout');
-        if(params.get('next')==='/pacer-dashboard.html' && destination==='/providers.html'){
-          try{
-            const result=await api('/api/pacer/profile');
-            if(token()===current && result.profile?.status==='pending'){location.replace('/pacer-dashboard.html');return}
-          }catch(error){
-            if(error.status!==404) throw error;
-          }
-        }
         if(destination!=='/dashboard.html'){location.replace(destination);return}
         if(access.account_type==='member'&&window.MZActiveAuth.isWorkoutId(workout)){location.replace('/athlete-studio.html?workout='+encodeURIComponent(workout));return}
         const next=params.get('next');

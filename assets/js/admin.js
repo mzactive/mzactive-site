@@ -1332,6 +1332,38 @@
     h.append(monogram,node('h2',title));
     const close=node('button',t('Close','إغلاق'),'crm-close');close.type='button';close.onclick=onClose;h.append(close);return h;
   }
+  function openPacerProfile(profile, trigger){
+    const dialog=node('dialog',null,'crm-dialog athlete-drawer');
+    const shell=node('div',null,'crm-shell');
+    const header=crmHeader(profile.display_name || t('Pacer profile','ملف المرافق'),()=>dialog.close());
+    header.querySelector('h2').id='pacerProfileTitle';
+    dialog.setAttribute('aria-labelledby','pacerProfileTitle');
+    const body=node('div',null,'crm-body');
+    const section=crmSection(t('Pacer profile','ملف المرافق'),'pacerProfileDetails');
+    const fields=node('div',null,'crm-fields');
+    const list=value=>Array.isArray(value)?value.join(', '):'';
+    const paces=Object.entries(profile.paces||{}).map(([distance,pace])=>distance+' · '+pace).join(', ');
+    fields.append(
+      crmField(t('Location','الموقع'),[profile.city,profile.country].filter(Boolean).join(' · ')),
+      crmField(t('Review status','حالة المراجعة'),profile.status==='suspended'?t('Suspended','معلّق'):name(profile.status)),
+      crmField(t('Verification','التحقق'),profile.verified?t('Verified','موثّق'):t('Not verified','غير موثّق')),
+      crmField(t('Languages','اللغات'),list(profile.languages)),
+      crmField(t('Distances','المسافات'),list(profile.distances)),
+      crmField(t('Pacing targets','الوتيرة المستهدفة'),paces),
+      crmField(t('Availability','الأوقات المناسبة'),profile.availability),
+      crmField(t('Experience','الخبرة'),profile.experience),
+      crmField(t('Achievements','الإنجازات'),profile.achievements),
+      crmField(t('Bio','النبذة'),profile.bio)
+    );
+    section.append(fields);
+    if(profile.status==='approved'){
+      section.append(link(t('Open public profile','افتح الملف العام'),'/pacer-profile.html?id='+encodeURIComponent(profile.id)));
+    }
+    body.append(section);shell.append(header,body);dialog.append(shell);
+    dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close()});
+    dialog.addEventListener('close',()=>{dialog.remove();trigger.focus()},{once:true});
+    document.body.append(dialog);dialog.showModal();
+  }
   function renderAthleteDetail(dialog,data){
     const a=data.athlete||{},shell=node('div',null,'crm-shell');
     shell.append(crmHeader(a.name||a.email||t('Athlete','رياضي'),()=>dialog.close()));
@@ -1638,6 +1670,11 @@
       for(const p of data.pacers||[]){
         const c=card(grid,p.display_name,[p.city,p.country,p.status,p.verified?t('Verified','موثّق'):t('Not verified','غير موثّق')].filter(Boolean).join(' · '),p.id);
         c.append(node('p',null,[p.experience,(p.distances||[]).join(' · ')].filter(Boolean).join(' · ')));
+        const view=node('button',t(...labels.view_profile));
+        view.type='button';
+        view.setAttribute('aria-label',t(...labels.view_profile)+' · '+p.display_name);
+        view.onclick=()=>openPacerProfile(p,view);
+        c.append(view);
         if(p.status!=='approved')c.append(button(t('Approve','موافقة'),async()=>{await api('admin/pacers/'+encodeURIComponent(p.id),{method:'PATCH',body:{status:'approved',verified:true}});await render()}));
         if(p.status!=='rejected')c.append(button(t('Reject','رفض'),async()=>{await api('admin/pacers/'+encodeURIComponent(p.id),{method:'PATCH',body:{status:'rejected',verified:false}});await render()}));
         if(p.status==='approved')c.append(button(t('Suspend','تعليق'),async()=>{await api('admin/pacers/'+encodeURIComponent(p.id),{method:'PATCH',body:{status:'suspended',verified:false}});await render()}));
