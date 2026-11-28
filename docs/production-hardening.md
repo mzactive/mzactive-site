@@ -54,3 +54,10 @@ The three recovery cards still use the original photographs. The 320 px WebP der
 An actual staged PWA update from v9 to v10 was exercised. Choosing Later left v9 active. Explicit confirmation activated v10 and retired the previous cache. Offline navigation to the management page returned the generic offline screen. Unlisted assets and API responses stayed outside Cache Storage. Chromium and an iPhone-sized WebKit session verified the mobile UI. Native Add to Home Screen on a physical iPhone remains a device check.
 
 [SSL Labs rating guide](https://github.com/ssllabs/research/wiki/SSL-Server-Rating-Guide) · [Cloudflare minimum TLS settings](https://developers.cloudflare.com/ssl/edge-certificates/additional-options/minimum-tls/) · [Cloudflare response header transforms](https://developers.cloudflare.com/rules/transform/response-header-modification/)
+
+## Release verification
+
+- Static checks passed 237 tests. Backend checks passed 165 tests. The GitHub release-check workflow passed.
+- The recorded full Playwright comparison on loopback had 623 passing, 77 failing and 2 skipped on main. The hardening run had 632 passing, 68 failing and 2 skipped. Every failure in the hardening run also failed on main. The branch evolved during that run, so the focused suites were also rerun against the final hosted preview.
+- The final hosted run passed 60 tests and skipped 2. One desktop navigation check timed out on the first run and passed both isolated retries. Booking and mobile navigation ran with synthetic fixtures.
+- Comparable quiet mobile Lighthouse lab runs measured production at 100 performance, 96 accessibility, LCP 1.76 s, CLS 0.003 and TBT 31 ms. The hosted preview scored 98 performance and 100 accessibility with LCP 1.36 s, CLS 0.083 and TBT 19 ms. Staging's isolation produced expected console errors for the blocked production API connections. Its noindex header also affects the SEO score. This is a lab snapshot.
