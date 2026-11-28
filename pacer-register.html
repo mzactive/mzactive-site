@@ -5,6 +5,7 @@
 <title data-en="Become a Pacer | MZ Active" data-ar="انضم كمنظّم وتيرة الجري | MZ Active">انضم كمنظّم وتيرة الجري | MZ Active</title>
 <link rel="stylesheet" href="assets/css/site-theme.css?v=20261120h">
 <script src="assets/js/api-base.js?v=20261120f"></script>
+<script src="assets/js/auth-session.js?v=20261120h"></script>
 <script src="assets/js/language-preference.js?v=20261120c"></script>
 <style>
 body{margin:0;background:#091d21;color:#f0f5f3;font:16px/1.6 Arial,sans-serif}
@@ -50,9 +51,9 @@ body.pacer-registration input:not([type=checkbox]){background:#fff!important;col
 <label class="consent"><input id="consent" type="checkbox" required><span data-en="I consent to processing my application and reviewing my profile before publication." data-ar="أوافق على معالجة طلبي ومراجعة ملفي قبل نشره.">I consent to processing my application and reviewing my profile before publication.</span></label>
 <button type="submit" id="submitPacer" data-en="Create my Pacer account" data-ar="أنشئ حسابي كمرافق">Create my Pacer account</button>
 <p id="status" class="status" role="status" aria-live="polite" data-user-content></p>
-<a id="continueProfile" href="pacer-dashboard.html" hidden data-en="Continue to my profile" data-ar="انتقل إلى ملفي">Continue to my profile</a>
+<a id="continueProfile" href="dashboard.html#loginForm" hidden data-en="Sign in to complete my profile" data-ar="سجّل الدخول لإكمال ملفك">Sign in to complete my profile</a>
 </form>
-<p class="lead"><a href="login.html" data-en="Already have an account? Log in" data-ar="لديك حساب؟ سجّل الدخول">Already have an account? Log in</a></p>
+<p class="lead"><a href="dashboard.html#loginForm" data-en="Already have an account? Log in" data-ar="لديك حساب؟ سجّل الدخول">Already have an account? Log in</a></p>
 </main></div>
 <script src="assets/js/site-language.js?v=20261128a"></script>
 <script>
@@ -60,16 +61,66 @@ const apiBase=window.MZACTIVE_API_BASE||'';
 const byId=id=>document.getElementById(id);
 const val=id=>byId(id).value.trim();
 const t=(en,ar)=>document.documentElement.lang==='ar'?ar:en;
-byId('pacerForm').addEventListener('submit',async e=>{
- e.preventDefault();const status=byId('status'),button=byId('submitPacer');button.disabled=true;
- status.textContent=t('Creating your account…','جارٍ إنشاء الحساب…');
- const body={display_name:val('display_name'),email:val('email'),password:byId('password').value,phone:val('phone'),country:val('country'),city:val('city'),consent:byId('consent').checked};
- try{
- const r=await fetch(apiBase+'/api/pacer/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
- const d=await r.json();if(!r.ok)throw Error(d.error||'failed');
- status.textContent=t('Account created. Sign in to complete your profile. Your application is pending review.','تم إنشاء الحساب. سجّل الدخول لإكمال ملفك. طلبك قيد المراجعة.');
- byId('pacerForm').reset();byId('continueProfile').href='login.html';byId('continueProfile').textContent=t('Sign in to complete my profile','سجّل الدخول لإكمال ملفك');byId('continueProfile').hidden=false;
- }catch(err){status.textContent=err.message==='account_already_exists'?t('This email is already registered. Please sign in.','هذا البريد مسجل بالفعل. يرجى تسجيل الدخول.'):t('Unable to create your account. Please check your details and try again.','تعذر إنشاء الحساب. تحقق من بياناتك وحاول مجدداً.');button.disabled=false;}
+const form = byId('pacerForm');
+const button = byId('submitPacer');
+const status = byId('status');
+const continueProfile = byId('continueProfile');
+
+async function post(path, body) {
+  const response = await fetch(apiBase + path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'failed');
+  return data;
+}
+
+form.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (button.disabled) return;
+  button.disabled = true;
+  continueProfile.hidden = true;
+  status.textContent = t('Creating your account…', 'جارٍ إنشاء الحساب…');
+
+  const body = {
+    display_name: val('display_name'),
+    email: val('email'),
+    password: byId('password').value,
+    phone: val('phone'),
+    country: val('country'),
+    city: val('city'),
+    consent: byId('consent').checked,
+  };
+  try {
+    await post('/api/pacer/register', body);
+  } catch (error) {
+    const messages = {
+      account_already_exists: t('This email is already registered. Sign in with your existing account.', 'هذا البريد مسجل بالفعل. سجّل الدخول بحسابك الحالي.'),
+      invalid_registration: t('Enter your full name and a valid email address, and accept the consent checkbox.', 'أدخل اسمك الكامل وبريداً إلكترونياً صالحاً وحدّد مربع الموافقة.'),
+      weak_password: t('Use a password with at least 8 characters.', 'استخدم كلمة مرور من ٨ أحرف على الأقل.'),
+    };
+    status.textContent = messages[error.message] || t('Unable to create your account right now. Please try again.', 'تعذّر إنشاء حسابك الآن. حاول مجدداً.');
+    continueProfile.hidden = error.message !== 'account_already_exists';
+    button.disabled = false;
+    return;
+  }
+
+  form.reset();
+  button.hidden = true;
+  status.textContent = t('Account created. Opening your Pacer profile…', 'تم إنشاء الحساب. جارٍ فتح ملفك كمرافق…');
+  try {
+    const auth = window.MZActiveAuth;
+    const session = await post('/api/auth/login', { email: body.email, password: body.password });
+    if (typeof session.token !== 'string' || !session.token || auth.destination(session) !== '/pacer-dashboard.html') {
+      throw new Error('pacer_session_unavailable');
+    }
+    location.assign(auth.store(session));
+  } catch {
+    status.textContent = t('Account created. Sign in to complete your Pacer profile. Your application is pending review.', 'تم إنشاء الحساب. سجّل الدخول لإكمال ملفك كمرافق. طلبك قيد المراجعة.');
+    continueProfile.hidden = false;
+  }
 });
 </script>
 </body>
