@@ -115,7 +115,7 @@ test('manage account is a spacious workspace with the required section order', (
 });
 
 test('account controls are cache-busted and no production identity is hard-coded', () => {
-  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261126-command-center/);
+  assert.match(adminHtml, /assets\/js\/admin\.js\?v=20261128-pacer-profile/);
   assert.match(adminHtml, /assets\/css\/admin\.css\?v=20261126-command-center/);
   assert.doesNotMatch(adminJs + worker + migration, /Tamim/i);
 });
